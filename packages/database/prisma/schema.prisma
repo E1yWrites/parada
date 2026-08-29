@@ -1,0 +1,257 @@
+// PARADA database schema
+// Authoritative data model for the PostgreSQL database.
+//
+// Architecture decisions reflected here (see docs/database/model.md):
+// - Zone-level occupancy is the authoritative metric.
+// - ParkingSlot is physical inventory only (layout/visual); NOT camera-derived occupancy.
+// - Occupancy changes happen through OccupancyEvent (ENTRY/EXIT), applied transactionally.
+// - OccupancyHistory preserves immutable snapshots for analytics/testing/audit.
+// - ParkingSession is ANONYMOUS (no vehicle/plate identity, no ANPR).
+// - available_count is derived (capacity - occupied_count) and never stored.
+// - occupied_count is cached on ParkingZone (O(1) reads), DB-constrained to [0, capacity].
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ZoneStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SlotStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CameraStatus {
+  ONLINE
+  OFFLINE
+}
+
+enum GateType {
+  ENTRY
+  EXIT
+  BIDIRECTIONAL
+}
+
+enum OccupancyEventType {
+  ENTRY
+  EXIT
+}
+
+enum OccupancySource {
+  CAMERA
+  SIMULATOR
+  MANUAL
+}
+
+enum ParkingSessionStatus {
+  ACTIVE
+  COMPLETED
+}
+
+enum NotificationType {
+  ZONE_FULL
+  ZONE_LOW_AVAILABILITY
+}
+
+// ---------------------------------------------------------------------------
+// User
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(USER)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([role])
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// ParkingZone
+// ---------------------------------------------------------------------------
+
+model ParkingZone {
+  id            String     @id @default(cuid())
+  name          String     @unique
+  code          String     @unique
+  description   String?
+  capacity      Int
+  occupiedCount Int        @default(0)
+  status        ZoneStatus @default(ACTIVE)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  slots            ParkingSlot[]
+  cameras          Camera[]
+  occupancyEvents  OccupancyEvent[]
+  occupancyHistory OccupancyHistory[]
+  parkingSessions  ParkingSession[]
+  notifications    Notification[]
+
+  @@index([status])
+  @@map("parking_zones")
+}
+
+// ---------------------------------------------------------------------------
+// ParkingSlot  (physical/logical inventory only - NOT camera-derived occupancy)
+// ---------------------------------------------------------------------------
+
+model ParkingSlot {
+  id        String     @id @default(cuid())
+  zoneId    String
+  slotCode  String
+  label     String
+  positionX Int?
+  positionY Int?
+  status    SlotStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  zone ParkingZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+
+  @@unique([zoneId, slotCode])
+  @@index([zoneId])
+  @@map("parking_slots")
+}
+
+// ---------------------------------------------------------------------------
+// Camera
+// ---------------------------------------------------------------------------
+
+model Camera {
+  id         String       @id @default(cuid())
+  zoneId     String
+  name       String
+  identifier String       @unique
+  location   String?
+  gateType   GateType     @default(BIDIRECTIONAL)
+  status     CameraStatus @default(OFFLINE)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  zone            ParkingZone      @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  occupancyEvents OccupancyEvent[]
+
+  @@index([zoneId])
+  @@map("cameras")
+}
+
+// ---------------------------------------------------------------------------
+// OccupancyEvent  (the critical single write-point for occupancy changes)
+// ---------------------------------------------------------------------------
+
+model OccupancyEvent {
+  id               String             @id @default(cuid())
+  zoneId           String
+  cameraId         String?
+  eventType        OccupancyEventType
+  previousOccupied Int
+  newOccupied      Int
+  availableCount   Int
+  source           OccupancySource    @default(CAMERA)
+  // client-supplied id for idempotency; unique per camera via @@unique
+  sourceEventId    String?
+  detectedAt       DateTime
+  processedAt      DateTime           @default(now())
+  createdAt        DateTime           @default(now())
+
+  zone   ParkingZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  camera Camera?     @relation(fields: [cameraId], references: [id], onDelete: SetNull)
+
+  sessionAsEntry ParkingSession? @relation("SessionEntry")
+  sessionAsExit  ParkingSession? @relation("SessionExit")
+
+  @@unique([cameraId, sourceEventId])
+  @@index([zoneId, detectedAt])
+  @@index([eventType])
+  @@map("occupancy_events")
+}
+
+// ---------------------------------------------------------------------------
+// OccupancyHistory  (immutable snapshot of zone occupancy state)
+// ---------------------------------------------------------------------------
+
+model OccupancyHistory {
+  id             String   @id @default(cuid())
+  zoneId         String
+  occupiedCount  Int
+  availableCount Int
+  occurredAt     DateTime @default(now())
+
+  zone ParkingZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+
+  @@index([zoneId, occurredAt])
+  @@map("occupancy_history")
+}
+
+// ---------------------------------------------------------------------------
+// ParkingSession  (ANONYMOUS parking presence - no vehicle/plate identity)
+// ---------------------------------------------------------------------------
+
+model ParkingSession {
+  id              String               @id @default(cuid())
+  zoneId          String
+  entryEventId    String               @unique
+  exitEventId     String?              @unique
+  enteredAt       DateTime
+  exitedAt        DateTime?
+  durationSeconds Int?
+  status          ParkingSessionStatus @default(ACTIVE)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  zone       ParkingZone     @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  entryEvent OccupancyEvent  @relation("SessionEntry", fields: [entryEventId], references: [id], onDelete: Restrict)
+  exitEvent  OccupancyEvent? @relation("SessionExit", fields: [exitEventId], references: [id], onDelete: SetNull)
+
+  @@index([zoneId, status])
+  @@index([enteredAt])
+  @@map("parking_sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Notification  (admin + driver alerts; minimal)
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id         String           @id @default(cuid())
+  zoneId     String
+  type       NotificationType
+  message    String
+  targetRole Role
+  read       Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  zone ParkingZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+
+  @@index([targetRole, read])
+  @@index([createdAt])
+  @@map("notifications")
+}

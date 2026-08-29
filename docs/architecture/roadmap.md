@@ -8,7 +8,7 @@ document -> STOP.
 |-------|-------|--------|
 | 0 | Requirements + Architecture | DONE |
 | 1 | Project Infrastructure | DONE |
-| 2 | Database | PENDING |
+| 2 | Database | DONE |
 | 3 | Backend Foundation | PENDING |
 | 4 | Authentication + Authorization | PENDING |
 | 5 | Parking Zones + Slots | PENDING |

@@ -2,11 +2,35 @@
   "name": "@parada/database",
   "version": "0.1.0",
   "private": true,
-  "description": "PARADA database package (Prisma schema + access)",
+  "description": "PARADA database package (Prisma schema + access + seed)",
   "scripts": {
-    "build": "echo \"(database) no build yet\"",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "generate": "prisma generate",
+    "format": "prisma format",
+    "validate": "prisma validate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed": "ts-node src/seed/index.ts",
+    "typecheck": "tsc --noEmit",
     "lint": "echo \"(database) lint ok\"",
-    "typecheck": "echo \"(database) typecheck ok\"",
-    "test": "echo \"(database) no tests yet\""
+    "test": "DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5433/parada_test?schema=public\" jest"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.19.0",
+    "@parada/config": "0.1.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.19.0",
+    "typescript": "^5.5.0",
+    "ts-node": "^10.9.2",
+    "@types/node": "^20.14.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.0",
+    "@types/jest": "^29.5.0",
+    "dotenv": "^16.4.0"
+  },
+  "prisma": {
+    "seed": "ts-node src/seed/index.ts"
   }
 }

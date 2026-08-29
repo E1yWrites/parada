@@ -1,0 +1,121 @@
+import "dotenv/config";
+import { prisma } from "../client";
+import { Role, GateType } from "@prisma/client";
+
+const ZONES = [
+  { name: "Zone A", code: "A", capacity: 20, description: "North parking area" },
+  { name: "Zone B", code: "B", capacity: 20, description: "East parking area" },
+  { name: "Zone C", code: "C", capacity: 10, description: "South parking area" },
+];
+
+// Placeholder hash for development only. Real password hashing is implemented in Phase 4 (auth).
+const DEV_PLACEHOLDER_HASH = "dev-placeholder-hash-phase4";
+
+async function seed() {
+  console.log("Seeding PARADA development data...");
+
+  // --- Zones ---
+  const zones: Record<string, { id: string }> = {};
+  for (const z of ZONES) {
+    const created = await prisma.parkingZone.upsert({
+      where: { code: z.code },
+      update: {
+        name: z.name,
+        description: z.description,
+        capacity: z.capacity,
+        status: "ACTIVE",
+      },
+      create: {
+        name: z.name,
+        code: z.code,
+        description: z.description,
+        capacity: z.capacity,
+        occupiedCount: 0,
+        status: "ACTIVE",
+      },
+    });
+    zones[z.code] = created;
+    console.log(`  zone ${z.code} (${created.name}) capacity=${z.capacity}`);
+  }
+
+  // --- Slots (layout/inventory only) ---
+  for (const z of ZONES) {
+    const zone = zones[z.code]!;
+    for (let n = 1; n <= z.capacity; n++) {
+      const slotCode = `${z.code}${String(n).padStart(2, "0")}`;
+      await prisma.parkingSlot.upsert({
+        where: { zoneId_slotCode: { zoneId: zone.id, slotCode } },
+        update: { label: slotCode, status: "ACTIVE" },
+        create: {
+          zoneId: zone.id,
+          slotCode,
+          label: slotCode,
+          positionX: n,
+          positionY: z.code.charCodeAt(0) - 65,
+          status: "ACTIVE",
+        },
+      });
+    }
+    console.log(`  slots for ${z.code}: ${z.capacity} created`);
+  }
+
+  // --- Cameras (Entry + Exit per zone) ---
+  for (const z of ZONES) {
+    const zone = zones[z.code]!;
+    const entries: { name: string; id: string; gate: GateType }[] = [
+      { name: `${z.name} Entry`, id: `cam-${z.code.toLowerCase()}-entry`, gate: "ENTRY" },
+      { name: `${z.name} Exit`, id: `cam-${z.code.toLowerCase()}-exit`, gate: "EXIT" },
+    ];
+    for (const cam of entries) {
+      await prisma.camera.upsert({
+        where: { identifier: cam.id },
+        update: { name: cam.name, zoneId: zone.id, gateType: cam.gate, status: "ONLINE" },
+        create: {
+          zoneId: zone.id,
+          name: cam.name,
+          identifier: cam.id,
+          location: `${z.name} gate`,
+          gateType: cam.gate,
+          status: "ONLINE",
+        },
+      });
+    }
+    console.log(`  cameras for ${z.code}: ${entries.length} created`);
+  }
+
+  // --- Users (1 admin + 1 user) ---
+  const admin = await prisma.user.upsert({
+    where: { email: "admin@parada.local" },
+    update: { role: "ADMIN", status: "ACTIVE", name: "Admin User" },
+    create: {
+      name: "Admin User",
+      email: "admin@parada.local",
+      passwordHash: DEV_PLACEHOLDER_HASH,
+      role: "ADMIN",
+      status: "ACTIVE",
+    },
+  });
+  const user = await prisma.user.upsert({
+    where: { email: "driver@parada.local" },
+    update: { role: "USER", status: "ACTIVE", name: "Driver User" },
+    create: {
+      name: "Driver User",
+      email: "driver@parada.local",
+      passwordHash: DEV_PLACEHOLDER_HASH,
+      role: "USER",
+      status: "ACTIVE",
+    },
+  });
+  console.log(`  users: admin=${admin.email} user=${user.email}`);
+
+  console.log("Seeding complete.");
+}
+
+seed()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
