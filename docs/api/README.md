@@ -1,13 +1,12 @@
 # PARADA API
 
 Backend HTTP API (`services/api`). Node.js + Express + TypeScript, backed by the
-`@parada/database` Prisma client. Deferred to Phase 4: `/auth` and authorization
-guards. All routes below are currently unauthenticated.
+`@parada/database` Prisma client.
 
 ## Running
 
 ```bash
-cp .env.example .env   # set DATABASE_URL, PORT, NODE_ENV
+cp .env.example .env   # set DATABASE_URL, PORT, NODE_ENV, JWT_SECRET
 npm run build
 npm start              # or: npm run dev
 ```
@@ -24,12 +23,82 @@ Error codes map to HTTP status:
 | HTTP | Code | Meaning |
 |------|------|---------|
 | 400 | `BAD_REQUEST` | Malformed/missing/invalid input |
-| 401 | `UNAUTHORIZED` | Not authenticated (Phase 4) |
-| 403 | `FORBIDDEN` | Insufficient role (Phase 4) |
-| 404 | `NOT_FOUND` | Unknown zone/camera/route |
-| 409 | `CONFLICT` | Idempotency/full/empty/zone-mismatch |
-| 422 | `UNPROCESSABLE` | Semantically invalid payload |
+| 401 | `UNAUTHORIZED` | Not authenticated or invalid/expired/revoked token |
+| 403 | `FORBIDDEN` | Insufficient role (USER vs ADMIN) |
+| 404 | `NOT_FOUND` | Unknown zone/camera/route/resource |
+| 409 | `CONFLICT` | Idempotency/full/empty/zone-mismatch/duplicate |
+| 422 | `UNPROCESSABLE` | Semantically invalid payload (e.g. weak password) |
 | 500 | `INTERNAL` | Unexpected error |
+
+## Authentication
+
+Stateless JWT (HS256) with server-side revocation for logout. Token payload:
+
+```json
+{ "sub": "<userId>", "jti": "<uuid>", "role": "USER|ADMIN" }
+```
+
+- `jti` (JWT ID) is a unique token identifier used for revocation.
+- On logout, the `jti` is stored in `revoked_tokens` table; subsequent requests with that token are rejected (401).
+- Token expiry configured via `JWT_EXPIRES_IN` (default `1d`).
+
+### Auth Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/auth/register` | No | Create account (USER role only) |
+| POST | `/auth/login` | No | Verify credentials, return JWT |
+| POST | `/auth/logout` | Yes | Revoke current token server-side |
+| GET | `/auth/me` | Yes | Return current user profile |
+
+#### `POST /auth/register`
+
+```json
+{ "name": "John Doe", "email": "john@example.com", "password": "Password123!" }
+```
+
+- Password min 8 characters.
+- Returns `{ user: PublicUser, token: string }`.
+- Role is always `USER` (ADMIN granted only via seed/admin action).
+
+#### `POST /auth/login`
+
+```json
+{ "email": "john@example.com", "password": "Password123!" }
+```
+
+- Generic error message prevents user enumeration.
+- Returns `{ user: PublicUser, token: string }`.
+
+#### `POST /auth/logout`
+
+Requires `Authorization: Bearer <token>`. Revokes the token's `jti`. Returns `204`.
+
+#### `GET /auth/me`
+
+Requires `Authorization: Bearer <token>`. Returns `PublicUser` (no `passwordHash`).
+
+### Making Authenticated Requests
+
+Include the JWT in the `Authorization` header:
+
+```
+Authorization: Bearer <token>
+```
+
+## Authorization
+
+### Roles
+
+- `USER` — Default role. Can manage own vehicles, view own sessions.
+- `ADMIN` — Can access admin endpoints (`/admin/*`), view all sessions/users.
+
+### Ownership Enforcement
+
+- `GET /vehicles`, `POST /vehicles`, `GET /vehicles/:id` — scoped to authenticated user's `userId`.
+- `GET /sessions`, `GET /sessions/active`, `GET /sessions/:id` — scoped to authenticated user's `userId`.
+- Client-supplied `userId` is **ignored**; ownership derived from token.
+- Admin endpoints (`/admin/sessions`, `/admin/users`) require `ADMIN` role (403 for USER).
 
 ## Endpoints
 
@@ -69,9 +138,51 @@ Behavior (single `$transaction`):
 
 Returns `201` with the created `occupancy_event`.
 
+### `GET /vehicles` (auth required)
+List authenticated user's registered vehicles.
+
+### `POST /vehicles` (auth required)
+Register a new vehicle for the authenticated user.
+```json
+{ "plateNumber": "ABC-1234", "vehicleType": "CAR" }
+```
+- `plateNumber` normalized (uppercase, alphanumeric only).
+- Duplicate plate for same user -> 422.
+
+### `GET /vehicles/:id` (auth required)
+Get a specific vehicle (only if owned by authenticated user).
+
+### `GET /sessions` (auth required)
+List authenticated user's parking sessions (with zone, vehicle, entry/exit events).
+
+### `GET /sessions/active` (auth required)
+Get authenticated user's currently active session, or `null`.
+
+### `GET /sessions/:id` (auth required)
+Get a specific session (only if owned by authenticated user).
+
+### `GET /admin/sessions` (ADMIN required)
+List all parking sessions across all users with user, zone, vehicle, events.
+
+### `GET /admin/users` (ADMIN required)
+List all users with vehicle/session counts (no password hashes).
+
 ## Tests
 
 `npm test` runs `jest` against the dedicated `parada_test_api` database (the
 `jest.setup.ts` guard refuses to run against any other DB). `@parada/database`
 tests use their own `parada_test` DB so the two suites can run in parallel under
 Turborepo without clobbering each other.
+
+## Development Credentials
+
+Seeded dev accounts (passwords are development-only, never use in production):
+
+| Email | Password | Role |
+|-------|----------|------|
+| `admin@parada.local` | `AdminPass123!` | ADMIN |
+| `driver@parada.local` | `DriverPass123!` | USER |
+
+Pre-registered vehicles:
+- `driver@parada.local`: `ABC-1234` (CAR), `XYZ-5678` (MOTORCYCLE)
+- `admin@parada.local`: `MNO-9999` (VAN)

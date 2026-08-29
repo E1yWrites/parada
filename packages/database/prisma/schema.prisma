@@ -311,3 +311,18 @@ model Notification {
   @@index([createdAt])
   @@map("notifications")
 }
+
+// ---------------------------------------------------------------------------
+// RevokedToken  (server-side JWT revocation / logout invalidation)
+// The stateless JWT is invalidated by recording its unique token id (jti) here.
+// Every authenticated request rejects tokens whose jti is present. This makes
+// logout a real server-side invalidation rather than just discarding the token.
+// ---------------------------------------------------------------------------
+
+model RevokedToken {
+  id        String   @id @default(cuid())
+  tokenId   String   @unique
+  revokedAt DateTime @default(now())
+
+  @@map("revoked_tokens")
+}

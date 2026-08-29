@@ -1,6 +1,9 @@
 import request from "supertest";
+import * as argon2 from "argon2";
 import { prisma } from "@parada/database";
 import { createApp, type AppOptions } from "./app";
+import { AuthService } from "./domain/auth";
+import { TokenService } from "./domain/token";
 
 const TABLES = [
   "occupancy_history",
@@ -277,6 +280,435 @@ describe("PARADA API", () => {
         .post("/zones/missing/events")
         .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "e1", eventType: "ENTRY" })
         .expect(404);
+    });
+  });
+});
+
+describe("Authentication & Authorization", () => {
+  let app: ReturnType<typeof createApp>;
+  let authService: AuthService;
+  let tokenService: TokenService;
+
+  beforeAll(async () => {
+    await cleanDatabase();
+    authService = new AuthService({
+      secret: "test-secret-key-for-testing-only-32chars",
+      issuer: "parada-api-test",
+      expiresIn: "1d",
+    });
+    tokenService = new TokenService({
+      secret: "test-secret-key-for-testing-only-32chars",
+      issuer: "parada-api-test",
+      expiresIn: "1d",
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  beforeEach(async () => {
+    await cleanDatabase();
+    app = createApp({ auth: authService });
+  });
+
+  describe("POST /auth/register", () => {
+    it("successful registration", async () => {
+      const res = await request(app)
+        .post("/auth/register")
+        .send({ name: "Test User", email: "test@test.local", password: "Password123!" })
+        .expect(201);
+
+      expect(res.body.data.user).toEqual(
+        expect.objectContaining({
+          name: "Test User",
+          email: "test@test.local",
+          role: "USER",
+          status: "ACTIVE",
+        })
+      );
+      expect(res.body.data.user.id).toBeDefined();
+      expect(res.body.data.token).toBeDefined();
+      expect(res.body.data.user.passwordHash).toBeUndefined();
+    });
+
+    it("duplicate email rejection", async () => {
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "Test User", email: "dup@test.local", password: "Password123!" })
+        .expect(201);
+
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "Test User 2", email: "dup@test.local", password: "Password123!" })
+        .expect(409);
+    });
+
+    it("rejects weak password", async () => {
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "Test User", email: "weak@test.local", password: "short" })
+        .expect(422);
+    });
+
+    it("rejects missing fields", async () => {
+      await request(app).post("/auth/register").send({}).expect(400);
+      await request(app)
+        .post("/auth/register")
+        .send({ email: "x@y.com" })
+        .expect(400);
+    });
+  });
+
+  describe("POST /auth/login", () => {
+    it("successful login", async () => {
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "Login User", email: "login@test.local", password: "Password123!" })
+        .expect(201);
+
+      const res = await request(app)
+        .post("/auth/login")
+        .send({ email: "login@test.local", password: "Password123!" })
+        .expect(200);
+
+      expect(res.body.data.user.email).toBe("login@test.local");
+      expect(res.body.data.token).toBeDefined();
+    });
+
+    it("incorrect password", async () => {
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "Login User", email: "login2@test.local", password: "Password123!" })
+        .expect(201);
+
+      await request(app)
+        .post("/auth/login")
+        .send({ email: "login2@test.local", password: "WrongPass123!" })
+        .expect(401);
+    });
+
+    it("nonexistent user", async () => {
+      await request(app)
+        .post("/auth/login")
+        .send({ email: "nonexistent@test.local", password: "Password123!" })
+        .expect(401);
+    });
+  });
+
+  describe("GET /auth/me", () => {
+    it("authenticated /auth/me", async () => {
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "Me User", email: "me@test.local", password: "Password123!" })
+        .expect(201);
+
+      const login = await request(app)
+        .post("/auth/login")
+        .send({ email: "me@test.local", password: "Password123!" })
+        .expect(200);
+
+      const token = login.body.data.token;
+      const res = await request(app)
+        .get("/auth/me")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.body.data.email).toBe("me@test.local");
+      expect(res.body.data.passwordHash).toBeUndefined();
+    });
+
+    it("unauthenticated protected endpoint", async () => {
+      await request(app).get("/auth/me").expect(401);
+      await request(app)
+        .get("/auth/me")
+        .set("Authorization", "Bearer invalid-token")
+        .expect(401);
+    });
+
+    it("password hash never appears in API response", async () => {
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "Hash User", email: "hash@test.local", password: "Password123!" })
+        .expect(201);
+
+      const login = await request(app)
+        .post("/auth/login")
+        .send({ email: "hash@test.local", password: "Password123!" })
+        .expect(200);
+
+      expect(login.body.data.user.passwordHash).toBeUndefined();
+      expect(JSON.stringify(login.body.data.user)).not.toContain("passwordHash");
+    });
+  });
+
+  describe("POST /auth/logout", () => {
+    it("invalidates token server-side", async () => {
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "Logout User", email: "logout@test.local", password: "Password123!" })
+        .expect(201);
+
+      const login = await request(app)
+        .post("/auth/login")
+        .send({ email: "logout@test.local", password: "Password123!" })
+        .expect(200);
+
+      const token = login.body.data.token;
+
+      await request(app)
+        .post("/auth/logout")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(204);
+
+      await request(app)
+        .get("/auth/me")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(401);
+    });
+  });
+
+  describe("Vehicle ownership", () => {
+    let userToken: string;
+    let otherUserToken: string;
+    let userId: string;
+    let otherUserId: string;
+
+    beforeEach(async () => {
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "User One", email: "user1@test.local", password: "Password123!" })
+        .expect(201);
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "User Two", email: "user2@test.local", password: "Password123!" })
+        .expect(201);
+
+      const login1 = await request(app)
+        .post("/auth/login")
+        .send({ email: "user1@test.local", password: "Password123!" })
+        .expect(200);
+      const login2 = await request(app)
+        .post("/auth/login")
+        .send({ email: "user2@test.local", password: "Password123!" })
+        .expect(200);
+
+      userToken = login1.body.data.token;
+      otherUserToken = login2.body.data.token;
+      userId = login1.body.data.user.id;
+      otherUserId = login2.body.data.user.id;
+    });
+
+    it("user can access own vehicle", async () => {
+      const create = await request(app)
+        .post("/vehicles")
+        .set("Authorization", `Bearer ${userToken}`)
+        .send({ plateNumber: "OWN-1234", vehicleType: "CAR" })
+        .expect(201);
+
+      const vehicleId = create.body.data.id;
+
+      const res = await request(app)
+        .get("/vehicles")
+        .set("Authorization", `Bearer ${userToken}`)
+        .expect(200);
+
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].id).toBe(vehicleId);
+      expect(res.body.data[0].plateNumber).toBe("OWN-1234");
+    });
+
+    it("user cannot access another user's vehicle", async () => {
+      const create = await request(app)
+        .post("/vehicles")
+        .set("Authorization", `Bearer ${otherUserToken}`)
+        .send({ plateNumber: "OTHER-5678", vehicleType: "CAR" })
+        .expect(201);
+
+      const vehicleId = create.body.data.id;
+
+      await request(app)
+        .get(`/vehicles/${vehicleId}`)
+        .set("Authorization", `Bearer ${userToken}`)
+        .expect(404);
+
+      const res = await request(app)
+        .get("/vehicles")
+        .set("Authorization", `Bearer ${userToken}`)
+        .expect(200);
+
+      expect(res.body.data).toHaveLength(0);
+    });
+
+    it("client cannot assign vehicle to another user", async () => {
+      await request(app)
+        .post("/vehicles")
+        .set("Authorization", `Bearer ${userToken}`)
+        .send({ plateNumber: "HACK-0001", vehicleType: "CAR", userId: otherUserId })
+        .expect(201);
+
+      const res = await request(app)
+        .get("/vehicles")
+        .set("Authorization", `Bearer ${userToken}`)
+        .expect(200);
+
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].plateNumber).toBe("HACK-0001");
+    });
+  });
+
+  describe("Parking session ownership", () => {
+    let userToken: string;
+    let otherUserToken: string;
+
+    beforeEach(async () => {
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "Session User", email: "session1@test.local", password: "Password123!" })
+        .expect(201);
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "Other User", email: "session2@test.local", password: "Password123!" })
+        .expect(201);
+
+      const login1 = await request(app)
+        .post("/auth/login")
+        .send({ email: "session1@test.local", password: "Password123!" })
+        .expect(200);
+      const login2 = await request(app)
+        .post("/auth/login")
+        .send({ email: "session2@test.local", password: "Password123!" })
+        .expect(200);
+
+      userToken = login1.body.data.token;
+      otherUserToken = login2.body.data.token;
+    });
+
+    it("user can access own parking session", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Session Zone", code: "SZ", capacity: 5 },
+      });
+      const cam = await prisma.camera.create({
+        data: { zoneId: zone.id, name: "SZ Entry", identifier: "cam-sz-entry", gateType: "ENTRY", status: "ONLINE" },
+      });
+      const vehicle = await prisma.vehicle.create({
+        data: {
+          userId: (await request(app).get("/auth/me").set("Authorization", `Bearer ${userToken}`)).body.data.id,
+          plateNumber: "SESS-001",
+          normalizedPlate: "SESS001",
+          vehicleType: "CAR",
+          status: "ACTIVE",
+        },
+      });
+
+      await request(app)
+        .post(`/zones/${zone.id}/events`)
+        .send({
+          cameraIdentifier: cam.identifier,
+          sourceEventId: "sess-entry-1",
+          eventType: "ENTRY",
+          detectedPlate: "SESS-001",
+        })
+        .expect(201);
+
+      const res = await request(app)
+        .get("/sessions")
+        .set("Authorization", `Bearer ${userToken}`)
+        .expect(200);
+
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].vehicle.id).toBe(vehicle.id);
+      expect(res.body.data[0].status).toBe("ACTIVE");
+    });
+
+    it("user cannot access another user's session", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Session Zone 2", code: "SZ2", capacity: 5 },
+      });
+      const cam = await prisma.camera.create({
+        data: { zoneId: zone.id, name: "SZ2 Entry", identifier: "cam-sz2-entry", gateType: "ENTRY", status: "ONLINE" },
+      });
+      const otherUserLogin = await request(app)
+        .post("/auth/login")
+        .send({ email: "session2@test.local", password: "Password123!" })
+        .expect(200);
+      const otherUserId = otherUserLogin.body.data.user.id;
+      const vehicle = await prisma.vehicle.create({
+        data: {
+          userId: otherUserId,
+          plateNumber: "SESS-002",
+          normalizedPlate: "SESS002",
+          vehicleType: "CAR",
+          status: "ACTIVE",
+        },
+      });
+
+      await request(app)
+        .post(`/zones/${zone.id}/events`)
+        .send({
+          cameraIdentifier: cam.identifier,
+          sourceEventId: "sess-entry-2",
+          eventType: "ENTRY",
+          detectedPlate: "SESS-002",
+        })
+        .expect(201);
+
+      const res = await request(app)
+        .get("/sessions")
+        .set("Authorization", `Bearer ${userToken}`)
+        .expect(200);
+
+      expect(res.body.data).toHaveLength(0);
+    });
+  });
+
+  describe("Admin authorization", () => {
+    let userToken: string;
+    let adminToken: string;
+
+    beforeEach(async () => {
+      await request(app)
+        .post("/auth/register")
+        .send({ name: "Regular User", email: "reguser@test.local", password: "Password123!" })
+        .expect(201);
+
+      const admin = await prisma.user.create({
+        data: {
+          name: "Admin User",
+          email: "admin@test.local",
+          passwordHash: await argon2.hash("AdminPass123!", { type: argon2.argon2id }),
+          role: "ADMIN",
+          status: "ACTIVE",
+        },
+      });
+
+      const userLogin = await request(app)
+        .post("/auth/login")
+        .send({ email: "reguser@test.local", password: "Password123!" })
+        .expect(200);
+      const adminLogin = await request(app)
+        .post("/auth/login")
+        .send({ email: "admin@test.local", password: "AdminPass123!" })
+        .expect(200);
+
+      userToken = userLogin.body.data.token;
+      adminToken = adminLogin.body.data.token;
+    });
+
+    it("normal user cannot access admin endpoint", async () => {
+      await request(app)
+        .get("/admin/sessions")
+        .set("Authorization", `Bearer ${userToken}`)
+        .expect(403);
+    });
+
+    it("admin can access authorized admin endpoint", async () => {
+      const res = await request(app)
+        .get("/admin/sessions")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(Array.isArray(res.body.data)).toBe(true);
     });
   });
 });

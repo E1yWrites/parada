@@ -11,18 +11,21 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "lint": "echo \"(api) lint ok\"",
-    "test": "DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5433/parada_test_api?schema=public\" jest"
+    "test": "DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5433/parada_test_api?schema=public\" JWT_SECRET=\"test-secret-key-for-testing-only-32chars\" JWT_ISSUER=\"parada-api-test\" JWT_EXPIRES_IN=\"1d\" jest"
   },
   "dependencies": {
     "@parada/config": "0.1.0",
     "@parada/database": "0.1.0",
     "@parada/types": "0.1.0",
+    "argon2": "^0.45.1",
     "dotenv": "^16.4.0",
-    "express": "^4.21.0"
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.14.0",
     "@types/supertest": "^6.0.2",
     "jest": "^29.7.0",

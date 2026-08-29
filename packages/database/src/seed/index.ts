@@ -1,4 +1,5 @@
 import "dotenv/config";
+import * as argon2 from "argon2";
 import { prisma } from "../client";
 import { Role, GateType } from "@prisma/client";
 import { normalizePlate } from "../plate";
@@ -9,11 +10,22 @@ const ZONES = [
   { name: "Zone C", code: "C", capacity: 10, description: "South parking area" },
 ];
 
-// Placeholder hash for development only. Real password hashing is implemented in Phase 4 (auth).
-const DEV_PLACEHOLDER_HASH = "dev-placeholder-hash-phase4";
+async function hashPassword(password: string): Promise<string> {
+  return argon2.hash(password, { type: argon2.argon2id });
+}
 
 async function seed() {
   console.log("Seeding PARADA development data...");
+
+  // Dev passwords (for development only - never use real passwords)
+  const ADMIN_PASSWORD = "AdminPass123!";
+  const USER_PASSWORD = "DriverPass123!";
+
+  const adminPasswordHash = await hashPassword(ADMIN_PASSWORD);
+  const userPasswordHash = await hashPassword(USER_PASSWORD);
+
+  console.log("  dev credentials: admin@parada.local / AdminPass123!");
+  console.log("  dev credentials: driver@parada.local / DriverPass123!");
 
   // --- Zones ---
   const zones: Record<string, { id: string }> = {};
@@ -87,22 +99,22 @@ async function seed() {
   // --- Users (1 admin + 1 user) ---
   const admin = await prisma.user.upsert({
     where: { email: "admin@parada.local" },
-    update: { role: "ADMIN", status: "ACTIVE", name: "Admin User" },
+    update: { role: "ADMIN", status: "ACTIVE", name: "Admin User", passwordHash: adminPasswordHash },
     create: {
       name: "Admin User",
       email: "admin@parada.local",
-      passwordHash: DEV_PLACEHOLDER_HASH,
+      passwordHash: adminPasswordHash,
       role: "ADMIN",
       status: "ACTIVE",
     },
   });
   const user = await prisma.user.upsert({
     where: { email: "driver@parada.local" },
-    update: { role: "USER", status: "ACTIVE", name: "Driver User" },
+    update: { role: "USER", status: "ACTIVE", name: "Driver User", passwordHash: userPasswordHash },
     create: {
       name: "Driver User",
       email: "driver@parada.local",
-      passwordHash: DEV_PLACEHOLDER_HASH,
+      passwordHash: userPasswordHash,
       role: "USER",
       status: "ACTIVE",
     },
