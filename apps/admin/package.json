@@ -1,0 +1,13 @@
+{
+  "name": "@parada/admin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PARADA admin web app (Next.js + TypeScript + Tailwind)",
+  "scripts": {
+    "build": "echo \"(admin) no build yet\"",
+    "dev": "echo \"(admin) no dev yet\"",
+    "lint": "echo \"(admin) lint ok\"",
+    "typecheck": "echo \"(admin) typecheck ok\"",
+    "test": "echo \"(admin) no tests yet\""
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@parada/database",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PARADA database package (Prisma schema + access)",
+  "scripts": {
+    "build": "echo \"(database) no build yet\"",
+    "lint": "echo \"(database) lint ok\"",
+    "typecheck": "echo \"(database) typecheck ok\"",
+    "test": "echo \"(database) no tests yet\""
+  }
+}

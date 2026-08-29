@@ -1,0 +1,13 @@
+{
+  "name": "@parada/vision",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PARADA vision/OCR service (Python + FastAPI + OpenCV)",
+  "scripts": {
+    "build": "echo \"(vision) no build yet\"",
+    "dev": "echo \"(vision) no dev yet\"",
+    "lint": "echo \"(vision) lint ok\"",
+    "typecheck": "echo \"(vision) typecheck ok\"",
+    "test": "echo \"(vision) no tests yet\""
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@parada/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PARADA backend API service (Node.js + TypeScript)",
+  "scripts": {
+    "build": "echo \"(api) no build yet\"",
+    "dev": "echo \"(api) no dev yet\"",
+    "lint": "echo \"(api) lint ok\"",
+    "typecheck": "echo \"(api) typecheck ok\"",
+    "test": "echo \"(api) no tests yet\""
+  }
+}

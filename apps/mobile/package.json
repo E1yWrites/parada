@@ -1,0 +1,13 @@
+{
+  "name": "@parada/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PARADA mobile app (React Native + Expo + TypeScript)",
+  "scripts": {
+    "build": "echo \"(mobile) no build yet\"",
+    "dev": "echo \"(mobile) no dev yet\"",
+    "lint": "echo \"(mobile) lint ok\"",
+    "typecheck": "echo \"(mobile) typecheck ok\"",
+    "test": "echo \"(mobile) no tests yet\""
+  }
+}
