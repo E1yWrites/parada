@@ -9,7 +9,7 @@ document -> STOP.
 | 0 | Requirements + Architecture | DONE |
 | 1 | Project Infrastructure | DONE |
 | 2 | Database | DONE |
-| 3 | Backend Foundation | PENDING |
+| 3 | Backend Foundation | DONE |
 | 4 | Authentication + Authorization | PENDING |
 | 5 | Parking Zones + Slots | PENDING |
 | 6 | Occupancy Model + Simulator | PENDING |
@@ -28,7 +28,11 @@ Key decisions from Phase 0 (user-approved [USER CLARIFICATION]):
 
 1. **Gate-based entry/exit counting** for zone occupancy.
 2. **Zone-level availability is the authoritative metric.** Slots are layout/inventory/visual only.
-3. **Anonymous events; no vehicle ID** — parking sessions are not tied to vehicle identity.
+3. **Vehicle identity IS required** [USER CLARIFICATION, architecture correction]: users register
+   vehicles; the license plate is the primary OCR identity. Unknown/unregistered plates record an
+   OccupancyEvent only (no session). `ParkingSession.userId/vehicleId` NOT NULL; `normalizedPlate`
+   unique per user; a partial unique index prevents multiple ACTIVE sessions per vehicle.
+   (Replaced the earlier, uncommitted "anonymous events" decision.)
 4. **Navigation** = GPS to facility + internal zone guidance.
 5. **Notifications** = admin + driver alerts.
 6. **Roles** = User + Admin only.

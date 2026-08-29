@@ -70,6 +70,19 @@ enum ParkingSessionStatus {
   COMPLETED
 }
 
+enum VehicleType {
+  CAR
+  MOTORCYCLE
+  VAN
+  TRUCK
+  OTHER
+}
+
+enum VehicleStatus {
+  ACTIVE
+  INACTIVE
+}
+
 enum NotificationType {
   ZONE_FULL
   ZONE_LOW_AVAILABILITY
@@ -89,8 +102,35 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
+  vehicles Vehicle[]
+  sessions ParkingSession[]
+
   @@index([role])
   @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Vehicle  (user-owned; the primary identity for the OCR/plate workflow)
+// ---------------------------------------------------------------------------
+
+model Vehicle {
+  id              String        @id @default(cuid())
+  userId          String
+  plateNumber     String
+  normalizedPlate String
+  vehicleType     VehicleType   @default(CAR)
+  status          VehicleStatus @default(ACTIVE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sessions ParkingSession[]
+  events   OccupancyEvent[]
+
+  @@unique([userId, normalizedPlate])
+  @@index([normalizedPlate])
+  @@index([userId])
+  @@map("vehicles")
 }
 
 // ---------------------------------------------------------------------------
@@ -178,12 +218,20 @@ model OccupancyEvent {
   source           OccupancySource    @default(CAMERA)
   // client-supplied id for idempotency; unique per camera via @@unique
   sourceEventId    String?
+  // Vehicle identification result (plate recognition / OCR). Optional: an
+  // event is still valid even when no registered vehicle is matched.
+  vehicleId        String?
+  detectedPlate    String?
+  normalizedPlate  String?
+  ocrConfidence    Float?
+  plateMatched     Boolean?
   detectedAt       DateTime
   processedAt      DateTime           @default(now())
   createdAt        DateTime           @default(now())
 
-  zone   ParkingZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
-  camera Camera?     @relation(fields: [cameraId], references: [id], onDelete: SetNull)
+  zone    ParkingZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  camera  Camera?     @relation(fields: [cameraId], references: [id], onDelete: SetNull)
+  vehicle Vehicle?    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
 
   sessionAsEntry ParkingSession? @relation("SessionEntry")
   sessionAsExit  ParkingSession? @relation("SessionExit")
@@ -191,6 +239,7 @@ model OccupancyEvent {
   @@unique([cameraId, sourceEventId])
   @@index([zoneId, detectedAt])
   @@index([eventType])
+  @@index([vehicleId])
   @@map("occupancy_events")
 }
 
@@ -212,12 +261,15 @@ model OccupancyHistory {
 }
 
 // ---------------------------------------------------------------------------
-// ParkingSession  (ANONYMOUS parking presence - no vehicle/plate identity)
+// ParkingSession  (vehicle-identified parking presence; a real session only
+// exists when a registered vehicle matches the detected plate)
 // ---------------------------------------------------------------------------
 
 model ParkingSession {
   id              String               @id @default(cuid())
   zoneId          String
+  userId          String
+  vehicleId       String
   entryEventId    String               @unique
   exitEventId     String?              @unique
   enteredAt       DateTime
@@ -228,10 +280,14 @@ model ParkingSession {
   updatedAt       DateTime             @updatedAt
 
   zone       ParkingZone     @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  vehicle    Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   entryEvent OccupancyEvent  @relation("SessionEntry", fields: [entryEventId], references: [id], onDelete: Restrict)
   exitEvent  OccupancyEvent? @relation("SessionExit", fields: [exitEventId], references: [id], onDelete: SetNull)
 
   @@index([zoneId, status])
+  @@index([vehicleId, status])
+  @@index([userId])
   @@index([enteredAt])
   @@map("parking_sessions")
 }

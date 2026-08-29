@@ -2,12 +2,33 @@
   "name": "@parada/api",
   "version": "0.1.0",
   "private": true,
-  "description": "PARADA backend API service (Node.js + TypeScript)",
+  "description": "PARADA backend API service (Node.js + Express + TypeScript)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "build": "echo \"(api) no build yet\"",
-    "dev": "echo \"(api) no dev yet\"",
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
     "lint": "echo \"(api) lint ok\"",
-    "typecheck": "echo \"(api) typecheck ok\"",
-    "test": "echo \"(api) no tests yet\""
+    "test": "DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5433/parada_test_api?schema=public\" jest"
+  },
+  "dependencies": {
+    "@parada/config": "0.1.0",
+    "@parada/database": "0.1.0",
+    "@parada/types": "0.1.0",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.14.0",
+    "@types/supertest": "^6.0.2",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4",
+    "ts-jest": "^29.2.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.0"
   }
 }

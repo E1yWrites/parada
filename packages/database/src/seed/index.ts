@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { prisma } from "../client";
 import { Role, GateType } from "@prisma/client";
+import { normalizePlate } from "../plate";
 
 const ZONES = [
   { name: "Zone A", code: "A", capacity: 20, description: "North parking area" },
@@ -107,6 +108,34 @@ async function seed() {
     },
   });
   console.log(`  users: admin=${admin.email} user=${user.email}`);
+
+  // --- Vehicles (a user may have more than one registered vehicle) ---
+  const registeredVehicles: {
+    userId: string;
+    plateNumber: string;
+    vehicleType: "CAR" | "MOTORCYCLE" | "VAN" | "TRUCK" | "OTHER";
+  }[] = [
+    { userId: user.id, plateNumber: "ABC-1234", vehicleType: "CAR" },
+    { userId: user.id, plateNumber: "XYZ-5678", vehicleType: "MOTORCYCLE" },
+    { userId: admin.id, plateNumber: "MNO-9999", vehicleType: "VAN" },
+  ];
+  for (const v of registeredVehicles) {
+    const normalized = normalizePlate(v.plateNumber);
+    await prisma.vehicle.upsert({
+      where: {
+        userId_normalizedPlate: { userId: v.userId, normalizedPlate: normalized },
+      },
+      update: { plateNumber: v.plateNumber, vehicleType: v.vehicleType, status: "ACTIVE" },
+      create: {
+        userId: v.userId,
+        plateNumber: v.plateNumber,
+        normalizedPlate: normalized,
+        vehicleType: v.vehicleType,
+        status: "ACTIVE",
+      },
+    });
+  }
+  console.log(`  vehicles: ${registeredVehicles.length} registered (incl. multiple per user)`);
 
   console.log("Seeding complete.");
 }

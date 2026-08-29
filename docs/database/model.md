@@ -3,17 +3,18 @@
 Authoritative data model for the PostgreSQL database. Prisma schema lives in
 `packages/database/prisma/schema.prisma` and is the source of truth.
 
-## Entities (8)
+## Entities (9)
 
 | Entity | Purpose |
 |--------|---------|
 | `User` | Mobile drivers + admins. Single table; `role` enum `USER / ADMIN`. |
+| `Vehicle` | A user-owned vehicle; the primary identity for OCR/plate workflows. License plate is the OCR key. |
 | `ParkingZone` | A physical parking area with fixed `capacity`. |
 | `ParkingSlot` | **Physical inventory / layout only.** NOT camera-derived occupancy. |
 | `Camera` | A standard camera at a zone gate (ENTRY / EXIT / BIDIRECTIONAL). |
 | `OccupancyEvent` | The critical single write-point for occupancy changes (ENTRY/EXIT). |
 | `OccupancyHistory` | Immutable snapshot of zone occupancy state over time (analytics/audit). |
-| `ParkingSession` | ANONYMOUS parking presence (no vehicle/plate/identity, no ANPR). |
+| `ParkingSession` | **Vehicle-identified** parking presence (a real session exists only for a registered vehicle). |
 | `Notification` | Minimal admin + driver alerts (zone full / low availability). |
 
 No `Report` table — reports are generated dynamically from `OccupancyHistory`.
@@ -51,27 +52,49 @@ All historical child records (`occupancy_events`, `occupancy_history`, `parking_
 Deleting a zone is blocked while it has history, so analytics data is never destroyed.
 Zones are deactivated via `status = INACTIVE`, not hard-deleted.
 
-### Anonymous sessions
-`ParkingSession` has NO vehicle identity. Lifecycle: ENTRY -> ACTIVE -> EXIT -> COMPLETED.
-`entryEventId` unique (one session per entry), `exitEventId` nullable + unique.
-`durationSeconds` computed on exit.
+### Vehicle identity & plate normalization
+Vehicles are registered by users; the **normalized license plate** is the OCR match key.
+`normalizePlate()` uppercases and strips non-alphanumeric characters (e.g. `ABC-1234` → `ABC1234`),
+which is **flexible/length-preserving** so raw OCR reads still match. `normalizedPlate` is **unique per
+user** (`@@unique([userId, normalizedPlate])`), so two users may register the same physical plate,
+but a single user cannot register it twice.
+
+### Vehicle-identified sessions
+`ParkingSession` is tied to a registered vehicle and its owner:
+- `userId` + `vehicleId` are **NOT NULL** (identity is required).
+- Lifecycle: ENTRY → `ACTIVE` → EXIT → `COMPLETED`.
+- `entryEventId` unique (one session per entry); `exitEventId` nullable + unique; `durationSeconds` computed on exit.
+- A database **partial unique index** enforces at most one `ACTIVE` session per vehicle:
+  ```
+  CREATE UNIQUE INDEX parking_sessions_one_active_per_vehicle
+  ON parking_sessions("vehicleId") WHERE status = 'ACTIVE';
+  ```
+
+### Unknown / unregistered vehicle
+When a detected plate does **not** match a registered vehicle, an `OccupancyEvent` is recorded
+(with `detectedPlate`, `normalizedPlate`, `ocrConfidence`, `plateMatched = false`) so occupancy counts
+stay correct, but **no `ParkingSession` is created** (a session requires a real vehicle identity).
+`OccupancyEvent.vehicleId` is nullable (`onDelete: SetNull`).
 
 ## Important Indexes
 
 | Table | Index | Purpose |
 |-------|-------|---------|
 | `users` | unique `email` | auth lookup |
+| `vehicles` | unique `(userId, normalizedPlate)`; `(normalizedPlate)`, `(userId)` | plate match per user |
 | `parking_zones` | unique `code`, unique `name` | lookups, dedup |
 | `parking_slots` | unique `(zoneId, slotCode)` | slot inventory per zone |
 | `cameras` | unique `identifier`; `zoneId` | camera identity + per-zone |
-| `occupancy_events` | `(zoneId, detectedAt)`, `(eventType)`, unique `(cameraId, sourceEventId)` | dedup + history queries |
+| `occupancy_events` | `(zoneId, detectedAt)`, `(eventType)`, `(vehicleId)`, unique `(cameraId, sourceEventId)` | dedup + history queries |
 | `occupancy_history` | `(zoneId, occurredAt)` | analytics/reports/time ranges |
-| `parking_sessions` | `(zoneId, status)`, `(enteredAt)` | active session counts, session history |
+| `parking_sessions` | `(zoneId, status)`, `(vehicleId, status)`, `(userId)`, `(enteredAt)` | active session counts, session history |
+| `parking_sessions` | partial unique `(vehicleId)` where `status='ACTIVE'` | one active session per vehicle |
 | `notifications` | `(targetRole, read)`, `(createdAt)` | alert fetching |
 
 ## Migrations
 
-- `20260829141334_init` — initial schema (all 8 entities + enums + constraints + indexes).
+- `20260829141334_init` — initial schema (8 entities + enums + constraints + indexes).
+- `20260829143014_add_vehicle_and_session_identity` — additive: `Vehicle`, `VehicleType`/`VehicleStatus` enums, `OccupancyEvent` plate fields, `ParkingSession.userId/vehicleId` (NOT NULL), one-active-session-per-vehicle partial unique index.
 
 Use `prisma migrate dev` for development, `prisma migrate deploy` for environments.
 `db push` is not the permanent strategy.
@@ -83,3 +106,5 @@ Use `prisma migrate dev` for development, `prisma migrate deploy` for environmen
 - Cameras: Entry + Exit per zone (6 total)
 - Users: `admin@parada.local` (ADMIN), `driver@parada.local` (USER)
   (placeholder password hashes — real hashing added in Phase 4)
+- Vehicles: 3 registered — driver owns `ABC-1234` (CAR) + `XYZ-5678` (MOTORCYCLE); admin owns
+  `MNO-9999` (VAN) — demonstrates multiple vehicles per user.

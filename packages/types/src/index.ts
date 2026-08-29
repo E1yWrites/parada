@@ -8,6 +8,8 @@ export type OccupancyEventType = "ENTRY" | "EXIT";
 export type OccupancySource = "CAMERA" | "SIMULATOR" | "MANUAL";
 export type ParkingSessionStatus = "ACTIVE" | "COMPLETED";
 export type NotificationType = "ZONE_FULL" | "ZONE_LOW_AVAILABILITY";
+export type VehicleType = "CAR" | "MOTORCYCLE" | "VAN" | "TRUCK" | "OTHER";
+export type VehicleStatus = "ACTIVE" | "INACTIVE";
 
 export interface User {
   id: string;
@@ -44,6 +46,17 @@ export interface ParkingSlot {
   updatedAt: Date;
 }
 
+export interface Vehicle {
+  id: string;
+  userId: string;
+  plateNumber: string;
+  normalizedPlate: string;
+  vehicleType: VehicleType;
+  status: VehicleStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Camera {
   id: string;
   zoneId: string;
@@ -60,12 +73,17 @@ export interface OccupancyEvent {
   id: string;
   zoneId: string;
   cameraId: string | null;
+  vehicleId: string | null;
   eventType: OccupancyEventType;
   previousOccupied: number;
   newOccupied: number;
   availableCount: number;
   source: OccupancySource;
   sourceEventId: string | null;
+  detectedPlate: string | null;
+  normalizedPlate: string | null;
+  ocrConfidence: number | null;
+  plateMatched: boolean | null;
   detectedAt: Date;
   processedAt: Date;
   createdAt: Date;
@@ -82,6 +100,8 @@ export interface OccupancyHistory {
 export interface ParkingSession {
   id: string;
   zoneId: string;
+  userId: string;
+  vehicleId: string;
   entryEventId: string;
   exitEventId: string | null;
   enteredAt: Date;
