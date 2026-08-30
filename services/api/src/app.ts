@@ -16,13 +16,20 @@ import { errorBody } from "./http/response";
 export interface AppOptions {
   occupancy?: OccupancyService;
   auth?: AuthService;
+  /** Camera/vision service API key. If set, POST /zones/:id/events requires it. */
+  cameraApiKey?: string | null;
+  /** OCR confidence below which a detected plate is not trusted as identity. */
+  ocrPlateConfidenceThreshold?: number;
 }
 
 export function createApp(options: AppOptions = {}): Express {
   const app = express();
-  const occupancy = options.occupancy ?? new OccupancyService();
-
   const env = loadEnv();
+  const occupancy = options.occupancy ?? new OccupancyService({
+    ocrPlateConfidenceThreshold:
+      options.ocrPlateConfidenceThreshold ?? env.ocrPlateConfidenceThreshold,
+  });
+
   const auth = options.auth ?? new AuthService({
     secret: env.jwtSecret,
     issuer: env.jwtIssuer,
@@ -38,7 +45,9 @@ export function createApp(options: AppOptions = {}): Express {
   app.use("/auth", authRouter(auth, authMiddleware));
 
   const zones = zonesRouter(occupancy);
-  const events = eventsRouter(occupancy);
+  const events = eventsRouter(occupancy, {
+    cameraApiKey: options.cameraApiKey !== undefined ? options.cameraApiKey : env.cameraApiKey,
+  });
   app.use(zones);
   app.use(events);
 

@@ -6,6 +6,7 @@ import { AuthService } from "./domain/auth";
 import { TokenService } from "./domain/token";
 
 const TABLES = [
+  "occupancy_anomalies",
   "occupancy_history",
   "notifications",
   "parking_sessions",

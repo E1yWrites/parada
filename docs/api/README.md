@@ -112,31 +112,61 @@ Active zones with live occupancy:
 Live occupancy for one zone.
 
 ### `POST /zones/:zoneId/events`
-The **camera input boundary** — a gate camera reports a detected vehicle behavior.
-Runs the full occupancy transition in one DB transaction.
+The **camera input boundary** — a gate camera / vision service reports a
+detected vehicle behavior. Runs the full occupancy transition in one transaction.
 
-Request body:
+Authentication: when `CAMERA_API_KEY` is configured, the request must include
+`X-API-Key: <CAMERA_API_KEY>` (401 otherwise). Not set = open (trusted local
+dev only). See `docs/vision/architecture.md`.
+
+Request body (the **normalized vision event contract**):
 ```jsonc
 {
   "cameraIdentifier": "cam-a-entry",   // required, unique camera identifier
   "sourceEventId": "evt-0001",          // required, client-supplied idempotency key
-  "eventType": "ENTRY" | "EXIT",        // required
-  "detectedPlate": "ABC-1234",          // optional, from OCR
+  "eventType": "ENTRY" | "EXIT",        // required, gate direction
+  "detectedPlate": "ABC-1234",          // optional, raw plate from OCR
   "ocrConfidence": 0.96,                // optional, 0..1
   "detectedAt": "2026-08-29T10:00:00Z"  // optional, defaults to now
 }
 ```
 
+Camera validations (in order):
+1. Zone exists (404).
+2. Camera exists (404).
+3. Camera belongs to the zone (409).
+4. Camera is ONLINE (409 if OFFLINE).
+5. Direction compatible — `ENTRY` camera accepts only ENTRY, `EXIT` camera only
+   EXIT, `BIDIRECTIONAL` accepts both (409 on mismatch).
+
 Behavior (single `$transaction`):
-1. Validate zone exists (404) and camera exists in that zone (404/409).
-2. Bounds-check: entry when full -> 409; exit when empty -> 409.
-3. Update `parking_zone.occupiedCount`, insert `occupancy_event` + `occupancy_history`.
-4. Match the normalized plate against registered `vehicle`s:
-   - exactly one match -> link vehicle; on ENTRY open an `ACTIVE` session, on EXIT close it (sets `exitEventId`, `exitedAt`, `durationSeconds`, `status=COMPLETED`).
-   - no match (or ambiguous multiple-owner plate) -> record event with `plateMatched=false`, **no session**.
-5. Idempotency: duplicate `(cameraId, sourceEventId)` -> 409 (`P2002` mapped to `CONFLICT`).
+1. Bounds-check: entry when full -> 409; exit when empty -> 409.
+2. Update `parking_zone.occupiedCount`, insert `occupancy_event` + `occupancy_history`.
+3. Normalize the plate (`ABC-1234` -> `ABC1234`) and match registered vehicles:
+   - exactly one match **and** OCR confidence at/above `OCR_PLATE_CONFIDENCE_THRESHOLD` -> link vehicle; on ENTRY open an `ACTIVE` session, on EXIT close it (sets `exitEventId`, `exitedAt`, `durationSeconds`, `status=COMPLETED`).
+   - no match, ambiguous (multiple-owner), **or confidence below threshold** -> record event with `plateMatched=false`, **no session**. Physical occupancy is still updated. Unknown/low-confidence ENTRYs and EXITs without an ACTIVE session are recorded as `OccupancyAnomaly` for admin review (no fabricated session).
+4. Idempotency: duplicate `(cameraId, sourceEventId)` -> 409 (`P2002` mapped to `CONFLICT`).
 
 Returns `201` with the created `occupancy_event`.
+
+## Configuration
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `CAMERA_API_KEY` | *(unset)* | Shared key the vision service sends via `X-API-Key`. Unset = open (dev only). |
+| `OCR_PLATE_CONFIDENCE_THRESHOLD` | `0.5` | Minimum OCR confidence to trust a plate as vehicle identity. |
+
+## Anomalies
+
+`OccupancyAnomaly` records pipeline mismatches for admin review without
+fabricating data:
+- `UNREGISTERED_PLATE` — valid physical ENTRY, unknown plate.
+- `LOW_CONFIDENCE_PLATE` — plate below the confidence threshold.
+- `EXIT_WITHOUT_ACTIVE_SESSION` — valid EXIT, no matching ACTIVE session.
+
+Occupancy is updated in all of these cases; only the vehicle identity/session
+is `null`/absent.
+
 
 ### `GET /vehicles` (auth required)
 List authenticated user's registered vehicles.

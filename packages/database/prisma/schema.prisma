@@ -126,6 +126,7 @@ model Vehicle {
   user     User             @relation(fields: [userId], references: [id], onDelete: Restrict)
   sessions ParkingSession[]
   events   OccupancyEvent[]
+  anomalies OccupancyAnomaly[]
 
   @@unique([userId, normalizedPlate])
   @@index([normalizedPlate])
@@ -198,6 +199,7 @@ model Camera {
 
   zone            ParkingZone      @relation(fields: [zoneId], references: [id], onDelete: Restrict)
   occupancyEvents OccupancyEvent[]
+  anomalies       OccupancyAnomaly[]
 
   @@index([zoneId])
   @@map("cameras")
@@ -236,11 +238,43 @@ model OccupancyEvent {
   sessionAsEntry ParkingSession? @relation("SessionEntry")
   sessionAsExit  ParkingSession? @relation("SessionExit")
 
+  anomaly OccupancyAnomaly?
+
   @@unique([cameraId, sourceEventId])
   @@index([zoneId, detectedAt])
   @@index([eventType])
   @@index([vehicleId])
   @@map("occupancy_events")
+}
+
+// ---------------------------------------------------------------------------
+// OccupancyAnomaly  (anomalies in the physical/identity pipeline that must be
+// retained for administrative review without fabricating data)
+//
+// Used to record e.g. an EXIT whose plate does not match an ACTIVE session, a
+// low-confidence plate, or any mismatch between the physical occupancy signal
+// and the registered-vehicle identity. Physical occupancy is still updated; the
+// anomaly is kept separate for audit.
+// ---------------------------------------------------------------------------
+
+model OccupancyAnomaly {
+  id              String   @id @default(cuid())
+  occupancyEventId String  @unique @default(cuid())
+  cameraId        String?
+  vehicleId       String?
+  detectedPlate   String?
+  anomalyType     String
+  description     String?
+  resolved        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  event   OccupancyEvent? @relation(fields: [occupancyEventId], references: [id], onDelete: Cascade)
+  camera  Camera?         @relation(fields: [cameraId], references: [id], onDelete: SetNull)
+  vehicle Vehicle?        @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@index([anomalyType])
+  @@index([resolved])
+  @@map("occupancy_anomalies")
 }
 
 // ---------------------------------------------------------------------------

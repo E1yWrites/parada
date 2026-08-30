@@ -1,24 +1,38 @@
 import { Prisma, prisma } from "@parada/database";
 import { normalizePlate } from "@parada/database";
-import { BadRequestError, ConflictError, NotFoundError } from "../http/errors";
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+} from "../http/errors";
 import type {
   OccupancyEventType,
   OccupancySource,
 } from "@parada/database";
 
-export interface CameraInput {
-  cameraIdentifier: string;
+/**
+ * The normalized vision-event contract — the boundary between the camera/vision
+ * layer and the backend. Cameras / OCR produce this shape; the backend never
+ * depends on a specific vision implementation.
+ */
+export interface NormalizedVisionEvent {
+  /** Client-supplied idempotency key unique per camera. */
   sourceEventId: string;
+  /** Stable identifier of the camera that produced the event. */
+  cameraIdentifier: string;
+  /** Physical gate direction, ENTRY (into the zone) or EXIT (out of the zone). */
   eventType: OccupancyEventType;
+  /** Raw plate string as produced by OCR (optional — may be absent/unreadable). */
   detectedPlate?: string | null;
+  /** OCR confidence [0..1]; below the configured threshold it is not trusted. */
   ocrConfidence?: number | null;
+  /** Time the camera observed the event (optional; defaults to now). */
   detectedAt?: string | null;
 }
 
-export interface OccupancyInput extends CameraInput {
+export interface OccupancyInput extends NormalizedVisionEvent {
   zoneId: string;
 }
-
 export interface VehicleMatch {
   vehicleId: string | null;
   detectedPlate: string | null;
@@ -27,20 +41,53 @@ export interface VehicleMatch {
   plateMatched: boolean;
 }
 
+export interface OccupancyServiceOptions {
+  /** Plates whose OCR confidence is below this threshold are not trusted. */
+  ocrPlateConfidenceThreshold?: number;
+}
+
 export class OccupancyService {
+  private readonly ocrPlateConfidenceThreshold: number;
+
+  constructor(options: OccupancyServiceOptions = {}) {
+    // Default 0.5: an absent confidence signal is treated as "trusted" (a
+    // vision service that provides no confidence is by policy considered
+    // reliable), but an explicitly low confidence is not used for identity.
+    this.ocrPlateConfidenceThreshold =
+      options.ocrPlateConfidenceThreshold ?? 0.5;
+  }
+
+  /**
+   * Determine whether a provided OCR confidence is reliable enough to use as a
+   * vehicle identity. Absent confidence = trusted; explicit low confidence is
+   * not treated as reliable. [IMPLEMENTATION DECISION]
+   */
+  private isPlateTrusted(ocrConfidence: number | null): boolean {
+    if (ocrConfidence === null || ocrConfidence === undefined) {
+      return true;
+    }
+    return ocrConfidence >= this.ocrPlateConfidenceThreshold;
+  }
+
   /**
    * Resolve plate signals into a (possibly null) registered-vehicle match.
-   * A match is only established when exactly one registered vehicle owns the
-   * normalized plate. Unknown or ambiguous (multiple-owner) plates yield no
-   * match -> the event is recorded but no session is created. [IMPLEMENTATION DECISION]
+   * A match is only established when the plate is trusted (OCR confidence at or
+   * above threshold) AND exactly one registered vehicle owns the normalized
+   * plate. Unknown, ambiguous (multiple-owner), or low-confidence plates yield
+   * no match -> the event is recorded but no session is created.
+   * [IMPLEMENTATION DECISION]
    */
-  private async matchVehicle(detectedPlate: string | null): Promise<VehicleMatch> {
-    if (!detectedPlate) {
+  private async matchVehicle(
+    detectedPlate: string | null,
+    ocrConfidence: number | null
+  ): Promise<VehicleMatch> {
+    const trusted = this.isPlateTrusted(ocrConfidence);
+    if (!detectedPlate || !trusted) {
       return {
         vehicleId: null,
-        detectedPlate: null,
-        normalizedPlate: null,
-        ocrConfidence: null,
+        detectedPlate,
+        normalizedPlate: detectedPlate ? normalizePlate(detectedPlate) : null,
+        ocrConfidence,
         plateMatched: false,
       };
     }
@@ -55,7 +102,7 @@ export class OccupancyService {
         vehicleId: vehicle.id,
         detectedPlate,
         normalizedPlate: vehicle.normalizedPlate,
-        ocrConfidence: null,
+        ocrConfidence,
         plateMatched: true,
       };
     }
@@ -63,19 +110,17 @@ export class OccupancyService {
       vehicleId: null,
       detectedPlate,
       normalizedPlate: normalized,
-      ocrConfidence: null,
+      ocrConfidence,
       plateMatched: false,
     };
   }
 
   /**
-   * The single write-point for an occupancy change. Runs in one transaction:
-   * resolve camera -> bounds-check -> update zone -> insert event + history ->
-   * create/close the vehicle session. Returns the created OccupancyEvent.
+   * Validate camera identity, zone membership, online status, and gate
+   * direction compatibility. ENTRY cameras accept only ENTRY events; EXIT
+   * cameras only EXIT; BIDIRECTIONAL accepts both. [IMPLEMENTATION DECISION]
    */
-  async processEvent(input: OccupancyInput, source: OccupancySource = "CAMERA") {
-    const { zoneId, cameraIdentifier, sourceEventId, eventType } = input;
-
+  private async validateCamera(zoneId: string, cameraIdentifier: string) {
     const zone = await prisma.parkingZone.findUnique({ where: { id: zoneId } });
     if (!zone) {
       throw new NotFoundError(`Zone '${zoneId}' not found.`);
@@ -90,8 +135,36 @@ export class OccupancyService {
         `Camera '${cameraIdentifier}' does not belong to zone '${zoneId}'.`
       );
     }
+    return { zone, camera };
+  }
 
-    const match = await this.matchVehicle(input.detectedPlate ?? null);
+  /**
+   * The single write-point for an occupancy change. Runs in one transaction:
+   * resolve camera -> validate direction/status -> bounds-check -> update zone
+   * -> insert event + history -> create/close the vehicle session -> record any
+   * anomaly. Returns the created OccupancyEvent.
+   */
+  async processEvent(input: OccupancyInput, source: OccupancySource = "CAMERA") {
+    const { zoneId, cameraIdentifier, sourceEventId, eventType } = input;
+
+    const { zone, camera } = await this.validateCamera(zoneId, cameraIdentifier);
+
+    if (camera.status === "OFFLINE") {
+      throw new ConflictError(`Camera '${cameraIdentifier}' is offline and cannot accept events.`);
+    }
+
+    if (camera.gateType !== "BIDIRECTIONAL") {
+      const compatible =
+        (eventType === "ENTRY" && camera.gateType === "ENTRY") ||
+        (eventType === "EXIT" && camera.gateType === "EXIT");
+      if (!compatible) {
+        throw new ConflictError(
+          `Camera '${cameraIdentifier}' is a ${camera.gateType} gate and cannot accept a ${eventType} event.`
+        );
+      }
+    }
+
+    const match = await this.matchVehicle(input.detectedPlate ?? null, input.ocrConfidence ?? null);
 
     const detectedAt = input.detectedAt ? new Date(input.detectedAt) : new Date();
 
@@ -139,7 +212,7 @@ export class OccupancyService {
             vehicleId: match.vehicleId,
             detectedPlate: match.detectedPlate,
             normalizedPlate: match.normalizedPlate,
-            ocrConfidence: input.ocrConfidence ?? match.ocrConfidence,
+            ocrConfidence: match.ocrConfidence,
             plateMatched: match.plateMatched,
             detectedAt,
           },
@@ -189,8 +262,44 @@ export class OccupancyService {
                   status: "COMPLETED",
                 },
               });
+            } else {
+              // EXIT detected but no ACTIVE session matches this vehicle. The
+              // physical occupancy is still released; the mismatch is recorded
+              // as an anomaly for admin review (we do NOT fabricate a session).
+              await tx.occupancyAnomaly.create({
+                data: {
+                  occupancyEventId: event.id,
+                  cameraId: camera.id,
+                  vehicleId: match.vehicleId,
+                  detectedPlate: match.detectedPlate,
+                  anomalyType: "EXIT_WITHOUT_ACTIVE_SESSION",
+                  description: `EXIT for plate '${match.detectedPlate}' with no active parking session.`,
+                  resolved: false,
+                },
+              });
             }
           }
+        } else if (eventType === "ENTRY") {
+          // A physical ENTRY with plateMatched=false: record the reason as an
+          // anomaly, but keep the occupancy update intact (unknown vehicle).
+          const reason =
+            match.detectedPlate && !this.isPlateTrusted(match.ocrConfidence)
+              ? "LOW_CONFIDENCE_PLATE"
+              : "UNREGISTERED_PLATE";
+          await tx.occupancyAnomaly.create({
+            data: {
+              occupancyEventId: event.id,
+              cameraId: camera.id,
+              vehicleId: null,
+              detectedPlate: match.detectedPlate,
+              anomalyType: reason,
+              description:
+                reason === "LOW_CONFIDENCE_PLATE"
+                  ? `ENTRY with plate '${match.detectedPlate}' below confidence threshold; identity not trusted.`
+                  : `ENTRY with ${match.detectedPlate === null ? "no detected plate" : `unknown plate '${match.detectedPlate}'`}; no registered vehicle.`,
+              resolved: false,
+            },
+          });
         }
 
         return event;

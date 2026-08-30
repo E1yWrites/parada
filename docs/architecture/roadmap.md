@@ -10,12 +10,12 @@ document -> STOP.
 | 1 | Project Infrastructure | DONE |
 | 2 | Database | DONE |
 | 3 | Backend Foundation | DONE |
-| 4 | Authentication + Authorization | PENDING |
-| 5 | Parking Zones + Slots | PENDING |
+| 4 | Authentication + Authorization | DONE |
+| 5 | Vision/OCR Integration Foundation | IN PROGRESS |
 | 6 | Occupancy Model + Simulator | PENDING |
 | 7 | Admin Web Application | PENDING |
 | 8 | Mobile Application | PENDING |
-| 9 | OCR / Computer Vision | PENDING |
+| 9 | OCR / Computer Vision (real model) | PENDING |
 | 10 | Real-Time Integration | PENDING |
 | 11 | Full System Integration | PENDING |
 | 12 | Testing + Accuracy Evaluation | PENDING |
