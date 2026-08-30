@@ -121,3 +121,96 @@ export interface Notification {
   read: boolean;
   createdAt: Date;
 }
+
+export type AnomalyType =
+  | "UNREGISTERED_PLATE"
+  | "LOW_CONFIDENCE_PLATE"
+  | "EXIT_WITHOUT_ACTIVE_SESSION";
+
+export interface OccupancyAnomaly {
+  id: string;
+  occupancyEventId: string;
+  cameraId: string | null;
+  vehicleId: string | null;
+  detectedPlate: string | null;
+  anomalyType: string;
+  description: string | null;
+  resolved: boolean;
+  createdAt: Date;
+}
+
+export interface AdminCamera {
+  id: string;
+  identifier: string;
+  name: string;
+  location: string | null;
+  gateType: GateType;
+  status: CameraStatus;
+  zone: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  recentEvents: {
+    id: string;
+    eventType: OccupancyEventType;
+    detectedPlate: string | null;
+    detectedAt: Date;
+  }[];
+}
+
+export interface AdminZoneSummary {
+  id: string;
+  name: string;
+  code: string;
+  description: string | null;
+  capacity: number;
+  occupiedCount: number;
+  availableCount: number;
+  occupancyPct: number;
+  status: ZoneStatus;
+  availability: "AVAILABLE" | "LOW_AVAILABILITY" | "FULL" | "OFFLINE";
+}
+
+export interface AdminDashboard {
+  summary: {
+    totalZones: number;
+    totalCapacity: number;
+    totalOccupied: number;
+    totalAvailable: number;
+    occupancyPct: number;
+    activeSessions: number;
+    onlineCameras: number;
+    offlineCameras: number;
+  };
+  zones: AdminZoneSummary[];
+  lowZones: AdminZoneSummary[];
+  fullZones: AdminZoneSummary[];
+  recentEvents: {
+    id: string;
+    zoneId: string;
+    zoneCode: string;
+    eventType: OccupancyEventType;
+    detectedPlate: string | null;
+    source: OccupancySource;
+    detectedAt: Date;
+  }[];
+  recentAnomalies: (OccupancyAnomaly & { zoneCode: string | null })[];
+  recentNotifications: (Notification & { zone?: { code: string } })[];
+}
+
+export interface AdminNotification extends Notification {
+  zone?: {
+    id: string;
+    name: string;
+    code: string;
+  };
+}
+
+export interface AdminAnomaly extends OccupancyAnomaly {
+  zoneId: string | null;
+  zoneCode: string | null;
+  cameraIdentifier: string | null;
+  eventType: OccupancyEventType | null;
+  source: OccupancySource | null;
+}
