@@ -11,8 +11,8 @@ document -> STOP.
 | 2 | Database | DONE |
 | 3 | Backend Foundation | DONE |
 | 4 | Authentication + Authorization | DONE |
-| 5 | Vision/OCR Integration Foundation | IN PROGRESS |
-| 6 | Occupancy Model + Simulator | PENDING |
+| 5 | Vision/OCR Integration Foundation | DONE |
+| 6 | Occupancy Model + Simulator | DONE |
 | 7 | Admin Web Application | PENDING |
 | 8 | Mobile Application | PENDING |
 | 9 | OCR / Computer Vision (real model) | PENDING |

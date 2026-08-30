@@ -1,5 +1,6 @@
 import { Prisma, prisma } from "@parada/database";
 import { normalizePlate } from "@parada/database";
+import { ZONE_OCCUPANCY_LOW_THRESHOLD } from "@parada/config";
 import {
   BadRequestError,
   ConflictError,
@@ -227,6 +228,14 @@ export class OccupancyService {
           },
         });
 
+        await this.maybeNotify(tx, {
+          zoneId: zone.id,
+          capacity: zone.capacity,
+          previousOccupied,
+          newOccupied,
+          availableCount,
+        });
+
         if (match.vehicleId) {
           if (eventType === "ENTRY") {
             const vehicle = await tx.vehicle.findUniqueOrThrow({
@@ -312,6 +321,60 @@ export class OccupancyService {
         );
       }
       throw err;
+    }
+  }
+
+  /**
+   * Generate admin/maintainer notifications on a state TRANSITION, not on every
+   * event. A ZONE_FULL notification is created only when the zone first becomes
+   * full; a ZONE_LOW_AVAILABILITY notification only when availability first
+   * crosses at/below ZONE_OCCUPANCY_LOW_THRESHOLD. Because occupancy only
+   * increases via ENTRY, this transition check prevents notification spam while
+   * a zone remains in the same state, and a zone that drains and refills is
+   * treated as a new transition. [IMPLEMENTATION DECISION]
+   */
+  private async maybeNotify(
+    tx: Prisma.TransactionClient,
+    input: {
+      zoneId: string;
+      capacity: number;
+      previousOccupied: number;
+      newOccupied: number;
+      availableCount: number;
+    }
+  ): Promise<void> {
+    const { zoneId, capacity, previousOccupied, newOccupied, availableCount } = input;
+
+    if (capacity <= 0) {
+      return;
+    }
+
+    const wasFull = previousOccupied >= capacity;
+    const nowFull = newOccupied >= capacity;
+    if (!wasFull && nowFull) {
+      await tx.notification.create({
+        data: {
+          zoneId,
+          type: "ZONE_FULL",
+          message: `Zone is FULL (${capacity}/${capacity} occupied).`,
+          targetRole: "ADMIN",
+        },
+      });
+    }
+
+    const availableFraction = availableCount / capacity;
+    const previousAvailableFraction = (capacity - previousOccupied) / capacity;
+    const nowLow = availableFraction <= ZONE_OCCUPANCY_LOW_THRESHOLD;
+    const wasLow = previousAvailableFraction <= ZONE_OCCUPANCY_LOW_THRESHOLD;
+    if (!wasLow && nowLow) {
+      await tx.notification.create({
+        data: {
+          zoneId,
+          type: "ZONE_LOW_AVAILABILITY",
+          message: `Zone availability is low (${availableCount}/${capacity} available).`,
+          targetRole: "ADMIN",
+        },
+      });
     }
   }
 

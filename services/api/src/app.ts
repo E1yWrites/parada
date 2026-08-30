@@ -7,11 +7,13 @@ import { vehiclesRouter } from "./routes/vehicles";
 import { sessionsRouter } from "./routes/sessions";
 import { adminRouter } from "./routes/admin";
 import { OccupancyService } from "./domain/occupancy";
+import { SimulatorService } from "./domain/simulator";
 import { AuthService } from "./domain/auth";
 import { loadEnv } from "./config/env";
 import { createAuthMiddleware } from "./middleware/auth";
 import { HttpError, InternalError } from "./http/errors";
 import { errorBody } from "./http/response";
+import { simulatorRouter } from "./routes/simulator";
 
 export interface AppOptions {
   occupancy?: OccupancyService;
@@ -59,6 +61,9 @@ export function createApp(options: AppOptions = {}): Express {
   app.use(vehicles);
   app.use(sessions);
   app.use(admin);
+
+  const simulator = new SimulatorService(occupancy);
+  app.use(simulatorRouter(simulator));
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json(errorBody({ code: "NOT_FOUND", message: "Route not found." }));

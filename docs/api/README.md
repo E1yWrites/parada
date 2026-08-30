@@ -197,6 +197,85 @@ List all parking sessions across all users with user, zone, vehicle, events.
 ### `GET /admin/users` (ADMIN required)
 List all users with vehicle/session counts (no password hashes).
 
+### `GET /admin/zones/:zoneId/history` (ADMIN required)
+Time-filtered occupancy history for a single zone. Uses the existing
+`OccupancyHistory` snapshots written on every occupancy transition.
+
+| Query | Default | Meaning |
+|-------|---------|---------|
+| `from` | — | ISO date; include history at/after this time (400 if invalid) |
+| `to` | — | ISO date; include history at/before this time (400 if invalid) |
+| `limit` | `100` | Integer 1..1000 (400 otherwise) |
+
+Returns:
+```jsonc
+{
+  "data": {
+    "zone": { "id","name","code","capacity" },
+    "from": "<iso>|null", "to": "<iso>|null", "limit": 100,
+    "entries": [ { "id","occurredAt","occupiedCount","availableCount" } ]
+  }
+}
+```
+
+## Occupancy Simulator (ADMIN only)
+
+The **simulator control plane** is a deterministic development/ops tool for
+exercising the real occupancy pipeline. It is **not computer vision** — real OCR
+is integrated separately (Phase 9). Every simulated event is a
+`NormalizedVisionEvent` submitted through `OccupancyService.processEvent(..., "SIMULATOR")`;
+it **never modifies** `occupiedCount`, sessions, events, or history directly.
+
+Because the simulator can artificially change parking occupancy, all routes are
+`ADMIN`-only (401 unauthenticated, 403 for `USER`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/simulator/run` | Run a scenario (returns `201`) |
+| POST | `/simulator/scenario` | Run a scenario (returns `200`) |
+| GET | `/simulator/status` | In-memory run stats + supported scenarios |
+
+`POST /simulator/run` body:
+```jsonc
+{
+  "scenario": "SINGLE_ENTRY",   // required, one of the scenarios below
+  "zoneId": "z_...",            // optional, defaults to first zone
+  "vehicleIds": ["v_...", ...], // optional, registered vehicles to use
+  "unknownPlate": "XXX-9999",   // optional, plate for UNKNOWN_VEHICLE
+  "fillTo": 12                  // optional, target occupancy for FILL_ZONE
+}
+```
+
+**Scenarios (deterministic, reproducible):**
+
+| Scenario | Behavior |
+|----------|----------|
+| `SINGLE_ENTRY` | One registered vehicle enters. |
+| `SINGLE_EXIT` | One registered vehicle exits (closes its `ACTIVE` session). |
+| `MULTIPLE_ENTRIES` | Each provided vehicle enters. |
+| `MULTIPLE_EXITS` | Each provided vehicle exits. |
+| `FILL_ZONE` | Fills the zone to capacity (registered vehicles first, then unknown plates). |
+| `UNKNOWN_VEHICLE` | A non-registered plate enters; occupancy updates, no fake vehicle/user/session, an `OccupancyAnomaly` is recorded. |
+| `DUPLICATE_EVENT` | Submits the same `(cameraId, sourceEventId)` twice; the duplicate is rejected (409). |
+| `COMPLETE_PARKING_LIFECYCLE` | ENTRY → ACTIVE session → EXIT → `COMPLETED` session with `durationSeconds`. |
+
+Sources are recorded as `SIMULATOR` (never `CAMERA`/`MANUAL`). A real camera
+event and a simulated event are therefore distinguishable in the audit trail.
+
+### Occupancy notifications
+
+While processing any event (including simulated ones), the pipeline generates
+**ADMIN-targeted** operational notifications **on state transitions only** (no
+spam while a zone stays in the same state):
+
+- `ZONE_FULL` — the zone first becomes full (`occupiedCount == capacity`).
+- `ZONE_LOW_AVAILABILITY` — availability first drops to
+  `availableCount/capacity <= ZONE_OCCUPANCY_LOW_THRESHOLD` (default `0.2`).
+
+A zone that drains and refills beyond a threshold is treated as a fresh
+transition and emits again. `capacity <= 0` zones never notify. Notifications are
+created inside the same transaction as the occupancy change.
+
 ## Tests
 
 `npm test` runs `jest` against the dedicated `parada_test_api` database (the
