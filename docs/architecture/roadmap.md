@@ -13,7 +13,7 @@ document -> STOP.
 | 4 | Authentication + Authorization | DONE |
 | 5 | Vision/OCR Integration Foundation | DONE |
 | 6 | Occupancy Model + Simulator | DONE |
-| 7 | Admin Web Application | DONE |
+| 7 | Admin Web Application | PENDING |
 | 8 | Mobile Application | PENDING |
 | 9 | OCR / Computer Vision (real model) | PENDING |
 | 10 | Real-Time Integration | PENDING |
