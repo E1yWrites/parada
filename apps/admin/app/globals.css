@@ -1,0 +1,178 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --void: #030304;
+  --surface: #0f1115;
+  --foreground: #ffffff;
+  --muted: #94a3b8;
+  --border: #1e293b;
+  --orange: #f7931a;
+  --burnt-orange: #ea580c;
+  --gold: #ffd600;
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-void text-foreground font-sans;
+  }
+
+  ::selection {
+    background: rgba(247, 147, 26, 0.3);
+    color: #fff;
+  }
+}
+
+/* ---- Atmospheric, barely-visible technical backdrop ---- */
+.parada-background {
+  position: relative;
+  background-color: var(--void);
+}
+
+.parada-background::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 75%);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 75%);
+}
+
+.parada-background::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(600px 300px at 85% -10%, rgba(247, 147, 26, 0.05), transparent 70%),
+    radial-gradient(500px 260px at 8% -5%, rgba(255, 214, 0, 0.04), transparent 70%),
+    radial-gradient(800px 500px at 50% 120%, rgba(234, 88, 12, 0.04), transparent 70%);
+}
+
+@layer components {
+  /* ---- Cards ---- */
+  .card {
+    @apply rounded-xl border border-white/10 bg-surface;
+  }
+
+  .card-hover {
+    @apply transition-colors duration-200 hover:border-[#F7931A]/50;
+  }
+
+  .surface-panel {
+    @apply rounded-xl bg-white/[0.02] border border-white/10;
+  }
+
+  /* ---- Buttons ---- */
+  .btn {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F7931A] focus-visible:ring-offset-2 focus-visible:ring-offset-void disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-gradient text-white shadow-[0_0_20px_-5px_rgba(234,88,12,0.5)] hover:scale-[1.02] hover:shadow-[0_0_24px_-2px_rgba(234,88,12,0.7)];
+  }
+
+  .btn-secondary {
+    @apply btn border border-white/15 bg-white/[0.02] text-white hover:border-[#F7931A]/50 hover:text-white;
+  }
+
+  .btn-ghost {
+    @apply btn border border-transparent text-muted hover:border-white/10 hover:bg-white/[0.03] hover:text-[#F7931A];
+  }
+
+  /* ---- Inputs ---- */
+  .input {
+    @apply min-h-[44px] w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-muted/60 transition-colors duration-200 focus-visible:outline-none focus-visible:border-[#F7931A] focus-visible:ring-2 focus-visible:ring-[#F7931A] focus-visible:ring-opacity-40;
+  }
+
+  select.input option {
+    @apply bg-surface text-white;
+  }
+
+  /* ---- Labels ---- */
+  .label {
+    @apply text-sm font-medium text-muted;
+  }
+
+  .label-tech {
+    @apply text-[11px] font-semibold uppercase tracking-widest text-muted;
+  }
+
+  /* ---- Status pill ---- */
+  .status-pill {
+    @apply inline-flex min-h-[26px] items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider;
+  }
+
+  /* ---- Tables ---- */
+  .table-base {
+    @apply w-full text-left text-sm;
+  }
+
+  .table-base thead tr {
+    @apply border-b border-white/10;
+  }
+
+  .table-base thead th {
+    @apply px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-muted;
+  }
+
+  .table-base tbody tr {
+    @apply border-b border-white/5 transition-colors duration-150 hover:bg-white/[0.02];
+  }
+
+  .table-base tbody tr:last-child {
+    @apply border-b-0;
+  }
+
+  .table-base tbody td {
+    @apply px-4 py-3 align-middle;
+  }
+
+  /* ---- Occupancy bar ---- */
+  .occupancy-bar {
+    @apply relative h-1.5 w-full overflow-hidden rounded-full bg-white/10;
+  }
+
+  /* ---- Scrollbar ---- */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #1e293b transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
