@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, BellRing, Check } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
-import { Card, SectionHeader } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import { ReadBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";

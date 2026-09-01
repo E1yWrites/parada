@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Loader2, AlertTriangle, RotateCcw } from "lucide-react";
 import { Card } from "./Card";
 import { Button } from "./Button";
@@ -83,36 +82,4 @@ export function FullPageSpinner({ label = "Loading…" }: { label?: string }) {
       <p className="label-tech">{label}</p>
     </div>
   );
-}
-
-export type RenderFn<T> = (data: T) => ReactNode;
-
-export function Bound<T>({
-  loading,
-  error,
-  isEmpty,
-  emptyTitle,
-  emptyMessage,
-  onRetry,
-  children,
-}: {
-  loading: boolean;
-  error: unknown;
-  isEmpty: boolean;
-  emptyTitle?: string;
-  emptyMessage?: string;
-  onRetry?: () => void;
-  children: ReactNode;
-}) {
-  if (loading) return <LoadingState />;
-  if (error) {
-    return (
-      <ErrorState
-        message={error instanceof Error ? error.message : undefined}
-        onRetry={onRetry}
-      />
-    );
-  }
-  if (isEmpty) return <EmptyState title={emptyTitle} message={emptyMessage} />;
-  return <>{children}</>;
 }

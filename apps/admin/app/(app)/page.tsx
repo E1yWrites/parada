@@ -180,11 +180,7 @@ export default function DashboardPage() {
                             }`}
                             aria-hidden="true"
                           >
-                            {ev.eventType === "ENTRY" ? (
-                              <CarFront className="h-4 w-4" />
-                            ) : (
-                              <CarFront className="h-4 w-4" />
-                            )}
+                            <CarFront className="h-4 w-4" />
                           </span>
                           <div>
                             <p className="font-mono text-sm font-semibold text-white">

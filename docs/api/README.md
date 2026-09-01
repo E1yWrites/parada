@@ -13,6 +13,29 @@ npm start              # or: npm run dev
 
 Health check: `GET /health` returns `{ "data": { "status": "ok", "database": "connected" } }`.
 
+### Local Development (no Docker/root)
+
+The repo ships an **embedded PostgreSQL 18** dev instance so the full stack runs
+without Docker or a system Postgres:
+
+```bash
+# packages/database
+npm run db:start      # embedded Postgres on :5432 (background, pid in .embedded-pg/)
+npm run db:migrate    # apply schema migrations to the dev DB
+npm run seed          # seed dev users/zones/cameras/vehicles
+
+# root of the API service
+cp .env.example .env  # set DATABASE_URL, JWT_SECRET (see below)
+npm start             # API on :4000
+```
+
+Then start the Admin app (`apps/admin`, Next.js) which proxies API calls through
+its own server route. Stop the dev DB with `npm run db:stop`.
+
+> The dev data lives in `packages/database/.embedded-pg/` (gitignored). Deleting
+> that directory resets the local database; `npm run db:migrate` + `npm run seed`
+> recreate it.
+
 ## Response & Error Conventions
 
 - Success: `{ "data": <payload> }`
@@ -218,6 +241,53 @@ Returns:
 }
 ```
 
+## Admin API (ADMIN role only)
+
+Every route below is mounted behind `requireRole("ADMIN")` — `401` when
+unauthenticated, `403` for `USER` roles. The Admin web app (`apps/admin`)
+authenticates through the Next.js proxy route (`/api/auth/*`, `/api/proxy/*`)
+using the JWT stored in the `HttpOnly` `parada_admin_token` cookie.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/admin/dashboard` | Facility summary + zone overview + recent activity/anomalies/notifications |
+| GET | `/admin/zones` | All zones with live occupancy + assigned gate cameras |
+| GET | `/admin/cameras` | All cameras with zone and recent events |
+| GET | `/admin/sessions` | All parking sessions (user, zone, vehicle, duration) |
+| GET | `/admin/users` | All users with vehicle/session counts (no hashes) |
+| GET | `/admin/vehicles` | All registered vehicles with owners |
+| GET | `/admin/notifications` | ADMIN-targeted notifications + `unreadCount` |
+| PATCH | `/admin/notifications/:id/read` | Mark one notification read (`204`) |
+| GET | `/admin/anomalies` | Occupancy anomalies for admin review |
+
+### `GET /admin/dashboard`
+
+One-shot rendering payload for the dashboard:
+
+```jsonc
+{
+  "data": {
+    "summary": { "totalZones","totalCapacity","totalOccupied","totalAvailable",
+                 "occupancyPct","activeSessions","onlineCameras","offlineCameras" },
+    "zones": [ { "id","name","code","description","capacity","occupiedCount",
+                 "availableCount","occupancyPct","status","availability" } ],
+    "recentEvents": [ { "id","zoneId","eventType","detectedPlate","source","detectedAt" } ],
+    "recentAnomalies": [ /* latest anomalies */ ],
+    "recentNotifications": [ /* latest ADMIN notifications */ ]
+  }
+}
+```
+
+### `GET /admin/zones`
+
+Includes `cameras` (id + status) plus `entryCamera` / `exitCamera` gate objects,
+so the zone detail view can render gate direction and camera health without an
+extra round-trip.
+
+### `PATCH /admin/notifications/:id/read`
+
+Sets `read = true` on one notification. Returns `204`.
+
 ## Occupancy Simulator (ADMIN only)
 
 The **simulator control plane** is a deterministic development/ops tool for
@@ -282,6 +352,17 @@ created inside the same transaction as the occupancy change.
 `jest.setup.ts` guard refuses to run against any other DB). `@parada/database`
 tests use their own `parada_test` DB so the two suites can run in parallel under
 Turborepo without clobbering each other.
+
+Both test databases run on the canonical local Postgres port (`5432`). With the
+embedded dev DB running, provision them once:
+
+```bash
+npm run db:test:setup -w @parada/database   # create + migrate parada_test & parada_test_api
+npx turbo test
+```
+
+`db:test:setup` is idempotent — safe to re-run. The integration suites wipe the
+`parada_test*` tables at start, so the seeded dev data in `parada` is never touched.
 
 ## Development Credentials
 

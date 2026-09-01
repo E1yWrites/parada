@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Activity, AlertCircle, LockKeyhole, Mail } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { ApiError } from "@/lib/api/client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, error: authError } = useAuth();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -27,8 +28,8 @@ export default function LoginPage() {
       }
       router.replace("/");
       router.refresh();
-    } catch {
-      setError(authError ?? "Unable to sign in.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Unable to sign in.");
     } finally {
       setSubmitting(false);
     }

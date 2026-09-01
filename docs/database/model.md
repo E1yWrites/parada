@@ -95,9 +95,28 @@ stay correct, but **no `ParkingSession` is created** (a session requires a real 
 
 - `20260829141334_init` — initial schema (8 entities + enums + constraints + indexes).
 - `20260829143014_add_vehicle_and_session_identity` — additive: `Vehicle`, `VehicleType`/`VehicleStatus` enums, `OccupancyEvent` plate fields, `ParkingSession.userId/vehicleId` (NOT NULL), one-active-session-per-vehicle partial unique index.
+- `20260829151408_add_revoked_token` — `RevokedToken` table for server-side JWT logout revocation (`jti`).
+- `20260830002352_add_occupancy_anomaly` — `OccupancyAnomaly` entity (unknown plate / low confidence / exit without session) indexed by `anomalyType` and `resolved`.
 
 Use `prisma migrate dev` for development, `prisma migrate deploy` for environments.
 `db push` is not the permanent strategy.
+
+## Local Development Database
+
+When running without Docker, `@parada/database` provides an **embedded
+PostgreSQL 18** dev instance (no root/system Postgres required):
+
+```bash
+npm run db:start   -w @parada/database   # start on :5432 (background)
+npm run db:stop    -w @parada/database   # stop it (reads .embedded-pg/server.pid)
+npm run db:migrate -w @parada/database   # apply migrations to the dev DB
+npm run seed       -w @parada/database   # seed dev data (dev credentials only)
+npm run db:test:setup -w @parada/database  # create + migrate parada_test(_api) for jest
+```
+
+Data persists in `packages/database/.embedded-pg/` (gitignored). The dev instance
+uses the same defaults as Docker Compose (`tcp://parada:changeme@127.0.0.1:5432`),
+so configs swap between the two unchanged.
 
 ## Seed Data (dev only — fake data)
 
@@ -105,6 +124,6 @@ Use `prisma migrate dev` for development, `prisma migrate deploy` for environmen
 - Slots: `A01`–`A20`, `B01`–`B20`, `C01`–`C10`
 - Cameras: Entry + Exit per zone (6 total)
 - Users: `admin@parada.local` (ADMIN), `driver@parada.local` (USER)
-  (placeholder password hashes — real hashing added in Phase 4)
+  (argon2id-hashed passwords — dev-only, never reuse in production)
 - Vehicles: 3 registered — driver owns `ABC-1234` (CAR) + `XYZ-5678` (MOTORCYCLE); admin owns
   `MNO-9999` (VAN) — demonstrates multiple vehicles per user.

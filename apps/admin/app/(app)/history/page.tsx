@@ -11,12 +11,6 @@ import { DataTable, type Column } from "@/components/ui/DataTable";
 import { formatDateTime } from "@/lib/format";
 import type { ZoneHistory } from "@/lib/api/types";
 
-function ISOInput(v: string | undefined) {
-  if (!v) return "";
-  const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 16);
-}
-
 export default function HistoryPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -83,8 +77,6 @@ export default function HistoryPage() {
       cell: (e) => <span className="font-mono text-sm text-muted">{e.availableCount}</span>,
     },
   ];
-
-  const selectedZone = zones.data?.find((z) => z.id === zoneId);
 
   return (
     <div>
