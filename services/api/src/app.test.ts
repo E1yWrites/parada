@@ -112,6 +112,50 @@ describe("PARADA API", () => {
       expect(zone.availableCount).toBe(ctx.capacity);
       expect(zone.occupiedCount).toBe(0);
     });
+
+    it("preserves existing response fields and adds normalized status/availability", async () => {
+      const res = await request(app).get("/zones").expect(200);
+      const zone = res.body.data.find((z: { code: string }) => z.code === ctx.zoneCode);
+      expect(zone).toMatchObject({
+        id: ctx.zoneId,
+        name: ctx.zoneName,
+        code: ctx.zoneCode,
+        capacity: ctx.capacity,
+        occupiedCount: 0,
+        availableCount: ctx.capacity,
+        status: "ACTIVE",
+        availability: "AVAILABLE",
+      });
+    });
+
+    it("reports LOW_AVAILABILITY when most spaces are occupied", async () => {
+      await prisma.parkingZone.update({
+        where: { id: ctx.zoneId },
+        data: { occupiedCount: ctx.capacity - 1 },
+      });
+      const res = await request(app).get("/zones").expect(200);
+      const zone = res.body.data.find((z: { code: string }) => z.code === ctx.zoneCode);
+      expect(zone.availability).toBe("LOW_AVAILABILITY");
+    });
+
+    it("reports FULL when at capacity", async () => {
+      await prisma.parkingZone.update({
+        where: { id: ctx.zoneId },
+        data: { occupiedCount: ctx.capacity },
+      });
+      const res = await request(app).get("/zones").expect(200);
+      const zone = res.body.data.find((z: { code: string }) => z.code === ctx.zoneCode);
+      expect(zone.availability).toBe("FULL");
+    });
+
+    it("reports OFFLINE for inactive zones (filtered out of the public list)", async () => {
+      await prisma.parkingZone.update({
+        where: { id: ctx.zoneId },
+        data: { status: "INACTIVE" },
+      });
+      const res = await request(app).get("/zones").expect(200);
+      expect(res.body.data.some((z: { code: string }) => z.code === ctx.zoneCode)).toBe(false);
+    });
   });
 
   describe("GET /zones/:id/occupancy", () => {
@@ -119,6 +163,29 @@ describe("PARADA API", () => {
       const res = await request(app).get(`/zones/${ctx.zoneId}/occupancy`).expect(200);
       expect(res.body.data.occupiedCount).toBe(0);
       expect(res.body.data.availableCount).toBe(ctx.capacity);
+    });
+
+    it("adds normalized availability and keeps the zone status field", async () => {
+      const res = await request(app).get(`/zones/${ctx.zoneId}/occupancy`).expect(200);
+      expect(res.body.data).toMatchObject({
+        zoneId: ctx.zoneId,
+        name: ctx.zoneName,
+        code: ctx.zoneCode,
+        capacity: ctx.capacity,
+        occupiedCount: 0,
+        availableCount: ctx.capacity,
+        status: "ACTIVE",
+        availability: "AVAILABLE",
+      });
+    });
+
+    it("reports FULL for a fully occupied zone", async () => {
+      await prisma.parkingZone.update({
+        where: { id: ctx.zoneId },
+        data: { occupiedCount: ctx.capacity },
+      });
+      const res = await request(app).get(`/zones/${ctx.zoneId}/occupancy`).expect(200);
+      expect(res.body.data.availability).toBe("FULL");
     });
 
     it("404s for an unknown zone", async () => {

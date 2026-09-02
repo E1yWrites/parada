@@ -1,0 +1,131 @@
+import type { ReactNode } from "react";
+import { StyleSheet, Text as RNText, type StyleProp, type TextStyle } from "react-native";
+import { fonts, fontSizes, lineHeights, colors } from "@/src/theme";
+
+export type TextVariant =
+  | "display"
+  | "hero"
+  | "title"
+  | "section"
+  | "body"
+  | "bodySemi"
+  | "caption"
+  | "micro"
+  | "mono"
+  | "monoBold"
+  | "plate";
+
+type TextProps = {
+  children: ReactNode;
+  variant?: TextVariant;
+  color?: string;
+  align?: "auto" | "left" | "right" | "center";
+  numberOfLines?: number;
+  accessibilityLabel?: string;
+  style?: StyleProp<TextStyle>;
+  testID?: string;
+};
+
+const variantStyles: Record<TextVariant, TextStyle> = {
+  display: {
+    fontFamily: fonts.heading,
+    fontSize: fontSizes.display,
+    lineHeight: lineHeights.display,
+    color: colors.foreground,
+  },
+  hero: {
+    fontFamily: fonts.heading,
+    fontSize: fontSizes.hero,
+    lineHeight: lineHeights.hero,
+    color: colors.foreground,
+  },
+  title: {
+    fontFamily: fonts.headingMedium,
+    fontSize: fontSizes.title,
+    lineHeight: lineHeights.title,
+    color: colors.foreground,
+  },
+  section: {
+    fontFamily: fonts.heading500,
+    fontSize: fontSizes.section,
+    lineHeight: lineHeights.section,
+    color: colors.foreground,
+  },
+  body: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.body,
+    lineHeight: lineHeights.body,
+    color: colors.foreground,
+  },
+  bodySemi: {
+    fontFamily: fonts.bodySemi,
+    fontSize: fontSizes.body,
+    lineHeight: lineHeights.body,
+    color: colors.foreground,
+  },
+  caption: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.caption,
+    lineHeight: lineHeights.caption,
+    color: colors.muted,
+  },
+  micro: {
+    fontFamily: fonts.bodySemi,
+    fontSize: fontSizes.micro,
+    lineHeight: lineHeights.micro,
+    color: colors.muted,
+    letterSpacing: 1,
+  },
+  mono: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.caption,
+    lineHeight: lineHeights.caption,
+    color: colors.foreground,
+  },
+  monoBold: {
+    fontFamily: fonts.monoBold,
+    fontSize: fontSizes.monoValue,
+    lineHeight: lineHeights.monoValue,
+    color: colors.foreground,
+  },
+  plate: {
+    fontFamily: fonts.monoBold,
+    fontSize: fontSizes.monoValue,
+    lineHeight: lineHeights.monoValue,
+    letterSpacing: 1.5,
+    color: colors.orange,
+  },
+};
+
+export function Text({
+  children,
+  variant = "body",
+  color,
+  align,
+  numberOfLines,
+  accessibilityLabel,
+  style,
+  testID,
+}: TextProps) {
+  return (
+    <RNText
+      testID={testID}
+      accessibilityLabel={accessibilityLabel}
+      numberOfLines={numberOfLines}
+      style={[
+        styles.base,
+        variantStyles[variant],
+        align ? { textAlign: align } : undefined,
+        color ? { color } : undefined,
+        style,
+      ]}>
+      {children}
+    </RNText>
+  );
+}
+
+const styles = StyleSheet.create({
+  base: {
+    includeFontPadding: false,
+  },
+});

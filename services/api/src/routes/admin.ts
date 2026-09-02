@@ -8,7 +8,7 @@ import { ZONE_OCCUPANCY_LOW_THRESHOLD } from "@parada/config";
 
 type Availability = "AVAILABLE" | "LOW_AVAILABILITY" | "FULL" | "OFFLINE";
 
-function availabilityOf(
+export function availabilityOf(
   occupiedCount: number,
   capacity: number,
   zoneStatus: "ACTIVE" | "INACTIVE"

@@ -13,7 +13,8 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "postinstall": "node scripts/ensure-expo-link.cjs"
   },
   "devDependencies": {
     "turbo": "^2.3.0"

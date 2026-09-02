@@ -4,6 +4,7 @@ import { ok } from "../http/response";
 import { NotFoundError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
 import { OccupancyService } from "../domain/occupancy";
+import { availabilityOf } from "./admin";
 
 export function zonesRouter(occupancy: OccupancyService): Router {
   const router = Router();
@@ -32,6 +33,8 @@ export function zonesRouter(occupancy: OccupancyService): Router {
             capacity: z.capacity,
             occupiedCount: z.occupiedCount,
             availableCount: z.capacity - z.occupiedCount,
+            status: z.status,
+            availability: availabilityOf(z.occupiedCount, z.capacity, z.status),
           }))
         )
       );
@@ -45,7 +48,12 @@ export function zonesRouter(occupancy: OccupancyService): Router {
       if (!payload) {
         throw new NotFoundError(`Zone '${req.params["zoneId"]}' not found.`);
       }
-      res.json(ok(payload));
+      res.json(
+        ok({
+          ...payload,
+          availability: availabilityOf(payload.occupiedCount, payload.capacity, payload.status),
+        })
+      );
     })
   );
 

@@ -3,11 +3,43 @@
   "version": "0.1.0",
   "private": true,
   "description": "PARADA mobile app (React Native + Expo + TypeScript)",
+  "main": "index.js",
   "scripts": {
-    "build": "echo \"(mobile) no build yet\"",
-    "dev": "echo \"(mobile) no dev yet\"",
-    "lint": "echo \"(mobile) lint ok\"",
-    "typecheck": "echo \"(mobile) typecheck ok\"",
-    "test": "echo \"(mobile) no tests yet\""
+    "build": "expo export --platform ios --platform android",
+    "dev": "expo start",
+    "start": "expo start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand --forceExit"
+  },
+  "dependencies": {
+    "@expo-google-fonts/inter": "^0.2.3",
+    "@expo-google-fonts/jetbrains-mono": "^0.2.3",
+    "@expo-google-fonts/space-grotesk": "^0.2.3",
+    "@expo/vector-icons": "^14.1.0",
+    "@parada/types": "0.1.0",
+    "@tanstack/react-query": "^5.62.0",
+    "expo": "~53.0.27",
+    "expo-constants": "~17.1.8",
+    "expo-font": "~13.3.2",
+    "expo-linking": "~7.1.7",
+    "expo-router": "~5.1.11",
+    "expo-secure-store": "~14.2.4",
+    "expo-status-bar": "~2.2.3",
+    "react": "19.0.0",
+    "react-native": "0.79.6",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.11.1"
+  },
+  "devDependencies": {
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^29.5.14",
+    "@types/react": "~19.0.10",
+    "eslint": "^8.57.0",
+    "eslint-config-expo": "~8.0.1",
+    "jest": "~29.7.0",
+    "jest-expo": "~53.0.14",
+    "react-test-renderer": "19.0.0",
+    "typescript": "~5.5.0"
   }
 }

@@ -14,7 +14,7 @@ document -> STOP.
 | 5 | Vision/OCR Integration Foundation | DONE |
 | 6 | Occupancy Model + Simulator | DONE |
 | 7 | Admin Web Application | DONE |
-| 8 | Mobile Application | PENDING |
+| 8 | Mobile Application | DONE |
 | 9 | OCR / Computer Vision (real model) | PENDING |
 | 10 | Real-Time Integration | PENDING |
 | 11 | Full System Integration | PENDING |

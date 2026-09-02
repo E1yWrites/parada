@@ -1,0 +1,129 @@
+import { useQuery } from "@tanstack/react-query";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  ActiveSessionBanner,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  SectionHeader,
+  SessionCard,
+  Text,
+} from "@/src/components";
+import { api, ApiError, type SessionDto } from "@/lib/api/client";
+import { queryKeys } from "@/lib/query";
+import { useNow } from "@/src/hooks/useNow";
+import { colors, spacing } from "@/src/theme";
+
+export default function SessionsScreen() {
+  const sessions = useQuery({
+    queryKey: queryKeys.sessions,
+    queryFn: api.sessions,
+    refetchInterval: 30_000,
+  });
+
+  const all: SessionDto[] = sessions.data ?? [];
+  const active = all.find((s) => s.status === "ACTIVE") ?? null;
+  const history = all.filter((s) => s.status === "COMPLETED");
+  const now = useNow(30_000, active !== null);
+  const refreshing = sessions.isFetching;
+  const refresh = () => void sessions.refetch();
+
+  return (
+    <SafeAreaView edges={["top"]} style={styles.flex}>
+      <FlatList
+        data={history}
+        keyExtractor={(session) => session.id}
+        renderItem={({ item }) => <SessionCard session={item} testID={`session-${item.id}`} />}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.orange} colors={[colors.orange]} />
+        }
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListHeaderComponent={
+          <Header
+            isLoading={sessions.isPending}
+            isError={sessions.isError}
+            errorMessage={
+              sessions.error instanceof ApiError ? sessions.error.message : "Couldn't load your sessions."
+            }
+            active={active}
+            now={now}
+            historyCount={history.length}
+          />
+        }
+        ListEmptyComponent={
+          sessions.isPending ? (
+            <LoadingState label="Loading sessions…" testID="sessions-loading" />
+          ) : sessions.isError ? (
+            <ErrorState
+              message={sessions.error instanceof ApiError ? sessions.error.message : "Couldn't load your sessions."}
+              onRetry={refresh}
+              testID="sessions-error"
+            />
+          ) : (
+            <EmptyState
+              icon="hourglass-outline"
+              title="No parking sessions"
+              description="Your parking history will appear here."
+              testID="sessions-empty"
+            />
+          )
+        }
+        testID="sessions-list"
+      />
+    </SafeAreaView>
+  );
+}
+
+function Header({
+  isLoading,
+  isError,
+  errorMessage,
+  active,
+  now,
+  historyCount,
+}: {
+  isLoading: boolean;
+  isError: boolean;
+  errorMessage: string;
+  active: SessionDto | null;
+  now: Date;
+  historyCount: number;
+}) {
+  return (
+    <View style={styles.header}>
+      <Text variant="micro">PARKING ACCESS</Text>
+      <Text variant="hero">Sessions</Text>
+      {active ? <ActiveSessionBanner session={active} now={now} testID="active-session" /> : null}
+      {isLoading || isError ? (
+        headerStateText(isLoading, isError, errorMessage)
+      ) : (
+        <SectionHeader title="History" caption={`${historyCount} completed`} testID="sessions-history" />
+      )}
+    </View>
+  );
+}
+
+function headerStateText(isLoading: boolean, isError: boolean, errorMessage: string) {
+  return (
+    <Text variant="caption" color={isError ? colors.danger : colors.muted} testID="sessions-header-state">
+      {isError ? errorMessage : isLoading ? "Loading…" : ""}
+    </Text>
+  );
+}
+
+const styles = StyleSheet.create({
+  flex: { flex: 1, backgroundColor: colors.background },
+  listContent: {
+    padding: spacing.xl3,
+    gap: spacing.lg,
+    flexGrow: 1,
+  },
+  separator: { height: spacing.lg },
+  header: {
+    gap: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+});

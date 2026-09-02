@@ -126,13 +126,17 @@ Authorization: Bearer <token>
 ## Endpoints
 
 ### `GET /zones`
-Active zones with live occupancy:
+Public; active zones with live occupancy and a derived availability summary
+(consumed by the mobile app map/list without extra round-trips):
 ```
-{ "data": [ { "id","name","code","capacity","occupiedCount","availableCount" } ] }
+{ "data": [ { "id","name","code","capacity","occupiedCount","availableCount","status","availability" } ] }
 ```
+`availability` = `AVAILABLE` | `LOW_AVAILABILITY` | `FULL` | `OFFLINE`
+(fraction free <= `ZONE_OCCUPANCY_LOW_THRESHOLD`, default 0.2, => `LOW_AVAILABILITY`;
+`occupiedCount >= capacity` => `FULL`; `status != ACTIVE` => `OFFLINE`).
 
 ### `GET /zones/:zoneId/occupancy`
-Live occupancy for one zone.
+Live occupancy for one zone (same payload fields as `/zones`, including `availability`).
 
 ### `POST /zones/:zoneId/events`
 The **camera input boundary** — a gate camera / vision service reports a
