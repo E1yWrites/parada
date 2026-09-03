@@ -7,6 +7,7 @@
   "scripts": {
     "build": "expo export --platform ios --platform android",
     "dev": "expo start",
+    "dev:lan": "expo start --host lan",
     "start": "expo start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

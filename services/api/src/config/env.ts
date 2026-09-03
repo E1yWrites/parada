@@ -2,6 +2,7 @@ import "dotenv/config";
 
 export interface Env {
   port: number;
+  host: string;
   databaseUrl: string;
   nodeEnv: string;
   jwtSecret: string;
@@ -33,6 +34,7 @@ export function loadEnv(): Env {
 
   return {
     port: Number(process.env["PORT"] ?? "4000"),
+    host: process.env["HOST"] ?? "0.0.0.0",
     databaseUrl: required("DATABASE_URL"),
     nodeEnv,
     // JWT secret is REQUIRED in every environment to avoid accidentally
