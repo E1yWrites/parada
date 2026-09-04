@@ -244,7 +244,9 @@ export class SimulatorService {
           n += 1;
         }
         let pad = 1;
-        while (occupied < fillTo) {
+        // Defensive guard: cap unknown-pad iterations to fillTo so the loop can
+        // never spin indefinitely even if occupancy tracking ever drifts.
+        while (occupied < fillTo && pad <= fillTo) {
           const body = entryEvent(
             `SIM-UNKNOWN-${pad}`,
             n,

@@ -2,8 +2,9 @@ import { prisma } from "@parada/database";
 import {
   DEFAULT_PARKING_FEE,
   DEFAULT_RESERVATION_WINDOW_MINUTES,
+  DEFAULT_GUEST_POLICY,
 } from "@parada/config";
-import type { ParkingFeeConfig } from "@parada/types";
+import type { ParkingFeeConfig, GuestPolicyConfig } from "@parada/types";
 
 /**
  * Reads runtime-configurable establishment settings from the singleton
@@ -54,5 +55,39 @@ export class ConfigService {
       }
     }
     return DEFAULT_RESERVATION_WINDOW_MINUTES;
+  }
+
+  /**
+   * Returns the effective guest-admission policy. Reads the
+   * `EstablishmentConfig.guestPolicy` JSON object and coerces the known shape,
+   * falling back to DEFAULT_GUEST_POLICY (PRIMARY_ZONE, primaryZoneId null,
+   * maxDurationHours 8, allowWhenFull false) on absence or malformed data.
+   */
+  async getGuestPolicy(): Promise<GuestPolicyConfig> {
+    const cfg = await prisma.establishmentConfig.findUnique({ where: { id: "singleton" } });
+    const raw = cfg?.guestPolicy;
+    if (raw && typeof raw === "object") {
+      const obj = raw as Record<string, unknown>;
+      if (
+        (obj["policy"] === "PRIMARY_ZONE" ||
+          obj["policy"] === "ALLOW_OVERFLOW" ||
+          obj["policy"] === "DENY_WHEN_FULL") &&
+        (obj["primaryZoneId"] === null || typeof obj["primaryZoneId"] === "string") &&
+        (typeof obj["maxDurationHours"] === "number" ||
+          obj["maxDurationHours"] === undefined) &&
+        typeof obj["allowWhenFull"] === "boolean"
+      ) {
+        return {
+          policy: obj["policy"],
+          primaryZoneId: obj["primaryZoneId"] ?? null,
+          maxDurationHours:
+            typeof obj["maxDurationHours"] === "number"
+              ? obj["maxDurationHours"]
+              : DEFAULT_GUEST_POLICY.maxDurationHours,
+          allowWhenFull: obj["allowWhenFull"],
+        };
+      }
+    }
+    return { ...DEFAULT_GUEST_POLICY };
   }
 }

@@ -927,5 +927,37 @@ describe("PARADA database integrity", () => {
       });
       expect(guest.linkedReservationId).toBe(res.id);
     });
+
+    it("supports an account-less guest parking session (null user/vehicle)", async () => {
+      const entry = await prisma.occupancyEvent.create({
+        data: {
+          zoneId: zone.id,
+          cameraId: camera.id,
+          eventType: "ENTRY",
+          previousOccupied: 0,
+          newOccupied: 1,
+          availableCount: 4,
+          detectedPlate: "ZZZ-0002",
+          detectedAt: new Date(),
+        },
+      });
+      const session = await prisma.parkingSession.create({
+        data: {
+          zoneId: zone.id,
+          userId: null,
+          vehicleId: null,
+          entryEventId: entry.id,
+          enteredAt: new Date(),
+          status: "ACTIVE",
+        },
+      });
+      const read = await prisma.parkingSession.findUnique({
+        where: { id: session.id },
+        include: { guestSession: true },
+      });
+      expect(read?.userId).toBeNull();
+      expect(read?.vehicleId).toBeNull();
+      expect(read?.guestSession).toBeNull();
+    });
   });
 });

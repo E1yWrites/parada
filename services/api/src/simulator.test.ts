@@ -501,16 +501,16 @@ describe("Phase 6 — occupancy simulator & admin infrastructure", () => {
       expect(occBefore).toBe(1);
       expect(await prisma.notification.count({ where: { zoneId: tiny.zoneId } })).toBe(2);
 
-      // A rejected ENTRY on the full zone must leave occupancy, events, and
-      // notifications untouched (transactional rollback behavior).
+      // A denied guest decision is still an auditable HTTP 201 event; it must
+      // leave occupancy and notifications unchanged.
       await request(tiny.app)
         .post(`/zones/${tiny.zoneId}/events`)
         .send({ cameraIdentifier: "cam-sim-entry", sourceEventId: "x-overflow", eventType: "ENTRY", detectedPlate: "SIM-999", ocrConfidence: 0.98 })
-        .expect(409);
+        .expect(201);
 
       expect((await occupancy(tiny.app, tiny.zoneId)).occupiedCount).toBe(occBefore);
-      expect(await prisma.notification.count({ where: { zoneId: tiny.zoneId } })).toBe(2);
-      expect(await prisma.occupancyEvent.count({ where: { zoneId: tiny.zoneId } })).toBe(1);
+      expect(await prisma.notification.count({ where: { zoneId: tiny.zoneId } })).toBe(3);
+      expect(await prisma.occupancyEvent.count({ where: { zoneId: tiny.zoneId } })).toBe(2);
     });
   });
 });

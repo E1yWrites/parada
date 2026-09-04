@@ -3,8 +3,9 @@ import { ok } from "../http/response";
 import { BadRequestError, NotFoundError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
 import { prisma, type Prisma } from "@parada/database";
-import { requireRole } from "../middleware/auth";
+import { requireRole, currentAuth } from "../middleware/auth";
 import { ZONE_OCCUPANCY_LOW_THRESHOLD } from "@parada/config";
+import type { OccupancyService } from "../domain/occupancy";
 
 type Availability = "AVAILABLE" | "LOW_AVAILABILITY" | "FULL" | "OFFLINE";
 
@@ -45,7 +46,7 @@ function zoneSummary(z: {
   };
 }
 
-export function adminRouter(): Router {
+export function adminRouter(deps: { occupancy: OccupancyService }): Router {
   const router = Router();
 
   router.use(requireRole("ADMIN"));
@@ -481,8 +482,7 @@ export function adminRouter(): Router {
         throw new NotFoundError(`Zone '${zoneId}' not found.`);
       }
 
-      const fromParam = req.query["from"];
-      const toParam = req.query["to"];
+      const fromParam = req.query["from"];      const toParam = req.query["to"];
       let from: Date | undefined;
       let to: Date | undefined;
 
@@ -530,6 +530,55 @@ export function adminRouter(): Router {
           entries: history,
         })
       );
+    })
+  );
+
+  /**
+   * ADMIN-only: explicitly admit a guest (unknown / low-confidence plate) under
+   * the guest admission policy, bypassing the camera policy denial. This is
+   * auditable (GUEST_ADMIN_OVERRIDE anomaly + notification) and does NOT trust
+   * any userId in the request body — the acting admin is read from the token.
+   */
+  router.post(
+    "/admin/guest-admit",
+    asyncHandler(async (req, res) => {
+      const adminId = currentAuth(res).id;
+      const zoneIdRaw = req.body?.["zoneId"];
+      const cameraIdentifier = req.body?.["cameraIdentifier"];
+      const detectedPlate = req.body?.["detectedPlate"] ?? null;
+      const eventType = req.body?.["eventType"] ?? "ENTRY";
+
+      if (typeof zoneIdRaw !== "string" || typeof cameraIdentifier !== "string") {
+        throw new BadRequestError("'zoneId' and 'cameraIdentifier' are required.");
+      }
+      if (eventType !== "ENTRY") {
+        throw new BadRequestError("'eventType' must be 'ENTRY'.");
+      }
+      if (typeof req.body?.["sourceEventId"] !== "string" || req.body["sourceEventId"].length === 0) {
+        throw new BadRequestError("'sourceEventId' (string) is required.");
+      }
+      if (
+        req.body?.["detectedAt"] !== undefined &&
+        req.body?.["detectedAt"] !== null &&
+        (typeof req.body["detectedAt"] !== "string" || Number.isNaN(new Date(req.body["detectedAt"]).getTime()))
+      ) {
+        throw new BadRequestError("'detectedAt' must be a valid ISO date string.");
+      }
+
+      const result = await deps.occupancy.processEvent(
+        {
+          zoneId: zoneIdRaw,
+          cameraIdentifier,
+          sourceEventId: req.body["sourceEventId"],
+          eventType,
+          detectedPlate: typeof detectedPlate === "string" ? detectedPlate : null,
+          detectedAt: typeof req.body?.["detectedAt"] === "string" ? req.body["detectedAt"] : null,
+        },
+        "CAMERA",
+        { overrideAdminUserId: adminId }
+      );
+
+      res.status(201).json(ok(result));
     })
   );
 

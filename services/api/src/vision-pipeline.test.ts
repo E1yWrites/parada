@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 import { prisma } from "@parada/database";
 import { createApp, type AppOptions } from "./app";
+import { ConfigService } from "./domain/config";
 
 /**
  * Phase 5 — Vision/OCR integration foundation.
@@ -78,6 +79,34 @@ async function seedZone(capacity = 20, slug = "a"): Promise<ZoneCtx> {
     vehicleABC: abc.id,
     vehicleXYZ: xyz.id,
   };
+}
+
+/** Seeds the EstablishmentConfig singleton so guests are admitted to `primaryZoneId`. */
+async function seedGuestPrimaryZone(primaryZoneId: string, allowWhenFull = false): Promise<ConfigService> {
+  await prisma.establishmentConfig.upsert({
+    where: { id: "singleton" },
+    update: {
+      guestPolicy: {
+        policy: "PRIMARY_ZONE",
+        primaryZoneId,
+        maxDurationHours: 8,
+        allowWhenFull,
+      },
+    },
+    create: {
+      id: "singleton",
+      guestPolicy: {
+        policy: "PRIMARY_ZONE",
+        primaryZoneId,
+        maxDurationHours: 8,
+        allowWhenFull,
+      },
+      parkingFee: {},
+      violations: {},
+      zoneDefaults: {},
+    },
+  });
+  return new ConfigService();
 }
 
 describe("Phase 5 — Vision/OCR integration foundation", () => {
@@ -179,14 +208,17 @@ describe("Phase 5 — Vision/OCR integration foundation", () => {
   });
 
   describe("Scenario 4 — unknown plate enters", () => {
-    it("increases occupancy but creates no fake vehicle/user/session", async () => {
-      await request(app)
+    it("denies the guest (no fake vehicle/user/session, occupancy unchanged)", async () => {
+      const res = await request(app)
         .post(`/zones/${ctx.zoneId}/events`)
         .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "s4", eventType: "ENTRY", detectedPlate: "ZZZ-0001", ocrConfidence: 0.85 })
         .expect(201);
 
+      expect(res.body.data.admitted).toBe(false);
+      expect(res.body.data.deniedReason).toBe("GUEST_POLICY_MISCONFIGURED");
+
       const occ = await occupancy();
-      expect(occ.occupiedCount).toBe(1);
+      expect(occ.occupiedCount).toBe(0);
 
       expect(await sessions()).toHaveLength(0);
       expect(await prisma.vehicle.count()).toBe(2);
@@ -194,27 +226,195 @@ describe("Phase 5 — Vision/OCR integration foundation", () => {
 
       const anomaly = await prisma.occupancyAnomaly.findFirst();
       expect(anomaly).not.toBeNull();
-      expect(anomaly!.anomalyType).toBe("UNREGISTERED_PLATE");
+      expect(anomaly!.anomalyType).toBe("GUEST_DENIED");
+    });
+  });
+
+  describe("Scenario 4b — admitted guest (primary zone configured)", () => {
+    it("admits the guest to the primary zone and creates an account-less session", async () => {
+      const g = await seedZone(5, "gz");
+      const gApp = createApp({ config: await seedGuestPrimaryZone(g.zoneId) });
+      const res = await request(gApp)
+        .post(`/zones/${g.zoneId}/events`)
+        .send({ cameraIdentifier: g.entryCamId, sourceEventId: "g1", eventType: "ENTRY", detectedPlate: "ZZZ-0100", ocrConfidence: 0.85 })
+        .expect(201);
+
+      expect(res.body.data.admitted).toBe(true);
+      expect(res.body.data.deniedReason).toBeNull();
+      expect(res.body.data.newOccupied).toBe(1);
+      expect(res.body.data.guestSessionId).not.toBeNull();
+
+      const session = await prisma.parkingSession.findUnique({
+        where: { id: res.body.data.guestSessionId },
+        include: { guestSession: true },
+      });
+      expect(session).not.toBeNull();
+      expect(session!.userId).toBeNull();
+      expect(session!.vehicleId).toBeNull();
+      expect(session!.status).toBe("ACTIVE");
+
+      const guest = await prisma.guestSession.findUnique({
+        where: { parkingSessionId: res.body.data.guestSessionId },
+      });
+      expect(guest!.detectedPlate).toBe("ZZZ0100");
+    });
+
+    it("closes a guest only in its admitted zone and ignores duplicate exits", async () => {
+      const g = await seedZone(5, "gx");
+      const other = await seedZone(5, "gy");
+      const gApp = createApp({ config: await seedGuestPrimaryZone(g.zoneId) });
+
+      await request(gApp)
+        .post(`/zones/${g.zoneId}/events`)
+        .send({ cameraIdentifier: g.entryCamId, sourceEventId: "gx-entry", eventType: "ENTRY", detectedPlate: "GUEST-0100" })
+        .expect(201);
+
+      const wrongZone = await request(gApp)
+        .post(`/zones/${other.zoneId}/events`)
+        .send({ cameraIdentifier: other.exitCamId, sourceEventId: "gx-wrong-exit", eventType: "EXIT", detectedPlate: "GUEST-0100" })
+        .expect(201);
+      expect(wrongZone.body.data.deniedReason).toBe("GUEST_EXIT_WRONG_ZONE");
+      expect((await occupancy()).occupiedCount).toBe(0);
+      expect((await request(gApp).get(`/zones/${other.zoneId}/occupancy`).expect(200)).body.data.occupiedCount).toBe(0);
+
+      await request(gApp)
+        .post(`/zones/${g.zoneId}/events`)
+        .send({ cameraIdentifier: g.exitCamId, sourceEventId: "gx-exit", eventType: "EXIT", detectedPlate: "GUEST-0100" })
+        .expect(201);
+      expect((await request(gApp).get(`/zones/${g.zoneId}/occupancy`).expect(200)).body.data.occupiedCount).toBe(0);
+
+      const duplicate = await request(gApp)
+        .post(`/zones/${g.zoneId}/events`)
+        .send({ cameraIdentifier: g.exitCamId, sourceEventId: "gx-duplicate-exit", eventType: "EXIT", detectedPlate: "GUEST-0100" })
+        .expect(201);
+      expect(duplicate.body.data.deniedReason).toBe("GUEST_EXIT_WITHOUT_SESSION");
+      expect((await request(gApp).get(`/zones/${g.zoneId}/occupancy`).expect(200)).body.data.occupiedCount).toBe(0);
+    });
+
+    it("denies allowWhenFull rather than violating the occupancy invariant", async () => {
+      const g = await seedZone(1, "go");
+      const gApp = createApp({ config: await seedGuestPrimaryZone(g.zoneId, true) });
+      const user = await prisma.user.create({
+        data: { name: "Overflow Driver", email: "overflow-driver@test.local", passwordHash: "x", role: "USER" },
+      });
+      await prisma.vehicle.create({
+        data: {
+          userId: user.id,
+          plateNumber: "OVERFLOW-0100",
+          normalizedPlate: "OVERFLOW0100",
+          vehicleType: "CAR",
+          status: "ACTIVE",
+        },
+      });
+      await request(gApp)
+        .post(`/zones/${g.zoneId}/events`)
+        .send({ cameraIdentifier: g.entryCamId, sourceEventId: "go-fill", eventType: "ENTRY", detectedPlate: "OVERFLOW-0100" })
+        .expect(201);
+
+      const denied = await request(gApp)
+        .post(`/zones/${g.zoneId}/events`)
+        .send({ cameraIdentifier: g.entryCamId, sourceEventId: "go-guest", eventType: "ENTRY", detectedPlate: "UNKNOWN-0100" })
+        .expect(201);
+      expect(denied.body.data.admitted).toBe(false);
+      expect(denied.body.data.deniedReason).toBe("GUEST_ZONE_FULL");
+      expect(denied.body.data.newOccupied).toBe(1);
+      expect((await request(gApp).get(`/zones/${g.zoneId}/occupancy`).expect(200)).body.data.occupiedCount).toBe(1);
+      expect(await prisma.guestSession.count({ where: { session: { zoneId: g.zoneId } } })).toBe(0);
     });
   });
 
   describe("Scenario 5 — low-confidence plate", () => {
-    it("records occupancy but does NOT trust the identity (no session)", async () => {
+    it("treats the low-confidence plate as an untrusted guest (denied, no session)", async () => {
       // Threshold is 0.5; a 0.3-confidence plate below the threshold must not
-      // create a session even though it matches a registered vehicle.
+      // create a registered session even though it matches a registered vehicle.
       const res = await request(app)
         .post(`/zones/${ctx.zoneId}/events`)
         .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "s5", eventType: "ENTRY", detectedPlate: "ABC-1234", ocrConfidence: 0.3 })
         .expect(201);
 
       expect(res.body.data.plateMatched).toBe(false);
+      expect(res.body.data.admitted).toBe(false);
+      expect(res.body.data.deniedReason).toBe("GUEST_POLICY_MISCONFIGURED");
       expect(await sessions()).toHaveLength(0);
 
       const occ = await occupancy();
-      expect(occ.occupiedCount).toBe(1);
+      expect(occ.occupiedCount).toBe(0);
 
       const anomaly = await prisma.occupancyAnomaly.findFirst();
-      expect(anomaly!.anomalyType).toBe("LOW_CONFIDENCE_PLATE");
+      expect(anomaly!.anomalyType).toBe("GUEST_DENIED");
+    });
+  });
+
+  describe("Scenario 5b — reservation camera integration", () => {
+    it("activates a valid reservation only after a successful registered ENTRY", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Reservation Camera Zone", code: "RCZ", capacity: 2 },
+      });
+      const camera = await prisma.camera.create({
+        data: { zoneId: zone.id, name: "RCZ Entry", identifier: "cam-rcz-entry", gateType: "ENTRY", status: "ONLINE" },
+      });
+      const user = await prisma.user.create({
+        data: { name: "Reservation Driver", email: "reservation-camera@test.local", passwordHash: "x", role: "USER" },
+      });
+      const vehicle = await prisma.vehicle.create({
+        data: { userId: user.id, plateNumber: "RES-CAM-1", normalizedPlate: "RESCAM1", vehicleType: "CAR", status: "ACTIVE" },
+      });
+      const reservation = await prisma.reservation.create({
+        data: {
+          userId: user.id,
+          vehicleId: vehicle.id,
+          zoneId: zone.id,
+          startAt: new Date(Date.now() - 60_000),
+          endAt: new Date(Date.now() + 15 * 60_000),
+          status: "CONFIRMED",
+        },
+      });
+
+      await request(app)
+        .post(`/zones/${zone.id}/events`)
+        .send({ cameraIdentifier: camera.identifier, sourceEventId: "reservation-entry", eventType: "ENTRY", detectedPlate: vehicle.plateNumber })
+        .expect(201);
+
+      expect((await prisma.reservation.findUniqueOrThrow({ where: { id: reservation.id } })).status).toBe("ACTIVE");
+    });
+
+    it("does not consume a reservation when the registered ENTRY is rejected at capacity", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Reservation Full Zone", code: "RFZ", capacity: 1 },
+      });
+      const camera = await prisma.camera.create({
+        data: { zoneId: zone.id, name: "RFZ Entry", identifier: "cam-rfz-entry", gateType: "ENTRY", status: "ONLINE" },
+      });
+      const user = await prisma.user.create({
+        data: { name: "Reserved Driver", email: "reserved-full@test.local", passwordHash: "x", role: "USER" },
+      });
+      const reservedVehicle = await prisma.vehicle.create({
+        data: { userId: user.id, plateNumber: "RES-FULL-1", normalizedPlate: "RESFULL1", vehicleType: "CAR", status: "ACTIVE" },
+      });
+      const occupyingVehicle = await prisma.vehicle.create({
+        data: { userId: user.id, plateNumber: "RES-FULL-2", normalizedPlate: "RESFULL2", vehicleType: "CAR", status: "ACTIVE" },
+      });
+      const reservation = await prisma.reservation.create({
+        data: {
+          userId: user.id,
+          vehicleId: reservedVehicle.id,
+          zoneId: zone.id,
+          startAt: new Date(Date.now() - 60_000),
+          endAt: new Date(Date.now() + 15 * 60_000),
+          status: "CONFIRMED",
+        },
+      });
+
+      await request(app)
+        .post(`/zones/${zone.id}/events`)
+        .send({ cameraIdentifier: camera.identifier, sourceEventId: "reservation-fill", eventType: "ENTRY", detectedPlate: occupyingVehicle.plateNumber })
+        .expect(201);
+      await request(app)
+        .post(`/zones/${zone.id}/events`)
+        .send({ cameraIdentifier: camera.identifier, sourceEventId: "reservation-rejected", eventType: "ENTRY", detectedPlate: reservedVehicle.plateNumber })
+        .expect(409);
+
+      expect((await prisma.reservation.findUniqueOrThrow({ where: { id: reservation.id } })).status).toBe("CONFIRMED");
     });
   });
 
@@ -232,22 +432,41 @@ describe("Phase 5 — Vision/OCR integration foundation", () => {
   });
 
   describe("Scenario 7 — zone full", () => {
-    it("rejects ENTRY safely without changing occupancy", async () => {
-      const full = await seedZone(1, "fz");
+    it("rejects a registered ENTRY at capacity without changing occupancy", async () => {
+      // Build an isolated zone with its OWN user + unique registered plates so
+      // they never collide with the beforeEach ctx plates (which would create
+      // ambiguity and route the vehicle to the guest path).
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Zone FZ", code: "FZ", capacity: 1, occupiedCount: 0 },
+      });
+      const entry = await prisma.camera.create({
+        data: { zoneId: zone.id, name: "FZ Entry", identifier: "cam-fz2-entry", gateType: "ENTRY", status: "ONLINE" },
+      });
+      const user = await prisma.user.create({
+        data: { name: "FZ Driver", email: `fz2-${randomUUID()}@test.local`, passwordHash: "x", role: "USER" },
+      });
+      const v1 = await prisma.vehicle.create({
+        data: { userId: user.id, plateNumber: "FZ-REG-1", normalizedPlate: "FZREG1", vehicleType: "CAR", status: "ACTIVE" },
+      });
+      const v2 = await prisma.vehicle.create({
+        data: { userId: user.id, plateNumber: "FZ-REG-2", normalizedPlate: "FZREG2", vehicleType: "CAR", status: "ACTIVE" },
+      });
+
       const fullApp = createApp();
       await request(fullApp)
-        .post(`/zones/${full.zoneId}/events`)
-        .send({ cameraIdentifier: full.entryCamId, sourceEventId: "s7a", eventType: "ENTRY", detectedPlate: "ABC-1234", ocrConfidence: 0.96 })
+        .post(`/zones/${zone.id}/events`)
+        .send({ cameraIdentifier: entry.identifier, sourceEventId: "s7a", eventType: "ENTRY", detectedPlate: v1.plateNumber, ocrConfidence: 0.96 })
         .expect(201);
 
-      const before = await request(fullApp).get(`/zones/${full.zoneId}/occupancy`).expect(200);
+      const before = await request(fullApp).get(`/zones/${zone.id}/occupancy`).expect(200);
+      expect(before.body.data.occupiedCount).toBe(1);
 
       await request(fullApp)
-        .post(`/zones/${full.zoneId}/events`)
-        .send({ cameraIdentifier: full.entryCamId, sourceEventId: "s7b", eventType: "ENTRY", detectedPlate: "XYZ-5678", ocrConfidence: 0.9 })
+        .post(`/zones/${zone.id}/events`)
+        .send({ cameraIdentifier: entry.identifier, sourceEventId: "s7b", eventType: "ENTRY", detectedPlate: v2.plateNumber, ocrConfidence: 0.9 })
         .expect(409);
 
-      const after = await request(fullApp).get(`/zones/${full.zoneId}/occupancy`).expect(200);
+      const after = await request(fullApp).get(`/zones/${zone.id}/occupancy`).expect(200);
       expect(after.body.data.occupiedCount).toBe(before.body.data.occupiedCount);
     });
   });

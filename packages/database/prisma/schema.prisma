@@ -87,6 +87,8 @@ enum NotificationType {
   ZONE_FULL
   ZONE_LOW_AVAILABILITY
   RESERVATION_EXPIRING
+  GUEST_ADMISSION_ISSUE
+  WRONG_ZONE_WARNING
   VIOLATION_ISSUED
   VIOLATION_APPEAL_SUBMITTED
   VIOLATION_APPEAL_RESULT
@@ -360,8 +362,10 @@ model OccupancyHistory {
 model ParkingSession {
   id              String               @id @default(cuid())
   zoneId          String
-  userId          String
-  vehicleId       String
+  // Optional for GUEST sessions (account-less walk-ins). Registered parking
+  // sessions always set a valid user/vehicle.
+  userId          String?
+  vehicleId       String?
   entryEventId    String               @unique
   exitEventId     String?              @unique
   enteredAt       DateTime
@@ -373,8 +377,8 @@ model ParkingSession {
   updatedAt       DateTime             @updatedAt
 
   zone         ParkingZone     @relation(fields: [zoneId], references: [id], onDelete: Restrict)
-  user         User            @relation(fields: [userId], references: [id], onDelete: Restrict)
-  vehicle      Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  user         User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  vehicle      Vehicle?        @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   entryEvent   OccupancyEvent  @relation("SessionEntry", fields: [entryEventId], references: [id], onDelete: Restrict)
   exitEvent    OccupancyEvent? @relation("SessionExit", fields: [exitEventId], references: [id], onDelete: SetNull)
   fee          ParkingFee?

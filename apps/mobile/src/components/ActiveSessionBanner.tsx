@@ -65,7 +65,7 @@ export function ActiveSessionBanner({ session, now, testID }: ActiveSessionBanne
           {session.zone.name}
         </Text>
         <Text variant="plate" testID={testID ? `${testID}-plate` : undefined}>
-          {session.vehicle.plateNumber}
+          {session.vehicle?.plateNumber ?? "GUEST"}
         </Text>
         <View style={styles.elapsedRow}>
           <Text variant="caption" color={colors.muted}>

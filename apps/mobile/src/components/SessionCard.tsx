@@ -20,7 +20,7 @@ export function SessionCard({ session, now, testID }: SessionCardProps) {
       <View style={styles.row}>
         <View style={styles.left}>
           <Text variant="plate" testID={testID ? `${testID}-plate` : undefined}>
-            {session.vehicle.plateNumber}
+            {session.vehicle?.plateNumber ?? "GUEST"}
           </Text>
           <View style={styles.zoneLine}>
             <Text variant="caption">Zone {session.zone.name}</Text>

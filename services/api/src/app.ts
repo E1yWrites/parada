@@ -25,6 +25,8 @@ import { simulatorRouter } from "./routes/simulator";
 export interface AppOptions {
   occupancy?: OccupancyService;
   auth?: AuthService;
+  config?: ConfigService;
+  assignments?: AssignmentService;
   /** Camera/vision service API key. If set, POST /zones/:id/events requires it. */
   cameraApiKey?: string | null;
   /** OCR confidence below which a detected plate is not trusted as identity. */
@@ -34,9 +36,15 @@ export interface AppOptions {
 export function createApp(options: AppOptions = {}): Express {
   const app = express();
   const env = loadEnv();
+
+  const config = options.config ?? new ConfigService();
+  const assignmentService = options.assignments ?? new AssignmentService(config);
+
   const occupancy = options.occupancy ?? new OccupancyService({
     ocrPlateConfidenceThreshold:
       options.ocrPlateConfidenceThreshold ?? env.ocrPlateConfidenceThreshold,
+    config,
+    assignments: assignmentService,
   });
 
   const auth = options.auth ?? new AuthService({
@@ -62,8 +70,6 @@ export function createApp(options: AppOptions = {}): Express {
 
   app.use(authMiddleware);
 
-  const config = new ConfigService();
-  const assignmentService = new AssignmentService(config);
   const reservationService = new ReservationService(config);
   const sessionService = new ParkingSessionService(config, assignmentService);
 
@@ -71,7 +77,7 @@ export function createApp(options: AppOptions = {}): Express {
   const sessions = sessionsRouter(sessionService);
   const reservations = reservationsRouter(reservationService);
   const assignments = assignmentsRouter(assignmentService);
-  const admin = adminRouter();
+  const admin = adminRouter({ occupancy });
   app.use(vehicles);
   app.use(sessions);
   app.use(reservations);

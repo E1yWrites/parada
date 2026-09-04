@@ -38,6 +38,7 @@ Browser ── HttpOnly parada_admin_token cookie ──► Next.js (apps/admin)
 | `/anomalies` | UNREGISTERED_PLATE anomalies |
 | `/history` | Event history feed |
 | `/notifications` | ZONE_FULL / ZONE_LOW_AVAILABILITY alerts, mark read / mark all |
+| `/guest-admit` | ADMIN-only guest admission override through the authoritative occupancy pipeline |
 | `/simulator` | Deterministic scenario runner (ADMIN only) |
 
 ## Auth

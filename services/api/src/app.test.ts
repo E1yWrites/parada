@@ -40,6 +40,7 @@ interface SeedCtx {
   exitCamId: string;
   userId: string;
   vehicleId: string;
+  plateNumber: string;
   normalizedPlate: string;
   zoneCode: string;
   zoneName: string;
@@ -67,8 +68,8 @@ async function seedZone(options?: {
   const vehicle = await prisma.vehicle.create({
     data: {
       userId: user.id,
-      plateNumber: "ABC-1234",
-      normalizedPlate: "ABC1234",
+      plateNumber: slug === "full" ? "FULL-1234" : "ABC-1234",
+      normalizedPlate: slug === "full" ? "FULL1234" : "ABC1234",
       vehicleType: "CAR",
       status: "ACTIVE",
     },
@@ -80,6 +81,7 @@ async function seedZone(options?: {
     exitCamId: exit.identifier,
     userId: user.id,
     vehicleId: vehicle.id,
+    plateNumber: vehicle.plateNumber,
     normalizedPlate: vehicle.normalizedPlate,
     zoneCode: zone.code,
     zoneName: zone.name,
@@ -260,7 +262,7 @@ describe("PARADA API", () => {
       expect(finished.durationSeconds).toBeGreaterThanOrEqual(0);
     });
 
-    it("records an unknown vehicle without creating a session", async () => {
+    it("denies an unknown guest plate under the guest policy without a session", async () => {
       const res = await request(app)
         .post(`/zones/${ctx.zoneId}/events`)
         .send({
@@ -274,13 +276,15 @@ describe("PARADA API", () => {
 
       expect(res.body.data.plateMatched).toBe(false);
       expect(res.body.data.vehicleId).toBeNull();
-      expect(res.body.data.newOccupied).toBe(1);
+      expect(res.body.data.admitted).toBe(false);
+      expect(res.body.data.deniedReason).toBe("GUEST_POLICY_MISCONFIGURED");
+      expect(res.body.data.newOccupied).toBe(0);
 
       const sessionCount = await prisma.parkingSession.count();
       expect(sessionCount).toBe(0);
 
       const occ = await request(app).get(`/zones/${ctx.zoneId}/occupancy`).expect(200);
-      expect(occ.body.data.occupiedCount).toBe(1);
+      expect(occ.body.data.occupiedCount).toBe(0);
     });
 
     it("404s for an unknown camera", async () => {
@@ -310,17 +314,26 @@ describe("PARADA API", () => {
       await request(app).post(`/zones/${ctx.zoneId}/events`).send(body).expect(409);
     });
 
-    it("409s on ENTRY when the zone is full", async () => {
+    it("denies a guest when the zone is full and rejects a registered ENTRY at capacity", async () => {
       const full = await seedZone({ capacity: 1, slug: "full" });
       const fullApp = createApp();
       await request(fullApp)
         .post(`/zones/${full.zoneId}/events`)
-        .send({ cameraIdentifier: full.entryCamId, sourceEventId: "f1", eventType: "ENTRY", detectedPlate: "ABC-1234" })
+        .send({ cameraIdentifier: full.entryCamId, sourceEventId: "f1", eventType: "ENTRY", detectedPlate: full.plateNumber })
         .expect(201);
-      await request(fullApp)
+
+      // Unknown plate -> a guest candidate; at a full zone with a null primary
+      // guest zone it is DENIED (a decision, not a 409 conflict).
+      const res = await request(fullApp)
         .post(`/zones/${full.zoneId}/events`)
         .send({ cameraIdentifier: full.entryCamId, sourceEventId: "f2", eventType: "ENTRY", detectedPlate: "XYZ-9999" })
-        .expect(409);
+        .expect(201);
+      expect(res.body.data.admitted).toBe(false);
+      expect(res.body.data.deniedReason).toBe("GUEST_POLICY_MISCONFIGURED");
+      expect(res.body.data.newOccupied).toBe(1);
+
+      const occ = await request(fullApp).get(`/zones/${full.zoneId}/occupancy`).expect(200);
+      expect(occ.body.data.occupiedCount).toBe(1);
     });
 
     it("409s on EXIT when the zone is empty", async () => {
@@ -781,6 +794,7 @@ describe("Authentication & Authorization", () => {
   describe("Admin authorization", () => {
     let userToken: string;
     let adminToken: string;
+    let adminId: string;
 
     beforeEach(async () => {
       await request(app)
@@ -797,6 +811,7 @@ describe("Authentication & Authorization", () => {
           status: "ACTIVE",
         },
       });
+      adminId = admin.id;
 
       const userLogin = await request(app)
         .post("/auth/login")
@@ -825,6 +840,46 @@ describe("Authentication & Authorization", () => {
         .expect(200);
 
       expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it("allows only an admin to override guest admission through the occupancy pipeline", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Override Zone", code: "OVR", capacity: 1, occupiedCount: 0 },
+      });
+      const camera = await prisma.camera.create({
+        data: {
+          zoneId: zone.id,
+          name: "Override Entry",
+          identifier: "cam-override-entry",
+          gateType: "ENTRY",
+          status: "ONLINE",
+        },
+      });
+
+      await request(app)
+        .post("/admin/guest-admit")
+        .set("Authorization", `Bearer ${userToken}`)
+        .send({ zoneId: zone.id, cameraIdentifier: camera.identifier, sourceEventId: "override-user", detectedPlate: "GUEST-OVR" })
+        .expect(403);
+
+      const res = await request(app)
+        .post("/admin/guest-admit")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({
+          zoneId: zone.id,
+          cameraIdentifier: camera.identifier,
+          sourceEventId: "override-admin",
+          detectedPlate: "GUEST-OVR",
+          userId: "spoofed-user-id",
+        })
+        .expect(201);
+
+      expect(res.body.data.admitted).toBe(true);
+      const anomaly = await prisma.occupancyAnomaly.findFirstOrThrow({
+        where: { anomalyType: "GUEST_ADMIN_OVERRIDE" },
+      });
+      expect(anomaly.description).toContain(adminId);
+      expect((await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } })).occupiedCount).toBe(1);
     });
   });
 });

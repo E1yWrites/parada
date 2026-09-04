@@ -11,6 +11,8 @@ export type NotificationType =
   | "ZONE_FULL"
   | "ZONE_LOW_AVAILABILITY"
   | "RESERVATION_EXPIRING"
+  | "GUEST_ADMISSION_ISSUE"
+  | "WRONG_ZONE_WARNING"
   | "VIOLATION_ISSUED"
   | "VIOLATION_APPEAL_SUBMITTED"
   | "VIOLATION_APPEAL_RESULT";
@@ -127,8 +129,10 @@ export interface OccupancyHistory {
 export interface ParkingSession {
   id: string;
   zoneId: string;
-  userId: string;
-  vehicleId: string;
+  /** Null only for account-less guest sessions. */
+  userId: string | null;
+  /** Null only for account-less guest sessions. */
+  vehicleId: string | null;
   entryEventId: string;
   exitEventId: string | null;
   enteredAt: Date;
@@ -143,8 +147,9 @@ export interface ParkingSession {
 export interface ParkingSessionResponse {
   id: string;
   zoneId: string;
-  userId: string;
-  vehicleId: string;
+  /** Null for account-less GUEST sessions; always set for registered sessions. */
+  userId: string | null;
+  vehicleId: string | null;
   entryEventId: string;
   exitEventId: string | null;
   enteredAt: string;
@@ -153,7 +158,7 @@ export interface ParkingSessionResponse {
   feeAmount: number | null;
   status: ParkingSessionStatus;
   zone: Pick<ParkingZone, "id" | "name" | "code">;
-  vehicle: Pick<Vehicle, "id" | "plateNumber" | "vehicleType">;
+  vehicle: Pick<Vehicle, "id" | "plateNumber" | "vehicleType"> | null;
   entryEvent: { id: string; detectedAt: string } | null;
   exitEvent: { id: string; detectedAt: string } | null;
 }

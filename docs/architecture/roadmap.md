@@ -12,7 +12,7 @@ document -> STOP.
 | 3 | Backend Foundation | DONE |
 | 4 | Authentication + Authorization | DONE |
 | 5 | Vision/OCR Integration Foundation | DONE |
-| 6 | Occupancy Model + Simulator | DONE |
+| 6 | Guest Admission + Reservations + Zone Assignment Integration | DONE |
 | 7 | Admin Web Application | DONE |
 | 8 | Mobile Application | DONE |
 | 9 | OCR / Computer Vision (real model) | PENDING |
@@ -28,10 +28,12 @@ Key decisions from Phase 0 (user-approved [USER CLARIFICATION]):
 
 1. **Gate-based entry/exit counting** for zone occupancy.
 2. **Zone-level availability is the authoritative metric.** Slots are layout/inventory/visual only.
-3. **Vehicle identity IS required** [USER CLARIFICATION, architecture correction]: users register
-   vehicles; the license plate is the primary OCR identity. Unknown/unregistered plates record an
-   OccupancyEvent only (no session). `ParkingSession.userId/vehicleId` NOT NULL; `normalizedPlate`
-   unique per user; a partial unique index prevents multiple ACTIVE sessions per vehicle.
+3. **Vehicle identity is required for registered sessions**: users register vehicles; the license
+   plate is the primary OCR identity. Unknown/unregistered plates become guest candidates and, when
+   the establishment guest policy admits them, receive account-less `GuestSession`/
+   `ParkingSession` records. Registered sessions always resolve to a real user and vehicle;
+   `normalizedPlate` is unique per user and a partial unique index prevents multiple ACTIVE sessions
+   per vehicle.
    (Replaced the earlier, uncommitted "anonymous events" decision.)
 4. **Navigation** = GPS to facility + internal zone guidance.
 5. **Notifications** = admin + driver alerts.

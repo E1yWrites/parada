@@ -10,8 +10,8 @@ import type { ParkingSessionService } from "../domain/sessions";
 type SessionRecord = {
   id: string;
   zoneId: string;
-  userId: string;
-  vehicleId: string;
+  userId: string | null;
+  vehicleId: string | null;
   entryEventId: string;
   exitEventId: string | null;
   enteredAt: Date;
