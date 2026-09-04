@@ -6,7 +6,7 @@
 // - ParkingSlot is physical inventory only (layout/visual); NOT camera-derived occupancy.
 // - Occupancy changes happen through OccupancyEvent (ENTRY/EXIT), applied transactionally.
 // - OccupancyHistory preserves immutable snapshots for analytics/testing/audit.
-// - ParkingSession is ANONYMOUS (no vehicle/plate identity, no ANPR).
+// - ParkingSession is vehicle-identified (linked to User + Vehicle via OCR/plate matching).
 // - available_count is derived (capacity - occupied_count) and never stored.
 // - occupied_count is cached on ParkingZone (O(1) reads), DB-constrained to [0, capacity].
 
@@ -86,6 +86,51 @@ enum VehicleStatus {
 enum NotificationType {
   ZONE_FULL
   ZONE_LOW_AVAILABILITY
+  RESERVATION_EXPIRING
+  VIOLATION_ISSUED
+  VIOLATION_APPEAL_SUBMITTED
+  VIOLATION_APPEAL_RESULT
+}
+
+enum ViolationType {
+  WRONG_ZONE
+  OVERSTAY
+  UNAUTHORIZED
+  GATE_TAMPERING
+}
+
+enum ViolationStatus {
+  PENDING
+  APPEALED
+  UPHELD
+  DISMISSED
+  FINE_PAID
+}
+
+enum AppealStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum FeeStatus {
+  PENDING
+  PAID
+  WAIVED
+}
+
+enum ZoneAssignmentStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
 }
 
 // ---------------------------------------------------------------------------
@@ -104,6 +149,11 @@ model User {
 
   vehicles Vehicle[]
   sessions ParkingSession[]
+  reservations      Reservation[]
+  zoneAssignments   ZoneAssignment[]
+  violations        Violation[]
+  violationAppeals  ViolationAppeal[]
+  parkingFees       ParkingFee[]
 
   @@index([role])
   @@map("users")
@@ -127,6 +177,9 @@ model Vehicle {
   sessions ParkingSession[]
   events   OccupancyEvent[]
   anomalies OccupancyAnomaly[]
+  reservations    Reservation[]
+  zoneAssignments ZoneAssignment[]
+  violations      Violation[]
 
   @@unique([userId, normalizedPlate])
   @@index([normalizedPlate])
@@ -155,6 +208,10 @@ model ParkingZone {
   occupancyHistory OccupancyHistory[]
   parkingSessions  ParkingSession[]
   notifications    Notification[]
+  reservations     Reservation[]
+  zoneAssignments  ZoneAssignment[]
+  violations       Violation[]
+  parkingFees      ParkingFee[]
 
   @@index([status])
   @@map("parking_zones")
@@ -309,6 +366,7 @@ model ParkingSession {
   enteredAt       DateTime
   exitedAt        DateTime?
   durationSeconds Int?
+  feeAmount      Float?
   status          ParkingSessionStatus @default(ACTIVE)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
@@ -318,6 +376,9 @@ model ParkingSession {
   vehicle    Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   entryEvent OccupancyEvent  @relation("SessionEntry", fields: [entryEventId], references: [id], onDelete: Restrict)
   exitEvent  OccupancyEvent? @relation("SessionExit", fields: [exitEventId], references: [id], onDelete: SetNull)
+  fee        ParkingFee?
+  guestSession GuestSession?
+  violations Violation[]
 
   @@index([zoneId, status])
   @@index([vehicleId, status])
@@ -344,6 +405,174 @@ model Notification {
   @@index([targetRole, read])
   @@index([createdAt])
   @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// EstablishmentConfig  (singleton row for runtime-configurable settings)
+// ---------------------------------------------------------------------------
+
+model EstablishmentConfig {
+  id           String   @id @default(cuid())
+  parkingFee   Json
+  violations   Json
+  guestPolicy  Json
+  zoneDefaults Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("establishment_config")
+}
+
+// ---------------------------------------------------------------------------
+// Reservation  (pre-booked parking with a configurable arrival window)
+// ---------------------------------------------------------------------------
+
+model Reservation {
+  id        String            @id @default(cuid())
+  userId    String
+  vehicleId String
+  zoneId    String
+  startAt   DateTime
+  endAt     DateTime
+  status    ReservationStatus @default(PENDING)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  vehicle Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  zone    ParkingZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+
+  guestSession GuestSession?
+
+  @@index([userId])
+  @@index([vehicleId])
+  @@index([zoneId, status])
+  @@index([startAt, endAt])
+  @@map("reservations")
+}
+
+// ---------------------------------------------------------------------------
+// ZoneAssignment  (user/vehicle assigned to a zone for wrong-zone detection)
+// ---------------------------------------------------------------------------
+
+model ZoneAssignment {
+  id         String               @id @default(cuid())
+  userId     String
+  vehicleId  String
+  zoneId     String
+  status     ZoneAssignmentStatus @default(ACTIVE)
+  assignedAt DateTime             @default(now())
+  expiresAt  DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  vehicle Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  zone    ParkingZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([vehicleId])
+  @@index([zoneId, status])
+  @@map("zone_assignments")
+}
+
+// ---------------------------------------------------------------------------
+// Violation  (wrong-zone, overstay, unauthorized, gate tampering)
+// ---------------------------------------------------------------------------
+
+model Violation {
+  id            String          @id @default(cuid())
+  userId        String
+  vehicleId     String?
+  zoneId        String
+  sessionId     String?
+  violationType ViolationType
+  description   String?
+  fineAmount    Float
+  status        ViolationStatus @default(PENDING)
+  issuedAt      DateTime        @default(now())
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  vehicle Vehicle?        @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  zone    ParkingZone     @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  session ParkingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  appeal  ViolationAppeal?
+
+  @@index([userId])
+  @@index([vehicleId])
+  @@index([zoneId])
+  @@index([status])
+  @@index([violationType])
+  @@map("violations")
+}
+
+// ---------------------------------------------------------------------------
+// ViolationAppeal  (user appeal of a violation)
+// ---------------------------------------------------------------------------
+
+model ViolationAppeal {
+  id          String       @id @default(cuid())
+  violationId String       @unique
+  userId      String
+  reason      String
+  status      AppealStatus @default(PENDING)
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  violation Violation @relation(fields: [violationId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([status])
+  @@map("violation_appeals")
+}
+
+// ---------------------------------------------------------------------------
+// ParkingFee  (fee records for completed sessions)
+// ---------------------------------------------------------------------------
+
+model ParkingFee {
+  id            String    @id @default(cuid())
+  sessionId     String    @unique
+  zoneId        String
+  userId        String
+  amount        Float
+  rateBreakdown Json
+  paidAt        DateTime?
+  status        FeeStatus @default(PENDING)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  session ParkingSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  zone    ParkingZone    @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([zoneId])
+  @@index([userId])
+  @@index([status])
+  @@map("parking_fees")
+}
+
+// ---------------------------------------------------------------------------
+// GuestSession  (guest/walk-in parking; wraps a ParkingSession)
+// ---------------------------------------------------------------------------
+
+model GuestSession {
+  id                  String   @id @default(cuid())
+  parkingSessionId    String   @unique
+  detectedPlate       String?
+  linkedReservationId String?  @unique
+  createdAt           DateTime @default(now())
+
+  session    ParkingSession @relation(fields: [parkingSessionId], references: [id], onDelete: Restrict)
+  reservation Reservation?  @relation(fields: [linkedReservationId], references: [id], onDelete: SetNull)
+
+  @@index([detectedPlate])
+  @@map("guest_sessions")
 }
 
 // ---------------------------------------------------------------------------

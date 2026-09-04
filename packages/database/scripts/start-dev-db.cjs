@@ -58,7 +58,13 @@ async function main() {
     persistent: true,
   });
 
-  await pg.initialise();
+  // Only initialise (initdb) on the first run. Once the cluster is on disk this
+  // must be skipped, otherwise initdb fails with "directory exists but is not
+  // empty" on every subsequent restart.
+  const dataReady = fs.existsSync(path.join(DATA_DIR, "PG_VERSION"));
+  if (!dataReady) {
+    await pg.initialise();
+  }
   await pg.start();
   await pg.createDatabase("parada").catch((err) => {
     if (!String(err).includes("already exists")) throw err;

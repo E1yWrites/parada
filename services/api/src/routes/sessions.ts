@@ -16,6 +16,7 @@ type SessionRecord = {
   enteredAt: Date;
   exitedAt: Date | null;
   durationSeconds: number | null;
+  feeAmount: number | null;
   status: "ACTIVE" | "COMPLETED";
   zone: ParkingSessionResponse["zone"];
   vehicle: ParkingSessionResponse["vehicle"];

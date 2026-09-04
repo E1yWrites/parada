@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "platforms": ["ios", "android"],
     "scheme": "parada",
     "ios": {
       "supportsTablet": true,

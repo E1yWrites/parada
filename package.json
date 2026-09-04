@@ -14,6 +14,9 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "run": "node scripts/run-dev.cjs",
+    "db:start": "npm run db:start -w @parada/database",
+    "db:stop": "npm run db:stop -w @parada/database",
     "postinstall": "node scripts/ensure-expo-link.cjs"
   },
   "devDependencies": {

@@ -14,6 +14,7 @@ const active: SessionDto = {
   enteredAt: new Date(2026, 8, 1, 10, 0, 0).toISOString(),
   exitedAt: null,
   durationSeconds: null,
+  feeAmount: null,
   status: "ACTIVE",
   zone: { id: "z1", name: "Zone A", code: "A" },
   vehicle: { id: "v1", plateNumber: "ABC-1234", vehicleType: "CAR" },

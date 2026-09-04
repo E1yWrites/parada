@@ -21,6 +21,12 @@ const tokenService = new TokenService({
 });
 
 const TABLES = [
+  "guest_sessions",
+  "violation_appeals",
+  "violations",
+  "parking_fees",
+  "reservations",
+  "zone_assignments",
   "occupancy_anomalies",
   "occupancy_history",
   "notifications",
@@ -31,6 +37,7 @@ const TABLES = [
   "vehicles",
   "users",
   "parking_zones",
+  "establishment_config",
 ];
 
 async function cleanDatabase() {

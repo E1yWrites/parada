@@ -1,6 +1,12 @@
 import { prisma } from "./client";
 
 const TABLES = [
+  "guest_sessions",
+  "violation_appeals",
+  "violations",
+  "parking_fees",
+  "reservations",
+  "zone_assignments",
   "occupancy_history",
   "notifications",
   "parking_sessions",
@@ -10,6 +16,7 @@ const TABLES = [
   "vehicles",
   "users",
   "parking_zones",
+  "establishment_config",
 ];
 
 async function cleanDatabase() {

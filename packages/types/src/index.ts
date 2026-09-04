@@ -7,9 +7,36 @@ export type GateType = "ENTRY" | "EXIT" | "BIDIRECTIONAL";
 export type OccupancyEventType = "ENTRY" | "EXIT";
 export type OccupancySource = "CAMERA" | "SIMULATOR" | "MANUAL";
 export type ParkingSessionStatus = "ACTIVE" | "COMPLETED";
-export type NotificationType = "ZONE_FULL" | "ZONE_LOW_AVAILABILITY";
+export type NotificationType =
+  | "ZONE_FULL"
+  | "ZONE_LOW_AVAILABILITY"
+  | "RESERVATION_EXPIRING"
+  | "VIOLATION_ISSUED"
+  | "VIOLATION_APPEAL_SUBMITTED"
+  | "VIOLATION_APPEAL_RESULT";
 export type VehicleType = "CAR" | "MOTORCYCLE" | "VAN" | "TRUCK" | "OTHER";
 export type VehicleStatus = "ACTIVE" | "INACTIVE";
+export type GuestPolicy = "PRIMARY_ZONE" | "ALLOW_OVERFLOW" | "DENY_WHEN_FULL";
+export type ViolationType =
+  | "WRONG_ZONE"
+  | "OVERSTAY"
+  | "UNAUTHORIZED"
+  | "GATE_TAMPERING";
+export type ViolationStatus =
+  | "PENDING"
+  | "APPEALED"
+  | "UPHELD"
+  | "DISMISSED"
+  | "FINE_PAID";
+export type AppealStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type ReservationStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "ACTIVE"
+  | "EXPIRED"
+  | "CANCELLED";
+export type FeeStatus = "PENDING" | "PAID" | "WAIVED";
+export type ZoneAssignmentStatus = "ACTIVE" | "EXPIRED" | "REVOKED";
 
 export interface User {
   id: string;
@@ -107,6 +134,7 @@ export interface ParkingSession {
   enteredAt: Date;
   exitedAt: Date | null;
   durationSeconds: number | null;
+  feeAmount: number | null;
   status: ParkingSessionStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -122,6 +150,7 @@ export interface ParkingSessionResponse {
   enteredAt: string;
   exitedAt: string | null;
   durationSeconds: number | null;
+  feeAmount: number | null;
   status: ParkingSessionStatus;
   zone: Pick<ParkingZone, "id" | "name" | "code">;
   vehicle: Pick<Vehicle, "id" | "plateNumber" | "vehicleType">;
@@ -137,4 +166,107 @@ export interface Notification {
   targetRole: Role;
   read: boolean;
   createdAt: Date;
+}
+
+export interface Reservation {
+  id: string;
+  userId: string;
+  vehicleId: string;
+  zoneId: string;
+  startAt: Date;
+  endAt: Date;
+  status: ReservationStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ZoneAssignment {
+  id: string;
+  userId: string;
+  vehicleId: string;
+  zoneId: string;
+  status: ZoneAssignmentStatus;
+  assignedAt: Date;
+  expiresAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Violation {
+  id: string;
+  userId: string;
+  vehicleId: string | null;
+  zoneId: string;
+  sessionId: string | null;
+  violationType: ViolationType;
+  description: string | null;
+  fineAmount: number;
+  status: ViolationStatus;
+  issuedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ViolationAppeal {
+  id: string;
+  violationId: string;
+  userId: string;
+  reason: string;
+  status: AppealStatus;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ParkingFee {
+  id: string;
+  sessionId: string;
+  zoneId: string;
+  userId: string;
+  amount: number;
+  rateBreakdown: unknown;
+  paidAt: Date | null;
+  status: FeeStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface GuestSession {
+  id: string;
+  parkingSessionId: string;
+  detectedPlate: string | null;
+  linkedReservationId: string | null;
+  createdAt: Date;
+}
+
+export interface ParkingFeeConfig {
+  baseFee: number;
+  baseDurationHours: number;
+  additionalFeePerHour: number;
+}
+
+export interface ViolationPolicyConfig {
+  type: ViolationType;
+  fineAmount: number;
+  description: string;
+}
+
+export interface GuestPolicyConfig {
+  policy: GuestPolicy;
+  primaryZoneId: string | null;
+  maxDurationHours: number;
+  allowWhenFull: boolean;
+}
+
+export interface ZoneDefaultsConfig {
+  maxReservationDurationMinutes: number;
+  occupancyLowThreshold: number;
+}
+
+export interface EstablishmentSettings {
+  parkingFee: ParkingFeeConfig;
+  violations: ViolationPolicyConfig[];
+  guestPolicy: GuestPolicyConfig;
+  zoneDefaults: ZoneDefaultsConfig;
 }

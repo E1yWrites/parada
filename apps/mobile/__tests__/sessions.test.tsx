@@ -32,6 +32,7 @@ const session = (over: Partial<SessionDto>): SessionDto => ({
   enteredAt: new Date(2026, 8, 1, 10, 0, 0).toISOString(),
   exitedAt: new Date(2026, 8, 1, 10, 51, 0).toISOString(),
   durationSeconds: 3060,
+  feeAmount: null,
   status: "COMPLETED",
   zone: { id: "z1", name: "Zone A", code: "A" },
   vehicle: { id: "v1", plateNumber: "XYZ-5678", vehicleType: "MOTORCYCLE" },
