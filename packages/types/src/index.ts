@@ -161,6 +161,7 @@ export interface ParkingSessionResponse {
 export interface Notification {
   id: string;
   zoneId: string;
+  userId: string | null;
   type: NotificationType;
   message: string;
   targetRole: Role;

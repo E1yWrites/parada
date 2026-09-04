@@ -3,6 +3,11 @@ import * as argon2 from "argon2";
 import { prisma } from "../client";
 import { Role, GateType } from "@prisma/client";
 import { normalizePlate } from "../plate";
+import {
+  DEFAULT_PARKING_FEE,
+  DEFAULT_GUEST_POLICY,
+  DEFAULT_RESERVATION_WINDOW_MINUTES,
+} from "@parada/config";
 
 const ZONES = [
   { name: "Zone A", code: "A", capacity: 20, description: "North parking area" },
@@ -148,6 +153,31 @@ async function seed() {
     });
   }
   console.log(`  vehicles: ${registeredVehicles.length} registered (incl. multiple per user)`);
+
+  // --- EstablishmentConfig (singleton row for runtime-configurable settings) ---
+  await prisma.establishmentConfig.upsert({
+    where: { id: "singleton" },
+    update: {
+      parkingFee: DEFAULT_PARKING_FEE,
+      violations: [],
+      guestPolicy: DEFAULT_GUEST_POLICY,
+      zoneDefaults: {
+        maxReservationDurationMinutes: DEFAULT_RESERVATION_WINDOW_MINUTES,
+        occupancyLowThreshold: 0.2,
+      },
+    },
+    create: {
+      id: "singleton",
+      parkingFee: DEFAULT_PARKING_FEE,
+      violations: [],
+      guestPolicy: DEFAULT_GUEST_POLICY,
+      zoneDefaults: {
+        maxReservationDurationMinutes: DEFAULT_RESERVATION_WINDOW_MINUTES,
+        occupancyLowThreshold: 0.2,
+      },
+    },
+  });
+  console.log("  establishment_config: singleton seeded");
 
   console.log("Seeding complete.");
 }

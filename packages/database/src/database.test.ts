@@ -10,6 +10,7 @@ const TABLES = [
   "occupancy_history",
   "notifications",
   "parking_sessions",
+  "occupancy_anomalies",
   "occupancy_events",
   "parking_slots",
   "cameras",
@@ -17,6 +18,7 @@ const TABLES = [
   "users",
   "parking_zones",
   "establishment_config",
+  "revoked_tokens",
 ];
 
 async function cleanDatabase() {
@@ -519,6 +521,411 @@ describe("PARADA database integrity", () => {
       });
       expect(notif.read).toBe(false);
       expect(notif.targetRole).toBe("ADMIN");
+    });
+  });
+
+  describe("notification user targeting", () => {
+    it("creates a notification with a specific user", async () => {
+      const notif = await prisma.notification.create({
+        data: {
+          zoneId: zone.id,
+          userId: user.id,
+          type: "VIOLATION_ISSUED",
+          message: "Violation issued.",
+          targetRole: "USER",
+        },
+      });
+      expect(notif.userId).toBe(user.id);
+    });
+
+    it("creates a role-based notification without a user", async () => {
+      const notif = await prisma.notification.create({
+        data: {
+          zoneId: zone.id,
+          type: "ZONE_FULL",
+          message: "Zone full.",
+          targetRole: "ADMIN",
+        },
+      });
+      expect(notif.userId).toBeNull();
+    });
+
+    it("nullifies userId when the referenced user is deleted", async () => {
+      const target = await prisma.user.create({
+        data: { name: "Target", email: "target@parada.local", passwordHash: "x", role: "USER" },
+      });
+      const notif = await prisma.notification.create({
+        data: {
+          zoneId: zone.id,
+          userId: target.id,
+          type: "VIOLATION_APPEAL_RESULT",
+          message: "Appeal result.",
+          targetRole: "USER",
+        },
+      });
+      await prisma.user.delete({ where: { id: target.id } });
+      const updated = await prisma.notification.findUnique({ where: { id: notif.id } });
+      expect(updated?.userId).toBeNull();
+    });
+  });
+
+  describe("establishment config (singleton row)", () => {
+    it("stores the singleton establishment config", async () => {
+      const cfg = await prisma.establishmentConfig.upsert({
+        where: { id: "singleton" },
+        update: {},
+        create: {
+          id: "singleton",
+          parkingFee: { baseFee: 20, baseDurationHours: 2, additionalFeePerHour: 10 },
+          violations: [],
+          guestPolicy: {
+            policy: "PRIMARY_ZONE",
+            primaryZoneId: null,
+            maxDurationHours: 8,
+            allowWhenFull: false,
+          },
+          zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
+        },
+      });
+      expect(cfg.id).toBe("singleton");
+      expect(cfg.parkingFee).toMatchObject({ baseFee: 20 });
+      expect(cfg.guestPolicy).toMatchObject({ policy: "PRIMARY_ZONE" });
+    });
+
+    it("can be re-seeded idempotently (same singleton id)", async () => {
+      const first = await prisma.establishmentConfig.upsert({
+        where: { id: "singleton" },
+        update: {},
+        create: { id: "singleton", parkingFee: {}, violations: [], guestPolicy: {}, zoneDefaults: {} },
+      });
+      const second = await prisma.establishmentConfig.upsert({
+        where: { id: "singleton" },
+        update: { parkingFee: { baseFee: 20 } },
+        create: { id: "singleton", parkingFee: {}, violations: [], guestPolicy: {}, zoneDefaults: {} },
+      });
+      expect(first.id).toBe("singleton");
+      expect(second.id).toBe("singleton");
+      expect(second.parkingFee).toMatchObject({ baseFee: 20 });
+      const count = await prisma.establishmentConfig.count();
+      expect(count).toBe(1);
+    });
+  });
+
+  describe("reservation", () => {
+    it("creates a reservation linked to user, vehicle, and zone", async () => {
+      const res = await prisma.reservation.create({
+        data: {
+          userId: user.id,
+          vehicleId: vehCar.id,
+          zoneId: zone.id,
+          startAt: new Date(Date.now() + 60000),
+          endAt: new Date(Date.now() + 3600000),
+          status: "CONFIRMED",
+        },
+      });
+      expect(res.status).toBe("CONFIRMED");
+      expect(res.userId).toBe(user.id);
+      expect(res.vehicleId).toBe(vehCar.id);
+      expect(res.zoneId).toBe(zone.id);
+    });
+
+    it("rejects a reservation for a non-existent user", async () => {
+      await expect(
+        prisma.reservation.create({
+          data: {
+            userId: "missing-user",
+            vehicleId: vehCar.id,
+            zoneId: zone.id,
+            startAt: new Date(),
+            endAt: new Date(Date.now() + 60000),
+          },
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("zone assignment", () => {
+    it("creates an active assignment with expiry", async () => {
+      const assign = await prisma.zoneAssignment.create({
+        data: {
+          userId: user.id,
+          vehicleId: vehCar.id,
+          zoneId: zone.id,
+          status: "ACTIVE",
+          expiresAt: new Date(Date.now() + 86400000),
+        },
+      });
+      expect(assign.status).toBe("ACTIVE");
+      expect(assign.expiresAt).not.toBeNull();
+    });
+
+    it("records a revoked assignment", async () => {
+      const assign = await prisma.zoneAssignment.create({
+        data: {
+          userId: user.id,
+          vehicleId: vehCar.id,
+          zoneId: zone.id,
+          status: "REVOKED",
+        },
+      });
+      expect(assign.status).toBe("REVOKED");
+    });
+  });
+
+  describe("violation", () => {
+    it("creates a violation linked to user, vehicle, and zone", async () => {
+      const viol = await prisma.violation.create({
+        data: {
+          userId: user.id,
+          vehicleId: vehCar.id,
+          zoneId: zone.id,
+          violationType: "WRONG_ZONE",
+          fineAmount: 500,
+          status: "PENDING",
+        },
+      });
+      expect(viol.violationType).toBe("WRONG_ZONE");
+      expect(viol.fineAmount).toBe(500);
+      expect(viol.status).toBe("PENDING");
+    });
+
+    it("creates a violation without an optional vehicle", async () => {
+      const viol = await prisma.violation.create({
+        data: {
+          userId: user.id,
+          zoneId: zone.id,
+          violationType: "OVERSTAY",
+          fineAmount: 500,
+        },
+      });
+      expect(viol.vehicleId).toBeNull();
+    });
+
+    it("rejects a violation with a missing zone", async () => {
+      await expect(
+        prisma.violation.create({
+          data: {
+            userId: user.id,
+            zoneId: "missing-zone",
+            violationType: "UNAUTHORIZED",
+            fineAmount: 100,
+          },
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("violation appeal (one per violation, cascade on delete)", () => {
+    it("creates an appeal against a violation", async () => {
+      const viol = await prisma.violation.create({
+        data: {
+          userId: user.id,
+          vehicleId: vehCar.id,
+          zoneId: zone.id,
+          violationType: "WRONG_ZONE",
+          fineAmount: 500,
+        },
+      });
+      const appeal = await prisma.violationAppeal.create({
+        data: {
+          violationId: viol.id,
+          userId: user.id,
+          reason: "I was in the correct zone.",
+        },
+      });
+      expect(appeal.status).toBe("PENDING");
+      expect(appeal.violationId).toBe(viol.id);
+    });
+
+    it("prevents a second appeal for the same violation", async () => {
+      const viol = await prisma.violation.create({
+        data: {
+          userId: user.id,
+          vehicleId: vehCar.id,
+          zoneId: zone.id,
+          violationType: "OVERSTAY",
+          fineAmount: 500,
+        },
+      });
+      await prisma.violationAppeal.create({
+        data: { violationId: viol.id, userId: user.id, reason: "First appeal." },
+      });
+      await expect(
+        prisma.violationAppeal.create({
+          data: { violationId: viol.id, userId: user.id, reason: "Second appeal." },
+        })
+      ).rejects.toThrow();
+    });
+
+    it("cascades delete of a violation to its appeal", async () => {
+      const viol = await prisma.violation.create({
+        data: {
+          userId: user.id,
+          zoneId: zone.id,
+          violationType: "GATE_TAMPERING",
+          fineAmount: 1000,
+        },
+      });
+      const appeal = await prisma.violationAppeal.create({
+        data: { violationId: viol.id, userId: user.id, reason: "Appeal." },
+      });
+      await prisma.violation.delete({ where: { id: viol.id } });
+      const gone = await prisma.violationAppeal.findUnique({ where: { id: appeal.id } });
+      expect(gone).toBeNull();
+    });
+  });
+
+  describe("parking fee (one per session)", () => {
+    it("links exactly one fee to a completed session", async () => {
+      const entry = await prisma.occupancyEvent.create({
+        data: {
+          zoneId: zone.id,
+          cameraId: camera.id,
+          eventType: "ENTRY",
+          previousOccupied: 0,
+          newOccupied: 1,
+          availableCount: 4,
+          detectedAt: new Date(),
+        },
+      });
+      const session = await prisma.parkingSession.create({
+        data: {
+          zoneId: zone.id,
+          userId: user.id,
+          vehicleId: vehCar.id,
+          entryEventId: entry.id,
+          enteredAt: new Date(Date.now() - 3600000),
+          durationSeconds: 3600,
+          feeAmount: 20,
+          status: "COMPLETED",
+        },
+      });
+      const fee = await prisma.parkingFee.create({
+        data: {
+          sessionId: session.id,
+          zoneId: zone.id,
+          userId: user.id,
+          amount: 20,
+          rateBreakdown: { baseFee: 20, hours: 1 },
+          status: "PENDING",
+        },
+      });
+      expect(fee.sessionId).toBe(session.id);
+      expect(fee.amount).toBe(20);
+      expect(fee.rateBreakdown).toMatchObject({ baseFee: 20 });
+    });
+
+    it("prevents two fees for the same session", async () => {
+      const entry = await prisma.occupancyEvent.create({
+        data: {
+          zoneId: zone.id,
+          cameraId: camera.id,
+          eventType: "ENTRY",
+          previousOccupied: 0,
+          newOccupied: 1,
+          availableCount: 4,
+          detectedAt: new Date(),
+        },
+      });
+      const session = await prisma.parkingSession.create({
+        data: {
+          zoneId: zone.id,
+          userId: user.id,
+          vehicleId: vehCar.id,
+          entryEventId: entry.id,
+          enteredAt: new Date(),
+          status: "COMPLETED",
+        },
+      });
+      await prisma.parkingFee.create({
+        data: {
+          sessionId: session.id,
+          zoneId: zone.id,
+          userId: user.id,
+          amount: 20,
+          rateBreakdown: {},
+        },
+      });
+      await expect(
+        prisma.parkingFee.create({
+          data: {
+            sessionId: session.id,
+            zoneId: zone.id,
+            userId: user.id,
+            amount: 30,
+            rateBreakdown: {},
+          },
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("guest session (wraps a parking session)", () => {
+    it("links a guest session to a parking session", async () => {
+      const entry = await prisma.occupancyEvent.create({
+        data: {
+          zoneId: zone.id,
+          cameraId: camera.id,
+          eventType: "ENTRY",
+          previousOccupied: 0,
+          newOccupied: 1,
+          availableCount: 4,
+          detectedPlate: "ZZZ-0001",
+          detectedAt: new Date(),
+        },
+      });
+      const session = await prisma.parkingSession.create({
+        data: {
+          zoneId: zone.id,
+          userId: user.id,
+          vehicleId: vehCar.id,
+          entryEventId: entry.id,
+          enteredAt: new Date(),
+          status: "ACTIVE",
+        },
+      });
+      const guest = await prisma.guestSession.create({
+        data: { parkingSessionId: session.id, detectedPlate: "ZZZ-0001" },
+      });
+      expect(guest.parkingSessionId).toBe(session.id);
+      expect(guest.detectedPlate).toBe("ZZZ-0001");
+    });
+
+    it("optionally links a guest session to a reservation", async () => {
+      const res = await prisma.reservation.create({
+        data: {
+          userId: user.id,
+          vehicleId: vehCar.id,
+          zoneId: zone.id,
+          startAt: new Date(),
+          endAt: new Date(Date.now() + 3600000),
+          status: "CONFIRMED",
+        },
+      });
+      const entry = await prisma.occupancyEvent.create({
+        data: {
+          zoneId: zone.id,
+          cameraId: camera.id,
+          eventType: "ENTRY",
+          previousOccupied: 0,
+          newOccupied: 1,
+          availableCount: 4,
+          detectedAt: new Date(),
+        },
+      });
+      const session = await prisma.parkingSession.create({
+        data: {
+          zoneId: zone.id,
+          userId: user.id,
+          vehicleId: vehCar.id,
+          entryEventId: entry.id,
+          enteredAt: new Date(),
+        },
+      });
+      const guest = await prisma.guestSession.create({
+        data: { parkingSessionId: session.id, linkedReservationId: res.id },
+      });
+      expect(guest.linkedReservationId).toBe(res.id);
     });
   });
 });
