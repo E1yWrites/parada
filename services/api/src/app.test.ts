@@ -728,6 +728,45 @@ describe("Authentication & Authorization", () => {
 
       expect(res.body.data).toHaveLength(0);
     });
+
+    it("returns the active session with its zone and vehicle relations", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Active Session Zone", code: "ASZ", capacity: 5 },
+      });
+      const cam = await prisma.camera.create({
+        data: { zoneId: zone.id, name: "ASZ Entry", identifier: "cam-asz-entry", gateType: "ENTRY", status: "ONLINE" },
+      });
+      const userId = (await request(app).get("/auth/me").set("Authorization", `Bearer ${userToken}`)).body.data.id;
+      const vehicle = await prisma.vehicle.create({
+        data: { userId, plateNumber: "ACTIVE-001", normalizedPlate: "ACTIVE001", vehicleType: "CAR", status: "ACTIVE" },
+      });
+
+      await request(app)
+        .post(`/zones/${zone.id}/events`)
+        .send({ cameraIdentifier: cam.identifier, sourceEventId: "active-session-entry", eventType: "ENTRY", detectedPlate: vehicle.plateNumber })
+        .expect(201);
+
+      const res = await request(app)
+        .get("/sessions/active")
+        .set("Authorization", `Bearer ${userToken}`)
+        .expect(200);
+
+      expect(res.body.data).toMatchObject({
+        status: "ACTIVE",
+        zone: { id: zone.id, name: zone.name, code: zone.code },
+        vehicle: { id: vehicle.id, plateNumber: vehicle.plateNumber, vehicleType: vehicle.vehicleType },
+      });
+      expect(res.body.data.enteredAt).toEqual(expect.any(String));
+    });
+
+    it("returns null when the authenticated user has no active session", async () => {
+      const res = await request(app)
+        .get("/sessions/active")
+        .set("Authorization", `Bearer ${userToken}`)
+        .expect(200);
+
+      expect(res.body.data).toBeNull();
+    });
   });
 
   describe("Admin authorization", () => {

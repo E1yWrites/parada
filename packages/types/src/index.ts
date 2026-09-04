@@ -112,6 +112,23 @@ export interface ParkingSession {
   updatedAt: Date;
 }
 
+export interface ParkingSessionResponse {
+  id: string;
+  zoneId: string;
+  userId: string;
+  vehicleId: string;
+  entryEventId: string;
+  exitEventId: string | null;
+  enteredAt: string;
+  exitedAt: string | null;
+  durationSeconds: number | null;
+  status: ParkingSessionStatus;
+  zone: Pick<ParkingZone, "id" | "name" | "code">;
+  vehicle: Pick<Vehicle, "id" | "plateNumber" | "vehicleType">;
+  entryEvent: { id: string; detectedAt: string } | null;
+  exitEvent: { id: string; detectedAt: string } | null;
+}
+
 export interface Notification {
   id: string;
   zoneId: string;

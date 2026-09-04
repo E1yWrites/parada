@@ -1,4 +1,4 @@
-import type { Vehicle, VehicleType, ParkingSessionStatus } from "@parada/types";
+import type { ParkingSessionResponse, Vehicle, VehicleType } from "@parada/types";
 import { getToken, notifyAuthInvalidated } from "@/lib/auth/session";
 
 /** Public zone availability exposed by GET /zones (backend contract). */
@@ -26,31 +26,8 @@ export type ZoneOccupancy = Pick<
   availability: ZoneAvailability;
 };
 
-export type SessionZoneRef = { id: string; name: string; code: string };
-export type SessionVehicleRef = {
-  id: string;
-  plateNumber: string;
-  vehicleType: VehicleType;
-};
-export type SessionEventRef = { id: string; detectedAt: string };
-
 /** Enriched session DTO as returned by /sessions and /sessions/active. */
-export type SessionDto = {
-  id: string;
-  zoneId: string;
-  userId: string;
-  vehicleId: string;
-  entryEventId: string;
-  exitEventId: string | null;
-  enteredAt: string;
-  exitedAt: string | null;
-  durationSeconds: number | null;
-  status: ParkingSessionStatus;
-  zone: SessionZoneRef;
-  vehicle: SessionVehicleRef;
-  entryEvent: SessionEventRef | null;
-  exitEvent: SessionEventRef | null;
-};
+export type SessionDto = ParkingSessionResponse;
 
 /** Account shape returned by /auth/me and embedded in auth responses. */
 export type UserDto = {
