@@ -44,6 +44,13 @@ export default function ParkingScreen() {
       {activeSession ? (
         <ActiveSessionBanner session={activeSession} now={now} testID="active-banner" />
       ) : null}
+      {active.isError ? (
+        <ErrorState
+          message={active.error instanceof ApiError ? active.error.message : "Couldn't load your active session."}
+          onRetry={refresh}
+          testID="active-session-error"
+        />
+      ) : null}
       <SectionHeader title="Zones" caption="Updated every 30 seconds" testID="zones-header" />
       {zones.isPending ? (
         <LoadingState label="Loading park availability…" testID="zones-loading" />

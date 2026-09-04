@@ -43,6 +43,16 @@ describe("api client: success envelopes", () => {
 });
 
 describe("api client: error codes and messages", () => {
+  it("rejects an active session without the required relations", async () => {
+    (global.fetch as unknown as jest.Mock) = mockFetch({
+      data: { id: "session-1", status: "ACTIVE", enteredAt: new Date().toISOString() },
+    });
+
+    const err = (await api.activeSession().catch((e: unknown) => e)) as ApiError;
+    expect(err.code).toBe("INVALID_SESSION_RESPONSE");
+    expect(err.status).toBe(502);
+  });
+
   it("500 maps to ApiError with backend code/message", async () => {
     (global.fetch as unknown as jest.Mock) = mockFetch(
       { error: { code: "INTERNAL", message: "Something went wrong." } },

@@ -88,6 +88,40 @@ function toApiError(err: unknown): ApiError {
   return new ApiError("NETWORK", "Cannot reach the PARADA server. Check your connection and try again.", 0);
 }
 
+function isSessionResponse(value: unknown): value is SessionDto {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const session = value as Record<string, unknown>;
+  const zone = session.zone;
+  const vehicle = session.vehicle;
+  return (
+    typeof session.id === "string" &&
+    typeof session.status === "string" &&
+    typeof session.enteredAt === "string" &&
+    typeof zone === "object" &&
+    zone !== null &&
+    typeof (zone as Record<string, unknown>).name === "string" &&
+    typeof vehicle === "object" &&
+    vehicle !== null &&
+    typeof (vehicle as Record<string, unknown>).plateNumber === "string"
+  );
+}
+
+function requireSessionResponse(value: SessionDto | null): SessionDto | null {
+  if (value === null) {
+    return null;
+  }
+  if (!isSessionResponse(value)) {
+    throw new ApiError(
+      "INVALID_SESSION_RESPONSE",
+      "The server returned an invalid active parking session.",
+      502,
+    );
+  }
+  return value;
+}
+
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const method = opts.method ?? "GET";
   const headers: Record<string, string> = {
@@ -165,6 +199,13 @@ export const api = {
   createVehicle: (plateNumber: string, vehicleType: VehicleType) =>
     request<Vehicle>("/vehicles", { method: "POST", body: { plateNumber, vehicleType } }),
 
-  sessions: () => request<SessionDto[]>("/sessions"),
-  activeSession: () => request<SessionDto | null>("/sessions/active"),
+  sessions: async () => {
+    const sessions = await request<SessionDto[]>("/sessions");
+    if (!Array.isArray(sessions) || !sessions.every(isSessionResponse)) {
+      throw new ApiError("INVALID_SESSION_RESPONSE", "The server returned invalid parking session data.", 502);
+    }
+    return sessions;
+  },
+  activeSession: async () =>
+    requireSessionResponse(await request<SessionDto | null>("/sessions/active")),
 };
