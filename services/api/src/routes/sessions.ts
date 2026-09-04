@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { ok } from "../http/response";
-import { NotFoundError } from "../http/errors";
+import { NotFoundError, BadRequestError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
 import { prisma } from "@parada/database";
 import type { ParkingSessionResponse } from "@parada/types";
 import { currentUserId } from "../middleware/auth";
+import type { ParkingSessionService } from "../domain/sessions";
 
 type SessionRecord = {
   id: string;
@@ -38,7 +39,7 @@ function sessionResponse(session: SessionRecord): ParkingSessionResponse {
   };
 }
 
-export function sessionsRouter(): Router {
+export function sessionsRouter(sessionService?: ParkingSessionService): Router {
   const router = Router();
 
   router.get(
@@ -97,6 +98,47 @@ export function sessionsRouter(): Router {
         throw new NotFoundError("Session not found.");
       }
       res.json(ok(sessionResponse(session)));
+    })
+  );
+
+  router.post(
+    "/sessions/entry",
+    asyncHandler(async (req, res) => {
+      if (!sessionService) {
+        throw new BadRequestError("Session entry is not configured.");
+      }
+      const userId = currentUserId(res);
+      const body: Record<string, unknown> = req.body ?? {};
+
+      const vehicleId = body["vehicleId"];
+      const zoneId = body["zoneId"];
+
+      if (typeof vehicleId !== "string" || vehicleId.length === 0) {
+        throw new BadRequestError("'vehicleId' (string) is required.");
+      }
+      if (typeof zoneId !== "string" || zoneId.length === 0) {
+        throw new BadRequestError("'zoneId' (string) is required.");
+      }
+
+      const enteredAt = typeof body["enteredAt"] === "string" ? body["enteredAt"] : undefined;
+
+      const session = await sessionService.entry(userId, { vehicleId, zoneId, enteredAt });
+      res.status(201).json(ok({ session }));
+    })
+  );
+
+  router.post(
+    "/sessions/:id/exit",
+    asyncHandler(async (req, res) => {
+      if (!sessionService) {
+        throw new BadRequestError("Session exit is not configured.");
+      }
+      const userId = currentUserId(res);
+      const body: Record<string, unknown> = req.body ?? {};
+      const exitedAt = typeof body["exitedAt"] === "string" ? body["exitedAt"] : undefined;
+
+      const result = await sessionService.exit(userId, req.params["id"]!, { exitedAt });
+      res.json(ok(result));
     })
   );
 

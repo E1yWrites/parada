@@ -826,3 +826,633 @@ describe("Authentication & Authorization", () => {
     });
   });
 });
+
+describe("Phase 3 — Zone recommendation", () => {
+  let app: ReturnType<typeof createApp>;
+
+  beforeAll(async () => {
+    await cleanDatabase();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  beforeEach(async () => {
+    await cleanDatabase();
+    app = createApp();
+  });
+
+  it("recommends the least-occupied suitable zone", async () => {
+    const full = await prisma.parkingZone.create({
+      data: { name: "Full Zone", code: "FULL", capacity: 2, occupiedCount: 2 },
+    });
+    const busy = await prisma.parkingZone.create({
+      data: { name: "Busy Zone", code: "BUSY", capacity: 10, occupiedCount: 5 },
+    });
+    const empty = await prisma.parkingZone.create({
+      data: { name: "Empty Zone", code: "EMPTY", capacity: 10, occupiedCount: 0 },
+    });
+    expect(full.id).toBeDefined();
+    expect(busy.id).toBeDefined();
+
+    const res = await request(app).get("/zones/recommendation").expect(200);
+    expect(res.body.data.recommendedZone.id).toBe(empty.id);
+  });
+
+  it("breaks occupancy ties deterministically by zone code", async () => {
+    const zA = await prisma.parkingZone.create({
+      data: { name: "Zone A", code: "TYA", capacity: 10, occupiedCount: 2 },
+    });
+    const zB = await prisma.parkingZone.create({
+      data: { name: "Zone B", code: "TYB", capacity: 10, occupiedCount: 2 },
+    });
+    const res = await request(app).get("/zones/recommendation").expect(200);
+    expect(zA.code < zB.code).toBe(true);
+    expect(res.body.data.recommendedZone.id).toBe(zA.id);
+  });
+
+  it("ignores full, inactive, and zero-capacity zones", async () => {
+    await prisma.parkingZone.create({
+      data: { name: "Full", code: "ZF", capacity: 1, occupiedCount: 1 },
+    });
+    await prisma.parkingZone.create({
+      data: { name: "Inactive", code: "ZI", capacity: 5, occupiedCount: 0, status: "INACTIVE" },
+    });
+    await prisma.parkingZone.create({
+      data: { name: "Zero Cap", code: "ZZ", capacity: 0, occupiedCount: 0 },
+    });
+    const ok = await prisma.parkingZone.create({
+      data: { name: "OK", code: "ZOK", capacity: 4, occupiedCount: 1 },
+    });
+    const res = await request(app).get("/zones/recommendation").expect(200);
+    expect(res.body.data.recommendedZone.id).toBe(ok.id);
+  });
+
+  it("returns a domain error when no suitable zone exists", async () => {
+    await prisma.parkingZone.create({
+      data: { name: "Full", code: "NF", capacity: 3, occupiedCount: 3 },
+    });
+    const res = await request(app).get("/zones/recommendation").expect(409);
+    expect(res.body.error.code).toBe("CONFLICT");
+  });
+});
+
+describe("Phase 3 — Reservations", () => {
+  let app: ReturnType<typeof createApp>;
+  let tokenA: string;
+  let tokenB: string;
+  let userAId: string;
+
+  async function registerUser(email: string, name: string): Promise<{ token: string; id: string }> {
+    await request(app)
+      .post("/auth/register")
+      .send({ name, email, password: "Password123!" })
+      .expect(201);
+    const login = await request(app).post("/auth/login").send({ email, password: "Password123!" }).expect(200);
+    return { token: login.body.data.token, id: login.body.data.user.id };
+  }
+
+  beforeEach(async () => {
+    await cleanDatabase();
+    app = createApp();
+    const a = await registerUser("resa@test.local", "Res A");
+    const b = await registerUser("resb@test.local", "Res B");
+    tokenA = a.token;
+    tokenB = b.token;
+    userAId = a.id;
+  });
+
+  async function seedVehicle(userId: string, plate: string, token: string) {
+    await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ plateNumber: plate, vehicleType: "CAR" })
+      .expect(201);
+    const v = await prisma.vehicle.findFirstOrThrow({ where: { plateNumber: plate, userId } });
+    return v;
+  }
+
+  it("creates a reservation for an owned vehicle", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Res Zone", code: "RZ1", capacity: 5 } });
+    const vehicle = await seedVehicle(userAId, "RES-001", tokenA);
+
+    const res = await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.id })
+      .expect(201);
+
+    expect(res.body.data).toMatchObject({
+      userId: userAId,
+      zoneId: zone.id,
+      vehicleId: vehicle.id,
+      status: "CONFIRMED",
+    });
+  });
+
+  it("rejects a reservation for another user's vehicle", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Res Zone", code: "RZ2", capacity: 5 } });
+    const vehicleA = await seedVehicle(userAId, "RES-002", tokenA);
+
+    const res = await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenB}`)
+      .send({ zoneId: zone.id, vehicleId: vehicleA.id })
+      .expect(404);
+    expect(res.body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("prevents reserving a zone at full capacity", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Full Res", code: "RZ3", capacity: 2, occupiedCount: 2 } });
+    const vehicle = await seedVehicle(userAId, "RES-003", tokenA);
+
+    const res = await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.id })
+      .expect(409);
+    expect(res.body.error.code).toBe("CONFLICT");
+  });
+
+  it("protects capacity by counting active reservations", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Cap", code: "RZ4", capacity: 2 } });
+    const vehicleA = await seedVehicle(userAId, "CAP-001", tokenA);
+
+    const first = await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicleA.id })
+      .expect(201);
+    expect(first.body.data.status).toBe("CONFIRMED");
+
+    const b = await registerUser("rescap@test.local", "Res Cap");
+    const vehicleB = await seedVehicle(b.id, "CAP-002", b.token);
+
+    // One active reservation + 0 occupied = 1 < capacity 2 -> second allowed.
+    await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${b.token}`)
+      .send({ zoneId: zone.id, vehicleId: vehicleB.id })
+      .expect(201);
+
+    // Two active reservations + 0 occupied = 2 (not < 2) -> third blocked.
+    const third = await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: (await seedVehicle(userAId, "CAP-003", tokenA)).id })
+      .expect(409);
+    expect(third.body.error.code).toBe("CONFLICT");
+  });
+
+  it("expires reservations outside the 15-minute arrival window", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Exp", code: "RZ5", capacity: 5 } });
+    const vehicle = await seedVehicle(userAId, "RES-007", tokenA);
+
+    // Create a reservation whose arrival window has already passed.
+    const past = await prisma.reservation.create({
+      data: {
+        userId: userAId,
+        vehicleId: vehicle.id,
+        zoneId: zone.id,
+        startAt: new Date(Date.now() - 60 * 60 * 1000),
+        endAt: new Date(Date.now() + 60 * 60 * 1000),
+        status: "CONFIRMED",
+      },
+    });
+
+    const res = await request(app)
+      .get("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .expect(200);
+
+    const expired = res.body.data.find((r: { id: string }) => r.id === past.id);
+    expect(expired.status).toBe("EXPIRED");
+  });
+
+  it("cancels an owned reservation", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Can", code: "RZ6", capacity: 5 } });
+    const vehicle = await seedVehicle(userAId, "RES-008", tokenA);
+
+    const created = await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.id })
+      .expect(201);
+
+    const res = await request(app)
+      .patch(`/reservations/${created.body.data.id}/cancel`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .expect(200);
+    expect(res.body.data.status).toBe("CANCELLED");
+  });
+
+  it("does not allow one user to cancel another's reservation", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "CanB", code: "RZ7", capacity: 5 } });
+    const vehicle = await seedVehicle(userAId, "RES-009", tokenA);
+
+    const created = await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.id })
+      .expect(201);
+
+    const res = await request(app)
+      .patch(`/reservations/${created.body.data.id}/cancel`)
+      .set("Authorization", `Bearer ${tokenB}`)
+      .expect(404);
+    expect(res.body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("does not leak another user's reservation in list/get", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Leak", code: "RZ8", capacity: 5 } });
+    const vehicle = await seedVehicle(userAId, "RES-010", tokenA);
+
+    await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.id })
+      .expect(201);
+
+    const listB = await request(app).get("/reservations").set("Authorization", `Bearer ${tokenB}`).expect(200);
+    expect(listB.body.data).toHaveLength(0);
+  });
+});
+
+describe("Phase 3 — Assignments", () => {
+  let app: ReturnType<typeof createApp>;
+  let tokenA: string;
+  let tokenB: string;
+  let userAId: string;
+
+  beforeEach(async () => {
+    await cleanDatabase();
+    app = createApp();
+
+    const regA = () =>
+      request(app).post("/auth/register").send({ name: "Assign A", email: "assa@test.local", password: "Password123!" });
+    const regB = () =>
+      request(app).post("/auth/register").send({ name: "Assign B", email: "assb@test.local", password: "Password123!" });
+
+    // register returns 201 for both (idempotent within a fresh DB).
+    await Promise.all([regA(), regB()]);
+
+    const loginA = await request(app).post("/auth/login").send({ email: "assa@test.local", password: "Password123!" }).expect(200);
+    const loginB = await request(app).post("/auth/login").send({ email: "assb@test.local", password: "Password123!" }).expect(200);
+    tokenA = loginA.body.data.token;
+    tokenB = loginB.body.data.token;
+    userAId = loginA.body.data.user.id;
+  });
+
+  it("creates an assignment after explicit zone selection", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Assign Zone", code: "AS1", capacity: 5 } });
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ASS-001", vehicleType: "CAR" })
+      .expect(201);
+
+    const res = await request(app)
+      .post("/assignments")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.body.data.id })
+      .expect(201);
+    expect(res.body.data).toMatchObject({
+      userId: userAId,
+      zoneId: zone.id,
+      vehicleId: vehicle.body.data.id,
+      status: "ACTIVE",
+    });
+  });
+
+  it("rejects assigning another user's vehicle", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Assign Zone B", code: "AS2", capacity: 5 } });
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ASS-002", vehicleType: "CAR" })
+      .expect(201);
+
+    const res = await request(app)
+      .post("/assignments")
+      .set("Authorization", `Bearer ${tokenB}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.body.data.id })
+      .expect(404);
+    expect(res.body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("a recommendation never auto-creates an assignment", async () => {
+    await prisma.parkingZone.create({ data: { name: "Rec Zone", code: "AR1", capacity: 5 } });
+
+    await request(app).get("/zones/recommendation").expect(200);
+
+    const count = await prisma.zoneAssignment.count();
+    expect(count).toBe(0);
+  });
+
+  it("a user cannot read another user's assignment", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Assign Zone C", code: "AS3", capacity: 5 } });
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ASS-003", vehicleType: "CAR" })
+      .expect(201);
+
+    const created = await request(app)
+      .post("/assignments")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.body.data.id })
+      .expect(201);
+
+    const res = await request(app)
+      .get(`/assignments/${created.body.data.id}`)
+      .set("Authorization", `Bearer ${tokenB}`)
+      .expect(404);
+    expect(res.body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("rejects a second ACTIVE assignment for the same vehicle", async () => {
+    const zoneA = await prisma.parkingZone.create({ data: { name: "Z1", code: "AZ1", capacity: 5 } });
+    const zoneB = await prisma.parkingZone.create({ data: { name: "Z2", code: "AZ2", capacity: 5 } });
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ASS-004", vehicleType: "CAR" })
+      .expect(201);
+
+    await request(app)
+      .post("/assignments")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zoneA.id, vehicleId: vehicle.body.data.id })
+      .expect(201);
+
+    const res = await request(app)
+      .post("/assignments")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zoneB.id, vehicleId: vehicle.body.data.id })
+      .expect(409);
+    expect(res.body.error.code).toBe("CONFLICT");
+  });
+});
+
+describe("Phase 3 — Session entry & exit (user-initiated)", () => {
+  let app: ReturnType<typeof createApp>;
+  let tokenA: string;
+  let tokenB: string;
+  let userAId: string;
+  let ctx: SeedCtx;
+
+  beforeEach(async () => {
+    await cleanDatabase();
+    ctx = await seedZone();
+    app = createApp();
+
+    const registerA = () =>
+      request(app).post("/auth/register").send({ name: "Sess A", email: "sessa@test.local", password: "Password123!" });
+    const registerB = () =>
+      request(app).post("/auth/register").send({ name: "Sess B", email: "sessb@test.local", password: "Password123!" });
+    await registerA();
+    await registerB();
+
+    const loginA = await request(app).post("/auth/login").send({ email: "sessa@test.local", password: "Password123!" }).expect(200);
+    const loginB = await request(app).post("/auth/login").send({ email: "sessb@test.local", password: "Password123!" }).expect(200);
+    tokenA = loginA.body.data.token;
+    tokenB = loginB.body.data.token;
+    userAId = loginA.body.data.user.id;
+  });
+
+  it("registers an entry, increments occupancy, and creates an ACTIVE session", async () => {
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ENT-001", vehicleType: "CAR" })
+      .expect(201);
+
+    const before = await prisma.parkingZone.findUniqueOrThrow({ where: { id: ctx.zoneId } });
+
+    const res = await request(app)
+      .post("/sessions/entry")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id })
+      .expect(201);
+
+    expect(res.body.data.session).toMatchObject({
+      userId: userAId,
+      zoneId: ctx.zoneId,
+      vehicleId: vehicle.body.data.id,
+      status: "ACTIVE",
+    });
+
+    const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: ctx.zoneId } });
+    expect(after.occupiedCount).toBe(before.occupiedCount + 1);
+
+    const sessionCount = await prisma.parkingSession.count({ where: { status: "ACTIVE" } });
+    expect(sessionCount).toBe(1);
+  });
+
+  it("rejects entry with another user's vehicle", async () => {
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ENT-002", vehicleType: "CAR" })
+      .expect(201);
+
+    const res = await request(app)
+      .post("/sessions/entry")
+      .set("Authorization", `Bearer ${tokenB}`)
+      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id })
+      .expect(404);
+    expect(res.body.error.code).toBe("NOT_FOUND");
+    expect((await prisma.parkingSession.count())).toBe(0);
+  });
+
+  it("rejects entry into a full zone without changing occupancy", async () => {
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ENT-003", vehicleType: "CAR" })
+      .expect(201);
+
+    const full = await prisma.parkingZone.create({
+      data: { name: "Full Entry", code: "FE", capacity: 1, occupiedCount: 1 },
+    });
+
+    const res = await request(app)
+      .post("/sessions/entry")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: full.id, vehicleId: vehicle.body.data.id })
+      .expect(409);
+    expect(res.body.error.code).toBe("CONFLICT");
+    expect((await prisma.parkingZone.findUniqueOrThrow({ where: { id: full.id } })).occupiedCount).toBe(1);
+  });
+
+  it("rejects a duplicate active session for the same vehicle", async () => {
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ENT-004", vehicleType: "CAR" })
+      .expect(201);
+
+    await request(app)
+      .post("/sessions/entry")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id })
+      .expect(201);
+
+    const before = await prisma.parkingZone.findUniqueOrThrow({ where: { id: ctx.zoneId } });
+
+    await request(app)
+      .post("/sessions/entry")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id })
+      .expect(409);
+
+    const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: ctx.zoneId } });
+    expect(after.occupiedCount).toBe(before.occupiedCount);
+    expect(await prisma.parkingSession.count({ where: { vehicleId: vehicle.body.data.id } })).toBe(1);
+  });
+
+  it("rolls back all changes when a later step fails", async () => {
+    // Entry into a MISSING zone must not create a session or change occupancy.
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ENT-005", vehicleType: "CAR" })
+      .expect(201);
+
+    await request(app)
+      .post("/sessions/entry")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: "missing-zone", vehicleId: vehicle.body.data.id })
+      .expect(404);
+
+    expect(await prisma.parkingSession.count()).toBe(0);
+    expect(await prisma.occupancyEvent.count()).toBe(0);
+  });
+
+  it("rejects entry into a non-assigned zone when an assignment exists", async () => {
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ENT-006", vehicleType: "CAR" })
+      .expect(201);
+    const assigned = await prisma.parkingZone.create({ data: { name: "Assigned", code: "WA1", capacity: 5 } });
+
+    await request(app)
+      .post("/assignments")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: assigned.id, vehicleId: vehicle.body.data.id })
+      .expect(201);
+
+    const res = await request(app)
+      .post("/sessions/entry")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id })
+      .expect(409);
+    expect(res.body.error.code).toBe("CONFLICT");
+    expect(await prisma.parkingSession.count()).toBe(0);
+  });
+
+  it("completes an exit, decrements occupancy, and persists the fee", async () => {
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ENT-007", vehicleType: "CAR" })
+      .expect(201);
+
+    const enteredAt = new Date("2026-09-04T10:00:00.000Z");
+    const exitedAt = new Date("2026-09-04T13:00:00.000Z"); // exactly 3h
+
+    const entry = await request(app)
+      .post("/sessions/entry")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id, enteredAt: enteredAt.toISOString() })
+      .expect(201);
+    const sessionId = entry.body.data.session.id;
+
+    const before = await prisma.parkingZone.findUniqueOrThrow({ where: { id: ctx.zoneId } });
+
+    const res = await request(app)
+      .post(`/sessions/${sessionId}/exit`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ exitedAt: exitedAt.toISOString() })
+      .expect(200);
+
+    const saved = await prisma.parkingSession.findUniqueOrThrow({ where: { id: sessionId } });
+    expect(saved.status).toBe("COMPLETED");
+    // 3h exactly -> base (2h) + 1 additional started hour = 20 + 10 = 30.
+    expect(saved.feeAmount).toBe(30);
+    expect(saved.durationSeconds).toBe(3 * 60 * 60);
+
+    const feeRow = await prisma.parkingFee.findFirstOrThrow({ where: { sessionId } });
+    expect(feeRow.amount).toBe(saved.feeAmount);
+    expect(feeRow.status).toBe("PENDING");
+
+    const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: ctx.zoneId } });
+    expect(after.occupiedCount).toBe(before.occupiedCount - 1);
+
+    expect(res.body.data.fee).toMatchObject({ amount: saved.feeAmount, status: "PENDING" });
+  });
+
+  it("rejects a duplicate exit for an already-completed session", async () => {
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ENT-008", vehicleType: "CAR" })
+      .expect(201);
+
+    const entry = await request(app)
+      .post("/sessions/entry")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id })
+      .expect(201);
+    const sessionId = entry.body.data.session.id;
+
+    await request(app)
+      .post(`/sessions/${sessionId}/exit`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .expect(200);
+
+    const before = await prisma.parkingZone.findUniqueOrThrow({ where: { id: ctx.zoneId } });
+
+    const res = await request(app)
+      .post(`/sessions/${sessionId}/exit`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .expect(409);
+    expect(res.body.error.code).toBe("CONFLICT");
+
+    const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: ctx.zoneId } });
+    expect(after.occupiedCount).toBe(before.occupiedCount);
+    expect(await prisma.parkingFee.count({ where: { sessionId } })).toBe(1);
+  });
+
+  it("rejects exiting a session that belongs to another user", async () => {
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ENT-009", vehicleType: "CAR" })
+      .expect(201);
+
+    const entry = await request(app)
+      .post("/sessions/entry")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id })
+      .expect(201);
+    const sessionId = entry.body.data.session.id;
+
+    const res = await request(app)
+      .post(`/sessions/${sessionId}/exit`)
+      .set("Authorization", `Bearer ${tokenB}`)
+      .expect(404);
+    expect(res.body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("rejects exiting a session that does not exist", async () => {
+    const res = await request(app)
+      .post("/sessions/nonexistent/exit")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .expect(404);
+    expect(res.body.error.code).toBe("NOT_FOUND");
+  });
+});
+

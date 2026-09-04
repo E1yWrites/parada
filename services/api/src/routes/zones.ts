@@ -1,43 +1,30 @@
 import { Router } from "express";
-import { prisma } from "@parada/database";
 import { ok } from "../http/response";
 import { NotFoundError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
 import { OccupancyService } from "../domain/occupancy";
+import { ZoneService } from "../domain/zones";
 import { availabilityOf } from "./admin";
 
-export function zonesRouter(occupancy: OccupancyService): Router {
+export function zonesRouter(
+  occupancy: OccupancyService,
+  zones: ZoneService = new ZoneService()
+): Router {
   const router = Router();
 
   router.get(
     "/zones",
     asyncHandler(async (_req, res) => {
-      const zones = await prisma.parkingZone.findMany({
-        where: { status: "ACTIVE" },
-        orderBy: { code: "asc" },
-        select: {
-          id: true,
-          name: true,
-          code: true,
-          capacity: true,
-          occupiedCount: true,
-          status: true,
-        },
-      });
-      res.json(
-        ok(
-          zones.map((z) => ({
-            id: z.id,
-            name: z.name,
-            code: z.code,
-            capacity: z.capacity,
-            occupiedCount: z.occupiedCount,
-            availableCount: z.capacity - z.occupiedCount,
-            status: z.status,
-            availability: availabilityOf(z.occupiedCount, z.capacity, z.status),
-          }))
-        )
-      );
+      const zonesList = await zones.list();
+      res.json(ok(zonesList));
+    })
+  );
+
+  router.get(
+    "/zones/recommendation",
+    asyncHandler(async (_req, res) => {
+      const recommendation = await zones.recommend();
+      res.json(ok(recommendation));
     })
   );
 

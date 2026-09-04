@@ -241,6 +241,71 @@ export interface GuestSession {
   createdAt: Date;
 }
 
+/** Recommendation DTO returned by GET /zones/recommendation. A recommendation
+ *  is NOT an assignment; the user must explicitly accept the zone. */
+export interface ZoneRecommendation {
+  recommendedZone: {
+    id: string;
+    name: string;
+    code: string;
+    capacity: number;
+    occupiedCount: number;
+    availableCount: number;
+    status: ZoneStatus;
+  } | null;
+}
+
+export interface ReservationResponse {
+  id: string;
+  userId: string;
+  vehicleId: string;
+  zoneId: string;
+  startAt: string;
+  endAt: string;
+  status: ReservationStatus;
+  createdAt: string;
+  updatedAt: string;
+  zone: Pick<ParkingZone, "id" | "name" | "code">;
+  vehicle: Pick<Vehicle, "id" | "plateNumber" | "vehicleType">;
+}
+
+export interface ZoneAssignmentResponse {
+  id: string;
+  userId: string;
+  vehicleId: string;
+  zoneId: string;
+  status: ZoneAssignmentStatus;
+  assignedAt: string;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  zone: Pick<ParkingZone, "id" | "name" | "code">;
+  vehicle: Pick<Vehicle, "id" | "plateNumber" | "vehicleType">;
+}
+
+/** Input for a user-initiated parking entry (POST /sessions/entry). */
+export interface SessionEntryInput {
+  vehicleId: string;
+  zoneId: string;
+  enteredAt?: string | null;
+}
+
+/** Input for a user-initiated parking exit (POST /sessions/:id/exit). */
+export interface SessionExitInput {
+  exitedAt?: string | null;
+}
+
+/** Result of a completed parking exit, including the persisted fee. */
+export interface SessionExitResult {
+  session: ParkingSessionResponse;
+  fee: {
+    id: string;
+    amount: number;
+    status: FeeStatus;
+    rateBreakdown: unknown;
+  };
+}
+
 export interface ParkingFeeConfig {
   baseFee: number;
   baseDurationHours: number;

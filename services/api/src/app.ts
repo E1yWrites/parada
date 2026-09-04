@@ -5,10 +5,17 @@ import { eventsRouter } from "./routes/events";
 import { authRouter } from "./routes/auth";
 import { vehiclesRouter } from "./routes/vehicles";
 import { sessionsRouter } from "./routes/sessions";
+import { reservationsRouter } from "./routes/reservations";
+import { assignmentsRouter } from "./routes/assignments";
 import { adminRouter } from "./routes/admin";
 import { OccupancyService } from "./domain/occupancy";
 import { SimulatorService } from "./domain/simulator";
 import { AuthService } from "./domain/auth";
+import { ConfigService } from "./domain/config";
+import { ZoneService } from "./domain/zones";
+import { AssignmentService } from "./domain/assignment";
+import { ReservationService } from "./domain/reservation";
+import { ParkingSessionService } from "./domain/sessions";
 import { loadEnv } from "./config/env";
 import { createAuthMiddleware } from "./middleware/auth";
 import { HttpError, InternalError } from "./http/errors";
@@ -46,7 +53,7 @@ export function createApp(options: AppOptions = {}): Express {
 
   app.use("/auth", authRouter(auth, authMiddleware));
 
-  const zones = zonesRouter(occupancy);
+  const zones = zonesRouter(occupancy, new ZoneService());
   const events = eventsRouter(occupancy, {
     cameraApiKey: options.cameraApiKey !== undefined ? options.cameraApiKey : env.cameraApiKey,
   });
@@ -55,11 +62,20 @@ export function createApp(options: AppOptions = {}): Express {
 
   app.use(authMiddleware);
 
+  const config = new ConfigService();
+  const assignmentService = new AssignmentService(config);
+  const reservationService = new ReservationService(config);
+  const sessionService = new ParkingSessionService(config, assignmentService);
+
   const vehicles = vehiclesRouter();
-  const sessions = sessionsRouter();
+  const sessions = sessionsRouter(sessionService);
+  const reservations = reservationsRouter(reservationService);
+  const assignments = assignmentsRouter(assignmentService);
   const admin = adminRouter();
   app.use(vehicles);
   app.use(sessions);
+  app.use(reservations);
+  app.use(assignments);
   app.use(admin);
 
   const simulator = new SimulatorService(occupancy);
