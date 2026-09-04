@@ -1,5 +1,7 @@
 import request from "supertest";
 import * as argon2 from "argon2";
+import jwt from "jsonwebtoken";
+import { randomUUID } from "crypto";
 import { prisma } from "@parada/database";
 import { createApp, type AppOptions } from "./app";
 import { AuthService } from "./domain/auth";
@@ -1455,4 +1457,247 @@ describe("Phase 3 — Session entry & exit (user-initiated)", () => {
     expect(res.body.error.code).toBe("NOT_FOUND");
   });
 });
+
+describe("Phase 4 — Authentication security coverage", () => {
+  const SECRET = "test-secret-key-for-testing-only-32chars";
+  const ISSUER = "parada-api-test";
+
+  let app: ReturnType<typeof createApp>;
+  const authService = new AuthService({ secret: SECRET, issuer: ISSUER, expiresIn: "1d" });
+  const tokenService = new TokenService({ secret: SECRET, issuer: ISSUER, expiresIn: "1d" });
+
+  beforeEach(async () => {
+    await cleanDatabase();
+    app = createApp({ auth: authService });
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  function registerUser(email: string, password = "Password123!", extra: Record<string, unknown> = {}) {
+    return request(app)
+      .post("/auth/register")
+      .send({ name: "Security User", email, password, ...extra });
+  }
+
+  async function registerAndLogin(email: string, password = "Password123!") {
+    const reg = await registerUser(email, password).expect(201);
+    const userId = reg.body.data.user.id;
+    const token = reg.body.data.token;
+    return { email, userId, token, reg };
+  }
+
+  describe("Registration — password storage", () => {
+    it("stores the password as a verifiable Argon2id hash, never plaintext", async () => {
+      await registerUser("hashstore@test.local", "Password123!").expect(201);
+
+      const user = await prisma.user.findUniqueOrThrow({ where: { email: "hashstore@test.local" } });
+      expect(user.passwordHash).not.toBe("Password123!");
+      expect(user.passwordHash).toMatch(/^\$argon2id\$/);
+      expect(await argon2.verify(user.passwordHash, "Password123!")).toBe(true);
+      expect(await argon2.verify(user.passwordHash, "wrong-password")).toBe(false);
+    });
+
+    it("does not leak the password hash through the registration response", async () => {
+      const res = await registerUser("noressonhash@test.local").expect(201);
+      expect(res.body.data.user.passwordHash).toBeUndefined();
+      expect(JSON.stringify(res.body.data)).not.toContain("passwordHash");
+      expect(JSON.stringify(res.body.data)).not.toContain("Password123!");
+    });
+  });
+
+  describe("Registration — account enumeration & normalization", () => {
+    it("rejects a duplicate email that differs only by case (case-insensitive unique)", async () => {
+      await registerUser("CaseDup@test.local").expect(201);
+      const res = await registerUser("casedup@test.local").expect(409);
+      expect(res.body.error.code).toBe("CONFLICT");
+    });
+
+    it("normalizes email casing to lowercase when storing", async () => {
+      await registerUser("MiXeD@test.local").expect(201);
+      const user = await prisma.user.findUniqueOrThrow({ where: { email: "mixed@test.local" } });
+      expect(user.email).toBe("mixed@test.local");
+    });
+  });
+
+  describe("Registration — role escalation protection", () => {
+    it("ignores a client-supplied ADMIN role and always creates a USER", async () => {
+      const res = await registerUser("wannabeadmin@test.local", "Password123!", {
+        role: "ADMIN",
+        status: "ACTIVE",
+      }).expect(201);
+
+      expect(res.body.data.user.role).toBe("USER");
+
+      const user = await prisma.user.findUniqueOrThrow({ where: { email: "wannabeadmin@test.local" } });
+      expect(user.role).toBe("USER");
+    });
+
+    it("cannot access admin-only routes even after attempting ADMIN injection", async () => {
+      const { token } = await registerAndLogin("wannabeadmin2@test.local");
+      await request(app)
+        .get("/admin/sessions")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(403);
+      await request(app)
+        .get("/admin/users")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(403);
+    });
+  });
+
+  describe("Login — response safety & enumeration resistance", () => {
+    it("does not return the password hash or any secret field on login", async () => {
+      await registerUser("loginresp@test.local").expect(201);
+      const res = await request(app)
+        .post("/auth/login")
+        .send({ email: "loginresp@test.local", password: "Password123!" })
+        .expect(200);
+
+      expect(res.body.data.user.passwordHash).toBeUndefined();
+      expect(JSON.stringify(res.body.data.user)).not.toContain("passwordHash");
+    });
+
+    it("returns the identical generic 401 for a nonexistent email and a wrong password", async () => {
+      await registerUser("enum@test.local", "Password123!").expect(201);
+
+      const nonexistent = await request(app)
+        .post("/auth/login")
+        .send({ email: "nobody@test.local", password: "Password123!" })
+        .expect(401);
+      const wrongPass = await request(app)
+        .post("/auth/login")
+        .send({ email: "enum@test.local", password: "WrongPass123!" })
+        .expect(401);
+
+      expect(nonexistent.body.error.message).toBe(wrongPass.body.error.message);
+      expect(nonexistent.body.error).not.toContain("nobody@test.local");
+    });
+  });
+
+  describe("JWT — claims & validation", () => {
+    it("issues a token whose subject is the user id with role, jti, issuer, and expiry claims", async () => {
+      const { userId, token } = await registerAndLogin("claims@test.local");
+      const decoded = jwt.decode(token) as Record<string, unknown>;
+
+      expect(decoded.sub).toBe(userId);
+      expect(decoded.role).toBe("USER");
+      expect(typeof decoded.jti).toBe("string");
+      expect(decoded.jti).toBeTruthy();
+      expect(decoded.iss).toBe("parada-api-test");
+      expect(typeof decoded.exp).toBe("number");
+      expect((decoded.exp as number) * 1000).toBeGreaterThan(Date.now());
+      expect(decoded.passwordHash).toBeUndefined();
+      expect(decoded.password).toBeUndefined();
+    });
+
+    it("rejects an expired token on a protected endpoint", async () => {
+      await registerUser("expired@test.local").expect(201);
+      const expiredToken = jwt.sign(
+        { sub: "some-user", jti: randomUUID(), role: "USER" },
+        SECRET,
+        { algorithm: "HS256", issuer: ISSUER, expiresIn: "-1h" }
+      );
+      const res = await request(app)
+        .get("/auth/me")
+        .set("Authorization", `Bearer ${expiredToken}`)
+        .expect(401);
+      expect(res.body.error.code).toBe("UNAUTHORIZED");
+    });
+
+    it("rejects a token signed with a different (foreign) secret", async () => {
+      const foreign = jwt.sign(
+        { sub: "x", jti: randomUUID(), role: "USER" },
+        "a-completely-different-foreign-secret-key",
+        { algorithm: "HS256", issuer: ISSUER }
+      );
+      await request(app)
+        .get("/auth/me")
+        .set("Authorization", `Bearer ${foreign}`)
+        .expect(401);
+    });
+
+    it("rejects a malformed / invalid-format token", async () => {
+      await request(app).get("/auth/me").set("Authorization", "Bearer not-a-jwt").expect(401);
+    });
+  });
+
+  describe("Token revocation — protected endpoint access", () => {
+    it("rejects a revoked token on a protected Phase 3 endpoint", async () => {
+      const { token } = await registerAndLogin("revoked-protected@test.local");
+      await request(app)
+        .post("/auth/logout")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(204);
+
+      const res = await request(app)
+        .get("/reservations")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(401);
+      expect(res.body.error.code).toBe("UNAUTHORIZED");
+    });
+
+    it("a non-revoked token still works on the same protected endpoint after another token is revoked", async () => {
+      const { token: keep } = await registerAndLogin("keep-token@test.local");
+      const { userId: otherUser } = await registerAndLogin("other-token@test.local");
+      const otherToken = tokenService.sign({ id: otherUser, role: "USER" }).token;
+      await request(app)
+        .post("/auth/logout")
+        .set("Authorization", `Bearer ${otherToken}`)
+        .expect(204);
+
+      await request(app).get("/reservations").set("Authorization", `Bearer ${keep}`).expect(200);
+    });
+  });
+
+  describe("Authorization — protected routes", () => {
+    it("rejects an unauthenticated request to a protected Phase 3 endpoint", async () => {
+      await request(app).get("/reservations").expect(401);
+      await request(app).get("/sessions/active").expect(401);
+      await request(app).get("/vehicles").expect(401);
+      await request(app).post("/sessions/entry").send({}).expect(401);
+    });
+
+    it("allows authenticated USER access to user-owned operations", async () => {
+      const { token, userId } = await registerAndLogin("authed-user@test.local");
+      const vehicle = await request(app)
+        .post("/vehicles")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ plateNumber: "SEC-1234", vehicleType: "CAR" })
+        .expect(201);
+      expect(vehicle.body.data.userId).toBe(userId);
+
+      await request(app).get("/reservations").set("Authorization", `Bearer ${token}`).expect(200);
+      await request(app).get("/sessions/active").set("Authorization", `Bearer ${token}`).expect(200);
+    });
+
+    it("denies USER access to every admin router endpoint", async () => {
+      const { token } = await registerAndLogin("denied-admin@test.local");
+      const adminPaths = [
+        "/admin/dashboard",
+        "/admin/zones",
+        "/admin/cameras",
+        "/admin/notifications",
+        "/admin/anomalies",
+        "/admin/sessions",
+        "/admin/users",
+        "/admin/vehicles",
+      ];
+      for (const path of adminPaths) {
+        const res = await request(app).get(path).set("Authorization", `Bearer ${token}`);
+        expect(res.status).toBe(403);
+      }
+    });
+
+    it("keeps the GET /zones/recommendation public (no auth required)", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Public Rec", code: "PUB", capacity: 3 },
+      });
+      const res = await request(app).get("/zones/recommendation").expect(200);
+      expect(res.body.data.recommendedZone.id).toBe(zone.id);
+    });
+  });
+});
+
 
