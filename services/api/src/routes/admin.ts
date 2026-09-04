@@ -6,6 +6,8 @@ import { prisma, type Prisma } from "@parada/database";
 import { requireRole, currentAuth } from "../middleware/auth";
 import { ZONE_OCCUPANCY_LOW_THRESHOLD } from "@parada/config";
 import type { OccupancyService } from "../domain/occupancy";
+import type { ConfigService } from "../domain/config";
+import type { ReservationService } from "../domain/reservation";
 
 type Availability = "AVAILABLE" | "LOW_AVAILABILITY" | "FULL" | "OFFLINE";
 
@@ -46,10 +48,99 @@ function zoneSummary(z: {
   };
 }
 
-export function adminRouter(deps: { occupancy: OccupancyService }): Router {
+export function adminRouter(deps: { occupancy: OccupancyService; config?: ConfigService; reservations?: ReservationService }): Router {
   const router = Router();
 
   router.use(requireRole("ADMIN"));
+
+  router.get(
+    "/admin/reservations",
+    asyncHandler(async (_req, res) => {
+      if (!deps.reservations) throw new NotFoundError("Reservation service unavailable.");
+      res.json(ok(await deps.reservations.adminList()));
+    })
+  );
+
+  router.patch(
+    "/admin/reservations/:id/cancel",
+    asyncHandler(async (req, res) => {
+      if (!deps.reservations) throw new NotFoundError("Reservation service unavailable.");
+      res.json(ok(await deps.reservations.adminCancel(req.params["id"]!)));
+    })
+  );
+
+  router.get(
+    "/admin/violations",
+    asyncHandler(async (_req, res) => {
+      const violations = await prisma.violation.findMany({
+        orderBy: { createdAt: "desc" },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
+          zone: { select: { id: true, name: true, code: true } },
+          session: { select: { id: true, zoneId: true, enteredAt: true, exitedAt: true, status: true } },
+          appeal: true,
+        },
+      });
+      res.json(ok(violations));
+    })
+  );
+
+  router.patch(
+    "/admin/violations/:id/status",
+    asyncHandler(async (req, res) => {
+      const status = req.body?.["status"];
+      if (!["PENDING", "APPEALED", "UPHELD", "DISMISSED", "FINE_PAID"].includes(status)) {
+        throw new BadRequestError("Invalid violation status.");
+      }
+      const existing = await prisma.violation.findUnique({ where: { id: req.params["id"] } });
+      if (!existing) throw new NotFoundError("Violation not found.");
+      const updated = await prisma.violation.update({ where: { id: existing.id }, data: { status } });
+      res.json(ok(updated));
+    })
+  );
+
+  router.get(
+    "/admin/appeals",
+    asyncHandler(async (_req, res) => {
+      const appeals = await prisma.violationAppeal.findMany({
+        orderBy: { createdAt: "desc" },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          violation: { include: { zone: { select: { id: true, name: true, code: true } }, vehicle: { select: { id: true, plateNumber: true } } } },
+        },
+      });
+      res.json(ok(appeals));
+    })
+  );
+
+  router.patch(
+    "/admin/appeals/:id/status",
+    asyncHandler(async (req, res) => {
+      const status = req.body?.["status"];
+      if (status !== "APPROVED" && status !== "REJECTED") throw new BadRequestError("Appeal status must be APPROVED or REJECTED.");
+      const existing = await prisma.violationAppeal.findUnique({ where: { id: req.params["id"] } });
+      if (!existing) throw new NotFoundError("Appeal not found.");
+      const updated = await prisma.violationAppeal.update({ where: { id: existing.id }, data: { status, reviewedBy: currentAuth(res).id, reviewedAt: new Date() } });
+      res.json(ok(updated));
+    })
+  );
+
+  router.get(
+    "/admin/config",
+    asyncHandler(async (_req, res) => {
+      if (!deps.config) throw new NotFoundError("Configuration service unavailable.");
+      res.json(ok(await deps.config.getEstablishmentSettings()));
+    })
+  );
+
+  router.put(
+    "/admin/config",
+    asyncHandler(async (req, res) => {
+      if (!deps.config) throw new NotFoundError("Configuration service unavailable.");
+      res.json(ok(await deps.config.updateEstablishmentSettings(req.body)));
+    })
+  );
 
   router.get(
     "/admin/dashboard",
@@ -165,6 +256,40 @@ export function adminRouter(deps: { occupancy: OccupancyService }): Router {
           recentNotifications: notifications,
         })
       );
+    })
+  );
+
+  router.get(
+    "/admin/analytics",
+    asyncHandler(async (req, res) => {
+      const fromRaw = req.query["from"];
+      const toRaw = req.query["to"];
+      const from = typeof fromRaw === "string" ? new Date(fromRaw) : new Date(new Date().setHours(0, 0, 0, 0));
+      const to = typeof toRaw === "string" ? new Date(toRaw) : new Date();
+      if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) throw new BadRequestError("'from' and 'to' must be valid ordered dates.");
+      const [zones, sessions, fees, reservations, violations] = await Promise.all([
+        prisma.parkingZone.findMany({ select: { id: true, code: true, capacity: true, occupiedCount: true } }),
+        prisma.parkingSession.findMany({ where: { enteredAt: { gte: from, lte: to } }, select: { status: true, durationSeconds: true, enteredAt: true } }),
+        prisma.parkingFee.findMany({ where: { createdAt: { gte: from, lte: to } }, select: { amount: true, status: true } }),
+        prisma.reservation.count({ where: { createdAt: { gte: from, lte: to } } }),
+        prisma.violation.count({ where: { createdAt: { gte: from, lte: to } } }),
+      ]);
+      const completed = sessions.filter((session) => session.status === "COMPLETED");
+      const durations = completed.map((session) => session.durationSeconds).filter((duration): duration is number => duration !== null);
+      const peakHours = new Map<number, number>();
+      for (const session of sessions) peakHours.set(session.enteredAt.getHours(), (peakHours.get(session.enteredAt.getHours()) ?? 0) + 1);
+      const peak = [...peakHours.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
+      res.json(ok({
+        from: from.toISOString(),
+        to: to.toISOString(),
+        current: { occupied: zones.reduce((sum, zone) => sum + zone.occupiedCount, 0), capacity: zones.reduce((sum, zone) => sum + zone.capacity, 0) },
+        zones: zones.map((zone) => ({ ...zone, availableCount: Math.max(0, zone.capacity - zone.occupiedCount) })),
+        sessions: { total: sessions.length, active: sessions.filter((session) => session.status === "ACTIVE").length, completed: completed.length, averageDurationSeconds: durations.length ? durations.reduce((sum, duration) => sum + duration, 0) / durations.length : 0 },
+        peakEntryHour: peak ? { hour: peak[0], sessions: peak[1] } : null,
+        revenue: { total: fees.reduce((sum, fee) => sum + fee.amount, 0), paid: fees.filter((fee) => fee.status === "PAID").reduce((sum, fee) => sum + fee.amount, 0), fees: fees.length },
+        reservations,
+        violations,
+      }));
     })
   );
 

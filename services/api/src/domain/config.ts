@@ -1,10 +1,18 @@
-import { prisma } from "@parada/database";
+import { prisma, Prisma } from "@parada/database";
 import {
   DEFAULT_PARKING_FEE,
   DEFAULT_RESERVATION_WINDOW_MINUTES,
   DEFAULT_GUEST_POLICY,
+  ZONE_OCCUPANCY_LOW_THRESHOLD,
 } from "@parada/config";
-import type { ParkingFeeConfig, GuestPolicyConfig } from "@parada/types";
+import type {
+  EstablishmentSettings,
+  GuestPolicyConfig,
+  ParkingFeeConfig,
+  ViolationPolicyConfig,
+  ZoneDefaultsConfig,
+} from "@parada/types";
+import { BadRequestError } from "../http/errors";
 
 /**
  * Reads runtime-configurable establishment settings from the singleton
@@ -15,6 +23,63 @@ import type { ParkingFeeConfig, GuestPolicyConfig } from "@parada/types";
  * controllers and services must not hardcode ₱20 / ₱10 / 15-minute values.
  */
 export class ConfigService {
+  async getEstablishmentSettings(): Promise<EstablishmentSettings> {
+    const cfg = await prisma.establishmentConfig.findUnique({ where: { id: "singleton" } });
+    const rawViolations = cfg?.violations;
+    const violations = Array.isArray(rawViolations)
+      ? rawViolations.filter(isViolationPolicy).map((rawItem) => {
+          const item = rawItem as unknown as ViolationPolicyConfig;
+          return {
+          type: item.type,
+          fineAmount: item.fineAmount,
+          description: item.description,
+          };
+        })
+      : [];
+    const rawDefaults = cfg?.zoneDefaults;
+    const defaults = rawDefaults && typeof rawDefaults === "object" ? rawDefaults as Record<string, unknown> : {};
+    return {
+      parkingFee: await this.getParkingFeeConfig(),
+      violations,
+      guestPolicy: await this.getGuestPolicy(),
+      zoneDefaults: {
+        maxReservationDurationMinutes:
+          typeof defaults["maxReservationDurationMinutes"] === "number" && defaults["maxReservationDurationMinutes"] > 0
+            ? defaults["maxReservationDurationMinutes"]
+            : DEFAULT_RESERVATION_WINDOW_MINUTES,
+        occupancyLowThreshold:
+          typeof defaults["occupancyLowThreshold"] === "number" && defaults["occupancyLowThreshold"] >= 0 && defaults["occupancyLowThreshold"] <= 1
+            ? defaults["occupancyLowThreshold"]
+            : ZONE_OCCUPANCY_LOW_THRESHOLD,
+      },
+    };
+  }
+
+  async updateEstablishmentSettings(input: EstablishmentSettings): Promise<EstablishmentSettings> {
+    validateSettings(input);
+    if (input.guestPolicy.primaryZoneId) {
+      const zone = await prisma.parkingZone.findUnique({ where: { id: input.guestPolicy.primaryZoneId }, select: { status: true } });
+      if (!zone || zone.status !== "ACTIVE") throw new BadRequestError("'primaryZoneId' must reference an active zone.");
+    }
+    await prisma.establishmentConfig.upsert({
+      where: { id: "singleton" },
+      update: {
+        parkingFee: input.parkingFee as unknown as Prisma.InputJsonValue,
+        violations: input.violations as unknown as Prisma.InputJsonValue,
+        guestPolicy: input.guestPolicy as unknown as Prisma.InputJsonValue,
+        zoneDefaults: input.zoneDefaults as unknown as Prisma.InputJsonValue,
+      },
+      create: {
+        id: "singleton",
+        parkingFee: input.parkingFee as unknown as Prisma.InputJsonValue,
+        violations: input.violations as unknown as Prisma.InputJsonValue,
+        guestPolicy: input.guestPolicy as unknown as Prisma.InputJsonValue,
+        zoneDefaults: input.zoneDefaults as unknown as Prisma.InputJsonValue,
+      },
+    });
+    return this.getEstablishmentSettings();
+  }
+
   /**
    * Returns the effective parking-fee configuration. Reads the
    * `EstablishmentConfig.parkingFee` JSON object; validates/coerces the known
@@ -89,5 +154,29 @@ export class ConfigService {
       }
     }
     return { ...DEFAULT_GUEST_POLICY };
+  }
+}
+
+function isViolationPolicy(value: unknown): value is ViolationPolicyConfig {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return typeof item["type"] === "string" && typeof item["fineAmount"] === "number" && item["fineAmount"] >= 0 && typeof item["description"] === "string";
+}
+
+function validateSettings(input: EstablishmentSettings): void {
+  const fee = input.parkingFee;
+  if (!Number.isFinite(fee.baseFee) || fee.baseFee < 0 || !Number.isFinite(fee.baseDurationHours) || fee.baseDurationHours <= 0 || !Number.isFinite(fee.additionalFeePerHour) || fee.additionalFeePerHour < 0) {
+    throw new BadRequestError("Parking fee values are invalid.");
+  }
+  const guest = input.guestPolicy;
+  if (!["PRIMARY_ZONE", "ALLOW_OVERFLOW", "DENY_WHEN_FULL"].includes(guest.policy) || guest.primaryZoneId !== null && typeof guest.primaryZoneId !== "string" || !Number.isFinite(guest.maxDurationHours) || guest.maxDurationHours <= 0 || typeof guest.allowWhenFull !== "boolean") {
+    throw new BadRequestError("Guest policy values are invalid.");
+  }
+  const defaults = input.zoneDefaults;
+  if (!Number.isInteger(defaults.maxReservationDurationMinutes) || defaults.maxReservationDurationMinutes <= 0 || !Number.isFinite(defaults.occupancyLowThreshold) || defaults.occupancyLowThreshold < 0 || defaults.occupancyLowThreshold > 1) {
+    throw new BadRequestError("Zone default values are invalid.");
+  }
+  if (!Array.isArray(input.violations) || input.violations.some((item) => !isViolationPolicy(item))) {
+    throw new BadRequestError("Violation configuration is invalid.");
   }
 }

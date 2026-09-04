@@ -73,4 +73,11 @@ describe("Notifications page — mark-read flow", () => {
     expect(mockedApi.markNotificationRead).toHaveBeenCalledWith("n1");
     expect(mockedApi.markNotificationRead).not.toHaveBeenCalledWith("n2");
   });
+
+  it("shows mutation errors", async () => {
+    mockedApi.markNotificationRead.mockRejectedValue(new Error("Notification service unavailable."));
+    renderPage(queryClient);
+    fireEvent.click(await screen.findByRole("button", { name: /mark read/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Notification service unavailable.");
+  });
 });

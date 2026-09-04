@@ -28,8 +28,8 @@ export default function SessionsPage() {
     if (!query.trim()) return true;
     const q = query.trim().toLowerCase();
     return (
-      s.vehicle.plateNumber.toLowerCase().includes(q) ||
-      s.user.name.toLowerCase().includes(q) ||
+      (s.vehicle?.plateNumber.toLowerCase().includes(q) ?? false) ||
+      (s.user?.name.toLowerCase().includes(q) ?? false) ||
       s.zone.code.toLowerCase().includes(q)
     );
   });
@@ -40,8 +40,8 @@ export default function SessionsPage() {
       header: "License Plate",
       cell: (s) => (
         <div>
-          <p className="font-mono text-sm font-bold tracking-tight text-white">{s.vehicle.plateNumber}</p>
-          <p className="text-[11px] uppercase tracking-wider text-muted">{s.vehicle.vehicleType}</p>
+          <p className="font-mono text-sm font-bold tracking-tight text-white">{s.vehicle?.plateNumber ?? "GUEST"}</p>
+          <p className="text-[11px] uppercase tracking-wider text-muted">{s.vehicle?.vehicleType ?? "ACCOUNT-LESS"}</p>
         </div>
       ),
     },
@@ -50,8 +50,8 @@ export default function SessionsPage() {
       header: "Owner",
       cell: (s) => (
         <div>
-          <p className="text-sm text-white">{s.user.name}</p>
-          <p className="text-[11px] text-muted">{s.user.email}</p>
+          <p className="text-sm text-white">{s.user?.name ?? "Guest session"}</p>
+          <p className="text-[11px] text-muted">{s.user?.email ?? "No account attached"}</p>
         </div>
       ),
     },

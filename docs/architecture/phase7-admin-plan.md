@@ -1,9 +1,10 @@
 # Phase 7 — Admin Operations Center: Implementation Plan & Status
 
 ## Scope
-A secure, real-time admin web application layered on the existing parada
-services API. No separate backend was built — every screen talks to the real
-`services/api` PostgreSQL-backed pipeline through the Next.js proxy.
+A secure admin operations web application layered on the existing parada
+services API. Pages use React Query polling for fresh operational data; no
+WebSocket/SSE transport is assumed. Every screen talks to the real
+`services/api` PostgreSQL-backed pipeline through the Next.js proxy route.
 
 ## Status
 Phase 7 is **complete**. Work was done as *audit → preserve → repair →*
@@ -14,14 +15,14 @@ Phase 7 is **complete**. Work was done as *audit → preserve → repair →*
 Browser ── HttpOnly parada_admin_token cookie ──► Next.js (apps/admin)
                                                      │  /api/auth/* + /api/proxy/*
                                                      ▼
-                                              services/api (Express + Fastify)
+                                              services/api (Express)
                                                      ▼
                               PostgreSQL (embedded pg 18 on :5432)
 ```
 
 - JWT stored in a `HttpOnly` cookie; never in `localStorage`.
-- Next rewrites `/api/auth/*` → API auth routes and `/api/proxy/*` → API v1
-  routes; the browser only talks to the Next origin.
+- Next route handlers expose `/api/auth/*` and `/api/proxy/*`; the browser only
+  talks to the Next origin.
 - Driver (`USER`) accounts are rejected with `403 Forbidden`; unauthenticated
   requests get `401` and the UI redirects to `/login`.
 
@@ -38,6 +39,11 @@ Browser ── HttpOnly parada_admin_token cookie ──► Next.js (apps/admin)
 | `/anomalies` | UNREGISTERED_PLATE anomalies |
 | `/history` | Event history feed |
 | `/notifications` | ZONE_FULL / ZONE_LOW_AVAILABILITY alerts, mark read / mark all |
+| `/reservations` | Admin-wide reservation monitoring and cancellation |
+| `/violations` | Establishment-defined violation review and status updates |
+| `/appeals` | Appeal review and ADMIN status transitions |
+| `/analytics` | Persisted occupancy, session, fee, reservation, and violation aggregates |
+| `/settings` | Establishment fee, guest, zone-default, and violation configuration |
 | `/guest-admit` | ADMIN-only guest admission override through the authoritative occupancy pipeline |
 | `/simulator` | Deterministic scenario runner (ADMIN only) |
 
@@ -59,12 +65,10 @@ Browser ── HttpOnly parada_admin_token cookie ──► Next.js (apps/admin)
   `sourceEventId`) surfaced instead of masked.
 
 ## Tests
-- Monorepo: `npx turbo test --force` — 10/10 tasks, email-level suites:
-  api **67**, database **17**, admin **30**.
-- `typecheck` 10/10, `lint` 10/10, `build` 7/7 (Next app).
-- Admin jsdom tests: api client, format helpers, login, auth provider,
-  app-shell role protection, notifications mark-read, simulator run payload +
-  rejection/error surfacing.
+- Verification counts are refreshed at the end of the Phase 7 implementation;
+  focused admin coverage includes guest admission, guest sessions, settings,
+  notifications, login, auth provider, shell authorization, simulator, and API
+  client requests.
 
 ## Known Limitations
 - No real browser automation in this environment; UI rendering verified via

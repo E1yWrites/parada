@@ -221,4 +221,36 @@ export class ReservationService {
     });
     return toResponse(updated);
   }
+
+  async adminList(): Promise<(ReservationResponse & { user: { id: string; name: string; email: string } })[]> {
+    const windowMinutes = await this.config.getReservationWindowMinutes();
+    await prisma.$transaction(async (tx) => this.expireOverdue(windowMinutes, tx));
+    const rows = await prisma.reservation.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        zone: { select: { id: true, name: true, code: true } },
+        vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
+      },
+    });
+    return rows.map((row) => ({ ...toResponse(row), user: row.user }));
+  }
+
+  async adminCancel(reservationId: string): Promise<ReservationResponse & { user: { id: string; name: string; email: string } }> {
+    const existing = await prisma.reservation.findUnique({ where: { id: reservationId } });
+    if (!existing) throw new NotFoundError("Reservation not found.");
+    if (existing.status === "CANCELLED" || existing.status === "EXPIRED" || existing.status === "ACTIVE") {
+      throw new ForbiddenError("This reservation can no longer be cancelled.");
+    }
+    const updated = await prisma.reservation.update({
+      where: { id: reservationId },
+      data: { status: "CANCELLED" },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        zone: { select: { id: true, name: true, code: true } },
+        vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
+      },
+    });
+    return { ...toResponse(updated), user: updated.user };
+  }
 }

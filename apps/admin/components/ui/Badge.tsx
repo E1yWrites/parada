@@ -126,6 +126,12 @@ export const ANOMALY_LABEL: Record<string, string> = {
   LOW_CONFIDENCE_PLATE: "Low Confidence Plate",
   EXIT_WITHOUT_ACTIVE_SESSION: "Exit Without Session",
   DUPLICATE_SESSION: "Duplicate Session",
+  GUEST_DENIED: "Guest Admission Denied",
+  GUEST_ADMITTED: "Guest Admitted",
+  GUEST_ADMIN_OVERRIDE: "Guest Admin Override",
+  GUEST_EXIT_WITHOUT_SESSION: "Guest Exit Without Session",
+  GUEST_EXIT_WRONG_ZONE: "Guest Exit Wrong Zone",
+  WRONG_ZONE_WARNING: "Wrong Zone Warning",
 };
 
 export function AnomalyTypeBadge({ type }: { type: string }) {
@@ -137,9 +143,15 @@ export function AnomalyTypeBadge({ type }: { type: string }) {
   } else if (type === "DUPLICATE_SESSION") {
     tone = "info";
     Icon = Clock;
-  } else if (type === "UNREGISTERED_PLATE") {
+  } else if (type === "UNREGISTERED_PLATE" || type === "GUEST_DENIED") {
     tone = "danger";
     Icon = Armchair;
+  } else if (type === "GUEST_ADMITTED" || type === "GUEST_ADMIN_OVERRIDE") {
+    tone = "success";
+    Icon = CheckCircle2;
+  } else if (type === "WRONG_ZONE_WARNING" || type === "GUEST_EXIT_WRONG_ZONE") {
+    tone = "warn";
+    Icon = TriangleAlert;
   } else {
     tone = "danger";
     Icon = OctagonAlert;

@@ -842,6 +842,85 @@ describe("Authentication & Authorization", () => {
       expect(Array.isArray(res.body.data)).toBe(true);
     });
 
+    it("reads and updates establishment configuration for ADMIN only", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Config Zone", code: "CFG", capacity: 5 },
+      });
+      const initial = await request(app)
+        .get("/admin/config")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .expect(200);
+      expect(initial.body.data.parkingFee).toMatchObject({ baseFee: 20, baseDurationHours: 2, additionalFeePerHour: 10 });
+      expect(initial.body.data.guestPolicy.primaryZoneId).toBeNull();
+
+      const updated = await request(app)
+        .put("/admin/config")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({
+          parkingFee: { baseFee: 25, baseDurationHours: 2, additionalFeePerHour: 12 },
+          guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: zone.id, maxDurationHours: 8, allowWhenFull: false },
+          zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
+          violations: [{ type: "OVERSTAY", fineAmount: 100, description: "Overstay" }],
+        })
+        .expect(200);
+      expect(updated.body.data.parkingFee.baseFee).toBe(25);
+      expect(updated.body.data.guestPolicy.primaryZoneId).toBe(zone.id);
+
+      await request(app)
+        .get("/admin/config")
+        .set("Authorization", `Bearer ${userToken}`)
+        .expect(403);
+    });
+
+    it("rejects invalid establishment configuration", async () => {
+      await request(app)
+        .put("/admin/config")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({
+          parkingFee: { baseFee: -1, baseDurationHours: 0, additionalFeePerHour: 10 },
+          guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: null, maxDurationHours: 8, allowWhenFull: false },
+          zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
+          violations: [],
+        })
+        .expect(400);
+    });
+
+    it("protects admin reservations, reviews, and analytics", async () => {
+      const zone = await prisma.parkingZone.create({ data: { name: "Ops Zone", code: "OPS", capacity: 4 } });
+      const vehicle = await prisma.vehicle.create({
+        data: { userId: adminId, plateNumber: "OPS-001", normalizedPlate: "OPS001", vehicleType: "CAR", status: "ACTIVE" },
+      });
+      const reservation = await prisma.reservation.create({
+        data: {
+          userId: adminId,
+          vehicleId: vehicle.id,
+          zoneId: zone.id,
+          startAt: new Date(Date.now() - 60_000),
+          endAt: new Date(Date.now() + 15 * 60_000),
+          status: "CONFIRMED",
+        },
+      });
+      const violation = await prisma.violation.create({
+        data: { userId: adminId, vehicleId: vehicle.id, zoneId: zone.id, violationType: "OVERSTAY", fineAmount: 100, description: "Overstay" },
+      });
+      const appeal = await prisma.violationAppeal.create({ data: { violationId: violation.id, userId: adminId, reason: "Review requested" } });
+
+      await request(app).get("/admin/reservations").set("Authorization", `Bearer ${userToken}`).expect(403);
+      const reservations = await request(app).get("/admin/reservations").set("Authorization", `Bearer ${adminToken}`).expect(200);
+      expect(reservations.body.data.some((item: { id: string }) => item.id === reservation.id)).toBe(true);
+      await request(app).patch(`/admin/reservations/${reservation.id}/cancel`).set("Authorization", `Bearer ${adminToken}`).expect(200);
+
+      const violations = await request(app).get("/admin/violations").set("Authorization", `Bearer ${adminToken}`).expect(200);
+      expect(violations.body.data[0].id).toBe(violation.id);
+      await request(app).patch(`/admin/violations/${violation.id}/status`).set("Authorization", `Bearer ${adminToken}`).send({ status: "DISMISSED" }).expect(200);
+      await request(app).patch(`/admin/appeals/${appeal.id}/status`).set("Authorization", `Bearer ${adminToken}`).send({ status: "APPROVED" }).expect(200);
+
+      const analytics = await request(app).get("/admin/analytics").set("Authorization", `Bearer ${adminToken}`).expect(200);
+      expect(analytics.body.data.current.capacity).toBe(4);
+      expect(analytics.body.data.reservations).toBeGreaterThanOrEqual(1);
+      expect(analytics.body.data.violations).toBeGreaterThanOrEqual(1);
+    });
+
     it("allows only an admin to override guest admission through the occupancy pipeline", async () => {
       const zone = await prisma.parkingZone.create({
         data: { name: "Override Zone", code: "OVR", capacity: 1, occupiedCount: 0 },

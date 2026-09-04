@@ -9,8 +9,10 @@ import type {
   VehicleType,
   ZoneStatus,
 } from "@parada/types";
+import type { EstablishmentSettings } from "@parada/types";
 
 export type { ParkingSessionStatus } from "@parada/types";
+export type { EstablishmentSettings } from "@parada/types";
 
 export interface SessionUser {
   id: string;
@@ -84,13 +86,15 @@ export interface AdminCamera {
 
 export interface AdminSession {
   id: string;
+  userId: string | null;
+  vehicleId: string | null;
   status: ParkingSessionStatus;
   enteredAt: string;
   exitedAt: string | null;
   durationSeconds: number | null;
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string } | null;
   zone: { id: string; name: string; code: string };
-  vehicle: { id: string; plateNumber: string; vehicleType: VehicleType };
+  vehicle: { id: string; plateNumber: string; vehicleType: VehicleType } | null;
 }
 
 export interface AdminUser {
@@ -115,7 +119,15 @@ export interface AdminVehicle {
 export interface AdminNotification {
   id: string;
   zoneId: string | null;
-  type: "ZONE_FULL" | "ZONE_LOW_AVAILABILITY";
+  type:
+    | "ZONE_FULL"
+    | "ZONE_LOW_AVAILABILITY"
+    | "RESERVATION_EXPIRING"
+    | "GUEST_ADMISSION_ISSUE"
+    | "WRONG_ZONE_WARNING"
+    | "VIOLATION_ISSUED"
+    | "VIOLATION_APPEAL_SUBMITTED"
+    | "VIOLATION_APPEAL_RESULT";
   message: string;
   targetRole: Role;
   read: boolean;
@@ -132,7 +144,13 @@ export type AnomalyType =
   | "UNREGISTERED_PLATE"
   | "LOW_CONFIDENCE_PLATE"
   | "EXIT_WITHOUT_ACTIVE_SESSION"
-  | "DUPLICATE_SESSION";
+  | "DUPLICATE_SESSION"
+  | "GUEST_DENIED"
+  | "GUEST_ADMITTED"
+  | "GUEST_ADMIN_OVERRIDE"
+  | "GUEST_EXIT_WITHOUT_SESSION"
+  | "GUEST_EXIT_WRONG_ZONE"
+  | "WRONG_ZONE_WARNING";
 
 export interface AdminAnomaly {
   id: string;
@@ -157,6 +175,87 @@ export interface ZoneHistory {
   to: string | null;
   limit: number;
   entries: { id: string; occurredAt: string; occupiedCount: number; availableCount: number }[];
+}
+
+export interface AdminReservation {
+  id: string;
+  userId: string;
+  vehicleId: string;
+  zoneId: string;
+  startAt: string;
+  endAt: string;
+  status: "PENDING" | "CONFIRMED" | "ACTIVE" | "EXPIRED" | "CANCELLED";
+  createdAt: string;
+  updatedAt: string;
+  user: { id: string; name: string; email: string };
+  zone: { id: string; name: string; code: string };
+  vehicle: { id: string; plateNumber: string; vehicleType: VehicleType };
+}
+
+export interface AdminViolation {
+  id: string;
+  userId: string;
+  vehicleId: string | null;
+  zoneId: string;
+  sessionId: string | null;
+  violationType: string;
+  description: string | null;
+  fineAmount: number;
+  status: string;
+  issuedAt: string;
+  createdAt: string;
+  user: { id: string; name: string; email: string };
+  vehicle: { id: string; plateNumber: string; vehicleType: VehicleType } | null;
+  zone: { id: string; name: string; code: string };
+  session: { id: string; zoneId: string; enteredAt: string; exitedAt: string | null; status: string } | null;
+  appeal: AdminAppeal | null;
+}
+
+export interface AdminAppeal {
+  id: string;
+  violationId: string;
+  userId: string;
+  reason: string;
+  status: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  user?: { id: string; name: string; email: string };
+  violation?: { id: string; zone: { id: string; name: string; code: string }; vehicle: { id: string; plateNumber: string } | null };
+}
+
+export interface AdminAnalytics {
+  from: string;
+  to: string;
+  current: { occupied: number; capacity: number };
+  zones: { id: string; code: string; capacity: number; occupiedCount: number; availableCount: number }[];
+  sessions: { total: number; active: number; completed: number; averageDurationSeconds: number };
+  peakEntryHour: { hour: number; sessions: number } | null;
+  revenue: { total: number; paid: number; fees: number };
+  reservations: number;
+  violations: number;
+}
+
+export interface GuestAdmitRequest {
+  zoneId: string;
+  cameraIdentifier: string;
+  sourceEventId: string;
+  detectedPlate: string | null;
+}
+
+export interface GuestAdmitResult {
+  id: string;
+  zoneId: string;
+  eventType: "ENTRY";
+  previousOccupied: number;
+  newOccupied: number;
+  availableCount: number;
+  detectedPlate: string | null;
+  normalizedPlate: string | null;
+  admitted: boolean;
+  deniedReason: string | null;
+  anomalyType: string | null;
+  guestSessionId: string | null;
 }
 
 export interface AdminDashboard {

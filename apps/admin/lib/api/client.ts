@@ -6,6 +6,10 @@ import type {
   AdminUser,
   AdminVehicle,
   AdminZoneDetail,
+  AdminReservation,
+  AdminViolation,
+  AdminAppeal,
+  AdminAnalytics,
   ApiErrorBody,
   AuthResult,
   NotificationList,
@@ -14,6 +18,9 @@ import type {
   SimulatorStatus,
   ZoneHistory,
   ZoneOccupancy,
+  GuestAdmitRequest,
+  GuestAdmitResult,
+  EstablishmentSettings,
 } from "./types";
 
 export class ApiError extends Error {
@@ -83,6 +90,16 @@ export interface ApiClient {
 
   notifications(): Promise<NotificationList>;
   markNotificationRead(id: string): Promise<unknown>;
+  guestAdmit(payload: GuestAdmitRequest): Promise<GuestAdmitResult>;
+  config(): Promise<EstablishmentSettings>;
+  updateConfig(payload: EstablishmentSettings): Promise<EstablishmentSettings>;
+  reservations(): Promise<AdminReservation[]>;
+  cancelReservation(id: string): Promise<AdminReservation>;
+  violations(): Promise<AdminViolation[]>;
+  updateViolationStatus(id: string, status: string): Promise<AdminViolation>;
+  appeals(): Promise<AdminAppeal[]>;
+  updateAppealStatus(id: string, status: "APPROVED" | "REJECTED"): Promise<AdminAppeal>;
+  analytics(params?: { from?: string; to?: string }): Promise<AdminAnalytics>;
 
   anomalies(): Promise<AdminAnomaly[]>;
 
@@ -136,6 +153,32 @@ function buildClient(): ApiClient {
 
     markNotificationRead: (id) =>
       request(`admin/notifications/${encodeURIComponent(id)}/read`, jsonInit("PATCH")),
+
+    guestAdmit: (payload) => request<GuestAdmitResult>("admin/guest-admit", jsonInit("POST", payload)),
+
+    config: () => request<EstablishmentSettings>("admin/config"),
+
+    updateConfig: (payload) => request<EstablishmentSettings>("admin/config", jsonInit("PUT", payload)),
+
+    reservations: () => request<AdminReservation[]>("admin/reservations"),
+
+    cancelReservation: (id) => request<AdminReservation>(`admin/reservations/${encodeURIComponent(id)}/cancel`, jsonInit("PATCH")),
+
+    violations: () => request<AdminViolation[]>("admin/violations"),
+
+    updateViolationStatus: (id, status) => request<AdminViolation>(`admin/violations/${encodeURIComponent(id)}/status`, jsonInit("PATCH", { status })),
+
+    appeals: () => request<AdminAppeal[]>("admin/appeals"),
+
+    updateAppealStatus: (id, status) => request<AdminAppeal>(`admin/appeals/${encodeURIComponent(id)}/status`, jsonInit("PATCH", { status })),
+
+    async analytics(params) {
+      const query = new URLSearchParams();
+      if (params?.from) query.set("from", params.from);
+      if (params?.to) query.set("to", params.to);
+      const suffix = query.toString() ? `?${query.toString()}` : "";
+      return request<AdminAnalytics>(`admin/analytics${suffix}`);
+    },
 
     anomalies: () => request<AdminAnomaly[]>("admin/anomalies"),
 

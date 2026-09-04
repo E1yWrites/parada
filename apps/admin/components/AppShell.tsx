@@ -18,6 +18,8 @@ import {
   Menu,
   X,
   Activity,
+  UserRoundCheck,
+  Settings2,
 } from "lucide-react";
 import { useAuth } from "./providers/auth-provider";
 import { FullPageSpinner } from "./ui/State";
@@ -45,15 +47,21 @@ const GROUPS: NavGroup[] = [
       { href: "/zones", label: "Zones", icon: MapPinned },
       { href: "/cameras", label: "Cameras", icon: Camera },
       { href: "/sessions", label: "Sessions", icon: CarFront },
+      { href: "/reservations", label: "Reservations", icon: Clock3 },
+      { href: "/violations", label: "Violations", icon: TriangleAlert },
+      { href: "/appeals", label: "Appeals", icon: Bell },
+      { href: "/analytics", label: "Analytics", icon: Activity },
     ],
   },
   {
     label: "Management",
     items: [
       { href: "/users", label: "Users", icon: Users },
+      { href: "/guest-admit", label: "Guest Admission", icon: UserRoundCheck },
       { href: "/notifications", label: "Notifications", icon: Bell },
       { href: "/anomalies", label: "Anomalies", icon: TriangleAlert },
       { href: "/history", label: "History", icon: Clock3 },
+      { href: "/settings", label: "Establishment Settings", icon: Settings2 },
     ],
   },
   {

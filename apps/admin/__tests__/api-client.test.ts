@@ -63,6 +63,40 @@ describe("api client proxy requests", () => {
     expect(JSON.parse(init.body)).toEqual({ scenario: "SINGLE_ENTRY", zoneId: "z1" });
   });
 
+  it("sends a POST JSON body for guest admission", async () => {
+    const result = { id: "e1", admitted: true, deniedReason: null };
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse({ data: result }));
+
+    await expect(api.guestAdmit({
+      zoneId: "z1",
+      cameraIdentifier: "cam-entry",
+      sourceEventId: "admin-1",
+      detectedPlate: "GUEST-1",
+    })).resolves.toEqual(result);
+    const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(url).toBe("/api/proxy/admin/guest-admit");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toMatchObject({ zoneId: "z1", sourceEventId: "admin-1" });
+  });
+
+  it("reads and updates establishment configuration", async () => {
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse({ data: { parkingFee: {} } }));
+    await api.config();
+    expect((global.fetch as jest.Mock).mock.calls[0][0]).toBe("/api/proxy/admin/config");
+    await api.updateConfig({ parkingFee: {}, guestPolicy: {}, zoneDefaults: {}, violations: [] } as never);
+    const [url, init] = (global.fetch as jest.Mock).mock.calls[1];
+    expect(url).toBe("/api/proxy/admin/config");
+    expect(init.method).toBe("PUT");
+  });
+
+  it("reads and cancels admin reservations", async () => {
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse({ data: [] }));
+    await api.reservations();
+    expect((global.fetch as jest.Mock).mock.calls[0][0]).toBe("/api/proxy/admin/reservations");
+    await api.cancelReservation("r1");
+    expect((global.fetch as jest.Mock).mock.calls[1][1].method).toBe("PATCH");
+  });
+
   it("appends query params to history requests", async () => {
     global.fetch = jest.fn().mockResolvedValue(jsonResponse({ data: { entries: [] } }));
 

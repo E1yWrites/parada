@@ -77,7 +77,7 @@ export function createApp(options: AppOptions = {}): Express {
   const sessions = sessionsRouter(sessionService);
   const reservations = reservationsRouter(reservationService);
   const assignments = assignmentsRouter(assignmentService);
-  const admin = adminRouter({ occupancy });
+  const admin = adminRouter({ occupancy, config, reservations: reservationService });
   app.use(vehicles);
   app.use(sessions);
   app.use(reservations);

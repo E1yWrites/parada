@@ -45,6 +45,8 @@ export default function NotificationsPage() {
     },
   });
 
+  const mutationError = markRead.error ?? marksAll.error;
+
   const items = (notifications.data?.notifications ?? []).filter((n) =>
     filter === "UNREAD" ? !n.read : true
   );
@@ -91,6 +93,12 @@ export default function NotificationsPage() {
           ))}
         </div>
       </div>
+
+      {mutationError ? (
+        <p role="alert" className="mb-4 rounded-lg border border-rose-400/30 bg-rose-400/10 px-3 py-2.5 text-sm text-rose-300">
+          {mutationError instanceof Error ? mutationError.message : "Unable to update notifications."}
+        </p>
+      ) : null}
 
       <QueryBoundary
         status={notifications.status}

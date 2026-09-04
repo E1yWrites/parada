@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/Card";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, signOut } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -23,6 +23,7 @@ export default function LoginPage() {
     try {
       const user = await signIn(email, password);
       if (user.role !== "ADMIN") {
+        await signOut();
         setError("This account does not have administrator access.");
         return;
       }

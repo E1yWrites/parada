@@ -4,13 +4,14 @@ import { ApiError } from "@/lib/api/client";
 
 const mockRouter = { replace: jest.fn(), refresh: jest.fn() };
 const mockSignIn = jest.fn();
+const mockSignOut = jest.fn();
 
 jest.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
 }));
 
 jest.mock("@/components/providers/auth-provider", () => ({
-  useAuth: () => ({ user: null, loading: false, error: null, signIn: mockSignIn, signOut: jest.fn() }),
+  useAuth: () => ({ user: null, loading: false, error: null, signIn: mockSignIn, signOut: mockSignOut }),
 }));
 
 describe("Login page — authentication behavior", () => {
@@ -46,6 +47,7 @@ describe("Login page — authentication behavior", () => {
     await waitFor(() =>
       expect(screen.getByText("This account does not have administrator access.")).toBeInTheDocument()
     );
+    expect(mockSignOut).toHaveBeenCalled();
     expect(mockRouter.replace).not.toHaveBeenCalled();
   });
 
