@@ -1,6 +1,9 @@
 import { Prisma, prisma } from "@parada/database";
 import { normalizePlate } from "@parada/database";
-import { ZONE_OCCUPANCY_LOW_THRESHOLD } from "@parada/config";
+import {
+  ZONE_OCCUPANCY_LOW_THRESHOLD,
+  DEFAULT_OCR_CONFIDENCE_THRESHOLD,
+} from "@parada/config";
 import {
   BadRequestError,
   ConflictError,
@@ -55,7 +58,7 @@ export class OccupancyService {
     // vision service that provides no confidence is by policy considered
     // reliable), but an explicitly low confidence is not used for identity.
     this.ocrPlateConfidenceThreshold =
-      options.ocrPlateConfidenceThreshold ?? 0.5;
+      options.ocrPlateConfidenceThreshold ?? DEFAULT_OCR_CONFIDENCE_THRESHOLD;
   }
 
   /**

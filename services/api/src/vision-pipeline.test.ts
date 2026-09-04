@@ -1,4 +1,6 @@
 import request from "supertest";
+import jwt from "jsonwebtoken";
+import { randomUUID } from "crypto";
 import { prisma } from "@parada/database";
 import { createApp, type AppOptions } from "./app";
 
@@ -383,6 +385,172 @@ describe("Phase 5 — Vision/OCR integration foundation", () => {
         .expect(201);
 
       expect(res.body.data.newOccupied).toBe(1);
+    });
+  });
+
+  describe("Event validation (400)", () => {
+    it("rejects a missing sourceEventId", async () => {
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.entryCamId, eventType: "ENTRY", detectedPlate: "ABC-1234" })
+        .expect(400);
+    });
+
+    it("rejects a missing cameraIdentifier", async () => {
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ sourceEventId: "v1", eventType: "ENTRY", detectedPlate: "ABC-1234" })
+        .expect(400);
+    });
+
+    it("rejects an invalid event type", async () => {
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "v2", eventType: "SOMETHING", detectedPlate: "ABC-1234" })
+        .expect(400);
+    });
+
+    it("rejects an out-of-range OCR confidence", async () => {
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "v3", eventType: "ENTRY", detectedPlate: "ABC-1234", ocrConfidence: 1.5 })
+        .expect(400);
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "v4", eventType: "ENTRY", detectedPlate: "ABC-1234", ocrConfidence: -0.1 })
+        .expect(400);
+    });
+
+    it("rejects a malformed detectedAt timestamp", async () => {
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "v5", eventType: "ENTRY", detectedPlate: "ABC-1234", detectedAt: "not-a-date" })
+        .expect(400);
+      const occ = await occupancy();
+      expect(occ.occupiedCount).toBe(0);
+    });
+  });
+
+  describe("Camera resolution", () => {
+    it("rejects an event from an unknown camera", async () => {
+      const res = await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: "no-such-camera", sourceEventId: "c1", eventType: "ENTRY", detectedPlate: "ABC-1234" })
+        .expect(404);
+      expect(res.body.error.code).toBe("NOT_FOUND");
+      expect((await occupancy()).occupiedCount).toBe(0);
+    });
+
+    it("rejects an ENTRY event on an EXIT-only camera", async () => {
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.exitCamId, sourceEventId: "c2", eventType: "ENTRY", detectedPlate: "ABC-1234" })
+        .expect(409);
+      expect((await occupancy()).occupiedCount).toBe(0);
+    });
+  });
+
+  describe("BIDIRECTIONAL camera", () => {
+    it("accepts both ENTRY and EXIT events", async () => {
+      const bi = await prisma.camera.create({
+        data: { zoneId: ctx.zoneId, name: "Bi Cam", identifier: "cam-bi", gateType: "BIDIRECTIONAL", status: "ONLINE" },
+      });
+
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: bi.identifier, sourceEventId: "bi1", eventType: "ENTRY", detectedPlate: "ABC-1234", ocrConfidence: 0.96 })
+        .expect(201);
+      expect((await occupancy()).occupiedCount).toBe(1);
+
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: bi.identifier, sourceEventId: "bi2", eventType: "EXIT", detectedPlate: "ABC-1234", ocrConfidence: 0.96 })
+        .expect(201);
+      expect((await occupancy()).occupiedCount).toBe(0);
+    });
+  });
+
+  describe("OCR confidence policy", () => {
+    it("trusts a registered plate when OCR confidence is absent (trusted source)", async () => {
+      const res = await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "oc1", eventType: "ENTRY", detectedPlate: "ABC-1234" })
+        .expect(201);
+      expect(res.body.data.plateMatched).toBe(true);
+      const all = await sessions();
+      expect(all).toHaveLength(1);
+      expect(all[0]!.vehicleId).toBe(ctx.vehicleABC);
+      expect(all[0]!.status).toBe("ACTIVE");
+    });
+
+    it("normalizes a plate before matching a registered vehicle", async () => {
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "oc2", eventType: "ENTRY", detectedPlate: "abc-1 234", ocrConfidence: 0.95 })
+        .expect(201);
+      const all = await sessions();
+      expect(all).toHaveLength(1);
+      expect(all[0]!.vehicleId).toBe(ctx.vehicleABC);
+    });
+  });
+
+  describe("Occupancy idempotency — duplicate EXIT", () => {
+    it("does not double-decrement or duplicate state for a repeated EXIT", async () => {
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "de1", eventType: "ENTRY", detectedPlate: "ABC-1234", ocrConfidence: 0.96 })
+        .expect(201);
+
+      const exitBody = { cameraIdentifier: ctx.exitCamId, sourceEventId: "de2", eventType: "EXIT", detectedPlate: "ABC-1234", ocrConfidence: 0.98 };
+      await request(app).post(`/zones/${ctx.zoneId}/events`).send(exitBody).expect(201);
+      await request(app).post(`/zones/${ctx.zoneId}/events`).send(exitBody).expect(409);
+
+      const occ = await occupancy();
+      expect(occ.occupiedCount).toBe(0);
+      expect(await prisma.occupancyEvent.count({ where: { eventType: "EXIT" } })).toBe(1);
+
+      const all = await sessions();
+      expect(all).toHaveLength(1);
+      expect(all[0]!.status).toBe("COMPLETED");
+    });
+  });
+
+  describe("Camera authentication — trusted-machine boundary", () => {
+    it("rejects a user JWT even when it is a valid backend token (cannot impersonate a camera)", async () => {
+      // A signed Bearer JWT (valid authentication) without the camera API key must
+      // NOT be sufficient to submit vision events.
+      const userJwt = jwt.sign(
+        { sub: "some-user", jti: randomUUID(), role: "USER" },
+        "test-secret-key-for-testing-only-32chars",
+        { algorithm: "HS256", issuer: "parada-api-test", expiresIn: "1h" }
+      );
+      const secured = createApp({ cameraApiKey: "secret-camera-key" });
+
+      await request(secured)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .set("Authorization", `Bearer ${userJwt}`)
+        .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "jwt1", eventType: "ENTRY", detectedPlate: "ABC-1234" })
+        .expect(401);
+
+      expect(await prisma.occupancyEvent.count()).toBe(0);
+    });
+  });
+
+  describe("Transaction safety — no partial state on rejected write", () => {
+    it("leaves no partial occupancy/event/history/session/notification when an EXIT is rejected", async () => {
+      // Zone A starts at occupiedCount 0 in a fresh beforeEach. An EXIT on an
+      // empty zone is physically invalid -> the transaction must roll back.
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.exitCamId, sourceEventId: "tx1", eventType: "EXIT", detectedPlate: "ABC-1234", ocrConfidence: 0.95 })
+        .expect(409);
+
+      expect((await occupancy()).occupiedCount).toBe(0);
+      expect(await prisma.occupancyEvent.count()).toBe(0);
+      expect(await prisma.occupancyHistory.count()).toBe(0);
+      expect(await prisma.parkingSession.count()).toBe(0);
+      expect(await prisma.notification.count()).toBe(0);
+      expect(await prisma.occupancyAnomaly.count()).toBe(0);
     });
   });
 });

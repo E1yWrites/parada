@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { DEFAULT_OCR_CONFIDENCE_THRESHOLD } from "@parada/config";
 
 export interface Env {
   port: number;
@@ -27,9 +28,14 @@ export function loadEnv(): Env {
   // falls below this value are not treated as a reliable vehicle identity (no
   // vehicle match, no session), though the physical occupancy change is kept.
   const thresholdRaw = process.env["OCR_PLATE_CONFIDENCE_THRESHOLD"];
-  let ocrPlateConfidenceThreshold = thresholdRaw !== undefined ? Number(thresholdRaw) : 0.5;
-  if (!Number.isFinite(ocrPlateConfidenceThreshold) || ocrPlateConfidenceThreshold < 0 || ocrPlateConfidenceThreshold > 1) {
-    ocrPlateConfidenceThreshold = 0.5;
+  let ocrPlateConfidenceThreshold =
+    thresholdRaw !== undefined ? Number(thresholdRaw) : DEFAULT_OCR_CONFIDENCE_THRESHOLD;
+  if (
+    !Number.isFinite(ocrPlateConfidenceThreshold) ||
+    ocrPlateConfidenceThreshold < 0 ||
+    ocrPlateConfidenceThreshold > 1
+  ) {
+    ocrPlateConfidenceThreshold = DEFAULT_OCR_CONFIDENCE_THRESHOLD;
   }
 
   return {

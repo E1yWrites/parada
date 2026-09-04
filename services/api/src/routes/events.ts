@@ -1,4 +1,5 @@
 import { Router, type RequestHandler } from "express";
+import { timingSafeEqual } from "crypto";
 import { ok } from "../http/response";
 import { BadRequestError, UnauthorizedError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
@@ -10,6 +11,16 @@ export interface EventsRouterOptions {
   cameraApiKey?: string | null;
 }
 
+/** Constant-time string comparison (length-guarded) to avoid timing leaks. */
+function secureEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) {
+    return false;
+  }
+  return timingSafeEqual(aBuf, bBuf);
+}
+
 export function eventsRouter(occupancy: OccupancyService, options: EventsRouterOptions = {}): Router {
   const router = Router();
   const cameraApiKey = options.cameraApiKey ?? null;
@@ -17,13 +28,13 @@ export function eventsRouter(occupancy: OccupancyService, options: EventsRouterO
   const requireCameraApiKey: RequestHandler = (req, _res, next) => {
     // When no API key is configured (trusted development only), the endpoint is
     // left open. In any real deployment a key must be set, and every event call
-    // must present it via X-API-Key.
+    // must present it via X-API-Key. Comparison is timing-safe.
     if (cameraApiKey === null) {
       next();
       return;
     }
     const provided = req.headers["x-api-key"];
-    if (cameraApiKey && provided !== cameraApiKey) {
+    if (typeof provided !== "string" || !secureEqual(provided, cameraApiKey)) {
       next(new UnauthorizedError("Invalid or missing camera API key."));
       return;
     }
@@ -42,6 +53,7 @@ export function eventsRouter(occupancy: OccupancyService, options: EventsRouterO
       const eventType = body["eventType"];
       const detectedPlate = body["detectedPlate"];
       const ocrConfidence = body["ocrConfidence"];
+      const detectedAt = body["detectedAt"];
 
       if (typeof cameraIdentifier !== "string" || cameraIdentifier.length === 0) {
         throw new BadRequestError("'cameraIdentifier' (string) is required.");
@@ -62,6 +74,11 @@ export function eventsRouter(occupancy: OccupancyService, options: EventsRouterO
       ) {
         throw new BadRequestError("'ocrConfidence' must be a number between 0 and 1.");
       }
+      if (detectedAt !== undefined && detectedAt !== null) {
+        if (typeof detectedAt !== "string" || Number.isNaN(new Date(detectedAt).getTime())) {
+          throw new BadRequestError("'detectedAt' must be a valid ISO date string.");
+        }
+      }
 
       const event = await occupancy.processEvent({
         zoneId,
@@ -70,7 +87,7 @@ export function eventsRouter(occupancy: OccupancyService, options: EventsRouterO
         eventType: eventType as OccupancyEventType,
         detectedPlate: typeof detectedPlate === "string" ? detectedPlate : null,
         ocrConfidence: typeof ocrConfidence === "number" ? ocrConfidence : null,
-        detectedAt: typeof body["detectedAt"] === "string" ? (body["detectedAt"] as string) : null,
+        detectedAt: typeof detectedAt === "string" ? detectedAt : null,
       });
 
       res.status(201).json(ok(event));
