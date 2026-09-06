@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
-import { Card } from "./Card";
+import { GlassCard } from "./GlassCard";
 import { Text } from "./Text";
 import { StatusBadge } from "./StatusBadge";
 import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
@@ -45,7 +45,7 @@ export function ActiveSessionBanner({ session, now, testID }: ActiveSessionBanne
   }, [pulse, reducedMotion]);
 
   return (
-    <Card accent={colors.primary} style={styles.card} testID={testID}>
+    <GlassCard accent={colors.primary} style={styles.card} testID={testID}>
       <View style={styles.headerRow}>
         <View style={styles.dotWrap}>
           <Animated.View
@@ -76,7 +76,7 @@ export function ActiveSessionBanner({ session, now, testID }: ActiveSessionBanne
           </Text>
         </View>
       </View>
-    </Card>
+    </GlassCard>
   );
 }
 

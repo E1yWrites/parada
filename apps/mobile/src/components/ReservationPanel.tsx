@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./Button";
-import { Card } from "./Card";
+import { GlassCard } from "./GlassCard";
 import { EmptyState, ErrorState, LoadingState } from "./StateComponents";
 import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
@@ -134,7 +134,7 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
           This zone is now full. Please choose another zone.
         </Text>
       ) : (
-        <Card testID="reservation-summary">
+        <GlassCard testID="reservation-summary">
           <Text variant="micro" color={colors.highlight}>
             RESERVING
           </Text>
@@ -145,7 +145,7 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
           <Text variant="caption" color={colors.muted}>
             {selectedZone.availableCount} spaces available
           </Text>
-        </Card>
+        </GlassCard>
       )}
 
       {vehicles.isPending ? (

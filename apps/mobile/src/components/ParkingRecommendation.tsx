@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./Button";
 import { CapacityBar } from "./CapacityBar";
-import { Card } from "./Card";
+import { GlassCard } from "./GlassCard";
 import { Metric } from "./Metric";
 import { NavigateButton } from "./NavigateButton";
 import { SectionHeader } from "./SectionHeader";
@@ -113,7 +113,7 @@ export function ParkingRecommendation() {
       />
 
       {confirmedAssignment ? (
-        <Card accent={colors.highlight} testID="assignment-confirmed">
+        <GlassCard accent={colors.highlight} testID="assignment-confirmed">
           <Text variant="micro" color={colors.highlight}>
             ZONE ASSIGNED
           </Text>
@@ -133,7 +133,7 @@ export function ParkingRecommendation() {
               testID="assignment-navigate"
             />
           )}
-        </Card>
+        </GlassCard>
       ) : recommendation.isPending ? (
         <LoadingState label="Finding the best zone…" testID="recommendation-loading" />
       ) : isUnavailable ? (
@@ -175,7 +175,7 @@ export function ParkingRecommendation() {
           />
         </EmptyState>
       ) : (
-        <Card accent={colors.highlight} testID="recommendation-card">
+        <GlassCard accent={colors.highlight} testID="recommendation-card">
           <View accessible accessibilityLabel={summary} testID="recommendation-zone">
             <View style={styles.zoneRow}>
               <View style={styles.zoneText}>
@@ -277,7 +277,7 @@ export function ParkingRecommendation() {
               testID="accept-recommendation"
             />
           ) : null}
-        </Card>
+        </GlassCard>
       )}
     </View>
   );
