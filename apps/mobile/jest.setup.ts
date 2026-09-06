@@ -8,6 +8,15 @@ jest.mock("expo-font", () => ({
   loadAsync: jest.fn(async () => undefined),
 }));
 
+jest.mock("expo-blur", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  return {
+    BlurView: ({ children, ...props }: { children?: React.ReactNode }) =>
+      React.createElement(View, props, children),
+  };
+});
+
 jest.mock("expo-secure-store", () => {
   const store = new Map<string, string>();
   return {
