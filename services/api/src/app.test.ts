@@ -1368,6 +1368,38 @@ describe("Phase 3 — Assignments", () => {
     expect(res.body.error.code).toBe("NOT_FOUND");
   });
 
+  it("lets the vehicle be assigned again once the assignment expires", async () => {
+    const zoneA = await prisma.parkingZone.create({ data: { name: "Z1x", code: "AX1", capacity: 5 } });
+    const zoneB = await prisma.parkingZone.create({ data: { name: "Z2x", code: "AX2", capacity: 5 } });
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ASS-005", vehicleType: "CAR" })
+      .expect(201);
+
+    const first = await request(app)
+      .post("/assignments")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zoneA.id, vehicleId: vehicle.body.data.id })
+      .expect(201);
+
+    // Age the assignment past its arrival window. Without lazy expiry the row
+    // stays ACTIVE forever and the vehicle can never be assigned again.
+    await prisma.zoneAssignment.update({
+      where: { id: first.body.data.id },
+      data: { expiresAt: new Date(Date.now() - 60_000) },
+    });
+
+    await request(app)
+      .post("/assignments")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zoneB.id, vehicleId: vehicle.body.data.id })
+      .expect(201);
+
+    const expired = await prisma.zoneAssignment.findUniqueOrThrow({ where: { id: first.body.data.id } });
+    expect(expired.status).toBe("EXPIRED");
+  });
+
   it("rejects a second ACTIVE assignment for the same vehicle", async () => {
     const zoneA = await prisma.parkingZone.create({ data: { name: "Z1", code: "AZ1", capacity: 5 } });
     const zoneB = await prisma.parkingZone.create({ data: { name: "Z2", code: "AZ2", capacity: 5 } });

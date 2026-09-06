@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from "express";
 import { ok } from "../http/response";
-import { BadRequestError, UnauthorizedError, UnprocessableError } from "../http/errors";
+import { BadRequestError, UnauthorizedError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
 import { AuthService } from "../domain/auth";
 import { currentUserId } from "../middleware/auth";

@@ -50,33 +50,6 @@ export function simulatorRouter(simulator: SimulatorService): Router {
     })
   );
 
-  router.post(
-    "/simulator/scenario",
-    asyncHandler(async (req, res) => {
-      const body: Record<string, unknown> = req.body ?? {};
-      const scenario = body["scenario"];
-      if (typeof scenario !== "string" || !SIMULATOR_SCENARIOS.includes(scenario as SimulatorScenario)) {
-        throw new BadRequestError(
-          `'scenario' must be one of: ${SIMULATOR_SCENARIOS.join(", ")}.`
-        );
-      }
-
-      const zoneId = body["zoneId"];
-      const vehicleIds = body["vehicleIds"];
-      const unknownPlate = body["unknownPlate"];
-      const fillTo = body["fillTo"];
-
-      const result = await simulator.runScenario({
-        scenario: scenario as SimulatorScenario,
-        zoneId: typeof zoneId === "string" ? zoneId : undefined,
-        vehicleIds: Array.isArray(vehicleIds) ? (vehicleIds as string[]) : undefined,
-        unknownPlate: typeof unknownPlate === "string" ? unknownPlate : undefined,
-        fillTo: typeof fillTo === "number" ? fillTo : undefined,
-      });
-
-      res.json(ok(result));
-    })
-  );
 
   return router;
 }

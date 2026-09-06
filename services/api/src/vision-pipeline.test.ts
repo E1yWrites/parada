@@ -49,10 +49,16 @@ interface ZoneCtx {
   exitCamId: string;
   vehicleABC: string;
   vehicleXYZ: string;
+  plateABC: string;
+  plateXYZ: string;
 }
 
 async function seedZone(capacity = 20, slug = "a"): Promise<ZoneCtx> {
   const code = slug.toUpperCase();
+  // An ACTIVE plate is globally unique, so only the default zone keeps the
+  // canonical plates; extra zones in the same test get a suffixed pair.
+  const plateABC = slug === "a" ? "ABC-1234" : `ABC-1234-${code}`;
+  const plateXYZ = slug === "a" ? "XYZ-5678" : `XYZ-5678-${code}`;
   const zone = await prisma.parkingZone.create({
     data: { name: `Zone ${code}`, code, capacity, occupiedCount: 0 },
   });
@@ -66,10 +72,10 @@ async function seedZone(capacity = 20, slug = "a"): Promise<ZoneCtx> {
     data: { name: `Driver ${code}`, email: `driver-${slug}@test.local`, passwordHash: "x", role: "USER" },
   });
   const abc = await prisma.vehicle.create({
-    data: { userId: userA.id, plateNumber: "ABC-1234", normalizedPlate: "ABC1234", vehicleType: "CAR", status: "ACTIVE" },
+    data: { userId: userA.id, plateNumber: plateABC, normalizedPlate: plateABC.replace(/-/g, ""), vehicleType: "CAR", status: "ACTIVE" },
   });
   const xyz = await prisma.vehicle.create({
-    data: { userId: userA.id, plateNumber: "XYZ-5678", normalizedPlate: "XYZ5678", vehicleType: "MOTORCYCLE", status: "ACTIVE" },
+    data: { userId: userA.id, plateNumber: plateXYZ, normalizedPlate: plateXYZ.replace(/-/g, ""), vehicleType: "MOTORCYCLE", status: "ACTIVE" },
   });
   return {
     zoneId: zone.id,
@@ -78,6 +84,8 @@ async function seedZone(capacity = 20, slug = "a"): Promise<ZoneCtx> {
     exitCamId: exit.identifier,
     vehicleABC: abc.id,
     vehicleXYZ: xyz.id,
+    plateABC,
+    plateXYZ,
   };
 }
 
@@ -554,6 +562,95 @@ describe("Phase 5 — Vision/OCR integration foundation", () => {
       const all = await sessions();
       expect(all.filter((s) => s.zoneId === ctx.zoneId)).toHaveLength(2);
       expect(all.every((s) => s.status === "ACTIVE")).toBe(true);
+    });
+  });
+
+  describe("Concurrency — occupancy is applied atomically", () => {
+    it("does not lose an update when two entries hit one zone together", async () => {
+      const ctx = await seedZone(20, "cc");
+      // Both requests read the same occupancy before either writes. A
+      // read-modify-write would leave occupiedCount at 1; the conditional
+      // update leaves it at 2.
+      const bi = await prisma.camera.create({
+        data: { zoneId: ctx.zoneId, name: "Bi", identifier: "cam-conc-bi", gateType: "BIDIRECTIONAL", status: "ONLINE" },
+      });
+      const app = createApp();
+      const send = (id: string, plate: string) =>
+        request(app)
+          .post(`/zones/${ctx.zoneId}/events`)
+          .send({ cameraIdentifier: bi.identifier, sourceEventId: id, eventType: "ENTRY", detectedPlate: plate, ocrConfidence: 0.96 });
+
+      await Promise.all([send("conc-1", ctx.plateABC), send("conc-2", ctx.plateXYZ)]);
+
+      const zone = await prisma.parkingZone.findUniqueOrThrow({ where: { id: ctx.zoneId } });
+      expect(zone.occupiedCount).toBe(2);
+    });
+
+    it("never admits past capacity under concurrent guest entries", async () => {
+      const ctx = await seedZone(1, "cap");
+      await seedGuestPrimaryZone(ctx.zoneId);
+      const app = createApp();
+      const send = (id: string, plate: string) =>
+        request(app)
+          .post(`/zones/${ctx.zoneId}/events`)
+          .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: id, eventType: "ENTRY", detectedPlate: plate, ocrConfidence: 0.96 });
+
+      const results = await Promise.all([send("gc-1", "GUEST-AAA"), send("gc-2", "GUEST-BBB")]);
+      const admitted = results.filter((r) => r.body?.data?.admitted === true);
+
+      expect(admitted).toHaveLength(1);
+      const zone = await prisma.parkingZone.findUniqueOrThrow({ where: { id: ctx.zoneId } });
+      expect(zone.occupiedCount).toBe(1);
+    });
+  });
+
+  describe("Fees — the camera pipeline prices every completed session", () => {
+    it("charges a registered vehicle on a camera EXIT", async () => {
+      const ctx = await seedZone(20, "rf");
+      const app = createApp();
+      // Both timestamps are pinned: an unpinned exit lands milliseconds past
+      // the 3h boundary and the rule (any started hour) correctly bills ₱40.
+      const exitAt = new Date();
+      const enteredAt = new Date(exitAt.getTime() - 3 * 60 * 60 * 1000).toISOString();
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "fee-in", eventType: "ENTRY", detectedPlate: ctx.plateABC, ocrConfidence: 0.96, detectedAt: enteredAt })
+        .expect(201);
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.exitCamId, sourceEventId: "fee-out", eventType: "EXIT", detectedPlate: ctx.plateABC, ocrConfidence: 0.96, detectedAt: exitAt.toISOString() })
+        .expect(201);
+
+      const session = await prisma.parkingSession.findFirstOrThrow({
+        where: { zoneId: ctx.zoneId, status: "COMPLETED" },
+        include: { fee: true },
+      });
+      // 3h under the default ₱20 base (2h) + ₱10/succeeding hour.
+      expect(session.feeAmount).toBe(30);
+      expect(session.fee?.amount).toBe(30);
+      expect(session.fee?.status).toBe("PENDING");
+    });
+
+    it("charges an account-less guest under the same policy", async () => {
+      const ctx = await seedZone(20, "gf");
+      await seedGuestPrimaryZone(ctx.zoneId);
+      const app = createApp();
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "gfee-in", eventType: "ENTRY", detectedPlate: "GUEST-FEE", ocrConfidence: 0.96 })
+        .expect(201);
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.exitCamId, sourceEventId: "gfee-out", eventType: "EXIT", detectedPlate: "GUEST-FEE", ocrConfidence: 0.96 })
+        .expect(201);
+
+      const session = await prisma.parkingSession.findFirstOrThrow({
+        where: { zoneId: ctx.zoneId, status: "COMPLETED" },
+        include: { fee: true },
+      });
+      expect(session.userId).toBeNull();
+      expect(session.fee?.userId).toBeNull();
+      expect(session.fee?.amount).toBe(20);
     });
   });
 

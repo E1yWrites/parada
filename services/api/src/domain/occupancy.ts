@@ -7,7 +7,6 @@ import {
 import {
   BadRequestError,
   ConflictError,
-  ForbiddenError,
   NotFoundError,
 } from "../http/errors";
 import type {
@@ -15,6 +14,7 @@ import type {
   OccupancySource,
 } from "@parada/database";
 import type { ConfigService } from "./config";
+import { persistSessionFee } from "./fees";
 import type { AssignmentService } from "./assignment";
 import type { GuestPolicyConfig } from "@parada/types";
 
@@ -245,6 +245,63 @@ export class OccupancyService {
     }
   }
 
+  /** Effective fee configuration, falling back to the shared default. */
+  private async getFeeConfig() {
+    if (this.config) {
+      return this.config.getParkingFeeConfig();
+    }
+    const { DEFAULT_PARKING_FEE } = await import("@parada/config");
+    return { ...DEFAULT_PARKING_FEE };
+  }
+
+  /**
+   * The ONLY way occupancy changes. A conditional `updateMany` applies the
+   * delta atomically — the guard lives in the WHERE clause, so two concurrent
+   * events cannot both read the same count and both write it back (a lost
+   * update). The real post-write state is then read inside the same
+   * transaction, so the recorded event/history counts are never invented.
+   *
+   * Returns null instead of throwing when the guard rejects, because guest
+   * ENTRY must record a denial rather than abort the transaction.
+   */
+  private async applyOccupancy(
+    tx: Prisma.TransactionClient,
+    zone: { id: string; capacity: number },
+    eventType: OccupancyEventType
+  ): Promise<{ previousOccupied: number; newOccupied: number; availableCount: number } | null> {
+    const applied =
+      eventType === "ENTRY"
+        ? await tx.parkingZone.updateMany({
+            where: { id: zone.id, occupiedCount: { lt: zone.capacity } },
+            data: { occupiedCount: { increment: 1 } },
+          })
+        : await tx.parkingZone.updateMany({
+            where: { id: zone.id, occupiedCount: { gt: 0 } },
+            data: { occupiedCount: { decrement: 1 } },
+          });
+    if (applied.count !== 1) {
+      return null;
+    }
+    const { occupiedCount } = await tx.parkingZone.findUniqueOrThrow({
+      where: { id: zone.id },
+      select: { occupiedCount: true },
+    });
+    return {
+      previousOccupied: eventType === "ENTRY" ? occupiedCount - 1 : occupiedCount + 1,
+      newOccupied: occupiedCount,
+      availableCount: zone.capacity - occupiedCount,
+    };
+  }
+
+  /** Current occupancy read inside the transaction (for events that change nothing). */
+  private async currentOccupancy(tx: Prisma.TransactionClient, zone: { id: string; capacity: number }) {
+    const { occupiedCount } = await tx.parkingZone.findUniqueOrThrow({
+      where: { id: zone.id },
+      select: { occupiedCount: true },
+    });
+    return { occupiedCount, availableCount: zone.capacity - occupiedCount };
+  }
+
   /**
    * Registered-vehicle entry/exit. For ENTRY this honors/consumes an active
    * reservation for the actual zone and issues a WRONG-ZONE WARNING (admit but
@@ -265,7 +322,6 @@ export class OccupancyService {
     }
   ) {
     const { zone, camera, match, eventType, source, sourceEventId, detectedAt } = ctx;
-    const previousOccupied = zone.occupiedCount;
     const vehicleId = match.vehicleId!;
 
     // Wrong-zone warning applies only to registered ENTRY events. A
@@ -287,39 +343,25 @@ export class OccupancyService {
       }
     }
 
-    // Occupancy bounds (registered vehicles do NOT get guest overflow).
-    let newOccupied = previousOccupied;
-    if (eventType === "ENTRY") {
-      if (previousOccupied >= zone.capacity) {
-        throw new ConflictError(`Zone '${zone.id}' is already full.`, {
-          capacity: zone.capacity,
-          occupiedCount: previousOccupied,
-        });
-      }
-      newOccupied = previousOccupied + 1;
-    } else if (eventType === "EXIT") {
-      if (previousOccupied <= 0) {
-        throw new ConflictError(`Zone '${zone.id}' has no occupancy to release.`, {
-          occupiedCount: previousOccupied,
-        });
-      }
-      newOccupied = previousOccupied - 1;
-    } else {
+    if (eventType !== "ENTRY" && eventType !== "EXIT") {
       throw new BadRequestError(`Unsupported event type: '${String(eventType)}'.`);
     }
+
+    // Occupancy bounds (registered vehicles do NOT get guest overflow),
+    // enforced atomically so concurrent events cannot lose an update.
+    const applied = await this.applyOccupancy(tx, zone, eventType);
+    if (!applied) {
+      throw eventType === "ENTRY"
+        ? new ConflictError(`Zone '${zone.id}' is already full.`, { capacity: zone.capacity })
+        : new ConflictError(`Zone '${zone.id}' has no occupancy to release.`);
+    }
+    const { previousOccupied, newOccupied, availableCount } = applied;
 
     // Only a successful registered ENTRY consumes an in-window reservation.
     // Failed/full entries must leave the reservation available.
     if (eventType === "ENTRY") {
       await this.consumeReservationForZone(tx, match, zone.id, detectedAt);
     }
-
-    const availableCount = zone.capacity - newOccupied;
-
-    await tx.parkingZone.update({
-      where: { id: zone.id },
-      data: { occupiedCount: newOccupied },
-    });
 
     const event = await tx.occupancyEvent.create({
       data: {
@@ -401,16 +443,21 @@ export class OccupancyService {
         orderBy: { enteredAt: "asc" },
       });
       if (existing) {
-        const durationSeconds = Math.max(
-          0,
-          Math.floor((detectedAt.getTime() - existing.enteredAt.getTime()) / 1000)
-        );
+        const durationMs = Math.max(0, detectedAt.getTime() - existing.enteredAt.getTime());
+        const { amount } = await persistSessionFee(tx, {
+          sessionId: existing.id,
+          zoneId: existing.zoneId,
+          userId: existing.userId,
+          durationMs,
+          feeConfig: await this.getFeeConfig(),
+        });
         await tx.parkingSession.update({
           where: { id: existing.id },
           data: {
             exitEventId: event.id,
             exitedAt: detectedAt,
-            durationSeconds,
+            durationSeconds: Math.floor(durationMs / 1000),
+            feeAmount: amount,
             status: "COMPLETED",
           },
         });
@@ -454,34 +501,17 @@ export class OccupancyService {
     options: ProcessEventOptions
   ) {
     const { zone, camera, match, eventType, source, sourceEventId, detectedAt } = ctx;
-    const previousOccupied = zone.occupiedCount;
 
     // SIMULATOR source: legacy unknown handling (count occupancy, no guest
     // session). Keeps the admin/demo simulator behavior intact.
     if (source !== "CAMERA") {
-      let newOccupied = previousOccupied;
-      if (eventType === "ENTRY") {
-        if (previousOccupied >= zone.capacity) {
-          throw new ConflictError(`Zone '${zone.id}' is already full.`, {
-            capacity: zone.capacity,
-            occupiedCount: previousOccupied,
-          });
-        }
-        newOccupied = previousOccupied + 1;
-      } else if (eventType === "EXIT") {
-        if (previousOccupied <= 0) {
-          throw new ConflictError(`Zone '${zone.id}' has no occupancy to release.`, {
-            occupiedCount: previousOccupied,
-          });
-        }
-        newOccupied = previousOccupied - 1;
+      const applied = await this.applyOccupancy(tx, zone, eventType);
+      if (!applied) {
+        throw eventType === "ENTRY"
+          ? new ConflictError(`Zone '${zone.id}' is already full.`, { capacity: zone.capacity })
+          : new ConflictError(`Zone '${zone.id}' has no occupancy to release.`);
       }
-      const availableCount = zone.capacity - newOccupied;
-
-      await tx.parkingZone.update({
-        where: { id: zone.id },
-        data: { occupiedCount: newOccupied },
-      });
+      const { previousOccupied, newOccupied, availableCount } = applied;
 
       const event = await tx.occupancyEvent.create({
         data: {
@@ -557,20 +587,11 @@ export class OccupancyService {
         orderBy: { createdAt: "desc" },
       });
       if (guestSessionRow && guestSessionRow.session.zoneId === zone.id) {
-        const releaseFrom = previousOccupied;
-        let newOccupied = releaseFrom;
-        if (releaseFrom <= 0) {
-          throw new ConflictError(`Zone '${zone.id}' has no occupancy to release.`, {
-            occupiedCount: releaseFrom,
-          });
+        const released = await this.applyOccupancy(tx, zone, eventType);
+        if (!released) {
+          throw new ConflictError(`Zone '${zone.id}' has no occupancy to release.`);
         }
-        newOccupied = releaseFrom - 1;
-        const availableCount = zone.capacity - newOccupied;
-
-        await tx.parkingZone.update({
-          where: { id: zone.id },
-          data: { occupiedCount: newOccupied },
-        });
+        const { previousOccupied: releaseFrom, newOccupied, availableCount } = released;
 
         const event = await tx.occupancyEvent.create({
           data: {
@@ -608,16 +629,25 @@ export class OccupancyService {
           availableCount,
         });
 
-        const durationSeconds = Math.max(
+        const durationMs = Math.max(
           0,
-          Math.floor((detectedAt.getTime() - guestSessionRow.session.enteredAt.getTime()) / 1000)
+          detectedAt.getTime() - guestSessionRow.session.enteredAt.getTime()
         );
+        // Guests are charged under the same fee policy; they simply have no user.
+        const { amount } = await persistSessionFee(tx, {
+          sessionId: guestSessionRow.session.id,
+          zoneId: guestSessionRow.session.zoneId,
+          userId: guestSessionRow.session.userId,
+          durationMs,
+          feeConfig: await this.getFeeConfig(),
+        });
         await tx.parkingSession.update({
           where: { id: guestSessionRow.session.id },
           data: {
             exitEventId: event.id,
             exitedAt: detectedAt,
-            durationSeconds,
+            durationSeconds: Math.floor(durationMs / 1000),
+            feeAmount: amount,
             status: "COMPLETED",
           },
         });
@@ -632,14 +662,16 @@ export class OccupancyService {
 
       // No active guest session in this zone. This also covers a guest trying
       // to exit through a different zone than the one where it entered.
+      // Occupancy is deliberately unchanged, so record the real current state.
+      const unchanged = await this.currentOccupancy(tx, zone);
       const event = await tx.occupancyEvent.create({
         data: {
           zoneId: zone.id,
           cameraId: camera.id,
           eventType,
-          previousOccupied,
-          newOccupied: previousOccupied,
-          availableCount: zone.capacity - previousOccupied,
+          previousOccupied: unchanged.occupiedCount,
+          newOccupied: unchanged.occupiedCount,
+          availableCount: unchanged.availableCount,
           source,
           sourceEventId: sourceEventId || null,
           vehicleId: null,
@@ -681,15 +713,30 @@ export class OccupancyService {
       });
     }
 
-    // ENTRY -> guest admission decision.
+    // ENTRY -> guest admission decision. Policy eligibility is decided from
+    // configuration; the capacity verdict comes from the atomic increment
+    // itself, so a full zone can never be misread from a stale snapshot.
     const decision = await this.decideGuestAdmission(zone, options);
-    const newOccupied = decision.admitted ? previousOccupied + 1 : previousOccupied;
-    const availableCount = zone.capacity - newOccupied;
+    let admitted = decision.admitted;
+    let deniedReason: string | null = decision.deniedReason;
+    let counts: { previousOccupied: number; newOccupied: number; availableCount: number };
 
-    await tx.parkingZone.update({
-      where: { id: zone.id },
-      data: { occupiedCount: newOccupied },
-    });
+    const applied = admitted ? await this.applyOccupancy(tx, zone, "ENTRY") : null;
+    if (admitted && !applied) {
+      admitted = false;
+      deniedReason = "GUEST_ZONE_FULL";
+    }
+    if (applied) {
+      counts = applied;
+    } else {
+      const unchanged = await this.currentOccupancy(tx, zone);
+      counts = {
+        previousOccupied: unchanged.occupiedCount,
+        newOccupied: unchanged.occupiedCount,
+        availableCount: unchanged.availableCount,
+      };
+    }
+    const { previousOccupied, newOccupied, availableCount } = counts;
 
     const event = await tx.occupancyEvent.create({
       data: {
@@ -719,7 +766,7 @@ export class OccupancyService {
       },
     });
 
-    if (decision.admitted) {
+    if (admitted) {
       await this.maybeNotify(tx, {
         zoneId: zone.id,
         capacity: zone.capacity,
@@ -790,7 +837,7 @@ export class OccupancyService {
         vehicleId: null,
         detectedPlate: match.detectedPlate,
         anomalyType: "GUEST_DENIED",
-        description: `Guest ENTRY denied for plate '${match.detectedPlate ?? "unknown"}' (${decision.deniedReason}).`,
+        description: `Guest ENTRY denied for plate '${match.detectedPlate ?? "unknown"}' (${deniedReason}).`,
         resolved: false,
       },
     });
@@ -798,14 +845,14 @@ export class OccupancyService {
       data: {
         zoneId: zone.id,
         type: "GUEST_ADMISSION_ISSUE",
-        message: `Guest entry denied (${decision.deniedReason}).`,
+        message: `Guest entry denied (${deniedReason}).`,
         targetRole: "ADMIN",
       },
     });
 
     return this.guestResult(event, {
       admitted: false,
-      deniedReason: decision.deniedReason,
+      deniedReason,
       anomalyType: "GUEST_DENIED",
       guestSessionId: null,
     });

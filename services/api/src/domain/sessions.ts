@@ -6,7 +6,7 @@ import {
 } from "../http/errors";
 import type { ConfigService } from "./config";
 import type { AssignmentService } from "./assignment";
-import { calculateParkingFee } from "./fees";
+import { calculateParkingFee, persistSessionFee } from "./fees";
 import type {
   ParkingSessionResponse,
   SessionEntryInput,
@@ -129,14 +129,23 @@ export class ParkingSessionService {
           throw new ConflictError(`Zone '${zone.id}' is full.`);
         }
 
+        // Read back the real post-increment state rather than reusing the
+        // pre-transaction snapshot, which is stale under concurrent entries.
+        const zoneAfter = await tx.parkingZone.findUniqueOrThrow({
+          where: { id: zone.id },
+          select: { capacity: true, occupiedCount: true },
+        });
+        const newOccupied = zoneAfter.occupiedCount;
+        const availableCount = zoneAfter.capacity - newOccupied;
+
         const event = await tx.occupancyEvent.create({
           data: {
             zoneId: zone.id,
             cameraId: null,
             eventType: "ENTRY",
-            previousOccupied: zone.occupiedCount,
-            newOccupied: zone.occupiedCount + 1,
-            availableCount: zone.capacity - (zone.occupiedCount + 1),
+            previousOccupied: newOccupied - 1,
+            newOccupied,
+            availableCount,
             source: "MANUAL",
             vehicleId: vehicle.id,
             detectedAt: enteredAt,
@@ -146,8 +155,8 @@ export class ParkingSessionService {
         await tx.occupancyHistory.create({
           data: {
             zoneId: zone.id,
-            occupiedCount: zone.occupiedCount + 1,
-            availableCount: zone.capacity - (zone.occupiedCount + 1),
+            occupiedCount: newOccupied,
+            availableCount,
             occurredAt: enteredAt,
           },
         });
@@ -212,14 +221,23 @@ export class ParkingSessionService {
         throw new ConflictError(`Zone '${session.zoneId}' has no occupancy to release.`);
       }
 
+      // Read back the real post-decrement state; OccupancyHistory is the audit
+      // trail and must never carry invented counts.
+      const zoneAfter = await tx.parkingZone.findUniqueOrThrow({
+        where: { id: session.zoneId },
+        select: { capacity: true, occupiedCount: true },
+      });
+      const newOccupied = zoneAfter.occupiedCount;
+      const availableCount = zoneAfter.capacity - newOccupied;
+
       const event = await tx.occupancyEvent.create({
         data: {
           zoneId: session.zoneId,
           cameraId: null,
           eventType: "EXIT",
-          previousOccupied: 1,
-          newOccupied: 0,
-          availableCount: 0,
+          previousOccupied: newOccupied + 1,
+          newOccupied,
+          availableCount,
           source: "MANUAL",
           vehicleId: session.vehicleId,
           detectedAt: exitedAt,
@@ -229,8 +247,8 @@ export class ParkingSessionService {
       await tx.occupancyHistory.create({
         data: {
           zoneId: session.zoneId,
-          occupiedCount: 0,
-          availableCount: 0,
+          occupiedCount: newOccupied,
+          availableCount,
           occurredAt: exitedAt,
         },
       });
@@ -247,15 +265,12 @@ export class ParkingSessionService {
         include: sessionInclude,
       });
 
-      const feeRow = await tx.parkingFee.create({
-        data: {
-          sessionId: session.id,
-          zoneId: session.zoneId,
-          userId,
-          amount: fee.amount,
-          rateBreakdown: fee.breakdown,
-          status: "PENDING",
-        },
+      const { row: feeRow } = await persistSessionFee(tx, {
+        sessionId: session.id,
+        zoneId: session.zoneId,
+        userId,
+        durationMs,
+        feeConfig,
       });
 
       return { updated, feeRow };

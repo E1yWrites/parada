@@ -209,10 +209,10 @@ describe("Phase 6 — occupancy simulator & admin infrastructure", () => {
   describe("Simulator scenarios", () => {
     it("SINGLE_ENTRY — occupancy +1, session ACTIVE", async () => {
       const res = await request(ctx.app)
-        .post("/simulator/scenario")
+        .post("/simulator/run")
         .set("Authorization", `Bearer ${ctx.adminToken}`)
         .send({ scenario: "SINGLE_ENTRY", zoneId: ctx.zoneId, vehicleIds: ctx.vehicleIds })
-        .expect(200);
+        .expect(201);
 
       expect(res.body.data.occupancy.occupiedCount).toBe(1);
       const session = res.body.data.events[0]!.session;
@@ -224,16 +224,16 @@ describe("Phase 6 — occupancy simulator & admin infrastructure", () => {
 
     it("SINGLE_EXIT — occupancy -1, session COMPLETED with duration", async () => {
       await request(ctx.app)
-        .post("/simulator/scenario")
+        .post("/simulator/run")
         .set("Authorization", `Bearer ${ctx.adminToken}`)
         .send({ scenario: "SINGLE_ENTRY", zoneId: ctx.zoneId, vehicleIds: ctx.vehicleIds })
-        .expect(200);
+        .expect(201);
 
       const res = await request(ctx.app)
-        .post("/simulator/scenario")
+        .post("/simulator/run")
         .set("Authorization", `Bearer ${ctx.adminToken}`)
         .send({ scenario: "SINGLE_EXIT", zoneId: ctx.zoneId, vehicleIds: ctx.vehicleIds })
-        .expect(200);
+        .expect(201);
 
       const occ = await occupancy(ctx.app, ctx.zoneId);
       expect(occ.occupiedCount).toBe(0);
@@ -246,10 +246,10 @@ describe("Phase 6 — occupancy simulator & admin infrastructure", () => {
 
     it("MULTIPLE_ENTRIES — each registered vehicle enters, occupancy matches", async () => {
       const res = await request(ctx.app)
-        .post("/simulator/scenario")
+        .post("/simulator/run")
         .set("Authorization", `Bearer ${ctx.adminToken}`)
         .send({ scenario: "MULTIPLE_ENTRIES", zoneId: ctx.zoneId, vehicleIds: ctx.vehicleIds })
-        .expect(200);
+        .expect(201);
 
       expect(res.body.data.occupancy.occupiedCount).toBe(ctx.vehicleIds.length);
       expect(res.body.data.events).toHaveLength(ctx.vehicleIds.length);
@@ -260,16 +260,16 @@ describe("Phase 6 — occupancy simulator & admin infrastructure", () => {
 
     it("MULTIPLE_EXITS — closes the sessions, occupancy returns to 0", async () => {
       await request(ctx.app)
-        .post("/simulator/scenario")
+        .post("/simulator/run")
         .set("Authorization", `Bearer ${ctx.adminToken}`)
         .send({ scenario: "MULTIPLE_ENTRIES", zoneId: ctx.zoneId, vehicleIds: ctx.vehicleIds })
-        .expect(200);
+        .expect(201);
 
       const res = await request(ctx.app)
-        .post("/simulator/scenario")
+        .post("/simulator/run")
         .set("Authorization", `Bearer ${ctx.adminToken}`)
         .send({ scenario: "MULTIPLE_EXITS", zoneId: ctx.zoneId, vehicleIds: ctx.vehicleIds })
-        .expect(200);
+        .expect(201);
 
       expect(res.body.data.occupancy.occupiedCount).toBe(0);
       const completed = await prisma.parkingSession.count({ where: { status: "COMPLETED" } });

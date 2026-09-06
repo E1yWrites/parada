@@ -183,7 +183,7 @@ describe("PARADA database integrity", () => {
   });
 
   describe("vehicle uniqueness (normalized plate is unique per user)", () => {
-    it("allows the same plate for different users", async () => {
+    it("rejects the same ACTIVE plate across different users", async () => {
       const u1 = await prisma.user.create({
         data: { name: "U1", email: "v1@parada.local", passwordHash: "x", role: "USER" },
       });
@@ -198,15 +198,35 @@ describe("PARADA database integrity", () => {
           vehicleType: "CAR",
         },
       });
-      const dup = await prisma.vehicle.create({
-        data: {
-          userId: u2.id,
-          plateNumber: "ABC 123",
-          normalizedPlate: "ABC123",
-          vehicleType: "CAR",
-        },
+      // The plate is the primary vehicle identity, so a second ACTIVE claim on
+      // it must fail rather than make the plate ambiguous for OCR matching.
+      await expect(
+        prisma.vehicle.create({
+          data: {
+            userId: u2.id,
+            plateNumber: "ABC 123",
+            normalizedPlate: "ABC123",
+            vehicleType: "CAR",
+          },
+        })
+      ).rejects.toThrow();
+    });
+
+    it("frees the plate once the original vehicle is deactivated", async () => {
+      const u1 = await prisma.user.create({
+        data: { name: "U3", email: "v3@parada.local", passwordHash: "x", role: "USER" },
       });
-      expect(dup.id).toBeDefined();
+      const u2 = await prisma.user.create({
+        data: { name: "U4", email: "v4@parada.local", passwordHash: "x", role: "USER" },
+      });
+      const first = await prisma.vehicle.create({
+        data: { userId: u1.id, plateNumber: "DEF 456", normalizedPlate: "DEF456", vehicleType: "CAR" },
+      });
+      await prisma.vehicle.update({ where: { id: first.id }, data: { status: "INACTIVE" } });
+      const transferred = await prisma.vehicle.create({
+        data: { userId: u2.id, plateNumber: "DEF 456", normalizedPlate: "DEF456", vehicleType: "CAR" },
+      });
+      expect(transferred.id).toBeDefined();
     });
 
     it("rejects a second vehicle with the same normalized plate for the same user", async () => {
@@ -259,8 +279,9 @@ describe("PARADA database integrity", () => {
       vehicle = await prisma.vehicle.create({
         data: {
           userId: user.id,
-          plateNumber: "ABC-1234",
-          normalizedPlate: "ABC1234",
+          // Distinct from the outer fixture: an ACTIVE plate is globally unique.
+          plateNumber: "LFC-1234",
+          normalizedPlate: "LFC1234",
           vehicleType: "CAR",
         },
       });
@@ -276,8 +297,8 @@ describe("PARADA database integrity", () => {
           newOccupied: 1,
           availableCount: 4,
           vehicleId: vehicle.id,
-          detectedPlate: "ABC-1234",
-          normalizedPlate: "ABC1234",
+          detectedPlate: "LFC-1234",
+          normalizedPlate: "LFC1234",
           ocrConfidence: 0.95,
           plateMatched: true,
           detectedAt: new Date(),

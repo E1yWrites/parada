@@ -72,7 +72,18 @@ export class AssignmentService {
       throw new ConflictError(`Zone '${input.zoneId}' cannot accept assignments.`);
     }
 
-    // Prevent more than one ACTIVE assignment per vehicle (application-level).
+    // Prevent more than one *unexpired* ACTIVE assignment per vehicle. An
+    // assignment past its expiry no longer holds the vehicle: it is flipped to
+    // EXPIRED here (lazily, mirroring ReservationService.expireOverdue) so the
+    // user is never permanently locked out of assigning again.
+    await prisma.zoneAssignment.updateMany({
+      where: {
+        vehicleId: vehicle.id,
+        status: "ACTIVE",
+        expiresAt: { not: null, lte: new Date() },
+      },
+      data: { status: "EXPIRED" },
+    });
     const active = await prisma.zoneAssignment.findFirst({
       where: { vehicleId: vehicle.id, status: "ACTIVE" },
     });

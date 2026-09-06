@@ -1,3 +1,4 @@
+import type { Prisma } from "@parada/database";
 import type { ParkingFeeConfig } from "@parada/types";
 
 /**
@@ -49,4 +50,34 @@ export function calculateParkingFee(
       durationMs: safeMs,
     },
   };
+}
+
+/**
+ * Persist the fee for a session that has just been completed, inside the
+ * caller's transaction. Both exit paths (camera pipeline and user-initiated)
+ * route through here so a completed session can never end up unpriced.
+ * `userId` is null for account-less guest sessions; the fee policy is the same.
+ */
+export async function persistSessionFee(
+  tx: Prisma.TransactionClient,
+  input: {
+    sessionId: string;
+    zoneId: string;
+    userId: string | null;
+    durationMs: number;
+    feeConfig: ParkingFeeConfig;
+  }
+) {
+  const fee = calculateParkingFee(input.durationMs, input.feeConfig);
+  const row = await tx.parkingFee.create({
+    data: {
+      sessionId: input.sessionId,
+      zoneId: input.zoneId,
+      userId: input.userId,
+      amount: fee.amount,
+      rateBreakdown: fee.breakdown,
+      status: "PENDING",
+    },
+  });
+  return { amount: fee.amount, breakdown: fee.breakdown, row };
 }
