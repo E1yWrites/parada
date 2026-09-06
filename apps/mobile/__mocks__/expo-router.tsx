@@ -45,8 +45,13 @@ export function Tabs({ children }: { children?: ReactNode }) {
   return <View testID="tabs">{children}</View>;
 }
 
-Tabs.Screen = function TabScreen({ options }: { options?: { title?: string } }) {
-  return <Text>{options?.title ?? ""}</Text>;
+Tabs.Screen = function TabScreen({
+  options,
+}: {
+  options?: { title?: string; tabBarAccessibilityLabel?: string };
+}) {
+  const label = options?.tabBarAccessibilityLabel ?? options?.title ?? "";
+  return <Text accessibilityLabel={options?.tabBarAccessibilityLabel}>{label}</Text>;
 };
 
 export function Stack({ children }: { children?: ReactNode }) {

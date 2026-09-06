@@ -1,4 +1,11 @@
-import type { ParkingSessionResponse, Vehicle, VehicleType } from "@parada/types";
+import type {
+  ParkingSessionResponse,
+  ReservationResponse,
+  Vehicle,
+  VehicleType,
+  ZoneAssignmentResponse,
+  ZoneRecommendation,
+} from "@parada/types";
 import { getToken, notifyAuthInvalidated } from "@/lib/auth/session";
 
 /** Public zone availability exposed by GET /zones (backend contract). */
@@ -17,17 +24,43 @@ export type PublicZone = {
   availability: ZoneAvailability;
 };
 
-/** GET /zones/:id/occupancy payload. */
+/** GET /zones/:zoneId/occupancy payload (backend returns `zoneId`, not `id`). */
 export type ZoneOccupancy = Pick<
   PublicZone,
-  "id" | "name" | "code" | "capacity" | "occupiedCount" | "availableCount"
+  "name" | "code" | "capacity" | "occupiedCount" | "availableCount"
 > & {
+  zoneId: string;
   status: "ACTIVE" | "INACTIVE";
   availability: ZoneAvailability;
 };
 
 /** Enriched session DTO as returned by /sessions and /sessions/active. */
 export type SessionDto = ParkingSessionResponse;
+
+/** Establishment-level navigation destination (Phase 9.5). `null` until an
+ *  admin configures a real address/coordinates — the app never fabricates it. */
+export type EstablishmentLocation = {
+  address: string;
+  latitude: number;
+  longitude: number;
+};
+
+/** GET /zones/establishment payload (public). */
+export type EstablishmentInfo = {
+  location: EstablishmentLocation | null;
+};
+
+/** Input for POST /assignments (backend requires an owned vehicle). */
+export type CreateAssignmentInput = { zoneId: string; vehicleId: string };
+
+/** Input for POST /reservations. `startAt`/`endAt` are optional ISO strings;
+ *  the backend defaults to an immediate arrival window. */
+export type CreateReservationInput = {
+  zoneId: string;
+  vehicleId: string;
+  startAt?: string;
+  endAt?: string;
+};
 
 /** Account shape returned by /auth/me and embedded in auth responses. */
 export type UserDto = {
@@ -57,7 +90,7 @@ export class ApiError extends Error {
 }
 
 type RequestOptions = {
-  method?: "GET" | "POST" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   /** Skip Authorization header (public routes like /zones, /auth/login). */
   public?: boolean;
@@ -102,9 +135,11 @@ function isSessionResponse(value: unknown): value is SessionDto {
     typeof zone === "object" &&
     zone !== null &&
     typeof (zone as Record<string, unknown>).name === "string" &&
-    typeof vehicle === "object" &&
-    vehicle !== null &&
-    typeof (vehicle as Record<string, unknown>).plateNumber === "string"
+    // `vehicle` is null for legitimate account-less GUEST sessions; when a
+    // vehicle is present it must still carry its plate (registered sessions).
+    (vehicle === null ||
+      (typeof vehicle === "object" &&
+        typeof (vehicle as Record<string, unknown>).plateNumber === "string"))
   );
 }
 
@@ -115,9 +150,151 @@ function requireSessionResponse(value: SessionDto | null): SessionDto | null {
   if (!isSessionResponse(value)) {
     throw new ApiError(
       "INVALID_SESSION_RESPONSE",
-      "The server returned an invalid active parking session.",
+      "We couldn't load your parking session.",
       502,
     );
+  }
+  return value;
+}
+
+function isZoneRef(value: unknown): value is ZoneAssignmentResponse["zone"] {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const ref = value as Record<string, unknown>;
+  return (
+    typeof ref.id === "string" &&
+    typeof ref.name === "string" &&
+    typeof ref.code === "string"
+  );
+}
+
+function isVehicleRef(value: unknown): value is ReservationResponse["vehicle"] {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const ref = value as Record<string, unknown>;
+  return (
+    typeof ref.id === "string" &&
+    typeof ref.plateNumber === "string" &&
+    typeof ref.vehicleType === "string"
+  );
+}
+
+/** GET /zones/recommendation payload: `{ recommendedZone }` where the zone may
+ *  be null (the backend never returns a bare null payload). */
+function isRecommendation(value: unknown): value is ZoneRecommendation {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const recommendedZone = (value as Record<string, unknown>).recommendedZone;
+  if (recommendedZone === null) {
+    return true;
+  }
+  if (typeof recommendedZone !== "object" || recommendedZone === null) {
+    return false;
+  }
+  const zone = recommendedZone as Record<string, unknown>;
+  return (
+    typeof zone.id === "string" &&
+    typeof zone.name === "string" &&
+    typeof zone.code === "string" &&
+    typeof zone.capacity === "number" &&
+    typeof zone.occupiedCount === "number" &&
+    typeof zone.availableCount === "number" &&
+    typeof zone.status === "string"
+  );
+}
+
+function isAssignmentResponse(value: unknown): value is ZoneAssignmentResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const assignment = value as Record<string, unknown>;
+  return (
+    typeof assignment.id === "string" &&
+    typeof assignment.userId === "string" &&
+    typeof assignment.vehicleId === "string" &&
+    typeof assignment.zoneId === "string" &&
+    typeof assignment.status === "string" &&
+    typeof assignment.assignedAt === "string" &&
+    (assignment.expiresAt === null || typeof assignment.expiresAt === "string") &&
+    typeof assignment.createdAt === "string" &&
+    isZoneRef(assignment.zone) &&
+    typeof assignment.vehicle === "object" &&
+    assignment.vehicle !== null &&
+    isVehicleRef(assignment.vehicle)
+  );
+}
+
+function isReservationResponse(value: unknown): value is ReservationResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const reservation = value as Record<string, unknown>;
+  return (
+    typeof reservation.id === "string" &&
+    typeof reservation.userId === "string" &&
+    typeof reservation.vehicleId === "string" &&
+    typeof reservation.zoneId === "string" &&
+    typeof reservation.startAt === "string" &&
+    typeof reservation.endAt === "string" &&
+    typeof reservation.status === "string" &&
+    typeof reservation.createdAt === "string" &&
+    isZoneRef(reservation.zone) &&
+    typeof reservation.vehicle === "object" &&
+    reservation.vehicle !== null &&
+    isVehicleRef(reservation.vehicle)
+  );
+}
+
+/** GET /zones/establishment payload: `{ location }` with an optional location. */
+function isEstablishmentInfo(value: unknown): value is EstablishmentInfo {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const info = value as Record<string, unknown>;
+  const location = info.location;
+  if (location === null) {
+    return true;
+  }
+  if (typeof location !== "object" || location === null) {
+    return false;
+  }
+  const loc = location as Record<string, unknown>;
+  return (
+    typeof loc.address === "string" &&
+    typeof loc.latitude === "number" &&
+    Number.isFinite(loc.latitude) &&
+    loc.latitude >= -90 &&
+    loc.latitude <= 90 &&
+    typeof loc.longitude === "number" &&
+    Number.isFinite(loc.longitude) &&
+    loc.longitude >= -180 &&
+    loc.longitude <= 180
+  );
+}
+
+function requireValidatedObject<T>(
+  value: T | null,
+  guard: (item: unknown) => item is T,
+  code: string,
+  message: string,
+): T {
+  if (value === null || !guard(value)) {
+    throw new ApiError(code, message, 502);
+  }
+  return value;
+}
+
+function requireValidatedList<T>(
+  value: unknown,
+  guard: (item: unknown) => item is T,
+  code: string,
+  message: string,
+): T[] {
+  if (!Array.isArray(value) || !value.every(guard)) {
+    throw new ApiError(code, message, 502);
   }
   return value;
 }
@@ -162,7 +339,9 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       | undefined;
     const status = response.status;
     const code = body?.error?.code ?? (status === 401 ? "UNAUTHORIZED" : "REQUEST_FAILED");
-    const message = body?.error?.message ?? `Request failed with status ${status}. Please try again.`;
+    // Never surface raw HTTP status codes. Prefer the backend's human-readable
+    // message; otherwise fall back to a concise, non-technical line.
+    const message = body?.error?.message ?? "Something went wrong. Please try again.";
     if (status === 401 && opts.invalidateOnUnauthorized !== false) {
       await notifyAuthInvalidated();
     }
@@ -170,7 +349,14 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   }
 
   const body = payload as { data?: T } | null | undefined;
-  return (body?.data ?? body) as T;
+  // A `{ data: ... }` envelope is authoritative even when its value is null
+  // (e.g. GET /sessions/active with no active session). Only when the payload
+  // has no `data` key at all (bare responses / empty bodies) is it returned
+  // directly.
+  if (body != null && "data" in body) {
+    return body.data as T;
+  }
+  return body as T;
 }
 
 /** Backend client used across the app. */
@@ -194,6 +380,58 @@ export const api = {
 
   zones: () => request<PublicZone[]>("/zones", { public: true }),
   zoneOccupancy: (zoneId: string) => request<ZoneOccupancy>(`/zones/${zoneId}/occupancy`, { public: true }),
+  recommendedZone: async () =>
+    requireValidatedObject(
+      await request<ZoneRecommendation>("/zones/recommendation", { public: true }),
+      isRecommendation,
+      "INVALID_RECOMMENDATION_RESPONSE",
+      "We couldn't load a parking recommendation.",
+    ),
+
+  establishment: async () =>
+    requireValidatedObject(
+      await request<EstablishmentInfo>("/zones/establishment", { public: true }),
+      isEstablishmentInfo,
+      "INVALID_ESTABLISHMENT_RESPONSE",
+      "We couldn't load navigation details.",
+    ),
+
+  assignments: async () =>
+    requireValidatedList(
+      await request<ZoneAssignmentResponse[]>("/assignments"),
+      isAssignmentResponse,
+      "INVALID_ASSIGNMENT_RESPONSE",
+      "We couldn't load your zone assignment.",
+    ),
+  createAssignment: async (input: CreateAssignmentInput) =>
+    requireValidatedObject(
+      await request<ZoneAssignmentResponse>("/assignments", { method: "POST", body: input }),
+      isAssignmentResponse,
+      "INVALID_ASSIGNMENT_RESPONSE",
+      "We couldn't confirm your zone assignment.",
+    ),
+
+  reservations: async () =>
+    requireValidatedList(
+      await request<ReservationResponse[]>("/reservations"),
+      isReservationResponse,
+      "INVALID_RESERVATION_RESPONSE",
+      "We couldn't load your reservations.",
+    ),
+  createReservation: async (input: CreateReservationInput) =>
+    requireValidatedObject(
+      await request<ReservationResponse>("/reservations", { method: "POST", body: input }),
+      isReservationResponse,
+      "INVALID_RESERVATION_RESPONSE",
+      "We couldn't confirm your reservation.",
+    ),
+  cancelReservation: async (reservationId: string) =>
+    requireValidatedObject(
+      await request<ReservationResponse>(`/reservations/${reservationId}/cancel`, { method: "PATCH" }),
+      isReservationResponse,
+      "INVALID_RESERVATION_RESPONSE",
+      "We couldn't cancel your reservation.",
+    ),
 
   vehicles: () => request<Vehicle[]>("/vehicles"),
   createVehicle: (plateNumber: string, vehicleType: VehicleType) =>
@@ -202,7 +440,7 @@ export const api = {
   sessions: async () => {
     const sessions = await request<SessionDto[]>("/sessions");
     if (!Array.isArray(sessions) || !sessions.every(isSessionResponse)) {
-      throw new ApiError("INVALID_SESSION_RESPONSE", "The server returned invalid parking session data.", 502);
+      throw new ApiError("INVALID_SESSION_RESPONSE", "We couldn't load your parking sessions.", 502);
     }
     return sessions;
   },

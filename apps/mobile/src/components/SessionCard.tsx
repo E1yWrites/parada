@@ -3,7 +3,7 @@ import { Card } from "./Card";
 import { SessionBadge } from "./StatusBadge";
 import { Text } from "./Text";
 import { colors, fonts, fontSizes, spacing } from "@/src/theme";
-import { formatDateTime, formatDurationSeconds, formatElapsed } from "@/lib/format";
+import { formatCurrency, formatDateTime, formatDurationSeconds, formatElapsed } from "@/lib/format";
 import type { SessionDto } from "@/lib/api/client";
 
 type SessionCardProps = {
@@ -56,6 +56,14 @@ export function SessionCard({ session, now, testID }: SessionCardProps) {
           )}
         </View>
       </View>
+      {session.feeAmount != null ? (
+        <View style={styles.feeRow}>
+          <Text variant="micro">PARKING FEE</Text>
+          <Text variant="monoBold" color={colors.gold} testID={testID ? `${testID}-fee` : undefined}>
+            {formatCurrency(session.feeAmount)}
+          </Text>
+        </View>
+      ) : null}
     </Card>
   );
 }
@@ -91,5 +99,11 @@ const styles = StyleSheet.create({
   },
   timeGroup: {
     gap: spacing.xs,
+  },
+  feeRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: spacing.xl,
   },
 });

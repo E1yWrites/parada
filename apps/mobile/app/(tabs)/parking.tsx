@@ -1,20 +1,28 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { StyleSheet, View } from "react-native";
 import {
-  ActiveSessionBanner,
+  CurrentParkingState,
   EmptyState,
   ErrorState,
   LoadingState,
+  ParkingRecommendation,
+  ReservationPanel,
   Screen,
   SectionHeader,
+  ZoneAssignmentPanel,
   ZoneCard,
 } from "@/src/components";
 import { api, ApiError, type PublicZone } from "@/lib/api/client";
+import { activeAssignmentFrom } from "@/lib/assignment";
+import { currentReservationFrom } from "@/lib/current";
+import { resolveEstablishmentDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
 import { useNow } from "@/src/hooks/useNow";
 import { spacing } from "@/src/theme";
 
 export default function ParkingScreen() {
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const zones = useQuery({
     queryKey: queryKeys.zones,
     queryFn: api.zones,
@@ -25,6 +33,18 @@ export default function ParkingScreen() {
     queryFn: api.activeSession,
     refetchInterval: 15_000,
   });
+  const assignmentList = useQuery({
+    queryKey: queryKeys.assignments,
+    queryFn: api.assignments,
+  });
+  const reservationList = useQuery({
+    queryKey: queryKeys.reservations,
+    queryFn: api.reservations,
+  });
+  const establishment = useQuery({
+    queryKey: queryKeys.establishment,
+    queryFn: api.establishment,
+  });
 
   const activeSession = active.data ?? null;
   const now = useNow(30_000, activeSession !== null);
@@ -32,7 +52,26 @@ export default function ParkingScreen() {
   const refresh = () => {
     void zones.refetch();
     void active.refetch();
+    void assignmentList.refetch();
+    void reservationList.refetch();
+    void establishment.refetch();
   };
+
+  const selectedZone = zones.data?.find((zone) => zone.id === selectedZoneId) ?? null;
+  const assignment = activeAssignmentFrom(assignmentList.data);
+  const reservation = currentReservationFrom(reservationList.data);
+  const hasCurrentState = activeSession !== null || assignment !== null || reservation !== null;
+  // The recommendation is a suggestion only: it never competes with an active
+  // session, assignment, reservation, or with a current state that is still
+  // loading/unknown (an active session may be hiding behind a failed query).
+  const showRecommendation =
+    active.status === "success" &&
+    !hasCurrentState &&
+    assignmentList.status === "success" &&
+    reservationList.status === "success";
+  const statePending =
+    activeSession === null &&
+    (assignmentList.status === "pending" || reservationList.status === "pending");
 
   return (
     <Screen
@@ -41,16 +80,24 @@ export default function ParkingScreen() {
       refreshing={refreshing}
       onRefresh={refresh}
       testID="parking-screen">
-      {activeSession ? (
-        <ActiveSessionBanner session={activeSession} now={now} testID="active-banner" />
-      ) : null}
-      {active.isError ? (
-        <ErrorState
-          message={active.error instanceof ApiError ? active.error.message : "Couldn't load your active session."}
-          onRetry={refresh}
-          testID="active-session-error"
-        />
-      ) : null}
+      <CurrentParkingState
+        session={activeSession}
+        assignment={assignment}
+        reservation={reservation}
+        destination={resolveEstablishmentDestination(establishment.data)}
+        destinationReady={establishment.status === "success"}
+        now={now}
+        activePending={active.isPending}
+        activeError={active.isError}
+        activeErrorMessage={
+          active.error instanceof ApiError ? active.error.message : "Couldn't load your active session."
+        }
+        statePending={statePending}
+        assignmentError={assignmentList.isError}
+        reservationError={reservationList.isError}
+        onRetry={refresh}
+      />
+      {showRecommendation ? <ParkingRecommendation /> : null}
       <SectionHeader title="Zones" caption="Updated every 30 seconds" testID="zones-header" />
       {zones.isPending ? (
         <LoadingState label="Loading park availability…" testID="zones-loading" />
@@ -71,11 +118,18 @@ export default function ParkingScreen() {
         <View style={styles.grid} testID="zones-grid">
           {(zones.data ?? []).map((zone: PublicZone) => (
             <View key={zone.id} style={styles.col}>
-              <ZoneCard zone={zone} testID={`zone-${zone.code}`} />
+              <ZoneCard
+                zone={zone}
+                onPress={hasCurrentState ? null : () => setSelectedZoneId(zone.id)}
+                selected={selectedZoneId === zone.id}
+                testID={`zone-${zone.code}`}
+              />
             </View>
           ))}
         </View>
       )}
+      {activeSession ? null : <ZoneAssignmentPanel selectedZone={selectedZone} />}
+      {activeSession ? null : <ReservationPanel selectedZone={selectedZone} />}
     </Screen>
   );
 }

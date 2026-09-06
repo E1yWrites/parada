@@ -7,8 +7,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { api, type UserDto } from "@/lib/api/client";
+import { api, ApiError, type UserDto } from "@/lib/api/client";
 import { clearToken, getToken, onAuthInvalidated, setToken } from "@/lib/auth/session";
+import { queryClient } from "@/lib/query";
 
 type SessionContextValue = {
   user: UserDto | null;
@@ -46,10 +47,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             setUser(null);
           }
         }
-      } catch {
-        // Invalid token, revoked session, or offline bootstrap: treat as
-        // signed-out rather than leaving the user on a dead session.
-        await clearToken();
+      } catch (err) {
+        // Only an explicit 401 / UNAUTHORIZED response means the stored token
+        // is dead (expired, revoked, or otherwise invalid) and must be cleared.
+        // A NETWORK failure, timeout, or backend outage is NOT a revocation:
+        // the token is preserved so a later launch/explicit sign-in can recover,
+        // and the UI degrades to the signed-out state without destroying data.
+        const unauthorized =
+          err instanceof ApiError &&
+          (err.status === 401 || err.code === "UNAUTHORIZED");
+        if (unauthorized) {
+          await clearToken();
+        }
         if (active) {
           setUser(null);
         }
@@ -94,7 +103,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setReloadKey((k) => k + 1);
       // Drop cached user data so it cannot surface for the next user.
-      await import("@/lib/query").then(({ queryClient }) => queryClient.clear());
+      queryClient.clear();
     }
   }, []);
 

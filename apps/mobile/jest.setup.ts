@@ -1,5 +1,7 @@
 jest.mock("expo-router");
 
+jest.mock("expo-location");
+
 jest.mock("expo-font", () => ({
   useFonts: () => [true, undefined],
   isLoaded: () => true,

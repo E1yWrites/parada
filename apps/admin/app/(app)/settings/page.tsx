@@ -15,6 +15,7 @@ const EMPTY: EstablishmentSettings = {
   guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: null, maxDurationHours: 8, allowWhenFull: false },
   zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
   violations: [],
+  location: null,
 };
 
 export default function SettingsPage() {

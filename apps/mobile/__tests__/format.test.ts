@@ -3,6 +3,7 @@ import {
   formatDurationSeconds,
   formatElapsed,
   formatDateTime,
+  formatCurrency,
   formatVehicleType,
 } from "@/lib/format";
 
@@ -66,5 +67,27 @@ describe("formatVehicleType", () => {
   });
   it("defaults unknown values to Car", () => {
     expect(formatVehicleType("HELICOPTER")).toBe("Car");
+  });
+});
+
+describe("formatCurrency", () => {
+  it("formats whole pesos with cents", () => {
+    expect(formatCurrency(20)).toBe("₱20.00");
+    expect(formatCurrency(30)).toBe("₱30.00");
+    expect(formatCurrency(0)).toBe("₱0.00");
+  });
+  it("formats decimal amounts deterministically", () => {
+    expect(formatCurrency(30.5)).toBe("₱30.50");
+    expect(formatCurrency(29.99)).toBe("₱29.99");
+    expect(formatCurrency(0.01)).toBe("₱0.01");
+  });
+  it("groups thousands without locale dependence", () => {
+    expect(formatCurrency(1000)).toBe("₱1,000.00");
+    expect(formatCurrency(1234567.89)).toBe("₱1,234,567.89");
+  });
+  it("returns a neutral placeholder for null/NaN", () => {
+    expect(formatCurrency(null)).toBe("—");
+    expect(formatCurrency(undefined)).toBe("—");
+    expect(formatCurrency(Number.NaN)).toBe("—");
   });
 });

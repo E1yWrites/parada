@@ -55,6 +55,18 @@ describe("access control", () => {
     expect(screen.getByText("Sessions")).toBeOnTheScreen();
     expect(screen.getByText("Account")).toBeOnTheScreen();
   });
+
+  it("gives every tab destination an explicit accessibility label", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-ok");
+    (api.me as jest.Mock).mockResolvedValue(user);
+
+    renderWithAppProviders(<TabsLayout />);
+
+    await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
+    for (const label of ["Parking", "Vehicles", "Sessions", "Account"]) {
+      expect(screen.getByText(label).props.accessibilityLabel).toBe(label);
+    }
+  });
 });
 
 describe("mobile API surface", () => {

@@ -425,6 +425,10 @@ model EstablishmentConfig {
   violations   Json
   guestPolicy  Json
   zoneDefaults Json
+  // Optional establishment navigation destination (Phase 9.5). Null/absent
+  // until an admin configures a real address/coordinates; the API never
+  // fabricates a location.
+  location     Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

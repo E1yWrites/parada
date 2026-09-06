@@ -59,13 +59,38 @@ Never commit real secrets. See each package's README for specifics.
 
 ## Development
 
+`npm run dev` starts the existing embedded development database and applies any
+pending non-destructive migrations. You can also prepare it separately:
+
 ```bash
-npm run dev          # run all workspaces in dev mode
+npm run db:start
+npm run db:migrate -w @parada/database
+```
+
+Start the current PARADA API, admin web app, and Expo mobile app together:
+
+```bash
+npm run dev          # database + API + admin + mobile
+npm run run          # alias for npm run dev
+npm run dev:api      # API only (builds services/api, then starts it)
+npm run dev:admin    # admin only (Next.js on port 3000)
+npm run dev:mobile   # mobile only (Expo LAN mode)
+npm run db:prepare   # start database and apply pending migrations
+npm run db:stop      # stop the embedded development database when finished
 npm run build        # build all workspaces
 npm run lint         # lint all workspaces
 npm run typecheck    # type check all workspaces
 npm run test         # run tests in all workspaces
 ```
+
+The API listens on port `4000` and the admin web app on port `3000`. Expo/Metro
+uses its normal development port, typically `8081`. For a physical device,
+set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to an API URL reachable from
+the phone, such as `http://<your-LAN-IP>:4000`; `localhost` on the phone is
+the phone itself. The API binds to `0.0.0.0` in development so LAN devices can
+reach it. The embedded database is persistent and is never reset by the
+development workflow. The vision workspace is currently a placeholder and is
+not started by the development workflow.
 
 ## Phases
 

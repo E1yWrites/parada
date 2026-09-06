@@ -86,13 +86,39 @@ describe("sessions screen", () => {
     expect(await screen.findByText("No parking sessions")).toBeOnTheScreen();
   });
 
-  it("shows an error state when loading fails", async () => {
+  it("shows a single primary error state when loading fails", async () => {
     (api.sessions as jest.Mock).mockRejectedValue(new ApiError("BAD_GATEWAY", "Sessions unavailable.", 502));
     renderWithProviders(<SessionsScreen />);
 
-    await waitFor(() =>
-      expect(screen.getAllByText("Sessions unavailable.").length).toBeGreaterThan(0),
-    );
-    expect(screen.getByTestId("sessions-error")).toBeOnTheScreen();
+    await waitFor(() => expect(screen.getByTestId("sessions-error")).toBeOnTheScreen());
+    expect(screen.getAllByText("Sessions unavailable.")).toHaveLength(1);
+    expect(screen.getByTestId("sessions-error-retry")).toBeOnTheScreen();
+    expect(screen.queryByTestId("sessions-header-state")).not.toBeOnTheScreen();
+  });
+
+  it("renders GUEST identity for an account-less session", async () => {
+    (api.sessions as jest.Mock).mockResolvedValue([
+      session({ id: "sg", userId: null, vehicleId: null, vehicle: null }),
+    ]);
+    renderWithProviders(<SessionsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("session-sg-plate")).toHaveTextContent("GUEST"));
+    expect(screen.queryByText("null")).not.toBeOnTheScreen();
+    expect(screen.queryByText("undefined")).not.toBeOnTheScreen();
+    expect(screen.queryByText("INVALID_SESSION_RESPONSE")).not.toBeOnTheScreen();
+  });
+
+  it("shows the backend fee for a completed session", async () => {
+    (api.sessions as jest.Mock).mockResolvedValue([session({ id: "sf", feeAmount: 30 })]);
+    renderWithProviders(<SessionsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("session-sf-fee")).toHaveTextContent("₱30.00"));
+  });
+
+  it("does not show a fee row when feeAmount is null", async () => {
+    renderWithProviders(<SessionsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("session-s1")).toBeOnTheScreen());
+    expect(screen.queryByTestId("session-s1-fee")).not.toBeOnTheScreen();
   });
 });

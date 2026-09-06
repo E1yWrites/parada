@@ -24,7 +24,7 @@ import {
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { normalizePlateInput } from "@/lib/format";
-import { colors, radii, spacing } from "@/src/theme";
+import { colors, radii, spacing, touchTarget } from "@/src/theme";
 
 const VEHICLE_TYPES: VehicleType[] = ["CAR", "MOTORCYCLE", "VAN", "TRUCK", "OTHER"];
 
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   typeChip: {
-    minHeight: spacing.xl4,
+    minHeight: touchTarget,
     minWidth: 84,
     alignItems: "center",
     justifyContent: "center",

@@ -33,6 +33,19 @@ describe("ActiveSessionBanner", () => {
     expect(screen.getByTestId("banner-elapsed")).toHaveTextContent("42m");
     expect(screen.getByTestId("banner-badge")).toHaveTextContent(/Parked/);
   });
+
+  it("renders GUEST identity for an account-less active session", () => {
+    render(
+      <ActiveSessionBanner
+        session={{ ...active, userId: null, vehicleId: null, vehicle: null }}
+        now={now}
+        testID="banner"
+      />,
+    );
+
+    expect(screen.getByTestId("banner-plate")).toHaveTextContent("GUEST");
+    expect(screen.getByTestId("banner-zone")).toHaveTextContent("Zone A");
+  });
 });
 
 describe("SessionCard (active)", () => {
@@ -43,23 +56,43 @@ describe("SessionCard (active)", () => {
     expect(screen.getByTestId("card-status")).toHaveTextContent(/Active/);
     expect(screen.getByTestId("card-elapsed")).toHaveTextContent("42m");
   });
+
+  it("does not fabricate a fee for an active session without one", () => {
+    render(<SessionCard session={{ ...active, feeAmount: null }} now={now} testID="card" />);
+
+    expect(screen.getByTestId("card-plate")).toHaveTextContent("ABC-1234");
+    expect(screen.queryByTestId("card-fee")).not.toBeOnTheScreen();
+  });
 });
 
 describe("SessionCard (completed)", () => {
+  const completed: SessionDto = {
+    ...active,
+    id: "sc",
+    exitEventId: "e2",
+    exitedAt: new Date(2026, 8, 1, 11, 51, 0).toISOString(),
+    durationSeconds: 6660,
+    status: "COMPLETED",
+    exitEvent: { id: "e2", detectedAt: new Date(2026, 8, 1, 11, 51, 0).toISOString() },
+  };
+
   it("shows exit time and fixed duration", () => {
-    const completed: SessionDto = {
-      ...active,
-      id: "sc",
-      exitEventId: "e2",
-      exitedAt: new Date(2026, 8, 1, 11, 51, 0).toISOString(),
-      durationSeconds: 6660,
-      status: "COMPLETED",
-      exitEvent: { id: "e2", detectedAt: new Date(2026, 8, 1, 11, 51, 0).toISOString() },
-    };
     render(<SessionCard session={completed} testID="card" />);
 
     expect(screen.getByTestId("card-status")).toHaveTextContent(/Completed/);
     expect(screen.getByTestId("card-exited")).toHaveTextContent("2026-09-01 11:51");
     expect(screen.getByTestId("card-duration")).toHaveTextContent("1h 51m");
+  });
+
+  it("shows the backend fee for a completed session", () => {
+    render(<SessionCard session={{ ...completed, feeAmount: 30 }} testID="card" />);
+
+    expect(screen.getByTestId("card-fee")).toHaveTextContent("₱30.00");
+  });
+
+  it("does not show a fee row when feeAmount is null", () => {
+    render(<SessionCard session={{ ...completed, feeAmount: null }} testID="card" />);
+
+    expect(screen.queryByTestId("card-fee")).not.toBeOnTheScreen();
   });
 });

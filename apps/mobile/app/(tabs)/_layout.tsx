@@ -33,6 +33,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: colors.orange,
         tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
@@ -46,10 +47,22 @@ export default function TabsLayout() {
         },
         sceneStyle: { backgroundColor: colors.background },
       }}>
-      <Tabs.Screen name="parking" options={{ title: "Parking", tabBarIcon: ParkingIcon }} />
-      <Tabs.Screen name="vehicles" options={{ title: "Vehicles", tabBarIcon: VehiclesIcon }} />
-      <Tabs.Screen name="sessions" options={{ title: "Sessions", tabBarIcon: SessionsIcon }} />
-      <Tabs.Screen name="account" options={{ title: "Account", tabBarIcon: AccountIcon }} />
+      <Tabs.Screen
+        name="parking"
+        options={{ title: "Parking", tabBarAccessibilityLabel: "Parking", tabBarIcon: ParkingIcon }}
+      />
+      <Tabs.Screen
+        name="vehicles"
+        options={{ title: "Vehicles", tabBarAccessibilityLabel: "Vehicles", tabBarIcon: VehiclesIcon }}
+      />
+      <Tabs.Screen
+        name="sessions"
+        options={{ title: "Sessions", tabBarAccessibilityLabel: "Sessions", tabBarIcon: SessionsIcon }}
+      />
+      <Tabs.Screen
+        name="account"
+        options={{ title: "Account", tabBarAccessibilityLabel: "Account", tabBarIcon: AccountIcon }}
+      />
     </Tabs>
   );
 }

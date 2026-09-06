@@ -169,6 +169,67 @@ describe("PARADA API", () => {
     });
   });
 
+  describe("GET /zones/establishment — Phase 9.5 navigation destination", () => {
+    let adminToken: string;
+
+    beforeEach(async () => {
+      await prisma.user.create({
+        data: {
+          name: "Admin User",
+          email: "est-admin@test.local",
+          passwordHash: await argon2.hash("AdminPass123!", { type: argon2.argon2id }),
+          role: "ADMIN",
+          status: "ACTIVE",
+        },
+      });
+      const adminLogin = await request(app)
+        .post("/auth/login")
+        .send({ email: "est-admin@test.local", password: "AdminPass123!" })
+        .expect(200);
+      adminToken = adminLogin.body.data.token;
+    });
+
+    it("returns a null location when none is configured (no fabricated coordinates)", async () => {
+      const res = await request(app).get("/zones/establishment").expect(200);
+      expect(res.body.data.location).toBeNull();
+    });
+
+    it("returns the admin-configured establishment location publicly", async () => {
+      await request(app)
+        .put("/admin/config")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({
+          parkingFee: { baseFee: 20, baseDurationHours: 2, additionalFeePerHour: 10 },
+          guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: null, maxDurationHours: 8, allowWhenFull: false },
+          zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
+          violations: [],
+          location: { address: "123 Test Ave, Demo", latitude: 14.5, longitude: 121.25 },
+        })
+        .expect(200);
+
+      const res = await request(app).get("/zones/establishment").expect(200);
+      expect(res.body.data.location).toEqual({
+        address: "123 Test Ave, Demo",
+        latitude: 14.5,
+        longitude: 121.25,
+      });
+    });
+
+    it("rejects establishment locations with out-of-range coordinates", async () => {
+      await request(app)
+        .put("/admin/config")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({
+          parkingFee: { baseFee: 20, baseDurationHours: 2, additionalFeePerHour: 10 },
+          guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: null, maxDurationHours: 8, allowWhenFull: false },
+          zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
+          violations: [],
+          location: { address: "Nowhere", latitude: 121.25, longitude: 14.5 },
+        })
+        .expect(400);
+    });
+  });
+
   describe("GET /zones/:id/occupancy", () => {
     it("returns occupancy for a known zone", async () => {
       const res = await request(app).get(`/zones/${ctx.zoneId}/occupancy`).expect(200);

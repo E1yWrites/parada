@@ -8,7 +8,14 @@ export { StatusBadge, AvailabilityBadge, SessionBadge, parkingStatusMeta, sessio
 export { Metric } from "./Metric";
 export { LoadingState, ErrorState, EmptyState } from "./StateComponents";
 export { FullScreenLoading } from "./FullScreenLoading";
+export { CapacityBar } from "./CapacityBar";
 export { ZoneCard } from "./ZoneCard";
 export { VehicleCard } from "./VehicleCard";
 export { SessionCard } from "./SessionCard";
 export { ActiveSessionBanner } from "./ActiveSessionBanner";
+export { CurrentParkingState } from "./CurrentParkingState";
+export { ParkingRecommendation } from "./ParkingRecommendation";
+export { ZoneAssignmentPanel } from "./ZoneAssignmentPanel";
+export { ReservationPanel } from "./ReservationPanel";
+export { ReservationCard } from "./ReservationCard";
+export { NavigateButton } from "./NavigateButton";

@@ -18,7 +18,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "PARADA uses your location to help you navigate to the parking area."
+        }
+      ]
     ]
   }
 }

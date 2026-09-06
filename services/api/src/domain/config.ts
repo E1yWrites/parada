@@ -6,6 +6,7 @@ import {
   ZONE_OCCUPANCY_LOW_THRESHOLD,
 } from "@parada/config";
 import type {
+  EstablishmentLocation,
   EstablishmentSettings,
   GuestPolicyConfig,
   ParkingFeeConfig,
@@ -52,6 +53,7 @@ export class ConfigService {
             ? defaults["occupancyLowThreshold"]
             : ZONE_OCCUPANCY_LOW_THRESHOLD,
       },
+      location: toEstablishmentLocation(cfg?.location),
     };
   }
 
@@ -61,21 +63,32 @@ export class ConfigService {
       const zone = await prisma.parkingZone.findUnique({ where: { id: input.guestPolicy.primaryZoneId }, select: { status: true } });
       if (!zone || zone.status !== "ACTIVE") throw new BadRequestError("'primaryZoneId' must reference an active zone.");
     }
+    const locationValue: Prisma.InputJsonValue =
+      input.location as unknown as Prisma.InputJsonValue;
+    const update: Prisma.EstablishmentConfigUpdateInput = {
+      parkingFee: input.parkingFee as unknown as Prisma.InputJsonValue,
+      violations: input.violations as unknown as Prisma.InputJsonValue,
+      guestPolicy: input.guestPolicy as unknown as Prisma.InputJsonValue,
+      zoneDefaults: input.zoneDefaults as unknown as Prisma.InputJsonValue,
+    };
+    if (input.location !== undefined) {
+      update.location = input.location === null ? Prisma.JsonNull : locationValue;
+    }
+    const create: Prisma.EstablishmentConfigCreateInput = {
+      id: "singleton",
+      parkingFee: input.parkingFee as unknown as Prisma.InputJsonValue,
+      violations: input.violations as unknown as Prisma.InputJsonValue,
+      guestPolicy: input.guestPolicy as unknown as Prisma.InputJsonValue,
+      zoneDefaults: input.zoneDefaults as unknown as Prisma.InputJsonValue,
+      location:
+        input.location === undefined || input.location === null
+          ? Prisma.DbNull
+          : locationValue,
+    };
     await prisma.establishmentConfig.upsert({
       where: { id: "singleton" },
-      update: {
-        parkingFee: input.parkingFee as unknown as Prisma.InputJsonValue,
-        violations: input.violations as unknown as Prisma.InputJsonValue,
-        guestPolicy: input.guestPolicy as unknown as Prisma.InputJsonValue,
-        zoneDefaults: input.zoneDefaults as unknown as Prisma.InputJsonValue,
-      },
-      create: {
-        id: "singleton",
-        parkingFee: input.parkingFee as unknown as Prisma.InputJsonValue,
-        violations: input.violations as unknown as Prisma.InputJsonValue,
-        guestPolicy: input.guestPolicy as unknown as Prisma.InputJsonValue,
-        zoneDefaults: input.zoneDefaults as unknown as Prisma.InputJsonValue,
-      },
+      update,
+      create,
     });
     return this.getEstablishmentSettings();
   }
@@ -163,6 +176,31 @@ function isViolationPolicy(value: unknown): value is ViolationPolicyConfig {
   return typeof item["type"] === "string" && typeof item["fineAmount"] === "number" && item["fineAmount"] >= 0 && typeof item["description"] === "string";
 }
 
+/** Coerces the optional establishment `location` JSON into its typed shape.
+ *  Returns null when unset or malformed (navigation simply stays unavailable). */
+function toEstablishmentLocation(value: unknown): EstablishmentLocation | null {
+  if (value === null || value === undefined || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  if (
+    typeof item["address"] === "string" &&
+    typeof item["latitude"] === "number" &&
+    isFinite(item["latitude"]) &&
+    item["latitude"] >= -90 &&
+    item["latitude"] <= 90 &&
+    typeof item["longitude"] === "number" &&
+    isFinite(item["longitude"]) &&
+    item["longitude"] >= -180 &&
+    item["longitude"] <= 180
+  ) {
+    return {
+      address: item["address"],
+      latitude: item["latitude"],
+      longitude: item["longitude"],
+    };
+  }
+  return null;
+}
+
 function validateSettings(input: EstablishmentSettings): void {
   const fee = input.parkingFee;
   if (!Number.isFinite(fee.baseFee) || fee.baseFee < 0 || !Number.isFinite(fee.baseDurationHours) || fee.baseDurationHours <= 0 || !Number.isFinite(fee.additionalFeePerHour) || fee.additionalFeePerHour < 0) {
@@ -178,5 +216,19 @@ function validateSettings(input: EstablishmentSettings): void {
   }
   if (!Array.isArray(input.violations) || input.violations.some((item) => !isViolationPolicy(item))) {
     throw new BadRequestError("Violation configuration is invalid.");
+  }
+  if (input.location !== null && input.location !== undefined) {
+    const loc = input.location;
+    if (
+      typeof loc.address !== "string" ||
+      !Number.isFinite(loc.latitude) ||
+      loc.latitude < -90 ||
+      loc.latitude > 90 ||
+      !Number.isFinite(loc.longitude) ||
+      loc.longitude < -180 ||
+      loc.longitude > 180
+    ) {
+      throw new BadRequestError("Establishment location values are invalid.");
+    }
   }
 }

@@ -22,6 +22,10 @@ type TextProps = {
   align?: "auto" | "left" | "right" | "center";
   numberOfLines?: number;
   accessibilityLabel?: string;
+  /** Cap font scaling so fixed layouts (plates, badges, heros) never blow out.
+   *  Defaults to 1.3. Pass a larger value (e.g. 2) on screens that must scale
+   *  further for accessibility. */
+  maxFontSizeMultiplier?: number;
   style?: StyleProp<TextStyle>;
   testID?: string;
 };
@@ -104,6 +108,7 @@ export function Text({
   align,
   numberOfLines,
   accessibilityLabel,
+  maxFontSizeMultiplier = 1.3,
   style,
   testID,
 }: TextProps) {
@@ -112,6 +117,7 @@ export function Text({
       testID={testID}
       accessibilityLabel={accessibilityLabel}
       numberOfLines={numberOfLines}
+      maxFontSizeMultiplier={maxFontSizeMultiplier}
       style={[
         styles.base,
         variantStyles[variant],

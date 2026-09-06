@@ -45,9 +45,6 @@ export default function SessionsScreen() {
           <Header
             isLoading={sessions.isPending}
             isError={sessions.isError}
-            errorMessage={
-              sessions.error instanceof ApiError ? sessions.error.message : "Couldn't load your sessions."
-            }
             active={active}
             now={now}
             historyCount={history.length}
@@ -80,14 +77,12 @@ export default function SessionsScreen() {
 function Header({
   isLoading,
   isError,
-  errorMessage,
   active,
   now,
   historyCount,
 }: {
   isLoading: boolean;
   isError: boolean;
-  errorMessage: string;
   active: SessionDto | null;
   now: Date;
   historyCount: number;
@@ -97,20 +92,14 @@ function Header({
       <Text variant="micro">PARKING ACCESS</Text>
       <Text variant="hero">Sessions</Text>
       {active ? <ActiveSessionBanner session={active} now={now} testID="active-session" /> : null}
-      {isLoading || isError ? (
-        headerStateText(isLoading, isError, errorMessage)
+      {isError ? null : isLoading ? (
+        <Text variant="caption" color={colors.muted} testID="sessions-header-state">
+          Loading…
+        </Text>
       ) : (
         <SectionHeader title="History" caption={`${historyCount} completed`} testID="sessions-history" />
       )}
     </View>
-  );
-}
-
-function headerStateText(isLoading: boolean, isError: boolean, errorMessage: string) {
-  return (
-    <Text variant="caption" color={isError ? colors.danger : colors.muted} testID="sessions-header-state">
-      {isError ? errorMessage : isLoading ? "Loading…" : ""}
-    </Text>
   );
 }
 

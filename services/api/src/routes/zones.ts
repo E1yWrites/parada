@@ -4,11 +4,13 @@ import { NotFoundError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
 import { OccupancyService } from "../domain/occupancy";
 import { ZoneService } from "../domain/zones";
+import { ConfigService } from "../domain/config";
 import { availabilityOf } from "./admin";
 
 export function zonesRouter(
   occupancy: OccupancyService,
-  zones: ZoneService = new ZoneService()
+  zones: ZoneService = new ZoneService(),
+  config: ConfigService = new ConfigService()
 ): Router {
   const router = Router();
 
@@ -17,6 +19,20 @@ export function zonesRouter(
     asyncHandler(async (_req, res) => {
       const zonesList = await zones.list();
       res.json(ok(zonesList));
+    })
+  );
+
+  /**
+   * Establishment-level navigation destination (Phase 9.5). Zones carry no
+   * coordinates, so the parking establishment is the navigation target. The
+   * location is admin-configurable and `null` until one is provided — the API
+   * never fabricates coordinates for the client.
+   */
+  router.get(
+    "/zones/establishment",
+    asyncHandler(async (_req, res) => {
+      const settings = await config.getEstablishmentSettings();
+      res.json(ok({ location: settings.location }));
     })
   );
 

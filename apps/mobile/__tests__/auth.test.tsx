@@ -133,6 +133,54 @@ describe("session provider bootstrap", () => {
     await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent("signed-out"));
     await expect(getToken()).resolves.toBeNull();
   });
+
+  it("preserves the token on a network failure rather than logging the user out", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-alive");
+    (api.me as jest.Mock).mockRejectedValue(
+      new ApiError("NETWORK", "Cannot reach the PARADA server.", 0),
+    );
+
+    renderWithAppProviders(<Probe />);
+
+    await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent("signed-out"));
+    await expect(getToken()).resolves.toBe("tok-alive");
+  });
+
+  it("preserves the token on a timeout rather than logging the user out", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-alive");
+    (api.me as jest.Mock).mockRejectedValue(
+      new ApiError("TIMEOUT", "The request timed out.", 0),
+    );
+
+    renderWithAppProviders(<Probe />);
+
+    await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent("signed-out"));
+    await expect(getToken()).resolves.toBe("tok-alive");
+  });
+
+  it("does not treat a backend outage as a revoked token", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-alive");
+    (api.me as jest.Mock).mockRejectedValue(
+      new ApiError("BAD_GATEWAY", "The server is down.", 502),
+    );
+
+    renderWithAppProviders(<Probe />);
+
+    await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent("signed-out"));
+    await expect(getToken()).resolves.toBe("tok-alive");
+  });
+
+  it("does not treat FORBIDDEN (403) as a revoked token", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-alive");
+    (api.me as jest.Mock).mockRejectedValue(
+      new ApiError("FORBIDDEN", "Not permitted.", 403),
+    );
+
+    renderWithAppProviders(<Probe />);
+
+    await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent("signed-out"));
+    await expect(getToken()).resolves.toBe("tok-alive");
+  });
 });
 
 function Probe() {

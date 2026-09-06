@@ -10,12 +10,16 @@
   ],
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "node scripts/run-dev.cjs",
+    "dev:api": "npm run db:prepare && npm run build -w @parada/api && npm run start -w @parada/api",
+    "dev:admin": "npm run dev -w @parada/admin",
+    "dev:mobile": "npm run dev:lan -w @parada/mobile",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "run": "node scripts/run-dev.cjs",
+    "run": "npm run dev",
     "db:start": "npm run db:start -w @parada/database",
+    "db:prepare": "npm run db:start && npm run db:migrate -w @parada/database",
     "db:stop": "npm run db:stop -w @parada/database",
     "postinstall": "node scripts/ensure-expo-link.cjs"
   },

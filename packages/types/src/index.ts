@@ -335,9 +335,22 @@ export interface ZoneDefaultsConfig {
   occupancyLowThreshold: number;
 }
 
+/**
+ * Optional establishment-level navigation location (Phase 9.5). Zones carry no
+ * coordinates, so navigation targets the parking establishment. Absent until an
+ * admin configures a real address/coordinates — the app never fabricates a
+ * destination.
+ */
+export interface EstablishmentLocation {
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface EstablishmentSettings {
   parkingFee: ParkingFeeConfig;
   violations: ViolationPolicyConfig[];
   guestPolicy: GuestPolicyConfig;
   zoneDefaults: ZoneDefaultsConfig;
+  location: EstablishmentLocation | null;
 }

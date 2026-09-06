@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import Constants from "expo-constants";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,6 +15,10 @@ export default function AccountScreen() {
   const [signingOut, setSigningOut] = useState(false);
 
   const version = Constants.expoConfig?.version ?? "0.1.0";
+  // Prefer the fresh /auth/me payload; when the refresh fails we still know who
+  // the signed-in user is, so degrade to the cached identity (and keep Sign Out
+  // reachable) instead of dropping the whole profile UI.
+  const profile = account.data ?? user;
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -29,27 +33,44 @@ export default function AccountScreen() {
     <Screen title="Account" eyebrow="PARADA profile" testID="account-screen">
       {account.isPending ? (
         <LoadingState label="Loading your profile…" testID="account-loading" />
-      ) : account.isError ? (
+      ) : account.isError && !profile ? (
         <ErrorState
           message={account.error instanceof ApiError ? account.error.message : "Couldn't load your profile."}
           onRetry={() => void account.refetch()}
           testID="account-error"
         />
-      ) : (
+      ) : profile ? (
         <>
+          {account.isError ? (
+            <View style={styles.degraded} testID="account-cache-note">
+              <Text variant="caption" color={colors.muted} style={styles.degradedText}>
+                Couldn't refresh your profile. Showing your saved details.
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading profile"
+                onPress={() => void account.refetch()}
+                hitSlop={10}
+                testID="account-cache-retry">
+                <Text variant="caption" color={colors.orange} align="center">
+                  RETRY
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
           <Card style={styles.profileCard} testID="account-profile">
             <View style={styles.avatar} accessibilityLabel="Account avatar">
               <Ionicons name="person" size={22} color={colors.onAccent} />
             </View>
             <View style={styles.profileText}>
               <Text variant="title" testID="account-name">
-                {user?.name ?? account.data?.name ?? ""}
+                {profile.name}
               </Text>
               <Text variant="caption" color={colors.muted} testID="account-email">
-                {account.data?.email ?? ""}
+                {profile.email}
               </Text>
             </View>
-            <RolePill role={account.data?.role ?? "USER"} />
+            <RolePill role={profile.role} />
           </Card>
           <Card style={styles.infoCard}>
             <InfoRow label="Status" value="Active driver account" />
@@ -74,7 +95,7 @@ export default function AccountScreen() {
             accessibilityLabel="Sign out"
           />
         </>
-      )}
+      ) : null}
     </Screen>
   );
 }
@@ -106,6 +127,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xl,
+  },
+  degraded: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.xl,
+  },
+  degradedText: {
+    flex: 1,
   },
   avatar: {
     width: 44,

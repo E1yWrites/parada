@@ -47,30 +47,22 @@ function shutdown(code = 0) {
   for (const child of children) {
     child.kill("SIGTERM");
   }
-  spawnSync(npm, ["run", "db:stop"], {
-    cwd: root,
-    stdio: "inherit",
-    shell: false,
-    env: { ...process.env },
-  });
   process.exit(code);
 }
 
 process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
 
-console.log("[run] Starting embedded PostgreSQL...");
-run(npm, ["run", "db:start"]);
-console.log("[run] Applying database migrations...");
-run(npm, ["run", "db:migrate", "-w", "@parada/database"]);
 console.log("[run] Building API...");
+run(npm, ["run", "db:prepare"]);
 run(npm, ["run", "build", "-w", "@parada/api"]);
 
 start("API", ["run", "start"], "services/api");
 start("admin", ["run", "dev"], "apps/admin");
 start("mobile", ["run", "dev:lan"], "apps/mobile");
 
-console.log("[run] API: http://0.0.0.0:4000");
+console.log("[run] API: http://localhost:4000 (binds to 0.0.0.0)");
 console.log("[run] Admin: http://localhost:3000");
 console.log("[run] Mobile: Expo LAN development server");
+console.log("[run] Database: embedded development database started; data is preserved between runs");
 console.log("[run] Press Ctrl+C to stop.");

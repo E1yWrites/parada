@@ -68,3 +68,16 @@ export function formatVehicleType(type: string): string {
       return "Car";
   }
 }
+
+/** Deterministic Philippine-peso formatting, e.g. 20 -> "₱20.00". Intl-free so
+ *  tests/snapshots never depend on host locale. */
+export function formatCurrency(amount: number | null | undefined): string {
+  if (amount == null || Number.isNaN(amount)) {
+    return "—";
+  }
+  const negative = amount < 0;
+  const fixed = Math.abs(amount).toFixed(2);
+  const [whole, cents] = fixed.split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${negative ? "-" : ""}₱${grouped}.${cents}`;
+}
