@@ -668,20 +668,23 @@ Create `apps/mobile/__tests__/tabBarBackground.test.tsx`:
 
 ```tsx
 import { AccessibilityInfo } from "react-native";
-import { render, screen } from "@/src/test/utils";
+import { render, screen, waitFor } from "@/src/test/utils";
 import { TabBarBackground } from "@/src/components/TabBarBackground";
 
 describe("TabBarBackground", () => {
-  it("renders a blur layer by default", () => {
+  it("renders a blur layer by default", async () => {
     render(<TabBarBackground testID="tab-bg" />);
-    expect(screen.getByTestId("tab-bg-blur")).toBeOnTheScreen();
+    await waitFor(() => {
+      expect(screen.getByTestId("tab-bg-blur")).toBeOnTheScreen();
+    });
   });
 
   it("falls back to a solid fill when Reduce Transparency is enabled", async () => {
     jest.spyOn(AccessibilityInfo, "isReduceTransparencyEnabled").mockResolvedValue(true);
     render(<TabBarBackground testID="tab-bg" />);
-    await screen.findByTestId("tab-bg");
-    expect(screen.queryByTestId("tab-bg-blur")).not.toBeOnTheScreen();
+    await waitFor(() => {
+      expect(screen.queryByTestId("tab-bg-blur")).not.toBeOnTheScreen();
+    });
   });
 });
 ```
