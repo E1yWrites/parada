@@ -28,3 +28,6 @@ npm-debug.log*
 # Prisma
 packages/database/generated/
 packages/database/.embedded-pg/
+
+# Superpowers subagent-driven-development scratch workspace
+.superpowers/
