@@ -16,6 +16,7 @@ import type {
 import type { ConfigService } from "./config";
 import { persistSessionFee } from "./fees";
 import type { AssignmentService } from "./assignment";
+import type { ReservationService } from "./reservation";
 import type { GuestPolicyConfig } from "@parada/types";
 
 /**
@@ -52,10 +53,12 @@ export interface VehicleMatch {
 export interface OccupancyServiceOptions {
   /** Plates whose OCR confidence is below this threshold are not trusted. */
   ocrPlateConfidenceThreshold?: number;
-  /** Resolves runtime guest-admission policy (primary zone, allowWhenFull). */
+  /** Resolves the runtime guest-admission policy (policy + primary zone). */
   config?: ConfigService;
   /** Resolves active zone assignments for wrong-zone detection. */
   assignments?: AssignmentService;
+  /** Resolves how many spaces other parties' reservations are holding. */
+  reservations?: ReservationService;
 }
 
 /**
@@ -80,6 +83,7 @@ export class OccupancyService {
   private readonly ocrPlateConfidenceThreshold: number;
   private readonly config?: ConfigService;
   private readonly assignments?: AssignmentService;
+  private readonly reservations?: ReservationService;
 
   constructor(options: OccupancyServiceOptions = {}) {
     // Default 0.5: an absent confidence signal is treated as "trusted" (a
@@ -89,6 +93,7 @@ export class OccupancyService {
       options.ocrPlateConfidenceThreshold ?? DEFAULT_OCR_CONFIDENCE_THRESHOLD;
     this.config = options.config;
     this.assignments = options.assignments;
+    this.reservations = options.reservations;
   }
 
   /**
@@ -293,6 +298,27 @@ export class OccupancyService {
     };
   }
 
+  /**
+   * True when every remaining space in the zone is already held by someone
+   * else's reservation. A reservation protects a space without moving
+   * occupiedCount, so the raw capacity guard alone would let a walk-up take it.
+   */
+  private async reservedOut(
+    tx: Prisma.TransactionClient,
+    zone: { id: string; capacity: number },
+    exclude?: { userId: string; vehicleId: string }
+  ): Promise<boolean> {
+    if (!this.reservations) {
+      return false;
+    }
+    const held = await this.reservations.protectingCount(tx, zone.id, exclude);
+    if (held === 0) {
+      return false;
+    }
+    const { occupiedCount } = await this.currentOccupancy(tx, zone);
+    return occupiedCount + held >= zone.capacity;
+  }
+
   /** Current occupancy read inside the transaction (for events that change nothing). */
   private async currentOccupancy(tx: Prisma.TransactionClient, zone: { id: string; capacity: number }) {
     const { occupiedCount } = await tx.parkingZone.findUniqueOrThrow({
@@ -345,6 +371,25 @@ export class OccupancyService {
 
     if (eventType !== "ENTRY" && eventType !== "EXIT") {
       throw new BadRequestError(`Unsupported event type: '${String(eventType)}'.`);
+    }
+
+    // A space held by someone else's reservation is not available to this
+    // vehicle, even though occupiedCount has not moved. The vehicle's own
+    // reservation is excluded so a holder is never blocked by their own booking.
+    if (eventType === "ENTRY") {
+      const vehicleOwner = await prisma.vehicle.findUnique({
+        where: { id: vehicleId },
+        select: { userId: true },
+      });
+      if (
+        vehicleOwner &&
+        (await this.reservedOut(tx, zone, { userId: vehicleOwner.userId, vehicleId }))
+      ) {
+        throw new ConflictError(`Zone '${zone.id}' is already full.`, {
+          capacity: zone.capacity,
+          reserved: true,
+        });
+      }
     }
 
     // Occupancy bounds (registered vehicles do NOT get guest overflow),
@@ -720,6 +765,12 @@ export class OccupancyService {
     let admitted = decision.admitted;
     let deniedReason: string | null = decision.deniedReason;
     let counts: { previousOccupied: number; newOccupied: number; availableCount: number };
+
+    // A guest must never take a space someone has reserved.
+    if (admitted && (await this.reservedOut(tx, zone))) {
+      admitted = false;
+      deniedReason = "GUEST_ZONE_FULL";
+    }
 
     const applied = admitted ? await this.applyOccupancy(tx, zone, "ENTRY") : null;
     if (admitted && !applied) {

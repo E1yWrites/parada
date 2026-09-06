@@ -386,7 +386,7 @@ describe("Phase 5 — Vision/OCR integration foundation", () => {
       expect((await prisma.reservation.findUniqueOrThrow({ where: { id: reservation.id } })).status).toBe("ACTIVE");
     });
 
-    it("does not consume a reservation when the registered ENTRY is rejected at capacity", async () => {
+    it("holds the reserved space against a walk-up and releases it to the holder", async () => {
       const zone = await prisma.parkingZone.create({
         data: { name: "Reservation Full Zone", code: "RFZ", capacity: 1 },
       });
@@ -413,16 +413,26 @@ describe("Phase 5 — Vision/OCR integration foundation", () => {
         },
       });
 
+      // The zone's only space is held by the reservation, so a vehicle without
+      // one is turned away at the gate rather than stranding the holder.
       await request(app)
         .post(`/zones/${zone.id}/events`)
         .send({ cameraIdentifier: camera.identifier, sourceEventId: "reservation-fill", eventType: "ENTRY", detectedPlate: occupyingVehicle.plateNumber })
-        .expect(201);
-      await request(app)
-        .post(`/zones/${zone.id}/events`)
-        .send({ cameraIdentifier: camera.identifier, sourceEventId: "reservation-rejected", eventType: "ENTRY", detectedPlate: reservedVehicle.plateNumber })
         .expect(409);
 
+      // A rejected entry must leave the reservation untouched.
       expect((await prisma.reservation.findUniqueOrThrow({ where: { id: reservation.id } })).status).toBe("CONFIRMED");
+      expect((await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } })).occupiedCount).toBe(0);
+
+      // The holder is never blocked by their own reservation, and arriving
+      // consumes it.
+      await request(app)
+        .post(`/zones/${zone.id}/events`)
+        .send({ cameraIdentifier: camera.identifier, sourceEventId: "reservation-honoured", eventType: "ENTRY", detectedPlate: reservedVehicle.plateNumber })
+        .expect(201);
+
+      expect((await prisma.reservation.findUniqueOrThrow({ where: { id: reservation.id } })).status).toBe("ACTIVE");
+      expect((await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } })).occupiedCount).toBe(1);
     });
   });
 

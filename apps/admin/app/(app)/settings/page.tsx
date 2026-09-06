@@ -12,7 +12,7 @@ import type { EstablishmentSettings } from "@/lib/api/types";
 
 const EMPTY: EstablishmentSettings = {
   parkingFee: { baseFee: 20, baseDurationHours: 2, additionalFeePerHour: 10 },
-  guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: null, maxDurationHours: 8, allowWhenFull: false },
+  guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: null },
   zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
   violations: [],
   location: null,
@@ -89,11 +89,6 @@ export default function SettingsPage() {
                   ))}
                 </select>
               </div>
-              <Field label="Maximum duration (hours)" value={form.guestPolicy.maxDurationHours} onChange={(value) => setForm({ ...form, guestPolicy: { ...form.guestPolicy, maxDurationHours: value } })} />
-              <label className="flex items-center gap-2 text-sm font-semibold text-muted">
-                <input type="checkbox" className="h-4 w-4 accent-brand" checked={form.guestPolicy.allowWhenFull} onChange={(e) => setForm({ ...form, guestPolicy: { ...form.guestPolicy, allowWhenFull: e.target.checked } })} />
-                Allow policy when full (capacity invariant still applies)
-              </label>
             </div>
           </Card>
           <Card>

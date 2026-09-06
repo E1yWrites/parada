@@ -326,8 +326,6 @@ export interface ViolationPolicyConfig {
 export interface GuestPolicyConfig {
   policy: GuestPolicy;
   primaryZoneId: string | null;
-  maxDurationHours: number;
-  allowWhenFull: boolean;
 }
 
 export interface ZoneDefaultsConfig {

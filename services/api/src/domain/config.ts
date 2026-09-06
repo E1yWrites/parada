@@ -138,8 +138,8 @@ export class ConfigService {
   /**
    * Returns the effective guest-admission policy. Reads the
    * `EstablishmentConfig.guestPolicy` JSON object and coerces the known shape,
-   * falling back to DEFAULT_GUEST_POLICY (PRIMARY_ZONE, primaryZoneId null,
-   * maxDurationHours 8, allowWhenFull false) on absence or malformed data.
+   * falling back to DEFAULT_GUEST_POLICY (PRIMARY_ZONE, primaryZoneId null)
+   * on absence or malformed data.
    */
   async getGuestPolicy(): Promise<GuestPolicyConfig> {
     const cfg = await prisma.establishmentConfig.findUnique({ where: { id: "singleton" } });
@@ -150,19 +150,11 @@ export class ConfigService {
         (obj["policy"] === "PRIMARY_ZONE" ||
           obj["policy"] === "ALLOW_OVERFLOW" ||
           obj["policy"] === "DENY_WHEN_FULL") &&
-        (obj["primaryZoneId"] === null || typeof obj["primaryZoneId"] === "string") &&
-        (typeof obj["maxDurationHours"] === "number" ||
-          obj["maxDurationHours"] === undefined) &&
-        typeof obj["allowWhenFull"] === "boolean"
+        (obj["primaryZoneId"] === null || typeof obj["primaryZoneId"] === "string")
       ) {
         return {
           policy: obj["policy"],
           primaryZoneId: obj["primaryZoneId"] ?? null,
-          maxDurationHours:
-            typeof obj["maxDurationHours"] === "number"
-              ? obj["maxDurationHours"]
-              : DEFAULT_GUEST_POLICY.maxDurationHours,
-          allowWhenFull: obj["allowWhenFull"],
         };
       }
     }
@@ -207,7 +199,7 @@ function validateSettings(input: EstablishmentSettings): void {
     throw new BadRequestError("Parking fee values are invalid.");
   }
   const guest = input.guestPolicy;
-  if (!["PRIMARY_ZONE", "ALLOW_OVERFLOW", "DENY_WHEN_FULL"].includes(guest.policy) || guest.primaryZoneId !== null && typeof guest.primaryZoneId !== "string" || !Number.isFinite(guest.maxDurationHours) || guest.maxDurationHours <= 0 || typeof guest.allowWhenFull !== "boolean") {
+  if (!["PRIMARY_ZONE", "ALLOW_OVERFLOW", "DENY_WHEN_FULL"].includes(guest.policy) || (guest.primaryZoneId !== null && typeof guest.primaryZoneId !== "string")) {
     throw new BadRequestError("Guest policy values are invalid.");
   }
   const defaults = input.zoneDefaults;

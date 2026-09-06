@@ -81,15 +81,44 @@ export class ReservationService {
     tx: Prisma.TransactionClient,
     zoneId: string,
     windowMinutes: number,
-    now: Date
+    now: Date,
+    exclude?: { userId: string; vehicleId: string }
   ): Promise<number> {
     return tx.reservation.count({
       where: {
         zoneId,
         status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
-        startAt: { gte: new Date(now.getTime() - windowMinutes * 60 * 1000) },
+        // Bounded on BOTH sides: a reservation only protects capacity around
+        // its own arrival window. Without the upper bound a booking weeks out
+        // would consume a space today.
+        startAt: {
+          gte: new Date(now.getTime() - windowMinutes * 60 * 1000),
+          lte: new Date(now.getTime() + windowMinutes * 60 * 1000),
+        },
+        ...(exclude
+          ? { NOT: { userId: exclude.userId, vehicleId: exclude.vehicleId } }
+          : {}),
       },
     });
+  }
+
+  /**
+   * How many spaces in this zone are currently held by *other* parties'
+   * reservations. Runs in the caller's transaction so an entry path can check
+   * it without opening a nested one. `exclude` drops the arriving vehicle's own
+   * booking, so a holder is never blocked by their own reservation.
+   *
+   * Exposed so the entry paths enforce the same invariant this service
+   * documents — otherwise walk-ups fill the zone and the holder is turned away.
+   */
+  async protectingCount(
+    tx: Prisma.TransactionClient,
+    zoneId: string,
+    exclude?: { userId: string; vehicleId: string }
+  ): Promise<number> {
+    const windowMinutes = await this.config.getReservationWindowMinutes();
+    await this.expireOverdue(windowMinutes, tx);
+    return this.countActiveProtection(tx, zoneId, windowMinutes, new Date(), exclude);
   }
 
   private async requireOwnedVehicle(userId: string, vehicleId: string) {

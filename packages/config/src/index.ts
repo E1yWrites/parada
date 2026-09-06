@@ -23,6 +23,4 @@ export const DEFAULT_RESERVATION_WINDOW_MINUTES = 15;
 export const DEFAULT_GUEST_POLICY = {
   policy: "PRIMARY_ZONE" as const,
   primaryZoneId: null,
-  maxDurationHours: 8,
-  allowWhenFull: false,
 } as const;

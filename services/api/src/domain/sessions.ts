@@ -6,6 +6,7 @@ import {
 } from "../http/errors";
 import type { ConfigService } from "./config";
 import type { AssignmentService } from "./assignment";
+import type { ReservationService } from "./reservation";
 import { calculateParkingFee, persistSessionFee } from "./fees";
 import type {
   ParkingSessionResponse,
@@ -68,10 +69,12 @@ const sessionInclude = {
 export class ParkingSessionService {
   private readonly config: ConfigService;
   private readonly assignments: AssignmentService;
+  private readonly reservations?: ReservationService;
 
-  constructor(config: ConfigService, assignments: AssignmentService) {
+  constructor(config: ConfigService, assignments: AssignmentService, reservations?: ReservationService) {
     this.config = config;
     this.assignments = assignments;
+    this.reservations = reservations;
   }
 
   private async requireOwnedVehicle(userId: string, vehicleId: string) {
@@ -117,6 +120,25 @@ export class ParkingSessionService {
         });
         if (activeForVehicle) {
           throw new ConflictError("This vehicle already has an active parking session.");
+        }
+
+        // A reservation protects a space even though occupiedCount has not
+        // moved, so a walk-up must not consume the last reserved one.
+        if (this.reservations) {
+          const held = await this.reservations.protectingCount(tx, zone.id, {
+            userId,
+            vehicleId: vehicle.id,
+          });
+          const zoneNow = await tx.parkingZone.findUniqueOrThrow({
+            where: { id: zone.id },
+            select: { capacity: true, occupiedCount: true },
+          });
+          if (zoneNow.occupiedCount + held >= zoneNow.capacity) {
+            throw new ConflictError(`Zone '${zone.id}' is full.`, {
+              reservedCount: held,
+              capacity: zoneNow.capacity,
+            });
+          }
         }
 
         // Atomic increment: only succeeds if the zone still has capacity, which

@@ -40,11 +40,14 @@ export function createApp(options: AppOptions = {}): Express {
   const config = options.config ?? new ConfigService();
   const assignmentService = options.assignments ?? new AssignmentService(config);
 
+  const reservationService = new ReservationService(config);
+
   const occupancy = options.occupancy ?? new OccupancyService({
     ocrPlateConfidenceThreshold:
       options.ocrPlateConfidenceThreshold ?? env.ocrPlateConfidenceThreshold,
     config,
     assignments: assignmentService,
+    reservations: reservationService,
   });
 
   const auth = options.auth ?? new AuthService({
@@ -70,8 +73,7 @@ export function createApp(options: AppOptions = {}): Express {
 
   app.use(authMiddleware);
 
-  const reservationService = new ReservationService(config);
-  const sessionService = new ParkingSessionService(config, assignmentService);
+  const sessionService = new ParkingSessionService(config, assignmentService, reservationService);
 
   const vehicles = vehiclesRouter();
   const sessions = sessionsRouter(sessionService);
