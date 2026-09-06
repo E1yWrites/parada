@@ -10,6 +10,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, tabClearance } from "@/src/theme";
 import { Text } from "./Text";
+import { GradientMesh } from "./GradientMesh";
 
 type ScreenProps = {
   children: ReactNode;
@@ -52,6 +53,7 @@ export function Screen({
 
   const scrollView = (
     <SafeAreaView edges={["top"]} style={styles.safe}>
+      <GradientMesh testID={testID ? `${testID}-mesh` : undefined} />
       <ScrollView
         style={styles.flex}
         contentContainerStyle={[styles.padding, { paddingBottom: tabClearance(insets.bottom) }]}
@@ -74,6 +76,7 @@ export function Screen({
   if (!scroll) {
     return (
       <SafeAreaView edges={["top"]} style={[styles.safe, styles.padding]}>
+        <GradientMesh testID={testID ? `${testID}-mesh` : undefined} />
         {body}
       </SafeAreaView>
     );
