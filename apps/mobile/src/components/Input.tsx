@@ -84,7 +84,11 @@ export function Input({
         ) : null}
       </View>
       {error ? (
-        <Text testID={testID ? `${testID}-error` : undefined} variant="caption" color={colors.danger}>
+        <Text
+          testID={testID ? `${testID}-error` : undefined}
+          variant="caption"
+          color={colors.danger}
+          accessibilityRole="alert">
           {error}
         </Text>
       ) : null}

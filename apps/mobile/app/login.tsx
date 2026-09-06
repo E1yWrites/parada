@@ -43,7 +43,7 @@ export default function LoginScreen() {
         </Text>
       </View>
       {error ? (
-        <Text variant="caption" color={colors.danger} testID="login-error">
+        <Text variant="caption" color={colors.danger} accessibilityRole="alert" testID="login-error">
           {error}
         </Text>
       ) : null}

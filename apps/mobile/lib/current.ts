@@ -22,3 +22,18 @@ export function currentReservationFrom(
     ) ?? null
   );
 }
+
+/**
+ * Places a backend-confirmed reservation at the head of the reservations cache,
+ * keeping any other entries. The result of POST /reservations IS authoritative
+ * backend state, so writing it into the canonical list lets the current-state
+ * derivation (`currentReservationFrom`) see it immediately — no stale window
+ * where the screen claims there is no current parking. A later invalidation
+ * refetches and replaces the cache with the full list.
+ */
+export function upsertReservation(
+  list: ReservationResponse[] | undefined,
+  confirmed: ReservationResponse,
+): ReservationResponse[] {
+  return [confirmed, ...(list ?? []).filter((reservation) => reservation.id !== confirmed.id)];
+}

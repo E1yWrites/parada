@@ -112,10 +112,6 @@ export function NavigateButton({ destination, label, testID }: NavigateButtonPro
         <Text variant="caption" color={colors.danger} testID={`${testID ?? "navigate"}-open-failed`}>
           Unable to open navigation. Please try again.
         </Text>
-      ) : state.kind === "getting" ? (
-        <Text variant="caption" color={colors.muted} testID={`${testID ?? "navigate"}-loading`}>
-          Getting your location…
-        </Text>
       ) : !canNavigate ? (
         <Text variant="caption" color={colors.muted} testID={`${testID ?? "navigate"}-unavailable`}>
           Navigation isn't available right now.

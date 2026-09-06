@@ -21,3 +21,18 @@ export function activeAssignmentFrom(
     ) ?? null
   );
 }
+
+/**
+ * Places a backend-confirmed assignment at the head of the assignments cache,
+ * keeping any other history entries. The result of POST /assignments IS
+ * authoritative backend state, so writing it straight into the canonical list
+ * avoids a contradictory window where a freshly confirmed assignment is not yet
+ * visible to the screen's current-state derivation (which reads that list).
+ * A later invalidation refetches and replaces the cache with the full list.
+ */
+export function upsertAssignment(
+  list: ZoneAssignmentResponse[] | undefined,
+  confirmed: ZoneAssignmentResponse,
+): ZoneAssignmentResponse[] {
+  return [confirmed, ...(list ?? []).filter((assignment) => assignment.id !== confirmed.id)];
+}

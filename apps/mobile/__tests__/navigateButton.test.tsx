@@ -49,13 +49,39 @@ describe("NavigateButton: permission granted", () => {
     fireEvent.press(screen.getByTestId("nav"));
 
     await waitFor(() =>
-      expect(screen.getByTestId("nav-loading")).toHaveTextContent("Getting your location…"),
+      expect(screen.getByTestId("nav")).toHaveTextContent("Getting your location…"),
     );
     await waitFor(() =>
       expect(Linking.openURL).toHaveBeenCalledWith(
         expect.stringContaining("maps://?saddr=14.5995,120.9842&daddr=14.5502,121.0402"),
       ),
     );
+  });
+
+  it("shows a single loading presentation while getting the location (no duplicate caption)", async () => {
+    (LocationMock as LocationModule).__setPermission({ granted: true, canAskAgain: true });
+    (LocationMock as LocationModule).__setPosition(CURRENT);
+    let resolveOpen!: (value: boolean) => void;
+    jest.spyOn(Linking, "openURL").mockImplementation(
+      () => new Promise<boolean>((resolve) => {
+        resolveOpen = resolve;
+      }),
+    );
+    renderButton();
+
+    fireEvent.press(screen.getByTestId("nav"));
+
+    // While the launch is in flight the button itself carries the load state
+    // (title + spinner)…
+    await waitFor(() =>
+      expect(screen.getByTestId("nav")).toHaveTextContent("Getting your location…"),
+    );
+    expect(screen.getByTestId("button-spinner")).toBeOnTheScreen();
+    // …and no competing caption is rendered beneath it.
+    expect(screen.queryByTestId("nav-loading")).not.toBeOnTheScreen();
+
+    resolveOpen(true);
+    await waitFor(() => expect(Linking.openURL).toHaveBeenCalled());
   });
 
   it("returns to idle after a successful launch", async () => {

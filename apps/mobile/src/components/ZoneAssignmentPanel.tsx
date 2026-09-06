@@ -8,7 +8,8 @@ import { ErrorState, LoadingState } from "./StateComponents";
 import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
 import { api, ApiError, type CreateAssignmentInput, type PublicZone } from "@/lib/api/client";
-import { activeAssignmentFrom, isActiveVehicle } from "@/lib/assignment";
+import { activeAssignmentFrom, isActiveVehicle, upsertAssignment } from "@/lib/assignment";
+import type { ZoneAssignmentResponse } from "@parada/types";
 import { queryKeys } from "@/lib/query";
 import { colors, radii, spacing, touchTarget } from "@/src/theme";
 
@@ -34,6 +35,14 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
 
   const assign = useMutation({
     mutationFn: (input: CreateAssignmentInput) => api.createAssignment(input),
+    onSuccess: (confirmed) => {
+      // Backend-confirmed POST /assignments response → canonical cache, so the
+      // screen's current-state derivation reflects it in the same commit and
+      // never shows a "No active parking" empty state underneath it.
+      void queryClient.setQueryData(queryKeys.assignments, (old: ZoneAssignmentResponse[] | undefined) =>
+        upsertAssignment(old, confirmed),
+      );
+    },
     onSettled: () => {
       // Refreshes zones and (via the ["zones"] prefix) recommendations too.
       void queryClient.invalidateQueries({ queryKey: queryKeys.zones });

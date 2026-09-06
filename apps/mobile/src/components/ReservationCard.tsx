@@ -41,7 +41,7 @@ export function ReservationCard({
     <Card accent={colors.orange} testID={testID}>
       <View style={styles.row}>
         <View style={styles.heading}>
-          <Text variant="title" numberOfLines={1}>
+<Text variant="title" numberOfLines={2}>
             {reservation.zone.name}
           </Text>
           <Text variant="mono">{reservation.zone.code}</Text>
@@ -114,6 +114,7 @@ const styles = StyleSheet.create({
   },
   confirmRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,

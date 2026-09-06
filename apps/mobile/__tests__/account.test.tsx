@@ -1,6 +1,20 @@
 import { fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
 import AccountScreen from "@/app/(tabs)/account";
 import { api, ApiError, type UserDto } from "@/lib/api/client";
+import { touchTarget } from "@/src/theme";
+
+function flattenStyle(style: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+    } else if (value && typeof value === "object") {
+      Object.assign(out, value);
+    }
+  };
+  visit(style);
+  return out;
+}
 
 jest.mock("@/lib/api/client", () => {
   const actual = jest.requireActual("@/lib/api/client");
@@ -117,6 +131,15 @@ describe("account screen", () => {
 
     await waitFor(() => expect(screen.queryByTestId("account-cache-note")).not.toBeOnTheScreen());
     expect(screen.getByTestId("account-name")).toHaveTextContent("Alex Driver");
+  });
+
+  it("keeps the cached-profile retry inside the 44pt touch-target baseline", async () => {
+    (api.me as jest.Mock).mockRejectedValue(networkError);
+    renderWithProviders(<AccountScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("account-cache-retry")).toBeOnTheScreen());
+    const flat = flattenStyle(screen.getByTestId("account-cache-retry").props.style);
+    expect(Number(flat.minHeight)).toBeGreaterThanOrEqual(touchTarget);
   });
 
   it("signs out when Sign Out is pressed", async () => {

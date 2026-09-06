@@ -58,7 +58,7 @@ export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardPr
         style={[styles.card, selected ? styles.cardSelected : undefined]}>
         <View style={styles.headerRow}>
           <View style={styles.titleGroup}>
-            <Text variant="title" numberOfLines={1}>
+            <Text variant="title" numberOfLines={2}>
               {zone.name}
             </Text>
             <Text variant="mono">{zone.code}</Text>

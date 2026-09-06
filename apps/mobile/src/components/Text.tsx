@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
-import { StyleSheet, Text as RNText, type StyleProp, type TextStyle } from "react-native";
+import {
+  StyleSheet,
+  Text as RNText,
+  type AccessibilityRole,
+  type StyleProp,
+  type TextStyle,
+} from "react-native";
 import { fonts, fontSizes, lineHeights, colors } from "@/src/theme";
 
 export type TextVariant =
@@ -22,6 +28,7 @@ type TextProps = {
   align?: "auto" | "left" | "right" | "center";
   numberOfLines?: number;
   accessibilityLabel?: string;
+  accessibilityRole?: AccessibilityRole;
   /** Cap font scaling so fixed layouts (plates, badges, heros) never blow out.
    *  Defaults to 1.3. Pass a larger value (e.g. 2) on screens that must scale
    *  further for accessibility. */
@@ -108,6 +115,7 @@ export function Text({
   align,
   numberOfLines,
   accessibilityLabel,
+  accessibilityRole,
   maxFontSizeMultiplier = 1.3,
   style,
   testID,
@@ -116,6 +124,7 @@ export function Text({
     <RNText
       testID={testID}
       accessibilityLabel={accessibilityLabel}
+      accessibilityRole={accessibilityRole}
       numberOfLines={numberOfLines}
       maxFontSizeMultiplier={maxFontSizeMultiplier}
       style={[

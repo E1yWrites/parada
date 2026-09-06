@@ -67,7 +67,7 @@ export default function RegisterScreen() {
         </Text>
       </View>
       {error ? (
-        <Text variant="caption" color={colors.danger} testID="register-error">
+        <Text variant="caption" color={colors.danger} accessibilityRole="alert" testID="register-error">
           {error}
         </Text>
       ) : null}

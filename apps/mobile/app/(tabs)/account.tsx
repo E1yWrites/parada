@@ -7,7 +7,7 @@ import { Button, Card, ErrorState, LoadingState, Screen, Text } from "@/src/comp
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { useSession } from "@/src/providers/SessionProvider";
-import { colors, radii, spacing } from "@/src/theme";
+import { colors, radii, spacing, touchTarget } from "@/src/theme";
 
 export default function AccountScreen() {
   const { user, signOut } = useSession();
@@ -51,6 +51,7 @@ export default function AccountScreen() {
                 accessibilityLabel="Retry loading profile"
                 onPress={() => void account.refetch()}
                 hitSlop={10}
+                style={styles.degradedRetry}
                 testID="account-cache-retry">
                 <Text variant="caption" color={colors.orange} align="center">
                   RETRY
@@ -136,6 +137,12 @@ const styles = StyleSheet.create({
   },
   degradedText: {
     flex: 1,
+  },
+  degradedRetry: {
+    minHeight: touchTarget,
+    minWidth: 88,
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatar: {
     width: 44,

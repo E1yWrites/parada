@@ -83,7 +83,7 @@ function ListHeader({ isLoading, count }: { isLoading: boolean; count: number })
           <AddVehicleButton />
         ) : (
           <Text testID="vehicles-header-state" variant="caption">
-            ...
+            Loading…
           </Text>
         )}
       </View>

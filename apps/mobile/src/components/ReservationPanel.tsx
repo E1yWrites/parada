@@ -10,6 +10,8 @@ import { Text } from "./Text";
 import { ReservationCard } from "./ReservationCard";
 import { api, ApiError, type PublicZone } from "@/lib/api/client";
 import { isActiveVehicle } from "@/lib/assignment";
+import { upsertReservation } from "@/lib/current";
+import type { ReservationResponse } from "@parada/types";
 import { queryKeys } from "@/lib/query";
 import { colors, radii, spacing, touchTarget } from "@/src/theme";
 
@@ -37,6 +39,17 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
   const create = useMutation({
     mutationFn: (input: { zoneId: string; vehicleId: string }) =>
       api.createReservation({ ...input, startAt: new Date().toISOString() }),
+    onSuccess: (confirmed) => {
+      // POST /reservations is a backend-confirmed hold; write it into the
+      // canonical list so the screen's current-state resolution sees it in the
+      // same commit (and the reservation list below renders it exactly once —
+      // the old create.data confirmation card is gone, keeping a single source
+      // of truth).
+      void queryClient.setQueryData(
+        queryKeys.reservations,
+        (old: ReservationResponse[] | undefined) => upsertReservation(old, confirmed),
+      );
+    },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.reservations });
       // Zones refresh live availability and (via the ["zones"] prefix) the
@@ -93,19 +106,24 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
     return `Reserve ${selectedVehicle?.plateNumber} in ${selectedZone?.name}`;
   })();
 
+  const hasLiveReservation = (reservations.data ?? []).some(
+    (reservation) =>
+      reservation.status === "CONFIRMED" ||
+      reservation.status === "PENDING" ||
+      reservation.status === "ACTIVE",
+  );
+
   return (
     <View testID="reservation-panel">
       <SectionHeader
         title="Reserve a spot"
         caption={
-          create.data
+          hasLiveReservation
             ? "Secured by the parking service"
             : "Hold a zone for your arrival with a reservation"
         }
         testID="reservation-header"
       />
-
-      {create.data ? <ReservationCard reservation={create.data} testID="reservation-confirmed" /> : null}
 
       {selectedZone === null ? (
         <Text variant="caption" color={colors.muted} testID="reservation-zone-hint">
@@ -233,7 +251,7 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
         />
       ) : (
         <View style={styles.list} testID="reservations-list">
-          {reservations.data.map((reservation) => {
+          {(reservations.data ?? []).map((reservation) => {
             const isCancelling = cancel.variables === reservation.id && cancel.isPending;
             return (
               <ReservationCard

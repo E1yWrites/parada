@@ -207,6 +207,9 @@ describe("reservation panel: submission", () => {
         resolveCreate = r;
       }),
     );
+    (api.reservations as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([reservation()]);
     renderWithProviders(<Harness />);
     fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() => expect(screen.getByTestId("reservation-create")).toHaveTextContent("Reserving…"));
@@ -216,16 +219,21 @@ describe("reservation panel: submission", () => {
     fireEvent.press(create);
     expect(api.createReservation).toHaveBeenCalledTimes(1);
     resolveCreate(reservation());
-    await waitFor(() => expect(screen.getByTestId("reservation-confirmed")).toBeOnTheScreen());
+    await waitFor(() => expect(screen.getByTestId("reservation-r1")).toBeOnTheScreen());
   });
 
-  it("renders backend-confirmed state only after success", async () => {
+  it("renders backend-confirmed state only after success (single list rendering)", async () => {
+    (api.reservations as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([reservation()]);
     renderWithProviders(<Harness />);
-    expect(screen.queryByTestId("reservation-confirmed")).not.toBeOnTheScreen();
+    expect(screen.queryByTestId("reservation-r1")).not.toBeOnTheScreen();
     fireEvent.press(await screen.findByTestId("reservation-create"));
-    await waitFor(() => expect(screen.getByTestId("reservation-confirmed")).toBeOnTheScreen());
-    expect(screen.getByTestId("reservation-confirmed")).toHaveTextContent(/Zone A/);
-    expect(screen.getByTestId("reservation-confirmed")).toHaveTextContent(/ABC-1234/);
+    await waitFor(() => expect(screen.getByTestId("reservation-r1")).toBeOnTheScreen());
+    expect(screen.getByTestId("reservation-r1")).toHaveTextContent(/Zone A/);
+    expect(screen.getByTestId("reservation-r1")).toHaveTextContent(/ABC-1234/);
+    // The confirmed hold renders exactly once — no duplicate confirmation card.
+    expect(screen.queryByTestId("reservation-confirmed")).not.toBeOnTheScreen();
   });
 
   it("never shows assigned state on a failed request", async () => {
@@ -235,6 +243,7 @@ describe("reservation panel: submission", () => {
     renderWithProviders(<Harness />);
     fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() => expect(screen.getByTestId("reservation-error")).toHaveTextContent(/no longer available/));
+    expect(screen.queryByTestId("reservation-r1")).not.toBeOnTheScreen();
     expect(screen.queryByTestId("reservation-confirmed")).not.toBeOnTheScreen();
   });
 });
@@ -383,8 +392,8 @@ describe("reservation panel: refresh after actions", () => {
     (api.reservations as jest.Mock).mockResolvedValue([reservation()]);
     const zonesCalls = (api.zones as jest.Mock).mock.calls.length;
     fireEvent.press(await screen.findByTestId("reservation-create"));
-    await waitFor(() => expect(screen.getByTestId("reservation-confirmed")).toBeOnTheScreen());
     await waitFor(() => expect(screen.getByTestId("harness-count")).toHaveTextContent("1"));
+    await waitFor(() => expect(screen.getByTestId("reservation-r1")).toBeOnTheScreen());
     await waitFor(() =>
       expect((api.zones as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(zonesCalls + 1),
     );

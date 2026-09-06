@@ -10,7 +10,8 @@ import { SectionHeader } from "./SectionHeader";
 import { EmptyState, ErrorState, LoadingState } from "./StateComponents";
 import { Text } from "./Text";
 import { api, ApiError, type CreateAssignmentInput } from "@/lib/api/client";
-import { activeAssignmentFrom, isActiveVehicle } from "@/lib/assignment";
+import { activeAssignmentFrom, isActiveVehicle, upsertAssignment } from "@/lib/assignment";
+import type { ZoneAssignmentResponse } from "@parada/types";
 import { resolveEstablishmentDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
 import { colors, radii, spacing, touchTarget } from "@/src/theme";
@@ -46,6 +47,15 @@ export function ParkingRecommendation() {
 
   const assign = useMutation({
     mutationFn: (input: CreateAssignmentInput) => api.createAssignment(input),
+    onSuccess: (confirmed) => {
+      // The POST response is backend-confirmed state. Writing it into the
+      // assignments cache makes current-state resolution see it immediately,
+      // so the screen never shows a contradictory "no current parking" empty
+      // state while this assignment is real.
+      void queryClient.setQueryData(queryKeys.assignments, (old: ZoneAssignmentResponse[] | undefined) =>
+        upsertAssignment(old, confirmed),
+      );
+    },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.recommendation });
       void queryClient.invalidateQueries({ queryKey: queryKeys.zones });

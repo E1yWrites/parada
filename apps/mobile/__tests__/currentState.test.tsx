@@ -433,3 +433,127 @@ describe("parking screen: Phase 9.6 integration", () => {
     expect(screen.queryByTestId("parking-recommendation")).not.toBeOnTheScreen();
   });
 });
+
+describe("phase 9.7: recommendation → assignment transition (Phase 9.6 warning)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (api.zones as jest.Mock).mockResolvedValue(zones);
+    (api.activeSession as jest.Mock).mockResolvedValue(null);
+    (api.recommendedZone as jest.Mock).mockResolvedValue({
+      recommendedZone: {
+        id: "z2",
+        name: "Zone B",
+        code: "B",
+        capacity: 20,
+        occupiedCount: 8,
+        availableCount: 12,
+        status: "ACTIVE",
+      },
+    });
+    (api.assignments as jest.Mock).mockResolvedValue([]);
+    (api.createAssignment as jest.Mock).mockResolvedValue(assignment);
+    (api.reservations as jest.Mock).mockResolvedValue([]);
+    (api.vehicles as jest.Mock).mockResolvedValue([vehicle]);
+    (api.establishment as jest.Mock).mockResolvedValue({ location: null });
+  });
+
+  it("flips to the assignment current state without an empty-state contradiction", async () => {
+    renderWithProviders(<ParkingScreen />);
+    await waitFor(() => expect(screen.getByTestId("accept-recommendation")).toBeOnTheScreen());
+
+    // After the POST, the backend list contains the ACTIVE assignment, so the
+    // invalidation refetch confirms what the mutation cache-write bridged.
+    (api.assignments as jest.Mock).mockResolvedValue([assignment]);
+    fireEvent.press(screen.getByTestId("accept-recommendation"));
+
+    // The confirmed assignment becomes current state; "No active parking" must
+    // never be shown while a backend-confirmed assignment exists, and the
+    // recommendation must stop presenting itself as state.
+    await waitFor(() => expect(screen.getByTestId("assignment-current")).toBeOnTheScreen());
+    expect(screen.queryByTestId("current-state-empty")).not.toBeOnTheScreen();
+    expect(screen.queryByTestId("parking-recommendation")).not.toBeOnTheScreen();
+    // Exactly one assignment representation: the current-state card only.
+    expect(screen.getAllByTestId("assignment-current")).toHaveLength(1);
+    expect(screen.queryByTestId("assignment-confirmed")).not.toBeOnTheScreen();
+  });
+
+  it("never double-submits while the acceptance request is pending", async () => {
+    let resolveAssign!: (value: ZoneAssignmentResponse) => void;
+    (api.createAssignment as jest.Mock).mockReturnValue(
+      new Promise<ZoneAssignmentResponse>((resolve) => {
+        resolveAssign = resolve;
+      }),
+    );
+    renderWithProviders(<ParkingScreen />);
+    const accept = await screen.findByTestId("accept-recommendation");
+
+    fireEvent.press(accept);
+    await waitFor(() => expect(api.createAssignment).toHaveBeenCalledTimes(1));
+    // Still pending → a second press must not create a duplicate request.
+    fireEvent.press(accept);
+    await waitFor(() => expect(api.createAssignment).toHaveBeenCalledTimes(1));
+
+    // Backend now lists the ACTIVE assignment (refetch confirms cache-write).
+    (api.assignments as jest.Mock).mockResolvedValue([assignment]);
+    resolveAssign(assignment);
+    await waitFor(() => expect(screen.getByTestId("assignment-current")).toBeOnTheScreen());
+  });
+});
+
+describe("phase 9.7: manual assignment → current state", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (api.zones as jest.Mock).mockResolvedValue(zones);
+    (api.activeSession as jest.Mock).mockResolvedValue(null);
+    (api.recommendedZone as jest.Mock).mockResolvedValue({ recommendedZone: null });
+    (api.assignments as jest.Mock).mockResolvedValue([]);
+    (api.createAssignment as jest.Mock).mockResolvedValue(assignment);
+    (api.reservations as jest.Mock).mockResolvedValue([]);
+    (api.vehicles as jest.Mock).mockResolvedValue([vehicle]);
+    (api.establishment as jest.Mock).mockResolvedValue({ location: null });
+  });
+
+  it("promotes a manually confirmed assignment into current state without the empty state", async () => {
+    renderWithProviders(<ParkingScreen />);
+    fireEvent.press(await screen.findByTestId("zone-A"));
+    const submit = await screen.findByTestId("assignment-submit");
+    expect(submit.props.accessibilityState).toMatchObject({ disabled: false });
+
+    // The backend list confirms the ACTIVE assignment on refetch.
+    (api.assignments as jest.Mock).mockResolvedValue([assignment]);
+    fireEvent.press(submit);
+
+    await waitFor(() => expect(screen.getByTestId("assignment-current")).toBeOnTheScreen());
+    expect(screen.queryByTestId("current-state-empty")).not.toBeOnTheScreen();
+    // The panel collapses to the "already assigned" pointer instead of a card.
+    expect(screen.getByTestId("assignment-already-assigned")).toBeOnTheScreen();
+  });
+});
+
+describe("phase 9.7: reservation create → current state", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (api.zones as jest.Mock).mockResolvedValue(zones);
+    (api.activeSession as jest.Mock).mockResolvedValue(null);
+    (api.recommendedZone as jest.Mock).mockResolvedValue({ recommendedZone: null });
+    (api.assignments as jest.Mock).mockResolvedValue([]);
+    (api.reservations as jest.Mock).mockResolvedValue([]);
+    (api.createReservation as jest.Mock).mockResolvedValue(reservation);
+    (api.vehicles as jest.Mock).mockResolvedValue([vehicle]);
+    (api.establishment as jest.Mock).mockResolvedValue({ location: null });
+  });
+
+  it("promotes a confirmed reservation into current state exactly once (no duplicate cards)", async () => {
+    renderWithProviders(<ParkingScreen />);
+    fireEvent.press(await screen.findByTestId("zone-A"));
+
+    // The backend list confirms the CONFIRMED reservation on refetch.
+    (api.reservations as jest.Mock).mockResolvedValue([reservation]);
+    fireEvent.press(await screen.findByTestId("reservation-create"));
+
+    await waitFor(() => expect(screen.getByTestId("reservation-current")).toBeOnTheScreen());
+    expect(screen.queryByTestId("current-state-empty")).not.toBeOnTheScreen();
+    // The panel no longer renders a duplicate confirmation card.
+    expect(screen.queryByTestId("reservation-confirmed")).not.toBeOnTheScreen();
+  });
+});
