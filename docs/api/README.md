@@ -261,7 +261,7 @@ using the JWT stored in the `HttpOnly` `parada_admin_token` cookie.
 | GET | `/admin/users` | All users with vehicle/session counts (no hashes) |
 | GET | `/admin/vehicles` | All registered vehicles with owners |
 | GET | `/admin/notifications` | ADMIN-targeted notifications + `unreadCount` |
-| PATCH | `/admin/notifications/:id/read` | Mark one notification read (`204`) |
+| PATCH | `/admin/notifications/:id/read` | Mark one notification read (`200` + the updated notification) |
 | GET | `/admin/anomalies` | Occupancy anomalies for admin review |
 
 ### `GET /admin/dashboard`
@@ -291,6 +291,56 @@ extra round-trip.
 ### `PATCH /admin/notifications/:id/read`
 
 Sets `read = true` on one notification. Returns `204`.
+
+## Driver Endpoints (auth required)
+
+All are scoped to the authenticated user; ownership comes from the token and a
+client-supplied user id is never trusted.
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/zones/recommendation` | Least-occupied suitable zone, or `{ recommendedZone: null }`. Public. A recommendation is NOT an assignment. |
+| GET | `/zones/establishment` | Navigation destination; `null` until an admin configures one. |
+| POST | `/assignments` | Accept a zone (`{zoneId, vehicleId}`). One ACTIVE assignment per vehicle; expired ones are released automatically. |
+| GET | `/assignments`, `/assignments/:id` | The user's assignments. |
+| POST | `/reservations` | Hold a zone (`{zoneId, vehicleId, startAt?, endAt?}`). Refused when capacity plus existing holds would be exceeded. |
+| GET | `/reservations`, `/reservations/:id` | The user's reservations; window-expired ones are flipped to EXPIRED lazily. |
+| PATCH | `/reservations/:id/cancel` | Cancel an own reservation. |
+| POST | `/sessions/entry` | User-initiated entry (`{vehicleId, zoneId, enteredAt?}`). |
+| POST | `/sessions/:id/exit` | User-initiated exit; computes and persists the fee. |
+| GET | `/violations` | The user's own establishment violations. |
+| POST | `/violations/:id/appeal` | Dispute an own violation (`{reason}`). One appeal per violation, only while PENDING. |
+| GET | `/notifications` | The user's own alerts (`?unread=true`, `?limit=`). Returns `{notifications, unreadCount}`. |
+| PATCH | `/notifications/:id/read` | Mark one of the user's own notifications read. |
+
+### Fees
+
+The first `baseDurationHours` (default 2h) costs a flat `baseFee` (default
+₱20); every started additional hour adds `additionalFeePerHour` (default ₱10).
+So 2h00 → ₱20, 2h01 → ₱30, 3h00 → ₱30, 3h01 → ₱40. Both exit paths — the
+camera pipeline and the user-initiated one — persist a `ParkingFee`. Guest
+sessions are charged under the same policy with a null `userId`.
+
+### Violations
+
+Establishment-defined parking violations, not law enforcement. A wrong-zone
+entry is a warning on the first offence; once a vehicle has exhausted its
+warning allowance the next one issues a `WRONG_ZONE` violation with the
+configured fine and notifies the driver.
+
+## Additional Admin Endpoints
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET/PUT | `/admin/config` | Establishment settings (fees, guest policy, zone defaults, violation fines, location). |
+| GET | `/admin/reservations` | All reservations with their owners. |
+| PATCH | `/admin/reservations/:id/cancel` | Cancel any reservation not already terminal. |
+| GET | `/admin/violations` | All violations with user, vehicle, zone, session and appeal. |
+| PATCH | `/admin/violations/:id/status` | Set a violation status. |
+| GET | `/admin/appeals` | All appeals with their violations. |
+| PATCH | `/admin/appeals/:id/status` | `APPROVED` dismisses the violation, `REJECTED` upholds it; the driver is notified either way. |
+| GET | `/admin/analytics` | Occupancy, sessions, revenue, peak hour over `?from`/`?to`. |
+| POST | `/admin/guest-admit` | Admit a guest against policy. Auditable; the acting admin comes from the token. |
 
 ## Occupancy Simulator (ADMIN only)
 

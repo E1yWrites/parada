@@ -15,12 +15,16 @@ document -> STOP.
 | 6 | Guest Admission + Reservations + Zone Assignment Integration | DONE |
 | 7 | Admin Web Application | DONE |
 | 8 | Mobile Application | DONE |
-| 9 | OCR / Computer Vision (real model) | PENDING |
-| 10 | Real-Time Integration | PENDING |
-| 11 | Full System Integration | PENDING |
-| 12 | Testing + Accuracy Evaluation | PENDING |
-| 13 | Deployment | PENDING |
-| 14 | Documentation + Final Review | PENDING |
+| 9.1-9.8 | Mobile integration, recommendation, assignment, reservation, GPS navigation, current-parking state, cache transitions, UX polish | DONE |
+| 9.9 | Mobile visual redesign (light theme) | DONE |
+| 10 | Admin Web UI overhaul | DONE |
+| 10.1 | System audit remediation (occupancy atomicity, camera-exit fees, assignment expiry, plate identity, reservation capacity, violations/appeals, driver notifications) | DONE |
+| 11 | OCR / Computer Vision (real model) | PENDING |
+| 12 | Real-Time Integration | PENDING |
+| 13 | Full System Integration | PENDING |
+| 14 | Testing + Accuracy Evaluation | PENDING |
+| 15 | Deployment | PENDING |
+| 16 | Documentation + Final Review | PENDING |
 
 ## Architecture Decisions (ADR)
 

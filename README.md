@@ -42,9 +42,12 @@ PARADA/
 | Admin Web    | Next.js + TypeScript + Tailwind CSS            |
 | Backend API  | Node.js + TypeScript                           |
 | Database     | PostgreSQL + Prisma                            |
-| Vision/OCR   | Python + FastAPI + OpenCV + EasyOCR            |
-| Real-time    | Socket.IO                                      |
 | Monorepo     | npm workspaces + Turborepo                     |
+
+Planned, not yet implemented: the vision/OCR service (`services/vision` is a
+placeholder) and real-time push. Camera events reach the backend today through
+the documented `POST /zones/:zoneId/events` contract, which the admin
+simulator drives end to end.
 
 ## Getting Started
 
@@ -94,22 +97,8 @@ not started by the development workflow.
 
 ## Phases
 
-The project is developed in phases (see `docs/architecture/roadmap.md`):
-
-1. Project Infrastructure
-2. Database
-3. Backend Foundation
-4. Authentication + Authorization
-5. Parking Zones + Slots
-6. Occupancy Model + Simulator
-7. Admin Web Application
-8. Mobile Application
-9. OCR / Computer Vision
-10. Real-Time Integration
-11. Full System Integration
-12. Testing + Accuracy Evaluation
-13. Deployment
-14. Documentation + Final Review
+The project is developed in phases. `docs/architecture/roadmap.md` is the
+single source of truth for phase numbering and status.
 
 ## Documentation
 
@@ -119,5 +108,5 @@ See the `docs/` directory:
 - `docs/database/` — schema and data model
 - `docs/api/` — API reference
 - `docs/vision/` — camera / OCR processing
-- `docs/testing/` — testing strategy + results
-- `docs/deployment/` — deployment guide
+
+Testing and deployment guides are not written yet.

@@ -9,6 +9,14 @@
 // - ParkingSession is vehicle-identified (linked to User + Vehicle via OCR/plate matching).
 // - available_count is derived (capacity - occupied_count) and never stored.
 // - occupied_count is cached on ParkingZone (O(1) reads), DB-constrained to [0, capacity].
+//
+// WARNING: three integrity rules live ONLY in migrations because Prisma cannot
+// express them, so `prisma db push` or a schema-first reset silently drops them:
+//   - parking_zones_occupied_in_bounds        CHECK 0 <= occupiedCount <= capacity
+//   - parking_sessions_one_active_per_vehicle partial UNIQUE (status = 'ACTIVE')
+//   - zone_assignments_one_active_per_vehicle partial UNIQUE (status = 'ACTIVE')
+//   - vehicles_one_active_per_normalized_plate partial UNIQUE (status = 'ACTIVE')
+// Always use `prisma migrate`, never `db push`, against a real database.
 
 generator client {
   provider = "prisma-client-js"
