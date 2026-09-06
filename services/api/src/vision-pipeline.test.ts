@@ -2,6 +2,7 @@ import request from "supertest";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 import { prisma } from "@parada/database";
+import { DEFAULT_VIOLATION_POLICIES } from "@parada/config";
 import { createApp, type AppOptions } from "./app";
 import { ConfigService } from "./domain/config";
 
@@ -572,6 +573,66 @@ describe("Phase 5 — Vision/OCR integration foundation", () => {
       const all = await sessions();
       expect(all.filter((s) => s.zoneId === ctx.zoneId)).toHaveLength(2);
       expect(all.every((s) => s.status === "ACTIVE")).toBe(true);
+    });
+  });
+
+  describe("Wrong-zone escalation", () => {
+    it("warns on the first offence and issues a violation on the next", async () => {
+      const home = await seedZone(20, "wz");
+      const other = await seedZone(20, "wo");
+      const vehicle = await prisma.vehicle.findUniqueOrThrow({ where: { id: home.vehicleABC } });
+      await prisma.establishmentConfig.upsert({
+        where: { id: "singleton" },
+        update: { violations: DEFAULT_VIOLATION_POLICIES },
+        create: {
+          id: "singleton",
+          parkingFee: { baseFee: 20, baseDurationHours: 2, additionalFeePerHour: 10 },
+          violations: DEFAULT_VIOLATION_POLICIES,
+          guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: null },
+          zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
+        },
+      });
+
+      const app = createApp();
+      const enterWrongZone = async (sourceEventId: string) => {
+        // The vehicle is assigned to its home zone but drives into the other.
+        await prisma.zoneAssignment.updateMany({
+          where: { vehicleId: vehicle.id, status: "ACTIVE" },
+          data: { status: "EXPIRED" },
+        });
+        await prisma.zoneAssignment.create({
+          data: {
+            userId: vehicle.userId,
+            vehicleId: vehicle.id,
+            zoneId: home.zoneId,
+            status: "ACTIVE",
+            expiresAt: new Date(Date.now() + 15 * 60_000),
+          },
+        });
+        await request(app)
+          .post(`/zones/${other.zoneId}/events`)
+          .send({ cameraIdentifier: other.entryCamId, sourceEventId, eventType: "ENTRY", detectedPlate: home.plateABC, ocrConfidence: 0.96 })
+          .expect(201);
+        await request(app)
+          .post(`/zones/${other.zoneId}/events`)
+          .send({ cameraIdentifier: other.exitCamId, sourceEventId: `${sourceEventId}-out`, eventType: "EXIT", detectedPlate: home.plateABC, ocrConfidence: 0.96 })
+          .expect(201);
+      };
+
+      await enterWrongZone("wz-1");
+      expect(await prisma.violation.count({ where: { vehicleId: vehicle.id } })).toBe(0);
+      expect(
+        await prisma.occupancyAnomaly.count({ where: { vehicleId: vehicle.id, anomalyType: "WRONG_ZONE_WARNING" } })
+      ).toBe(1);
+
+      await enterWrongZone("wz-2");
+      const violations = await prisma.violation.findMany({ where: { vehicleId: vehicle.id } });
+      expect(violations).toHaveLength(1);
+      expect(violations[0]!.violationType).toBe("WRONG_ZONE");
+      expect(violations[0]!.fineAmount).toBe(100);
+      expect(
+        await prisma.notification.count({ where: { userId: vehicle.userId, type: "VIOLATION_ISSUED" } })
+      ).toBe(1);
     });
   });
 

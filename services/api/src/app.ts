@@ -8,6 +8,9 @@ import { sessionsRouter } from "./routes/sessions";
 import { reservationsRouter } from "./routes/reservations";
 import { assignmentsRouter } from "./routes/assignments";
 import { adminRouter } from "./routes/admin";
+import { violationsRouter } from "./routes/violations";
+import { notificationsRouter } from "./routes/notifications";
+import { ViolationService } from "./domain/violations";
 import { OccupancyService } from "./domain/occupancy";
 import { SimulatorService } from "./domain/simulator";
 import { AuthService } from "./domain/auth";
@@ -41,6 +44,7 @@ export function createApp(options: AppOptions = {}): Express {
   const assignmentService = options.assignments ?? new AssignmentService(config);
 
   const reservationService = new ReservationService(config);
+  const violationService = new ViolationService(config);
 
   const occupancy = options.occupancy ?? new OccupancyService({
     ocrPlateConfidenceThreshold:
@@ -48,6 +52,7 @@ export function createApp(options: AppOptions = {}): Express {
     config,
     assignments: assignmentService,
     reservations: reservationService,
+    violations: violationService,
   });
 
   const auth = options.auth ?? new AuthService({
@@ -79,11 +84,13 @@ export function createApp(options: AppOptions = {}): Express {
   const sessions = sessionsRouter(sessionService);
   const reservations = reservationsRouter(reservationService);
   const assignments = assignmentsRouter(assignmentService);
-  const admin = adminRouter({ occupancy, config, reservations: reservationService });
+  const admin = adminRouter({ occupancy, config, reservations: reservationService, violations: violationService });
   app.use(vehicles);
   app.use(sessions);
   app.use(reservations);
   app.use(assignments);
+  app.use(violationsRouter(violationService));
+  app.use(notificationsRouter());
   app.use(admin);
 
   const simulator = new SimulatorService(occupancy);

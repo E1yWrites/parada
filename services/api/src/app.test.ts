@@ -1685,6 +1685,172 @@ describe("Phase 3 — Session entry & exit (user-initiated)", () => {
   });
 });
 
+describe("Violations, appeals & driver notifications", () => {
+  const tokens = new TokenService({
+    secret: "test-secret-key-for-testing-only-32chars",
+    issuer: "parada-api-test",
+    expiresIn: "1d",
+  });
+  let app: ReturnType<typeof createApp>;
+  let tokenA: string;
+  let tokenAdmin: string;
+  let userAId: string;
+  let zone: { id: string };
+  let vehicleId: string;
+
+  beforeEach(async () => {
+    await cleanDatabase();
+    app = createApp();
+    const a = await prisma.user.create({
+      data: { name: "Driver V", email: "vio-driver@test.local", passwordHash: "x", role: "USER" },
+    });
+    const admin = await prisma.user.create({
+      data: { name: "Admin V", email: "vio-admin@test.local", passwordHash: "x", role: "ADMIN" },
+    });
+    userAId = a.id;
+    tokenA = tokens.sign({ id: a.id, role: "USER" }).token;
+    tokenAdmin = tokens.sign({ id: admin.id, role: "ADMIN" }).token;
+    zone = await prisma.parkingZone.create({ data: { name: "Vio Zone", code: "VIO", capacity: 5 } });
+    const vehicle = await prisma.vehicle.create({
+      data: { userId: a.id, plateNumber: "VIO-0001", normalizedPlate: "VIO0001", vehicleType: "CAR", status: "ACTIVE" },
+    });
+    vehicleId = vehicle.id;
+  });
+
+  async function issueViolation() {
+    return prisma.violation.create({
+      data: {
+        userId: userAId,
+        vehicleId,
+        zoneId: zone.id,
+        violationType: "WRONG_ZONE",
+        description: "test",
+        fineAmount: 100,
+        status: "PENDING",
+      },
+    });
+  }
+
+  it("lists only the authenticated driver's own violations", async () => {
+    const mine = await issueViolation();
+    const other = await prisma.user.create({
+      data: { name: "Other", email: "vio-other@test.local", passwordHash: "x", role: "USER" },
+    });
+    await prisma.violation.create({
+      data: { userId: other.id, zoneId: zone.id, violationType: "OVERSTAY", fineAmount: 150, status: "PENDING" },
+    });
+
+    const res = await request(app)
+      .get("/violations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .expect(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].id).toBe(mine.id);
+  });
+
+  it("runs an appeal end to end and notifies both sides", async () => {
+    const violation = await issueViolation();
+
+    await request(app)
+      .post(`/violations/${violation.id}/appeal`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ reason: "I was directed here by staff." })
+      .expect(201);
+
+    expect((await prisma.violation.findUniqueOrThrow({ where: { id: violation.id } })).status).toBe("APPEALED");
+    expect(
+      await prisma.notification.count({ where: { type: "VIOLATION_APPEAL_SUBMITTED", targetRole: "ADMIN" } })
+    ).toBe(1);
+
+    const appeals = await request(app)
+      .get("/admin/appeals")
+      .set("Authorization", `Bearer ${tokenAdmin}`)
+      .expect(200);
+
+    await request(app)
+      .patch(`/admin/appeals/${appeals.body.data[0].id}/status`)
+      .set("Authorization", `Bearer ${tokenAdmin}`)
+      .send({ status: "APPROVED" })
+      .expect(200);
+
+    expect((await prisma.violation.findUniqueOrThrow({ where: { id: violation.id } })).status).toBe("DISMISSED");
+    const result = await prisma.notification.findFirstOrThrow({
+      where: { type: "VIOLATION_APPEAL_RESULT", userId: userAId },
+    });
+    expect(result.targetRole).toBe("USER");
+  });
+
+  it("rejects appealing another user's violation and double appeals", async () => {
+    const other = await prisma.user.create({
+      data: { name: "Other2", email: "vio-other2@test.local", passwordHash: "x", role: "USER" },
+    });
+    const theirs = await prisma.violation.create({
+      data: { userId: other.id, zoneId: zone.id, violationType: "OVERSTAY", fineAmount: 150, status: "PENDING" },
+    });
+    await request(app)
+      .post(`/violations/${theirs.id}/appeal`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ reason: "not mine" })
+      .expect(404);
+
+    const mine = await issueViolation();
+    await request(app)
+      .post(`/violations/${mine.id}/appeal`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ reason: "first" })
+      .expect(201);
+    await request(app)
+      .post(`/violations/${mine.id}/appeal`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      // Already appealed is a conflict, not a permissions problem.
+      .send({ reason: "second" })
+      .expect(409);
+  });
+
+  it("serves a driver their own notifications and nobody else's", async () => {
+    const other = await prisma.user.create({
+      data: { name: "Other3", email: "vio-other3@test.local", passwordHash: "x", role: "USER" },
+    });
+    const mine = await prisma.notification.create({
+      data: { zoneId: zone.id, userId: userAId, type: "WRONG_ZONE_WARNING", message: "yours", targetRole: "USER" },
+    });
+    await prisma.notification.create({
+      data: { zoneId: zone.id, userId: other.id, type: "WRONG_ZONE_WARNING", message: "theirs", targetRole: "USER" },
+    });
+    await prisma.notification.create({
+      data: { zoneId: zone.id, type: "ZONE_FULL", message: "ops", targetRole: "ADMIN" },
+    });
+
+    const res = await request(app)
+      .get("/notifications")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .expect(200);
+    expect(res.body.data.notifications).toHaveLength(1);
+    expect(res.body.data.notifications[0].message).toBe("yours");
+    expect(res.body.data.unreadCount).toBe(1);
+
+    await request(app)
+      .patch(`/notifications/${mine.id}/read`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .expect(200);
+    expect((await prisma.notification.findUniqueOrThrow({ where: { id: mine.id } })).read).toBe(true);
+  });
+
+  it("cannot mark another user's notification read", async () => {
+    const other = await prisma.user.create({
+      data: { name: "Other4", email: "vio-other4@test.local", passwordHash: "x", role: "USER" },
+    });
+    const theirs = await prisma.notification.create({
+      data: { zoneId: zone.id, userId: other.id, type: "WRONG_ZONE_WARNING", message: "theirs", targetRole: "USER" },
+    });
+    await request(app)
+      .patch(`/notifications/${theirs.id}/read`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .expect(404);
+    expect((await prisma.notification.findUniqueOrThrow({ where: { id: theirs.id } })).read).toBe(false);
+  });
+});
+
 describe("Phase 4 — Authentication security coverage", () => {
   const SECRET = "test-secret-key-for-testing-only-32chars";
   const ISSUER = "parada-api-test";

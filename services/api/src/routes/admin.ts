@@ -8,6 +8,7 @@ import { ZONE_OCCUPANCY_LOW_THRESHOLD } from "@parada/config";
 import type { OccupancyService } from "../domain/occupancy";
 import type { ConfigService } from "../domain/config";
 import type { ReservationService } from "../domain/reservation";
+import type { ViolationService } from "../domain/violations";
 
 type Availability = "AVAILABLE" | "LOW_AVAILABILITY" | "FULL" | "OFFLINE";
 
@@ -48,7 +49,7 @@ function zoneSummary(z: {
   };
 }
 
-export function adminRouter(deps: { occupancy: OccupancyService; config?: ConfigService; reservations?: ReservationService }): Router {
+export function adminRouter(deps: { occupancy: OccupancyService; config?: ConfigService; reservations?: ReservationService; violations?: ViolationService }): Router {
   const router = Router();
 
   router.use(requireRole("ADMIN"));
@@ -119,9 +120,10 @@ export function adminRouter(deps: { occupancy: OccupancyService; config?: Config
     asyncHandler(async (req, res) => {
       const status = req.body?.["status"];
       if (status !== "APPROVED" && status !== "REJECTED") throw new BadRequestError("Appeal status must be APPROVED or REJECTED.");
-      const existing = await prisma.violationAppeal.findUnique({ where: { id: req.params["id"] } });
-      if (!existing) throw new NotFoundError("Appeal not found.");
-      const updated = await prisma.violationAppeal.update({ where: { id: existing.id }, data: { status, reviewedBy: currentAuth(res).id, reviewedAt: new Date() } });
+      if (!deps.violations) throw new NotFoundError("Violation service unavailable.");
+      // Goes through the service so the violation status is settled and the
+      // driver is notified of the outcome in the same transaction.
+      const updated = await deps.violations.review(req.params["id"]!, status, currentAuth(res).id);
       res.json(ok(updated));
     })
   );

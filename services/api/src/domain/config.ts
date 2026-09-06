@@ -3,6 +3,7 @@ import {
   DEFAULT_PARKING_FEE,
   DEFAULT_RESERVATION_WINDOW_MINUTES,
   DEFAULT_GUEST_POLICY,
+  DEFAULT_VIOLATION_POLICIES,
   ZONE_OCCUPANCY_LOW_THRESHOLD,
 } from "@parada/config";
 import type {
@@ -223,4 +224,22 @@ function validateSettings(input: EstablishmentSettings): void {
       throw new BadRequestError("Establishment location values are invalid.");
     }
   }
+}
+
+/**
+ * Fine for an establishment-defined violation type, from the configured
+ * policy list, falling back to the shared default set. Fines are never
+ * hardcoded at the call site.
+ */
+export async function resolveViolationFine(
+  config: ConfigService,
+  type: ViolationPolicyConfig["type"]
+): Promise<number> {
+  const settings = await config.getEstablishmentSettings();
+  const configured = settings.violations.find((policy) => policy.type === type);
+  if (configured) {
+    return configured.fineAmount;
+  }
+  const fallback = DEFAULT_VIOLATION_POLICIES.find((policy) => policy.type === type);
+  return fallback?.fineAmount ?? 0;
 }

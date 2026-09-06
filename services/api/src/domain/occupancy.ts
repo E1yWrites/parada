@@ -17,6 +17,7 @@ import type { ConfigService } from "./config";
 import { persistSessionFee } from "./fees";
 import type { AssignmentService } from "./assignment";
 import type { ReservationService } from "./reservation";
+import type { ViolationService } from "./violations";
 import type { GuestPolicyConfig } from "@parada/types";
 
 /**
@@ -59,6 +60,8 @@ export interface OccupancyServiceOptions {
   assignments?: AssignmentService;
   /** Resolves how many spaces other parties' reservations are holding. */
   reservations?: ReservationService;
+  /** Escalates repeated wrong-zone entries into establishment violations. */
+  violations?: ViolationService;
 }
 
 /**
@@ -84,6 +87,7 @@ export class OccupancyService {
   private readonly config?: ConfigService;
   private readonly assignments?: AssignmentService;
   private readonly reservations?: ReservationService;
+  private readonly violations?: ViolationService;
 
   constructor(options: OccupancyServiceOptions = {}) {
     // Default 0.5: an absent confidence signal is treated as "trusted" (a
@@ -94,6 +98,7 @@ export class OccupancyService {
     this.config = options.config;
     this.assignments = options.assignments;
     this.reservations = options.reservations;
+    this.violations = options.violations;
   }
 
   /**
@@ -461,6 +466,14 @@ export class OccupancyService {
       });
 
       if (wrongZone) {
+        // Escalate BEFORE recording this entry's warning, so the count
+        // reflects previous offences only. First offences stay warnings.
+        await this.violations?.escalateWrongZone(tx, {
+          userId: vehicle.userId,
+          vehicleId,
+          zoneId: zone.id,
+          assignedZoneCode: assignedZoneCode ?? "unknown",
+        });
         await tx.occupancyAnomaly.create({
           data: {
             occupancyEventId: event.id,

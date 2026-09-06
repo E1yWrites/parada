@@ -7,6 +7,7 @@ import {
   DEFAULT_PARKING_FEE,
   DEFAULT_GUEST_POLICY,
   DEFAULT_RESERVATION_WINDOW_MINUTES,
+  DEFAULT_VIOLATION_POLICIES,
 } from "@parada/config";
 
 const ZONES = [
@@ -159,7 +160,7 @@ async function seed() {
     where: { id: "singleton" },
     update: {
       parkingFee: DEFAULT_PARKING_FEE,
-      violations: [],
+      violations: DEFAULT_VIOLATION_POLICIES,
       guestPolicy: DEFAULT_GUEST_POLICY,
       zoneDefaults: {
         maxReservationDurationMinutes: DEFAULT_RESERVATION_WINDOW_MINUTES,
@@ -169,7 +170,7 @@ async function seed() {
     create: {
       id: "singleton",
       parkingFee: DEFAULT_PARKING_FEE,
-      violations: [],
+      violations: DEFAULT_VIOLATION_POLICIES,
       guestPolicy: DEFAULT_GUEST_POLICY,
       zoneDefaults: {
         maxReservationDurationMinutes: DEFAULT_RESERVATION_WINDOW_MINUTES,
