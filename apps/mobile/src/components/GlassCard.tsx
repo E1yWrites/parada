@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { BlurView } from "expo-blur";
-import { blurMethod, glass, radii, shadows, spacing } from "@/src/theme";
+import { blurMethod, colors, glass, radii, shadows, spacing } from "@/src/theme";
 import { usePrefersReducedTransparency } from "@/src/hooks/usePrefersReducedTransparency";
 
 type GlassCardProps = {
@@ -39,7 +39,13 @@ export function GlassCard({ children, onPress, accent, padding = spacing.xl, sty
   );
 
   const content = (
-    <View style={[styles.inner, { padding }]}>
+    // `style` lands here (not on `outer`) because this is the node that
+    // actually holds `{accent}{children}` — layout props like `gap` from a
+    // caller's style need to apply where the children are. Note: a
+    // caller-supplied `borderRadius` in `style` won't resize `outer`/`clip`
+    // below, which stay fixed at `radii.lg` — an accepted limitation of this
+    // two-layer (shadow-outer + clipped-inner) structure.
+    <View testID={testID ? `${testID}-content` : undefined} style={[{ padding }, style]}>
       {accent ? (
         <View testID={testID ? `${testID}-accent` : undefined} style={[styles.accent, { backgroundColor: accent }]} />
       ) : null}
@@ -50,8 +56,11 @@ export function GlassCard({ children, onPress, accent, padding = spacing.xl, sty
   // Shadow lives on the outer, un-clipped view; the inner view clips the
   // blur/border to the rounded corners (overflow:hidden would also clip an
   // iOS shadow if applied on the same node).
-  const outerStyle = [styles.outer, style];
-  const clipStyle = [styles.clip, { borderColor: preset.borderColor }];
+  const outerStyle = styles.outer;
+  const clipStyle = [
+    styles.clip,
+    { borderColor: reducedTransparency ? colors.border : preset.borderColor },
+  ];
 
   if (onPress) {
     return (
@@ -87,7 +96,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: "hidden",
   },
-  inner: {},
   accent: {
     width: 40,
     height: 4,

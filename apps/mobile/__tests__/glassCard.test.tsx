@@ -3,7 +3,24 @@ import { render, screen, waitFor } from "@/src/test/utils";
 import { GlassCard } from "@/src/components/GlassCard";
 import { Text } from "@/src/components/Text";
 
+function flattenStyle(style: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+    } else if (value && typeof value === "object") {
+      Object.assign(out, value);
+    }
+  };
+  visit(style);
+  return out;
+}
+
 describe("GlassCard", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("renders a blur layer and its children by default", async () => {
     render(
       <GlassCard testID="hero">
@@ -28,6 +45,17 @@ describe("GlassCard", () => {
     await screen.findByText("Parked");
     await waitFor(() => {
       expect(screen.queryByTestId("hero-blur")).not.toBeOnTheScreen();
+    });
+  });
+
+  it("applies the caller's style (e.g. gap) to the node that holds its children", async () => {
+    render(
+      <GlassCard testID="hero" style={{ gap: 24 }}>
+        <Text>Parked</Text>
+      </GlassCard>,
+    );
+    await waitFor(() => {
+      expect(flattenStyle(screen.getByTestId("hero-content").props.style).gap).toBe(24);
     });
   });
 
