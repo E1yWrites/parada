@@ -21,9 +21,9 @@ export function parkingStatusMeta(status: ZoneAvailability): StatusMeta {
     case "AVAILABLE":
       return { label: "Available", icon: "checkmark-circle", color: colors.success };
     case "LOW_AVAILABILITY":
-      return { label: "Low", icon: "alert-circle", color: colors.gold };
+      return { label: "Low", icon: "alert-circle", color: colors.warning };
     case "FULL":
-      return { label: "Full", icon: "ban", color: colors.burntOrange };
+      return { label: "Full", icon: "ban", color: colors.danger };
     case "OFFLINE":
       return { label: "Offline", icon: "power", color: colors.muted };
   }
@@ -32,7 +32,7 @@ export function parkingStatusMeta(status: ZoneAvailability): StatusMeta {
 export function sessionStatusMeta(status: SessionStatus): StatusMeta {
   switch (status) {
     case "ACTIVE":
-      return { label: "Active", icon: "pulse", color: colors.orange };
+      return { label: "Active", icon: "pulse", color: colors.primary };
     case "COMPLETED":
       return { label: "Completed", icon: "checkmark-done", color: colors.muted };
   }
@@ -44,9 +44,9 @@ export function reservationStatusMeta(status: ReservationStatus): StatusMeta {
     case "CONFIRMED":
       return { label: "Confirmed", icon: "checkmark-circle", color: colors.success };
     case "ACTIVE":
-      return { label: "Active", icon: "pulse", color: colors.orange };
+      return { label: "Active", icon: "pulse", color: colors.primary };
     case "PENDING":
-      return { label: "Pending", icon: "time", color: colors.gold };
+      return { label: "Pending", icon: "time", color: colors.warning };
     case "EXPIRED":
       return { label: "Expired", icon: "hourglass", color: colors.muted };
     case "CANCELLED":
@@ -58,7 +58,7 @@ export function reservationStatusMeta(status: ReservationStatus): StatusMeta {
 export function assignmentStatusMeta(status: ZoneAssignmentStatus): StatusMeta {
   switch (status) {
     case "ACTIVE":
-      return { label: "Assigned", icon: "location", color: colors.gold };
+      return { label: "Assigned", icon: "location", color: colors.highlight };
     case "EXPIRED":
       return { label: "Expired", icon: "hourglass", color: colors.muted };
     case "REVOKED":

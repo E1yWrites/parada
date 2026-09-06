@@ -1,15 +1,11 @@
 import {
-  SpaceGrotesk_400Regular,
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_600SemiBold,
-  SpaceGrotesk_700Bold,
-} from "@expo-google-fonts/space-grotesk";
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from "@expo-google-fonts/inter";
+  Nunito_400Regular,
+  Nunito_500Medium,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+  Nunito_800ExtraBold,
+  Nunito_900Black,
+} from "@expo-google-fonts/nunito";
 import {
   JetBrainsMono_400Regular,
   JetBrainsMono_500Medium,
@@ -17,22 +13,22 @@ import {
 } from "@expo-google-fonts/jetbrains-mono";
 
 /**
- * PARADA type ramp — Space Grotesk (display), Inter (UI + body),
- * JetBrains Mono (data/plates/time/technical labels).
+ * PARADA type ramp — Nunito (display + UI, friendly rounded grotesque)
+ * and JetBrains Mono (plates/time/technical data).
  *
  * The google-fonts constants are the actual `.ttf` assets (needed by
  * `useFonts`); `fontFamily` uses the registered human-readable names, which
- * are exactly the constant identifiers (e.g. "SpaceGrotesk_700Bold").
+ * are exactly the constant identifiers (e.g. "Nunito_900Black").
  */
 export const fonts = {
-  heading: "SpaceGrotesk_700Bold",
-  headingMedium: "SpaceGrotesk_600SemiBold",
-  heading500: "SpaceGrotesk_500Medium",
-  headingRegular: "SpaceGrotesk_400Regular",
-  body: "Inter_400Regular",
-  bodyMedium: "Inter_500Medium",
-  bodySemi: "Inter_600SemiBold",
-  bodyBold: "Inter_700Bold",
+  heading: "Nunito_900Black",
+  headingMedium: "Nunito_800ExtraBold",
+  heading500: "Nunito_700Bold",
+  headingRegular: "Nunito_600SemiBold",
+  body: "Nunito_400Regular",
+  bodyMedium: "Nunito_500Medium",
+  bodySemi: "Nunito_600SemiBold",
+  bodyBold: "Nunito_700Bold",
   mono: "JetBrainsMono_500Medium",
   monoRegular: "JetBrainsMono_400Regular",
   monoBold: "JetBrainsMono_700Bold",
@@ -40,28 +36,26 @@ export const fonts = {
 
 /** Map of family name → `.ttf` asset, passed to `useFonts`. */
 export const fontAssets = {
-  SpaceGrotesk_400Regular,
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_600SemiBold,
-  SpaceGrotesk_700Bold,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
+  Nunito_400Regular,
+  Nunito_500Medium,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+  Nunito_800ExtraBold,
+  Nunito_900Black,
   JetBrainsMono_400Regular,
   JetBrainsMono_500Medium,
   JetBrainsMono_700Bold,
 } as const;
 
 export const fontSizes = {
-  /** Banners/headline numbers. */
-  display: 44,
+  /** Hero banner numbers (elapsed). */
+  display: 34,
   /** Screen titles. */
-  hero: 30,
+  hero: 32,
   /** Card titles. */
-  title: 20,
+  title: 19,
   /** Section headers. */
-  section: 16,
+  section: 20,
   /** Primary content. */
   body: 15,
   /** Labels/hints/table data. */
@@ -73,10 +67,10 @@ export const fontSizes = {
 } as const;
 
 export const lineHeights = {
-  display: 48,
-  hero: 38,
-  title: 28,
-  section: 22,
+  display: 40,
+  hero: 40,
+  title: 26,
+  section: 26,
   body: 22,
   caption: 16,
   micro: 12,

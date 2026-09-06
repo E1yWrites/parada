@@ -17,7 +17,7 @@ type CapacityBarProps = {
  * (never color alone) plus a width-0..100% fill bar. Accepts backend numbers
  * verbatim; the visual width is clamped but the numbers are never altered.
  */
-export function CapacityBar({ occupied, capacity, color = colors.orange, testID }: CapacityBarProps) {
+export function CapacityBar({ occupied, capacity, color = colors.primary, testID }: CapacityBarProps) {
   const hasCapacity = Number.isFinite(capacity) && capacity > 0;
   const raw = hasCapacity ? occupied / capacity : 0;
   const percent = Math.round(Math.min(Math.max(raw, 0), 1) * 100);
@@ -63,6 +63,8 @@ const styles = StyleSheet.create({
   },
   value: {
     letterSpacing: 0.4,
+    flexShrink: 1,
+    textAlign: "right",
   },
   track: {
     height: 6,

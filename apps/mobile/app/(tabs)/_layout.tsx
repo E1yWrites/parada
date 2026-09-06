@@ -1,26 +1,44 @@
 import { Redirect, Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "@/src/providers/SessionProvider";
 import { FullScreenLoading } from "@/src/components/FullScreenLoading";
-import { colors, fonts, fontSizes } from "@/src/theme";
+import { colors, fonts, fontSizes, layout, shadows } from "@/src/theme";
 
 type IconProps = { color: string; size: number; focused: boolean };
 
+const FloatingDot = ({ show }: { show: boolean }) =>
+  show ? <View style={styles.dot} /> : null;
+
 const ParkingIcon = ({ color, size, focused }: IconProps) => (
-  <Ionicons name={focused ? "grid" : "grid-outline"} size={size} color={color} />
+  <View style={styles.iconWrap}>
+    <Ionicons name={focused ? "grid" : "grid-outline"} size={size} color={color} />
+    <FloatingDot show={focused} />
+  </View>
 );
 const VehiclesIcon = ({ color, size, focused }: IconProps) => (
-  <Ionicons name={focused ? "car-sport" : "car-sport-outline"} size={size} color={color} />
+  <View style={styles.iconWrap}>
+    <Ionicons name={focused ? "car-sport" : "car-sport-outline"} size={size} color={color} />
+    <FloatingDot show={focused} />
+  </View>
 );
 const SessionsIcon = ({ color, size, focused }: IconProps) => (
-  <Ionicons name={focused ? "time" : "time-outline"} size={size} color={color} />
+  <View style={styles.iconWrap}>
+    <Ionicons name={focused ? "time" : "time-outline"} size={size} color={color} />
+    <FloatingDot show={focused} />
+  </View>
 );
 const AccountIcon = ({ color, size, focused }: IconProps) => (
-  <Ionicons name={focused ? "person" : "person-outline"} size={size} color={color} />
+  <View style={styles.iconWrap}>
+    <Ionicons name={focused ? "person" : "person-outline"} size={size} color={color} />
+    <FloatingDot show={focused} />
+  </View>
 );
 
 export default function TabsLayout() {
   const { user, isLoading } = useSession();
+  const insets = useSafeAreaInsets();
 
   if (isLoading) {
     return <FullScreenLoading testID="session-loading" />;
@@ -34,16 +52,24 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
-        tabBarActiveTintColor: colors.orange,
-        tabBarInactiveTintColor: colors.muted,
+        tabBarActiveTintColor: "#FFFFFF",
+        tabBarInactiveTintColor: "rgba(183, 198, 194, 0.9)",
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
+          position: "absolute",
+          bottom: insets.bottom + layout.FLOATING_TAB_BAR_MARGIN,
+          left: layout.FLOATING_TAB_BAR_SIDE,
+          right: layout.FLOATING_TAB_BAR_SIDE,
+          height: layout.FLOATING_TAB_BAR_HEIGHT,
+          borderRadius: layout.FLOATING_TAB_BAR_RADIUS,
+          backgroundColor: colors.foreground,
+          borderTopWidth: 0,
+          paddingTop: 6,
+          ...shadows.pill,
         },
         tabBarLabelStyle: {
-          fontFamily: fonts.bodySemi,
-          fontSize: fontSizes.micro,
+          fontFamily: fonts.headingRegular,
+          fontSize: fontSizes.micro + 1,
+          fontWeight: "600",
         },
         sceneStyle: { backgroundColor: colors.background },
       }}>
@@ -66,3 +92,17 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 1,
+  },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+});

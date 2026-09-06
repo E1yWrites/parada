@@ -49,10 +49,11 @@ export function Input({
   testID,
 }: InputProps) {
   const [secure, setSecure] = useState(secureTextEntry);
+  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.container} testID={testID ? `${testID}-wrap` : undefined}>
       <Text variant="micro">{label.toUpperCase()}</Text>
-      <View style={[styles.control, error ? styles.controlError : undefined]}>
+      <View style={[styles.control, error ? styles.controlError : focused ? styles.controlFocused : undefined]}>
         <TextInput
           testID={testID}
           value={value}
@@ -64,11 +65,15 @@ export function Input({
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
           editable={editable}
-          onBlur={onBlur}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            onBlur?.();
+          }}
           onSubmitEditing={onSubmit}
           returnKeyType={returnKeyType}
           textContentType={textContentType}
-          selectionColor={colors.orange}
+          selectionColor={colors.primary}
           accessibilityLabel={label}
           accessibilityState={{ disabled: !editable }}
           style={[styles.input, variant === "mono" ? styles.monoInput : undefined]}
@@ -126,6 +131,10 @@ const styles = StyleSheet.create({
   },
   controlError: {
     borderColor: colors.danger,
+  },
+  controlFocused: {
+    borderColor: colors.primary,
+    borderWidth: 1.5,
   },
   input: {
     flex: 1,

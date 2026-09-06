@@ -37,7 +37,7 @@ export default function LoginScreen() {
   return (
     <Screen keyboard title="PARADA" eyebrow="Sign in to manage your parking" testID="login-screen">
       <View style={styles.brandRow}>
-        <Ionicons name="car-sport" size={26} color={colors.orange} />
+        <Ionicons name="car-sport" size={26} color={colors.primary} />
         <Text variant="micro" color={colors.muted}>
           REAL-TIME PARKING ACCESS
         </Text>
@@ -81,7 +81,7 @@ export default function LoginScreen() {
       <Text variant="caption" align="center" color={colors.muted}>
         New here?{" "}
         <Link href="/register" testID="login-goto-register">
-          <Text variant="caption" color={colors.orange}>
+          <Text variant="caption" color={colors.primary}>
             Create an account
           </Text>
         </Link>

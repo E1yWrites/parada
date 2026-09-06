@@ -5,7 +5,7 @@ import { colors } from "@/src/theme";
 export function FullScreenLoading({ testID }: { testID?: string }) {
   return (
     <View style={styles.container} testID={testID}>
-      <ActivityIndicator color={colors.orange} size="large" />
+      <ActivityIndicator color={colors.primary} size="large" />
     </View>
   );
 }

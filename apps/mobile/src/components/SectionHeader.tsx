@@ -37,6 +37,7 @@ const styles = StyleSheet.create({
   },
   textGroup: {
     flex: 1,
+    minWidth: 0,
     gap: spacing.xs,
   },
   right: {

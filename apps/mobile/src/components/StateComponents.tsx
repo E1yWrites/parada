@@ -3,12 +3,12 @@ import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps, ReactNode } from "react";
 import { Card } from "./Card";
 import { Text } from "./Text";
-import { colors, spacing } from "@/src/theme";
+import { colors, radii, spacing } from "@/src/theme";
 
 export function LoadingState({ label = "Loading", testID }: { label?: string; testID?: string }) {
   return (
     <Card style={styles.card} testID={testID}>
-      <ActivityIndicator testID={testID ? `${testID}-spinner` : undefined} color={colors.orange} size="large" />
+      <ActivityIndicator testID={testID ? `${testID}-spinner` : undefined} color={colors.primary} size="large" />
       <Text variant="caption">{label}</Text>
     </Card>
   );
@@ -25,7 +25,9 @@ export function ErrorState({
 }) {
   return (
     <Card style={styles.card} testID={testID}>
-      <Ionicons name="cloud-offline-outline" size={32} color={colors.danger} />
+      <View style={styles.iconContainer}>
+        <Ionicons name="cloud-offline-outline" size={32} color={colors.danger} />
+      </View>
       <Text variant="bodySemi" color={colors.danger} align="center">
         {message}
       </Text>
@@ -37,7 +39,7 @@ export function ErrorState({
           hitSlop={10}
           style={styles.retry}
           testID={testID ? `${testID}-retry` : undefined}>
-          <Text variant="caption" color={colors.orange} align="center">
+          <Text variant="caption" color={colors.primary} align="center">
             {"RETRY"}
           </Text>
         </Pressable>
@@ -61,7 +63,9 @@ export function EmptyState({
 }) {
   return (
     <Card style={styles.card} testID={testID}>
-      <Ionicons name={icon} size={36} color={colors.muted} />
+      <View style={styles.iconContainer}>
+        <Ionicons name={icon} size={36} color={colors.muted} />
+      </View>
       <Text variant="title" align="center">
         {title}
       </Text>
@@ -78,6 +82,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xl,
     marginVertical: spacing.xl,
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceElevated,
   },
   action: {
     alignSelf: "stretch",

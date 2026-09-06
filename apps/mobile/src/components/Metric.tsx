@@ -13,7 +13,7 @@ type MetricProps = {
 };
 
 /** Labeled data point rendered in JetBrains Mono. */
-export function Metric({ label, value, accent = colors.orange, icon, testID }: MetricProps) {
+export function Metric({ label, value, accent = colors.primary, icon, testID }: MetricProps) {
   return (
     <View style={styles.container}>
       <View style={styles.labelRow}>

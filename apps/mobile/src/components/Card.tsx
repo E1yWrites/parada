@@ -12,16 +12,17 @@ type CardProps = {
 };
 
 /**
- * Dark-matter surface card. Optional left accent bar, deep shadow, and
- * press affordance for tappable rows/cards.
+ * Soft light surface card with an optional playful top accent capsule.
+ * Optional press affordance for tappable rows/cards.
  */
 export function Card({ children, onPress, accent, padding = spacing.xl, style, testID }: CardProps) {
-  const containerStyle = [
-    styles.base,
-    { padding },
-    accent ? { borderLeftWidth: 3, borderLeftColor: accent } : undefined,
-    style,
-  ];
+  const containerStyle = [styles.base, { padding }, style];
+  const body = (
+    <>
+      {accent ? <View testID={testID ? `${testID}-accent` : undefined} style={[styles.accent, { backgroundColor: accent }]} /> : null}
+      {children}
+    </>
+  );
   if (onPress) {
     return (
       <Pressable
@@ -29,13 +30,13 @@ export function Card({ children, onPress, accent, padding = spacing.xl, style, t
         accessibilityRole="button"
         onPress={onPress}
         style={({ pressed }) => [containerStyle, pressed ? styles.pressed : undefined]}>
-        {children}
+        {body}
       </Pressable>
     );
   }
   return (
     <View testID={testID} style={containerStyle}>
-      {children}
+      {body}
     </View>
   );
 }
@@ -48,8 +49,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     ...shadows.card,
   },
+  accent: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: spacing.md,
+  },
   pressed: {
-    opacity: 0.9,
+    opacity: 0.92,
     transform: [{ scale: 0.99 }],
   },
 });

@@ -54,7 +54,7 @@ export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardPr
       style={({ pressed }) => [styles.wrapper, pressed && selectable ? styles.pressed : undefined]}
       testID={testID}>
       <Card
-        accent={selected ? colors.gold : colors.orange}
+        accent={selected ? colors.primary : undefined}
         style={[styles.card, selected ? styles.cardSelected : undefined]}>
         <View style={styles.headerRow}>
           <View style={styles.titleGroup}>
@@ -63,10 +63,12 @@ export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardPr
             </Text>
             <Text variant="mono">{zone.code}</Text>
           </View>
-          <AvailabilityBadge
-            status={zone.availability}
-            testID={testID ? `${testID}-availability` : undefined}
-          />
+          <View style={styles.badgeSlot}>
+            <AvailabilityBadge
+              status={zone.availability}
+              testID={testID ? `${testID}-availability` : undefined}
+            />
+          </View>
         </View>
         <CapacityBar
           occupied={zone.occupiedCount}
@@ -75,22 +77,22 @@ export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardPr
           testID={testID ? `${testID}-occupancy` : undefined}
         />
         <View style={styles.metrics}>
-          <Metric label="Free" value={String(zone.availableCount)} accent={colors.gold} icon="car-outline" testID={testID ? `${testID}-available` : undefined} />
+          <Metric label="Free" value={String(zone.availableCount)} accent={colors.highlight} icon="car-outline" testID={testID ? `${testID}-available` : undefined} />
           <Metric label="Capacity" value={String(zone.capacity)} accent={colors.muted} icon="grid-outline" testID={testID ? `${testID}-capacity` : undefined} />
           <Metric label="Occupied" value={String(zone.occupiedCount)} accent={colors.muted} icon="lock-closed-outline" testID={testID ? `${testID}-occupied` : undefined} />
         </View>
         {isFull ? (
           <View style={styles.stateRow} testID={testID ? `${testID}-unavailable` : undefined}>
-            <Ionicons name="ban" size={14} color={colors.burntOrange} />
-            <Text variant="caption" color={colors.burntOrange}>
+            <Ionicons name="ban" size={14} color={colors.danger} />
+            <Text variant="caption" color={colors.danger}>
               No spaces available
             </Text>
           </View>
         ) : null}
         {selected ? (
           <View style={styles.stateRow} testID={testID ? `${testID}-selected` : undefined}>
-            <Ionicons name="checkmark-circle" size={14} color={colors.gold} />
-            <Text variant="caption" color={colors.gold}>
+            <Ionicons name="checkmark-circle" size={14} color={colors.highlight} />
+            <Text variant="caption" color={colors.highlight}>
               Selected
             </Text>
           </View>
@@ -112,7 +114,7 @@ const styles = StyleSheet.create({
     gap: spacing.xl2,
   },
   cardSelected: {
-    borderColor: colors.gold,
+    borderColor: colors.primary,
   },
   headerRow: {
     flexDirection: "row",
@@ -122,10 +124,16 @@ const styles = StyleSheet.create({
   },
   titleGroup: {
     gap: spacing.xs,
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
+  },
+  badgeSlot: {
+    flexShrink: 0,
   },
   metrics: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: spacing.md,
   },

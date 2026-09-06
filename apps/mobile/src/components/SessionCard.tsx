@@ -16,20 +16,24 @@ type SessionCardProps = {
 export function SessionCard({ session, now, testID }: SessionCardProps) {
   const active = session.status === "ACTIVE";
   return (
-    <Card accent={active ? colors.orange : colors.muted} style={styles.card} testID={testID}>
+    <Card accent={active ? colors.primary : colors.muted} style={styles.card} testID={testID}>
       <View style={styles.row}>
         <View style={styles.left}>
           <Text variant="plate" testID={testID ? `${testID}-plate` : undefined}>
             {session.vehicle?.plateNumber ?? "GUEST"}
           </Text>
           <View style={styles.zoneLine}>
-            <Text variant="caption">Zone {session.zone.name}</Text>
+            <Text variant="caption" numberOfLines={2} style={styles.zoneName}>
+              Zone {session.zone.name}
+            </Text>
             <Text variant="mono" style={styles.code}>
               {session.zone.code}
             </Text>
           </View>
         </View>
-        <SessionBadge status={session.status} size="sm" testID={testID ? `${testID}-status` : undefined} />
+        <View style={styles.badgeSlot}>
+          <SessionBadge status={session.status} size="sm" testID={testID ? `${testID}-status` : undefined} />
+        </View>
       </View>
       <View style={styles.times}>
         <View style={styles.timeGroup}>
@@ -41,7 +45,7 @@ export function SessionCard({ session, now, testID }: SessionCardProps) {
         <View style={styles.timeGroup}>
           <Text variant="micro">{active ? "ELAPSED" : "EXITED"}</Text>
           {active ? (
-            <Text variant="monoBold" color={colors.orange} testID={testID ? `${testID}-elapsed` : undefined}>
+            <Text variant="monoBold" color={colors.primary} testID={testID ? `${testID}-elapsed` : undefined}>
               {formatElapsed(session.enteredAt, now)}
             </Text>
           ) : (
@@ -59,7 +63,7 @@ export function SessionCard({ session, now, testID }: SessionCardProps) {
       {session.feeAmount != null ? (
         <View style={styles.feeRow}>
           <Text variant="micro">PARKING FEE</Text>
-          <Text variant="monoBold" color={colors.gold} testID={testID ? `${testID}-fee` : undefined}>
+          <Text variant="monoBold" color={colors.highlight} testID={testID ? `${testID}-fee` : undefined}>
             {formatCurrency(session.feeAmount)}
           </Text>
         </View>
@@ -80,12 +84,19 @@ const styles = StyleSheet.create({
   },
   left: {
     gap: spacing.md,
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
+  },
+  badgeSlot: {
+    flexShrink: 0,
   },
   zoneLine: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
+  },
+  zoneName: {
+    flexShrink: 1,
   },
   code: {
     color: colors.muted,
@@ -94,11 +105,13 @@ const styles = StyleSheet.create({
   },
   times: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     gap: spacing.xl,
   },
   timeGroup: {
     gap: spacing.xs,
+    flexShrink: 1,
   },
   feeRow: {
     flexDirection: "row",

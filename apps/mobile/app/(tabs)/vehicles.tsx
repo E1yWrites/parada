@@ -6,7 +6,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import type { VehicleType } from "@parada/types";
@@ -24,11 +24,12 @@ import {
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { normalizePlateInput } from "@/lib/format";
-import { colors, radii, spacing, touchTarget } from "@/src/theme";
+import { colors, radii, spacing, tabClearance, touchTarget } from "@/src/theme";
 
 const VEHICLE_TYPES: VehicleType[] = ["CAR", "MOTORCYCLE", "VAN", "TRUCK", "OTHER"];
 
 export default function VehiclesScreen() {
+  const insets = useSafeAreaInsets();
   const vehicles = useQuery({ queryKey: queryKeys.vehicles, queryFn: api.vehicles });
 
   const refresh = () => void vehicles.refetch();
@@ -40,10 +41,10 @@ export default function VehiclesScreen() {
         data={vehicles.data ?? []}
         keyExtractor={(vehicle) => vehicle.id}
         renderItem={({ item }) => <VehicleCard vehicle={item} testID={`vehicle-${item.plateNumber}`} />}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: tabClearance(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.orange} colors={[colors.orange]} />
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />
         }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListHeaderComponent={
@@ -133,7 +134,7 @@ function AddVehicleButton() {
         testID="vehicles-add-button"
         title="Add Vehicle"
         variant="secondary"
-        icon={<Ionicons name="add" size={18} color={colors.orange} />}
+        icon={<Ionicons name="add" size={18} color={colors.primary} />}
         onPress={() => setOpen(true)}
       />
     );
@@ -241,11 +242,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.md,
+    backgroundColor: colors.surfaceElevated,
     paddingHorizontal: spacing.lg,
   },
   typeChipSelected: {
-    backgroundColor: colors.orange,
-    borderColor: colors.orange,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   typeLabel: {
     letterSpacing: 0.6,

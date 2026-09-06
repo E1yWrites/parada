@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ActiveSessionBanner,
   EmptyState,
@@ -13,9 +13,10 @@ import {
 import { api, ApiError, type SessionDto } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { useNow } from "@/src/hooks/useNow";
-import { colors, spacing } from "@/src/theme";
+import { colors, spacing, tabClearance } from "@/src/theme";
 
 export default function SessionsScreen() {
+  const insets = useSafeAreaInsets();
   const sessions = useQuery({
     queryKey: queryKeys.sessions,
     queryFn: api.sessions,
@@ -35,10 +36,10 @@ export default function SessionsScreen() {
         data={history}
         keyExtractor={(session) => session.id}
         renderItem={({ item }) => <SessionCard session={item} testID={`session-${item.id}`} />}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: tabClearance(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.orange} colors={[colors.orange]} />
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />
         }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListHeaderComponent={

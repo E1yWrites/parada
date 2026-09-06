@@ -38,18 +38,20 @@ export function ReservationCard({
       reservation.status === "ACTIVE");
 
   return (
-    <Card accent={colors.orange} testID={testID}>
+    <Card accent={colors.primary} testID={testID}>
       <View style={styles.row}>
         <View style={styles.heading}>
-<Text variant="title" numberOfLines={2}>
+          <Text variant="title" numberOfLines={2}>
             {reservation.zone.name}
           </Text>
           <Text variant="mono">{reservation.zone.code}</Text>
         </View>
-        <ReservationBadge status={reservation.status} testID={testID ? `${testID}-status` : undefined} />
+        <View style={styles.badgeSlot}>
+          <ReservationBadge status={reservation.status} testID={testID ? `${testID}-status` : undefined} />
+        </View>
       </View>
 
-      <Text variant="mono" color={colors.orange} style={styles.plate}>
+      <Text variant="plate" style={styles.plate}>
         {reservation.vehicle.plateNumber}
       </Text>
 
@@ -99,8 +101,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   heading: {
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
     gap: spacing.xs,
+  },
+  badgeSlot: {
+    flexShrink: 0,
   },
   plate: {
     marginTop: spacing.sm,

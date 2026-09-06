@@ -45,7 +45,7 @@ export type EstablishmentLocation = {
   longitude: number;
 };
 
-/** GET /zones/establishment payload (public). */
+/** GET /zones/establishment payload (authenticated). */
 export type EstablishmentInfo = {
   location: EstablishmentLocation | null;
 };
@@ -390,7 +390,7 @@ export const api = {
 
   establishment: async () =>
     requireValidatedObject(
-      await request<EstablishmentInfo>("/zones/establishment", { public: true }),
+      await request<EstablishmentInfo>("/zones/establishment"),
       isEstablishmentInfo,
       "INVALID_ESTABLISHMENT_RESPONSE",
       "We couldn't load navigation details.",

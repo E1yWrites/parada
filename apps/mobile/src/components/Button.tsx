@@ -25,10 +25,10 @@ const variantColors: Record<
   ButtonVariant,
   { background: string; foreground: string; borderColor?: string }
 > = {
-  primary: { background: colors.orange, foreground: colors.onAccent },
-  secondary: { background: colors.surfaceElevated, foreground: colors.foreground, borderColor: colors.border },
-  danger: { background: colors.surfaceElevated, foreground: colors.danger, borderColor: colors.danger },
-  ghost: { background: "transparent", foreground: colors.orange },
+  primary: { background: colors.primary, foreground: colors.onAccent },
+  secondary: { background: colors.surface, foreground: colors.foreground, borderColor: colors.border },
+  danger: { background: colors.surface, foreground: colors.danger, borderColor: colors.danger },
+  ghost: { background: "transparent", foreground: colors.primary },
 };
 
 export function Button({
@@ -66,7 +66,7 @@ export function Button({
       <Text
         variant="bodySemi"
         color={palette.foreground}
-        style={variant === "ghost" ? styles.ghostText : undefined}>
+        style={[styles.text, variant === "ghost" ? styles.ghostText : undefined]}>
         {title}
       </Text>
     </Pressable>
@@ -76,14 +76,17 @@ export function Button({
 const styles = StyleSheet.create({
   base: {
     minHeight: touchTarget,
-    minWidth: 128,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: spacing.md,
-    paddingHorizontal: spacing.xl3,
+    paddingHorizontal: spacing.xl2,
     paddingVertical: spacing.lg,
     borderRadius: radii.md,
+  },
+  text: {
+    flexShrink: 1,
+    textAlign: "center",
   },
   pressed: {
     transform: [{ scale: 0.98 }],

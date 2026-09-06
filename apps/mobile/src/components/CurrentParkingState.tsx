@@ -200,7 +200,7 @@ function SessionState({
                 <Text variant="micro" color={colors.muted}>
                   SESSION FEE
                 </Text>
-                <Text variant="body" color={colors.gold} testID="session-fee">
+                <Text variant="body" color={colors.highlight} testID="session-fee">
                   {formatCurrency(session.feeAmount)}
                 </Text>
               </View>
@@ -245,9 +245,9 @@ function AssignmentState({ assignment, destination, destinationReady }: Assignme
     .join(" ");
 
   return (
-    <Card accent={colors.gold} testID="assignment-current">
+    <Card accent={colors.highlight} testID="assignment-current">
       <View style={styles.headerRow}>
-        <Text variant="micro" color={colors.gold}>
+        <Text variant="micro" color={colors.highlight}>
           ZONE ASSIGNED
         </Text>
         <AssignmentBadge status={assignment.status} testID="assignment-current-badge" />
@@ -293,9 +293,9 @@ function ReservationState({ reservation, destination, destinationReady }: Reserv
   ].join(" ");
 
   return (
-    <Card accent={colors.orange} testID="reservation-current">
+    <Card accent={colors.primary} testID="reservation-current">
       <View style={styles.headerRow}>
-        <Text variant="micro" color={colors.orange}>
+        <Text variant="micro" color={colors.primary}>
           RESERVED
         </Text>
         <ReservationBadge status={reservation.status} testID="reservation-current-badge" />

@@ -7,8 +7,8 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, spacing } from "@/src/theme";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors, spacing, tabClearance } from "@/src/theme";
 import { Text } from "./Text";
 
 type ScreenProps = {
@@ -37,6 +37,7 @@ export function Screen({
   keyboard = false,
   testID,
 }: ScreenProps) {
+  const insets = useSafeAreaInsets();
   const body = (
     <>
       {eyebrow ? <Text variant="micro" testID={testID ? `${testID}-eyebrow` : undefined}>{eyebrow.toUpperCase()}</Text> : null}
@@ -53,15 +54,15 @@ export function Screen({
     <SafeAreaView edges={["top"]} style={styles.safe}>
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={styles.padding}
+        contentContainerStyle={[styles.padding, { paddingBottom: tabClearance(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           onRefresh ? (
             <RefreshControl
               refreshing={refreshing ?? false}
               onRefresh={onRefresh}
-              tintColor={colors.orange}
-              colors={[colors.orange]}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
           ) : undefined
         }>

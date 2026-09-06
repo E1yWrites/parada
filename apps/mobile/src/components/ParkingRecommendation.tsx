@@ -16,10 +16,6 @@ import { resolveEstablishmentDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
 import { colors, radii, spacing, touchTarget } from "@/src/theme";
 
-function isConflictError(err: unknown): boolean {
-  return err instanceof ApiError && (err.code === "CONFLICT" || err.status === 409);
-}
-
 /**
  * Recommended-zone + accept-recommendation flow (Phase 9.2).
  *
@@ -29,6 +25,15 @@ function isConflictError(err: unknown): boolean {
  * the backend confirms the assignment (mutation result) or an ACTIVE assignment
  * already exists in the assignments list.
  */
+/**
+ * The backend returns `{ recommendedZone: null }` when nothing is suitable.
+ * Older builds answered 409 instead, and the client is deployed independently
+ * of the API, so both shapes resolve to the same friendly empty state.
+ */
+function isConflictError(err: unknown): boolean {
+  return err instanceof ApiError && (err.code === "CONFLICT" || err.status === 409);
+}
+
 export function ParkingRecommendation() {
   const queryClient = useQueryClient();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
@@ -90,14 +95,14 @@ export function ParkingRecommendation() {
     void recommendation.refetch();
   };
 
+  const isUnavailable = isConflictError(recommendation.error);
+
   function handleAccept() {
     if (!recommended || !selectedVehicle) {
       return;
     }
     assign.mutate({ zoneId: recommended.id, vehicleId: selectedVehicle.id });
   }
-
-  const isUnavailable = isConflictError(recommendation.error);
 
   return (
     <View testID="parking-recommendation">
@@ -108,8 +113,8 @@ export function ParkingRecommendation() {
       />
 
       {confirmedAssignment ? (
-        <Card accent={colors.gold} testID="assignment-confirmed">
-          <Text variant="micro" color={colors.gold}>
+        <Card accent={colors.highlight} testID="assignment-confirmed">
+          <Text variant="micro" color={colors.highlight}>
             ZONE ASSIGNED
           </Text>
           <Text variant="title" testID="assignment-zone-name">
@@ -170,17 +175,19 @@ export function ParkingRecommendation() {
           />
         </EmptyState>
       ) : (
-        <Card accent={colors.gold} testID="recommendation-card">
+        <Card accent={colors.highlight} testID="recommendation-card">
           <View accessible accessibilityLabel={summary} testID="recommendation-zone">
             <View style={styles.zoneRow}>
               <View style={styles.zoneText}>
-                <Text variant="title">{recommended.name}</Text>
+                <Text variant="title" numberOfLines={2}>
+                  {recommended.name}
+                </Text>
                 <Text variant="mono" color={colors.muted}>
                   {recommended.code}
                 </Text>
               </View>
               <View style={styles.percentBadge}>
-                <Text variant="monoBold" color={colors.gold}>
+                <Text variant="monoBold" color={colors.highlight}>
                   {percent}%
                 </Text>
                 <Text variant="micro" color={colors.muted}>
@@ -192,14 +199,14 @@ export function ParkingRecommendation() {
           <CapacityBar
             occupied={recommended.occupiedCount}
             capacity={recommended.capacity}
-            color={colors.gold}
+            color={colors.highlight}
             testID="recommendation-occupancy"
           />
           <View style={styles.metrics}>
             <Metric
               label="Free"
               value={String(recommended.availableCount)}
-              accent={colors.gold}
+              accent={colors.highlight}
               icon="car-outline"
               testID="recommendation-available"
             />
@@ -313,13 +320,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
-    borderRadius: radii.sm,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceElevated,
   },
   vehicleChipSelected: {
-    backgroundColor: colors.orange,
-    borderColor: colors.orange,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
 });

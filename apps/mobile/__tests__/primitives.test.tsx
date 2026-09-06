@@ -17,9 +17,9 @@ function flattenStyle(style: unknown): Record<string, unknown> {
 }
 
 describe("Text: font scaling", () => {
-  it("caps font scaling at 1.3 by default", () => {
+  it("caps font scaling at 1.8 by default", () => {
     render(<Text testID="t">Hello</Text>);
-    expect(screen.getByTestId("t").props.maxFontSizeMultiplier).toBe(1.3);
+    expect(screen.getByTestId("t").props.maxFontSizeMultiplier).toBe(1.8);
   });
 
   it("accepts an explicit maxFontSizeMultiplier override", () => {

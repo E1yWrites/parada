@@ -53,7 +53,7 @@ export default function AccountScreen() {
                 hitSlop={10}
                 style={styles.degradedRetry}
                 testID="account-cache-retry">
-                <Text variant="caption" color={colors.orange} align="center">
+                <Text variant="caption" color={colors.primary} align="center">
                   RETRY
                 </Text>
               </Pressable>
@@ -71,7 +71,9 @@ export default function AccountScreen() {
                 {profile.email}
               </Text>
             </View>
-            <RolePill role={profile.role} />
+            <View style={styles.pillSlot}>
+              <RolePill role={profile.role} />
+            </View>
           </Card>
           <Card style={styles.infoCard}>
             <InfoRow label="Status" value="Active driver account" />
@@ -105,7 +107,7 @@ function RolePill({ role }: { role: string }) {
   const label = role === "ADMIN" ? "ADMIN" : "DRIVER";
   return (
     <View style={styles.pill} testID="account-role">
-      <Text variant="micro" color={colors.orange}>
+      <Text variant="micro" color={colors.primary}>
         {label}
       </Text>
     </View>
@@ -128,6 +130,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xl,
+    flexWrap: "nowrap",
   },
   degraded: {
     flexDirection: "row",
@@ -148,17 +151,22 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.orange,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
   profileText: {
     flex: 1,
+    minWidth: 0,
     gap: spacing.xs,
+  },
+  pillSlot: {
+    flexShrink: 0,
   },
   pill: {
     borderWidth: 1,
-    borderColor: colors.orange,
+    borderColor: colors.primary,
     borderRadius: radii.full,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,

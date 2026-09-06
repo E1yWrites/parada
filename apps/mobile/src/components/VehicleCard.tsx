@@ -19,7 +19,7 @@ const vehicleStatusMeta: Record<Vehicle["status"], { label: string; icon: "check
 
 export function VehicleCard({ vehicle, onPress, testID }: VehicleCardProps) {
   return (
-    <Card onPress={onPress} accent={colors.gold} style={styles.card} testID={testID}>
+    <Card onPress={onPress} accent={colors.highlight} style={styles.card} testID={testID}>
       <View style={styles.row}>
         <View style={styles.plateGroup}>
           <Text variant="micro">PLATE</Text>
@@ -28,7 +28,7 @@ export function VehicleCard({ vehicle, onPress, testID }: VehicleCardProps) {
           </Text>
         </View>
         <View style={styles.metaGroup}>
-          <Text variant="caption" testID={testID ? `${testID}-type` : undefined}>
+          <Text variant="caption" numberOfLines={2} style={styles.metaType} testID={testID ? `${testID}-type` : undefined}>
             {formatVehicleType(vehicle.vehicleType)}
           </Text>
           <StatusBadge meta={vehicleStatusMeta[vehicle.status]} size="sm" testID={testID ? `${testID}-status` : undefined} />
@@ -50,10 +50,16 @@ const styles = StyleSheet.create({
   },
   plateGroup: {
     gap: spacing.sm,
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
   },
   metaGroup: {
     alignItems: "flex-end",
     gap: spacing.sm,
+    flexShrink: 0,
+    maxWidth: "60%",
+  },
+  metaType: {
+    textAlign: "right",
   },
 });

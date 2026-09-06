@@ -6,3 +6,4 @@ export { spacing, touchTarget } from "./spacing";
 export { radii } from "./radii";
 export { shadows } from "./shadows";
 export type { ShadowPreset } from "./shadows";
+export { layout, tabClearance } from "./layout";

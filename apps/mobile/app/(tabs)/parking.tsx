@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import {
   CurrentParkingState,
   EmptyState,
@@ -28,6 +28,8 @@ export default function ParkingScreen() {
     queryFn: api.zones,
     refetchInterval: 30_000,
   });
+  const { width } = useWindowDimensions();
+  const wide = width >= 520;
   const active = useQuery({
     queryKey: queryKeys.activeSession,
     queryFn: api.activeSession,
@@ -117,7 +119,7 @@ export default function ParkingScreen() {
       ) : (
         <View style={styles.grid} testID="zones-grid">
           {(zones.data ?? []).map((zone: PublicZone) => (
-            <View key={zone.id} style={styles.col}>
+            <View key={zone.id} style={wide ? styles.colWide : styles.colNarrow}>
               <ZoneCard
                 zone={zone}
                 onPress={hasCurrentState ? null : () => setSelectedZoneId(zone.id)}
@@ -140,8 +142,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.xl,
   },
-  col: {
+  colWide: {
     width: "47%",
     flexGrow: 1,
+  },
+  colNarrow: {
+    width: "100%",
   },
 });

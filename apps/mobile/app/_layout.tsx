@@ -12,7 +12,7 @@ export default function RootLayout() {
   }
   return (
     <AppProviders>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerShown: false,

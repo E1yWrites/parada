@@ -135,7 +135,7 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
         </Text>
       ) : (
         <Card testID="reservation-summary">
-          <Text variant="micro" color={colors.gold}>
+          <Text variant="micro" color={colors.highlight}>
             RESERVING
           </Text>
           <Text variant="title">{selectedZone.name}</Text>
@@ -290,14 +290,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
-    borderRadius: radii.sm,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceElevated,
   },
   vehicleChipSelected: {
-    backgroundColor: colors.orange,
-    borderColor: colors.orange,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   listHeader: {
     marginTop: spacing.xl2,

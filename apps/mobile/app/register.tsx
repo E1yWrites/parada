@@ -61,7 +61,7 @@ export default function RegisterScreen() {
   return (
     <Screen keyboard title="Create account" eyebrow="PARADA access" testID="register-screen">
       <View style={styles.brandRow}>
-        <Ionicons name="car-sport" size={26} color={colors.gold} />
+        <Ionicons name="car-sport" size={26} color={colors.primary} />
         <Text variant="micro" color={colors.muted}>
           ONE APP FOR YOUR PARKING
         </Text>
@@ -137,7 +137,7 @@ export default function RegisterScreen() {
       <Text variant="caption" align="center" color={colors.muted}>
         Already have an account?{" "}
         <Link href="/login" testID="register-goto-login">
-          <Text variant="caption" color={colors.orange}>
+          <Text variant="caption" color={colors.primary}>
             Sign in
           </Text>
         </Link>

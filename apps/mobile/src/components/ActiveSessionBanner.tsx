@@ -4,7 +4,7 @@ import { Card } from "./Card";
 import { Text } from "./Text";
 import { StatusBadge } from "./StatusBadge";
 import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
-import { colors, spacing } from "@/src/theme";
+import { colors, radii, spacing } from "@/src/theme";
 import { formatElapsed } from "@/lib/format";
 import type { SessionDto } from "@/lib/api/client";
 
@@ -45,7 +45,7 @@ export function ActiveSessionBanner({ session, now, testID }: ActiveSessionBanne
   }, [pulse, reducedMotion]);
 
   return (
-    <Card accent={colors.orange} style={styles.card} testID={testID}>
+    <Card accent={colors.primary} style={styles.card} testID={testID}>
       <View style={styles.headerRow}>
         <View style={styles.dotWrap}>
           <Animated.View
@@ -55,23 +55,23 @@ export function ActiveSessionBanner({ session, now, testID }: ActiveSessionBanne
           <View style={styles.dot} />
         </View>
         <StatusBadge
-          meta={{ label: "Parked", icon: "car", color: colors.orange }}
+          meta={{ label: "Parked", icon: "car", color: colors.primary }}
           testID={testID ? `${testID}-badge` : undefined}
         />
       </View>
       <View style={styles.content}>
         <Text variant="micro">YOUR VEHICLE IS PARKED IN</Text>
-        <Text variant="hero" testID={testID ? `${testID}-zone` : undefined}>
+        <Text variant="hero" numberOfLines={2} testID={testID ? `${testID}-zone` : undefined}>
           {session.zone.name}
         </Text>
-        <Text variant="plate" testID={testID ? `${testID}-plate` : undefined}>
+        <Text variant="plate" numberOfLines={1} testID={testID ? `${testID}-plate` : undefined}>
           {session.vehicle?.plateNumber ?? "GUEST"}
         </Text>
         <View style={styles.elapsedRow}>
           <Text variant="caption" color={colors.muted}>
             SESSION ELAPSED
           </Text>
-          <Text variant="display" color={colors.gold} testID={testID ? `${testID}-elapsed` : undefined}>
+          <Text variant="display" color={colors.highlight} testID={testID ? `${testID}-elapsed` : undefined}>
             {formatElapsed(session.enteredAt, now)}
           </Text>
         </View>
@@ -83,6 +83,7 @@ export function ActiveSessionBanner({ session, now, testID }: ActiveSessionBanne
 const styles = StyleSheet.create({
   card: {
     gap: spacing.xl2,
+    borderRadius: radii.xl,
   },
   headerRow: {
     flexDirection: "row",
@@ -101,13 +102,13 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.orange,
+    backgroundColor: colors.primary,
   },
   dot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: colors.orange,
+    backgroundColor: colors.primary,
   },
   content: {
     gap: spacing.md,

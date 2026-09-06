@@ -131,7 +131,7 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
             </Text>
           ) : (
             <Card testID="assignment-summary">
-              <Text variant="micro" color={colors.gold}>
+              <Text variant="micro" color={colors.highlight}>
                 SELECTED ZONE
               </Text>
               <Text variant="title">{selectedZone.name}</Text>
@@ -250,13 +250,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
-    borderRadius: radii.sm,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceElevated,
   },
   vehicleChipSelected: {
-    backgroundColor: colors.orange,
-    borderColor: colors.orange,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
 });

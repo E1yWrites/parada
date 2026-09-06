@@ -104,7 +104,7 @@ const variantStyles: Record<TextVariant, TextStyle> = {
     fontSize: fontSizes.monoValue,
     lineHeight: lineHeights.monoValue,
     letterSpacing: 1.5,
-    color: colors.orange,
+    color: colors.primary,
   },
 };
 
@@ -116,7 +116,7 @@ export function Text({
   numberOfLines,
   accessibilityLabel,
   accessibilityRole,
-  maxFontSizeMultiplier = 1.3,
+  maxFontSizeMultiplier = 1.8,
   style,
   testID,
 }: TextProps) {

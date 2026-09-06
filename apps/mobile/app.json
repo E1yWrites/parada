@@ -4,7 +4,7 @@
     "slug": "parada-mobile",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "platforms": ["ios", "android"],
     "scheme": "parada",

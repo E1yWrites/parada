@@ -1,13 +1,13 @@
-/** PARADA corner radii — squircle-leaning, nothing fully round except pills. */
+/** PARADA corner radii — soft and rounded, nothing overly sharp. */
 export const radii = {
-  /** Small chips/badges. */
-  sm: 6,
-  /** Inputs, buttons, small cards. */
-  md: 10,
+  /** Chips, tracks, small containers. */
+  sm: 10,
+  /** Buttons, inputs, vehicle chips. */
+  md: 16,
   /** Standard cards. */
-  lg: 14,
-  /** Large surfaces/banners. */
-  xl: 20,
+  lg: 24,
+  /** Hero cards / banners. */
+  xl: 32,
   /** Pills/badges. */
   full: 999,
 } as const;
