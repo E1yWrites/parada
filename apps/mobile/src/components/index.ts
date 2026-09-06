@@ -1,6 +1,7 @@
 export { Text } from "./Text";
 export { Button } from "./Button";
 export { Card } from "./Card";
+export { GlassCard } from "./GlassCard";
 export { Input } from "./Input";
 export { Screen } from "./Screen";
 export { SectionHeader } from "./SectionHeader";
