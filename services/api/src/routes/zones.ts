@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { ok } from "../http/response";
 import { NotFoundError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
@@ -10,9 +10,11 @@ import { availabilityOf } from "./admin";
 export function zonesRouter(
   occupancy: OccupancyService,
   zones: ZoneService = new ZoneService(),
-  config: ConfigService = new ConfigService()
+  config: ConfigService = new ConfigService(),
+  authMiddleware?: RequestHandler
 ): Router {
   const router = Router();
+  const requireAuth: RequestHandler[] = authMiddleware ? [authMiddleware] : [];
 
   router.get(
     "/zones",
@@ -26,10 +28,12 @@ export function zonesRouter(
    * Establishment-level navigation destination (Phase 9.5). Zones carry no
    * coordinates, so the parking establishment is the navigation target. The
    * location is admin-configurable and `null` until one is provided — the API
-   * never fabricates coordinates for the client.
+   * never fabricates coordinates for the client. Authenticated: the street
+   * address of the facility is not public information.
    */
   router.get(
     "/zones/establishment",
+    ...requireAuth,
     asyncHandler(async (_req, res) => {
       const settings = await config.getEstablishmentSettings();
       res.json(ok({ location: settings.location }));

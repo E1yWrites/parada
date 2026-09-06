@@ -1,7 +1,7 @@
 import "dotenv/config";
 import * as argon2 from "argon2";
 import { prisma } from "../client";
-import { Role, GateType } from "@prisma/client";
+import { GateType } from "@prisma/client";
 import { normalizePlate } from "../plate";
 import {
   DEFAULT_PARKING_FEE,

@@ -496,8 +496,10 @@ export class OccupancyService {
         });
       }
     } else if (eventType === "EXIT") {
+      // Scoped to this zone: a vehicle may only be released through the gate
+      // of the zone it actually entered, matching the guest EXIT rule.
       const existing = await tx.parkingSession.findFirst({
-        where: { vehicleId, status: "ACTIVE" },
+        where: { vehicleId, status: "ACTIVE", zoneId: zone.id },
         orderBy: { enteredAt: "asc" },
       });
       if (existing) {

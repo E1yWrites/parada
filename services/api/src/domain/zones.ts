@@ -1,5 +1,5 @@
 import { prisma } from "@parada/database";
-import { ConflictError, NotFoundError } from "../http/errors";
+import { NotFoundError } from "../http/errors";
 import { availabilityOf } from "../routes/admin";
 import type { ZoneRecommendation } from "@parada/types";
 
@@ -109,7 +109,9 @@ export class ZoneService {
 
     const best = suitable[0];
     if (!best) {
-      throw new ConflictError("No suitable zone is currently available.");
+      // The DTO models "nothing available" as a null zone, so return it rather
+      // than raising an error the clients then have to translate back.
+      return { recommendedZone: null };
     }
 
     return {

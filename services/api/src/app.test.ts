@@ -190,11 +190,18 @@ describe("PARADA API", () => {
     });
 
     it("returns a null location when none is configured (no fabricated coordinates)", async () => {
-      const res = await request(app).get("/zones/establishment").expect(200);
+      const res = await request(app)
+        .get("/zones/establishment")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .expect(200);
       expect(res.body.data.location).toBeNull();
     });
 
-    it("returns the admin-configured establishment location publicly", async () => {
+    it("requires authentication — the facility address is not public", async () => {
+      await request(app).get("/zones/establishment").expect(401);
+    });
+
+    it("returns the admin-configured establishment location to signed-in drivers", async () => {
       await request(app)
         .put("/admin/config")
         .set("Authorization", `Bearer ${adminToken}`)
@@ -207,7 +214,10 @@ describe("PARADA API", () => {
         })
         .expect(200);
 
-      const res = await request(app).get("/zones/establishment").expect(200);
+      const res = await request(app)
+        .get("/zones/establishment")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .expect(200);
       expect(res.body.data.location).toEqual({
         address: "123 Test Ave, Demo",
         latitude: 14.5,
@@ -438,16 +448,10 @@ describe("PARADA API", () => {
 describe("Authentication & Authorization", () => {
   let app: ReturnType<typeof createApp>;
   let authService: AuthService;
-  let tokenService: TokenService;
 
   beforeAll(async () => {
     await cleanDatabase();
     authService = new AuthService({
-      secret: "test-secret-key-for-testing-only-32chars",
-      issuer: "parada-api-test",
-      expiresIn: "1d",
-    });
-    tokenService = new TokenService({
       secret: "test-secret-key-for-testing-only-32chars",
       issuer: "parada-api-test",
       expiresIn: "1d",
@@ -622,7 +626,7 @@ describe("Authentication & Authorization", () => {
   describe("Vehicle ownership", () => {
     let userToken: string;
     let otherUserToken: string;
-    let userId: string;
+    let _userId: string;
     let otherUserId: string;
 
     beforeEach(async () => {
@@ -646,7 +650,7 @@ describe("Authentication & Authorization", () => {
 
       userToken = login1.body.data.token;
       otherUserToken = login2.body.data.token;
-      userId = login1.body.data.user.id;
+      _userId = login1.body.data.user.id;
       otherUserId = login2.body.data.user.id;
     });
 
@@ -710,7 +714,7 @@ describe("Authentication & Authorization", () => {
 
   describe("Parking session ownership", () => {
     let userToken: string;
-    let otherUserToken: string;
+    let _otherUserToken: string;
 
     beforeEach(async () => {
       await request(app)
@@ -732,7 +736,7 @@ describe("Authentication & Authorization", () => {
         .expect(200);
 
       userToken = login1.body.data.token;
-      otherUserToken = login2.body.data.token;
+      _otherUserToken = login2.body.data.token;
     });
 
     it("user can access own parking session", async () => {
@@ -784,7 +788,7 @@ describe("Authentication & Authorization", () => {
         .send({ email: "session2@test.local", password: "Password123!" })
         .expect(200);
       const otherUserId = otherUserLogin.body.data.user.id;
-      const vehicle = await prisma.vehicle.create({
+      await prisma.vehicle.create({
         data: {
           userId: otherUserId,
           plateNumber: "SESS-002",
@@ -1086,12 +1090,12 @@ describe("Phase 3 — Zone recommendation", () => {
     expect(res.body.data.recommendedZone.id).toBe(ok.id);
   });
 
-  it("returns a domain error when no suitable zone exists", async () => {
+  it("returns a null zone when none is suitable, matching the DTO", async () => {
     await prisma.parkingZone.create({
       data: { name: "Full", code: "NF", capacity: 3, occupiedCount: 3 },
     });
-    const res = await request(app).get("/zones/recommendation").expect(409);
-    expect(res.body.error.code).toBe("CONFLICT");
+    const res = await request(app).get("/zones/recommendation").expect(200);
+    expect(res.body.data.recommendedZone).toBeNull();
   });
 });
 

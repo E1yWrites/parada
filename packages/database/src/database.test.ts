@@ -32,7 +32,6 @@ describe("PARADA database integrity", () => {
   let camera: { id: string };
   let user: { id: string };
   let vehCar: { id: string; normalizedPlate: string };
-  let vehBike: { id: string; normalizedPlate: string };
 
   beforeAll(cleanDatabase);
 
@@ -78,7 +77,7 @@ describe("PARADA database integrity", () => {
       },
     });
     vehCar = { id: vc.id, normalizedPlate: vc.normalizedPlate };
-    vehBike = { id: vb.id, normalizedPlate: vb.normalizedPlate };
+    void { id: vb.id, normalizedPlate: vb.normalizedPlate };
   });
 
   describe("occupancy bounds (DB CHECK constraint)", () => {

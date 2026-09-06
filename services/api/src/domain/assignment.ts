@@ -1,5 +1,5 @@
 import { prisma } from "@parada/database";
-import { BadRequestError, ConflictError, NotFoundError } from "../http/errors";
+import { ConflictError, NotFoundError } from "../http/errors";
 import type { ConfigService } from "./config";
 import type { ZoneAssignmentResponse } from "@parada/types";
 

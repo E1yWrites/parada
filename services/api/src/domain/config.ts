@@ -12,7 +12,6 @@ import type {
   GuestPolicyConfig,
   ParkingFeeConfig,
   ViolationPolicyConfig,
-  ZoneDefaultsConfig,
 } from "@parada/types";
 import { BadRequestError } from "../http/errors";
 
@@ -25,8 +24,13 @@ import { BadRequestError } from "../http/errors";
  * controllers and services must not hardcode ₱20 / ₱10 / 15-minute values.
  */
 export class ConfigService {
+  /** The singleton row. One read per call site instead of one per getter. */
+  private async row() {
+    return prisma.establishmentConfig.findUnique({ where: { id: "singleton" } });
+  }
+
   async getEstablishmentSettings(): Promise<EstablishmentSettings> {
-    const cfg = await prisma.establishmentConfig.findUnique({ where: { id: "singleton" } });
+    const cfg = await this.row();
     const rawViolations = cfg?.violations;
     const violations = Array.isArray(rawViolations)
       ? rawViolations.filter(isViolationPolicy).map((rawItem) => {
@@ -41,9 +45,9 @@ export class ConfigService {
     const rawDefaults = cfg?.zoneDefaults;
     const defaults = rawDefaults && typeof rawDefaults === "object" ? rawDefaults as Record<string, unknown> : {};
     return {
-      parkingFee: await this.getParkingFeeConfig(),
+      parkingFee: parseParkingFee(cfg?.parkingFee),
       violations,
-      guestPolicy: await this.getGuestPolicy(),
+      guestPolicy: parseGuestPolicy(cfg?.guestPolicy),
       zoneDefaults: {
         maxReservationDurationMinutes:
           typeof defaults["maxReservationDurationMinutes"] === "number" && defaults["maxReservationDurationMinutes"] > 0
@@ -100,23 +104,7 @@ export class ConfigService {
    * shape, falling back to DEFAULT_PARKING_FEE on absence or malformed data.
    */
   async getParkingFeeConfig(): Promise<ParkingFeeConfig> {
-    const cfg = await prisma.establishmentConfig.findUnique({ where: { id: "singleton" } });
-    const raw = cfg?.parkingFee;
-    if (raw && typeof raw === "object") {
-      const obj = raw as Record<string, unknown>;
-      if (
-        typeof obj["baseFee"] === "number" &&
-        typeof obj["baseDurationHours"] === "number" &&
-        typeof obj["additionalFeePerHour"] === "number"
-      ) {
-        return {
-          baseFee: obj["baseFee"],
-          baseDurationHours: obj["baseDurationHours"],
-          additionalFeePerHour: obj["additionalFeePerHour"],
-        };
-      }
-    }
-    return { ...DEFAULT_PARKING_FEE };
+    return parseParkingFee((await this.row())?.parkingFee);
   }
 
   /**
@@ -124,8 +112,7 @@ export class ConfigService {
    * Reads `EstablishmentConfig.zoneDefaults.maxReservationDurationMinutes`.
    */
   async getReservationWindowMinutes(): Promise<number> {
-    const cfg = await prisma.establishmentConfig.findUnique({ where: { id: "singleton" } });
-    const raw = cfg?.zoneDefaults;
+    const raw = (await this.row())?.zoneDefaults;
     if (raw && typeof raw === "object") {
       const obj = raw as Record<string, unknown>;
       const value = obj["maxReservationDurationMinutes"];
@@ -143,24 +130,43 @@ export class ConfigService {
    * on absence or malformed data.
    */
   async getGuestPolicy(): Promise<GuestPolicyConfig> {
-    const cfg = await prisma.establishmentConfig.findUnique({ where: { id: "singleton" } });
-    const raw = cfg?.guestPolicy;
-    if (raw && typeof raw === "object") {
-      const obj = raw as Record<string, unknown>;
-      if (
-        (obj["policy"] === "PRIMARY_ZONE" ||
-          obj["policy"] === "ALLOW_OVERFLOW" ||
-          obj["policy"] === "DENY_WHEN_FULL") &&
-        (obj["primaryZoneId"] === null || typeof obj["primaryZoneId"] === "string")
-      ) {
-        return {
-          policy: obj["policy"],
-          primaryZoneId: obj["primaryZoneId"] ?? null,
-        };
-      }
-    }
-    return { ...DEFAULT_GUEST_POLICY };
+    return parseGuestPolicy((await this.row())?.guestPolicy);
   }
+}
+
+/** Coerces the stored fee JSON, falling back to the shared default. */
+function parseParkingFee(raw: unknown): ParkingFeeConfig {
+  if (raw && typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    if (
+      typeof obj["baseFee"] === "number" &&
+      typeof obj["baseDurationHours"] === "number" &&
+      typeof obj["additionalFeePerHour"] === "number"
+    ) {
+      return {
+        baseFee: obj["baseFee"],
+        baseDurationHours: obj["baseDurationHours"],
+        additionalFeePerHour: obj["additionalFeePerHour"],
+      };
+    }
+  }
+  return { ...DEFAULT_PARKING_FEE };
+}
+
+/** Coerces the stored guest-policy JSON, falling back to the shared default. */
+function parseGuestPolicy(raw: unknown): GuestPolicyConfig {
+  if (raw && typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    if (
+      (obj["policy"] === "PRIMARY_ZONE" ||
+        obj["policy"] === "ALLOW_OVERFLOW" ||
+        obj["policy"] === "DENY_WHEN_FULL") &&
+      (obj["primaryZoneId"] === null || typeof obj["primaryZoneId"] === "string")
+    ) {
+      return { policy: obj["policy"], primaryZoneId: obj["primaryZoneId"] ?? null };
+    }
+  }
+  return { ...DEFAULT_GUEST_POLICY };
 }
 
 function isViolationPolicy(value: unknown): value is ViolationPolicyConfig {

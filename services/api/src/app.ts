@@ -69,7 +69,7 @@ export function createApp(options: AppOptions = {}): Express {
 
   app.use("/auth", authRouter(auth, authMiddleware));
 
-  const zones = zonesRouter(occupancy, new ZoneService(), config);
+  const zones = zonesRouter(occupancy, new ZoneService(), config, authMiddleware);
   const events = eventsRouter(occupancy, {
     cameraApiKey: options.cameraApiKey !== undefined ? options.cameraApiKey : env.cameraApiKey,
   });

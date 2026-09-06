@@ -45,6 +45,14 @@ export async function POST(req: Request) {
       );
     }
 
+    if (data?.data?.user?.role !== "ADMIN") {
+      // Never mint an operations-console session for a non-admin account.
+      return NextResponse.json(
+        { error: { code: "FORBIDDEN", message: "This account does not have administrator access." } },
+        { status: 403 }
+      );
+    }
+
     const token = data?.data?.token;
     if (typeof token !== "string") {
       return NextResponse.json(

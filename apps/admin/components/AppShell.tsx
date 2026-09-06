@@ -81,7 +81,10 @@ const GROUPS: NavGroup[] = [
   },
   {
     label: "Tools",
-    items: [{ href: "/simulator", label: "Simulator", icon: Activity }],
+    items: [
+      { href: "/simulator", label: "Simulator", icon: Activity },
+      { href: "/settings", label: "Settings", icon: Settings2 },
+    ],
   },
   {
     label: "Account",

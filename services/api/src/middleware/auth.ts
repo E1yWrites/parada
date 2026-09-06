@@ -1,7 +1,6 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import type { Role } from "@parada/types";
 import type { TokenService } from "../domain/token";
-import type { PublicUser } from "../domain/auth";
 import { ForbiddenError, UnauthorizedError } from "../http/errors";
 
 /** Attached to the request by requireAuth via res.locals. */

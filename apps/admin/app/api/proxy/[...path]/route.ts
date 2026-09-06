@@ -3,12 +3,36 @@ import { apiBaseUrl, getSessionToken } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
+/** Confirms with the backend that this session belongs to an ADMIN. */
+async function isAdminToken(token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${apiBaseUrl()}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return false;
+    const body = await res.json().catch(() => null);
+    return body?.data?.role === "ADMIN";
+  } catch {
+    return false;
+  }
+}
+
 async function proxy(req: Request, params: { path: string[] }) {
   const token = getSessionToken();
   if (!token) {
     return NextResponse.json(
       { error: { code: "UNAUTHORIZED", message: "Not authenticated." } },
       { status: 401 }
+    );
+  }
+
+  // The backend is the real authorization boundary, but this console is an
+  // admin surface: refuse to forward a non-admin token at all rather than
+  // acting as a general-purpose proxy for whoever holds the cookie.
+  if (!(await isAdminToken(token))) {
+    return NextResponse.json(
+      { error: { code: "FORBIDDEN", message: "Administrator access required." } },
+      { status: 403 }
     );
   }
 

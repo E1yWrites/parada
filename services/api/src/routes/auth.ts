@@ -4,12 +4,17 @@ import { BadRequestError, UnauthorizedError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
 import { AuthService } from "../domain/auth";
 import { currentUserId } from "../middleware/auth";
+import { rateLimit } from "../http/rateLimit";
 
 export function authRouter(auth: AuthService, authMiddleware?: RequestHandler): Router {
   const router = Router();
 
+  // Credential endpoints are the only unauthenticated write surface.
+  const credentialLimit = rateLimit({ limit: 10, windowMs: 60_000 });
+
   router.post(
     "/register",
+    credentialLimit,
     asyncHandler(async (req, res) => {
       const body: Record<string, unknown> = req.body ?? {};
       const name = body["name"];
@@ -35,6 +40,7 @@ export function authRouter(auth: AuthService, authMiddleware?: RequestHandler): 
 
   router.post(
     "/login",
+    credentialLimit,
     asyncHandler(async (req, res) => {
       const body: Record<string, unknown> = req.body ?? {};
       const email = body["email"];
@@ -74,10 +80,10 @@ export function authRouter(auth: AuthService, authMiddleware?: RequestHandler): 
       res.json(ok(user));
     }));
   } else {
-    router.post("/logout", asyncHandler(async (req, res) => {
+    router.post("/logout", asyncHandler(async () => {
       throw new UnauthorizedError("Authentication required.");
     }));
-    router.get("/me", asyncHandler(async (req, res) => {
+    router.get("/me", asyncHandler(async () => {
       throw new UnauthorizedError("Authentication required.");
     }));
   }
