@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "@/src/providers/SessionProvider";
 import { FullScreenLoading } from "@/src/components/FullScreenLoading";
+import { TabBarBackground } from "@/src/components/TabBarBackground";
 import { colors, fonts, fontSizes, layout, shadows } from "@/src/theme";
 
 type IconProps = { color: string; size: number; focused: boolean };
@@ -61,11 +62,12 @@ export default function TabsLayout() {
           right: layout.FLOATING_TAB_BAR_SIDE,
           height: layout.FLOATING_TAB_BAR_HEIGHT,
           borderRadius: layout.FLOATING_TAB_BAR_RADIUS,
-          backgroundColor: colors.foreground,
+          backgroundColor: "transparent",
           borderTopWidth: 0,
           paddingTop: 6,
           ...shadows.pill,
         },
+        tabBarBackground: () => <TabBarBackground testID="tab-bar-background" />,
         tabBarLabelStyle: {
           fontFamily: fonts.headingRegular,
           fontSize: fontSizes.micro + 1,
