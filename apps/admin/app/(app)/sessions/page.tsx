@@ -40,7 +40,9 @@ export default function SessionsPage() {
       header: "License Plate",
       cell: (s) => (
         <div>
-          <p className="font-mono text-sm font-bold tracking-tight text-white">{s.vehicle?.plateNumber ?? "GUEST"}</p>
+          <p className="font-display text-base font-black tracking-tight text-charcoal">
+            {s.vehicle?.plateNumber ?? "GUEST"}
+          </p>
           <p className="text-[11px] uppercase tracking-wider text-muted">{s.vehicle?.vehicleType ?? "ACCOUNT-LESS"}</p>
         </div>
       ),
@@ -50,17 +52,17 @@ export default function SessionsPage() {
       header: "Owner",
       cell: (s) => (
         <div>
-          <p className="text-sm text-white">{s.user?.name ?? "Guest session"}</p>
+          <p className="text-sm font-semibold text-charcoal">{s.user?.name ?? "Guest session"}</p>
           <p className="text-[11px] text-muted">{s.user?.email ?? "No account attached"}</p>
         </div>
       ),
     },
-    { key: "zone", header: "Zone", cell: (s) => <span className="text-sm text-muted">{s.zone.code}</span> },
+    { key: "zone", header: "Zone", cell: (s) => <span className="text-sm font-semibold text-charcoal">{s.zone.code}</span> },
     {
       key: "entry",
       header: "Entry",
       cell: (s) => (
-        <span className="font-mono text-xs text-white">{new Date(s.enteredAt).toLocaleTimeString()}</span>
+        <span className="font-display text-sm font-bold text-charcoal">{new Date(s.enteredAt).toLocaleTimeString()}</span>
       ),
     },
     {
@@ -68,15 +70,15 @@ export default function SessionsPage() {
       header: "Exit",
       cell: (s) =>
         s.exitedAt ? (
-          <span className="font-mono text-xs text-white">{new Date(s.exitedAt).toLocaleTimeString()}</span>
+          <span className="font-display text-sm font-bold text-charcoal">{new Date(s.exitedAt).toLocaleTimeString()}</span>
         ) : (
-          <span className="text-xs text-muted">—</span>
+          <span className="text-sm text-muted">—</span>
         ),
     },
     {
       key: "duration",
       header: "Duration",
-      cell: (s) => <span className="font-mono text-xs text-white">{formatDuration(s.durationSeconds)}</span>,
+      cell: (s) => <span className="font-display text-sm font-bold text-charcoal">{formatDuration(s.durationSeconds)}</span>,
     },
     {
       key: "status",
@@ -88,30 +90,30 @@ export default function SessionsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Parking · Violations & activity"
+        eyebrow="Parking · Activity"
         title="Parking Sessions"
         description="Registered vehicles and their parking sessions."
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
           <input
-            className="input w-64 pl-10"
+            className="input w-64 pl-11"
             placeholder="Search plate, owner, zone…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search sessions"
           />
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-surface p-1">
+        <div className="flex items-center gap-1 rounded-panel border border-line/40 bg-white p-1">
           {(["ALL", "ACTIVE", "COMPLETED"] as Filter[]).map((f) => (
             <button
               key={f}
               type="button"
               onClick={() => setFilter(f)}
-              className={`min-h-[32px] rounded-md px-3 text-xs font-semibold transition-colors duration-200 ${
-                filter === f ? "bg-[#EA580C]/15 text-orange" : "text-muted hover:text-white"
+              className={`min-h-[36px] rounded-panel px-4 text-xs font-bold uppercase tracking-wider transition-colors duration-200 ${
+                filter === f ? "bg-brand-soft text-brand" : "text-muted hover:bg-graygreen/20 hover:text-charcoal"
               }`}
               aria-pressed={filter === f}
             >
@@ -132,7 +134,7 @@ export default function SessionsPage() {
         {rows.length === 0 ? (
           <p className="p-6 text-sm text-muted">No sessions match your search.</p>
         ) : (
-          <DataTable columns={columns} rows={rows} />
+          <DataTable columns={columns} rows={rows} rowKey={(s) => s.id} />
         )}
       </QueryBoundary>
     </div>

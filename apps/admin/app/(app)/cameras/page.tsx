@@ -29,12 +29,12 @@ export default function CamerasPage() {
       header: "Camera",
       cell: (c) => (
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.03]">
-            <Camera className="h-4 w-4 text-orange" aria-hidden="true" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-panel bg-brand-soft">
+            <Camera className="h-4 w-4 text-brand" aria-hidden="true" />
           </div>
           <div>
-            <p className="font-mono text-sm font-semibold text-white">{c.identifier}</p>
-            <p className="text-[11px] text-muted">{c.name}</p>
+            <p className="text-sm font-bold text-charcoal">{c.identifier}</p>
+            <p className="text-[11px] font-semibold text-muted">{c.name}</p>
           </div>
         </div>
       ),
@@ -42,7 +42,7 @@ export default function CamerasPage() {
     {
       key: "zone",
       header: "Zone",
-      cell: (c) => <span className="text-sm text-white">{c.zone.code}</span>,
+      cell: (c) => <span className="text-sm font-semibold text-charcoal">{c.zone.code}</span>,
     },
     {
       key: "gate",
@@ -50,8 +50,8 @@ export default function CamerasPage() {
       cell: (c) => {
         const meta = GATE_META[c.gateType] ?? GATE_META.BIDIRECTIONAL;
         return (
-          <Pill tone={meta.tone}>
-            {meta.label} · {c.gateType}
+          <Pill tone={meta.tone} className="gap-1.5">
+            {meta.label}
           </Pill>
         );
       },
@@ -68,13 +68,13 @@ export default function CamerasPage() {
         const last = c.recentEvents[0];
         return last ? (
           <div>
-            <p className="font-mono text-xs text-white">{last.detectedPlate ?? "Unknown"}</p>
-            <p className="text-[11px] text-muted">
+            <p className="text-xs font-bold text-charcoal">{last.detectedPlate ?? "Unknown"}</p>
+            <p className="text-[11px] font-semibold text-muted">
               {last.eventType} · {formatDateTime(last.detectedAt)}
             </p>
           </div>
         ) : (
-          <span className="text-sm text-muted">—</span>
+          <span className="text-sm text-muted">No events yet</span>
         );
       },
     },
@@ -93,10 +93,11 @@ export default function CamerasPage() {
         error={cameras.error}
         isEmpty={!cameras.data || cameras.data.length === 0}
         emptyTitle="No cameras configured."
+        emptyMessage="Cameras will appear here once gate infrastructure is registered."
         loadingRows={4}
         onRetry={() => cameras.refetch()}
       >
-        <DataTable columns={columns} rows={cameras.data ?? []} />
+        <DataTable columns={columns} rows={cameras.data ?? []} rowKey={(c) => c.id} />
       </QueryBoundary>
     </div>
   );

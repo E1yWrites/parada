@@ -58,12 +58,12 @@ export default function GuestAdmissionPage() {
         description="Use the authoritative camera pipeline to admit an unknown plate under an audited ADMIN override."
       />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,28rem)_1fr]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,28rem)_1fr]">
         <Card>
           <SectionHeader eyebrow="ADMIN override" title="Admit a guest" />
           <form className="space-y-4 p-5" onSubmit={submit} noValidate>
-            <div className="flex items-start gap-3 rounded-lg border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-200">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <div className="flex items-start gap-3 rounded-panel border border-amber-500/30 bg-amber-50 p-3.5 text-sm font-semibold text-amber-700">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
               <span>This action is recorded with the authenticated admin identity.</span>
             </div>
             <div>
@@ -84,15 +84,27 @@ export default function GuestAdmissionPage() {
             </div>
             <div>
               <label htmlFor="guest-plate" className="label">Detected plate</label>
-              <input id="guest-plate" className="input mt-1.5 font-mono uppercase" value={detectedPlate} onChange={(e) => setDetectedPlate(e.target.value)} placeholder="ABC-1234" />
+              <input id="guest-plate" className="input mt-1.5 font-display font-bold uppercase tracking-wide" value={detectedPlate} onChange={(e) => setDetectedPlate(e.target.value)} placeholder="ABC-1234" />
             </div>
             <div>
               <label htmlFor="guest-source" className="label">Source event ID</label>
-              <input id="guest-source" className="input mt-1.5 font-mono" value={sourceEventId} onChange={(e) => setSourceEventId(e.target.value)} placeholder="camera-event-2026-001" />
+              <input id="guest-source" className="input mt-1.5 font-display font-bold" value={sourceEventId} onChange={(e) => setSourceEventId(e.target.value)} placeholder="camera-event-2026-001" />
             </div>
-            {validationError ? <p role="alert" className="text-sm text-rose-300">{validationError}</p> : null}
-            {admit.error ? <p role="alert" className="flex items-center gap-2 text-sm text-rose-300"><AlertCircle className="h-4 w-4" aria-hidden="true" />{admit.error instanceof ApiError ? admit.error.message : "Guest admission failed."}</p> : null}
-            <Button type="submit" variant="primary" className="w-full" disabled={admit.isPending}>{admit.isPending ? "Processing…" : "Admit guest"}</Button>
+            {validationError ? (
+              <p role="alert" className="flex items-center gap-2 text-sm font-semibold text-brand">
+                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {validationError}
+              </p>
+            ) : null}
+            {admit.error ? (
+              <p role="alert" className="flex items-center gap-2 text-sm font-semibold text-brand">
+                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {admit.error instanceof ApiError ? admit.error.message : "Guest admission failed."}
+              </p>
+            ) : null}
+            <Button type="submit" variant="primary" className="w-full" disabled={admit.isPending}>
+              {admit.isPending ? "Processing…" : "Admit guest"}
+            </Button>
           </form>
         </Card>
 
@@ -103,14 +115,21 @@ export default function GuestAdmissionPage() {
               {result ? (
                 result.admitted ? (
                   <div className="space-y-3">
-                    <CheckCircle2 className="h-8 w-8 text-emerald-300" aria-hidden="true" />
-                    <h2 className="font-display text-lg font-semibold text-white">Guest admitted</h2>
-                    <p className="text-sm text-muted">Occupancy is now {result.newOccupied}. Guest session: <span className="font-mono text-white">{result.guestSessionId ?? "created"}</span></p>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-panel bg-emerald-50" aria-hidden="true">
+                      <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                    </div>
+                    <h2 className="font-display text-lg font-black tracking-tight text-charcoal">Guest admitted</h2>
+                    <p className="text-sm text-muted">
+                      Occupancy is now <span className="font-bold text-charcoal">{result.newOccupied}</span>. Guest session:{" "}
+                      <span className="font-display font-black text-charcoal">{result.guestSessionId ?? "created"}</span>
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <AlertCircle className="h-8 w-8 text-amber-300" aria-hidden="true" />
-                    <h2 className="font-display text-lg font-semibold text-white">Guest not admitted</h2>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-panel bg-amber-50" aria-hidden="true">
+                      <AlertCircle className="h-6 w-6 text-amber-600" />
+                    </div>
+                    <h2 className="font-display text-lg font-black tracking-tight text-charcoal">Guest not admitted</h2>
                     <p className="text-sm text-muted">{result.deniedReason ?? "The guest policy denied this entry."}</p>
                     <p className="text-xs text-muted">Occupancy remains {result.newOccupied}; no guest session was created.</p>
                   </div>

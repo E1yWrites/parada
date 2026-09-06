@@ -13,7 +13,7 @@ import { formatDateTime, formatPct } from "@/lib/format";
 
 function OccupancyBar({ pct }: { pct: number }) {
   const color =
-    pct >= 100 ? "bg-[#EA580C]" : pct >= 80 ? "bg-amber-400" : "bg-[#F7931A]";
+    pct >= 100 ? "bg-brand" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
   return (
     <div className="occupancy-bar">
       <div
@@ -52,7 +52,7 @@ export default function DashboardPage() {
           <div className="space-y-8">
             {/* Primary metrics */}
             <section aria-label="Facility summary">
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
                   label="Total capacity"
                   value={data.summary.totalCapacity}
@@ -60,22 +60,22 @@ export default function DashboardPage() {
                   accent="none"
                 />
                 <MetricCard
-                  label="Occupied"
-                  value={data.summary.totalOccupied}
-                  detail={`${formatPct(data.summary.occupancyPct)} of capacity`}
+                  label="Current occupancy"
+                  value={`${formatPct(data.summary.occupancyPct)}`}
+                  detail={`${data.summary.totalOccupied} of ${data.summary.totalCapacity} spaces occupied`}
                   accent={data.summary.occupancyPct >= 80 ? "amber" : "none"}
                 />
                 <MetricCard
                   label="Available"
                   value={data.summary.totalAvailable}
                   detail="Open spaces"
-                  accent={data.summary.totalAvailable === 0 ? "red" : "none"}
+                  accent={data.summary.totalAvailable === 0 ? "red" : "green"}
                 />
                 <MetricCard
                   label="Active sessions"
                   value={data.summary.activeSessions}
                   detail="Current vehicles"
-                  accent="orange"
+                  accent="info"
                 />
               </div>
             </section>
@@ -86,7 +86,7 @@ export default function DashboardPage() {
                 eyebrow="Live occupancy"
                 title="Zone Status"
                 actions={
-                  <Link href="/zones" className="btn-ghost text-xs">
+                  <Link href="/zones" className="btn-ghost min-h-[36px] rounded-full px-4 text-xs">
                     View all <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </Link>
                 }
@@ -97,19 +97,19 @@ export default function DashboardPage() {
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="label-tech">ZONE {z.code}</p>
-                        <p className="mt-0.5 text-sm text-white">{z.name}</p>
+                        <p className="mt-0.5 font-display text-base font-black text-charcoal">{z.name}</p>
                       </div>
                       <AvailabilityBadge value={z.availability} />
                     </div>
                     <div className="mt-4">
                       <div className="flex items-baseline justify-between">
-                        <p className="font-mono text-2xl font-bold text-white">
+                        <p className="font-display text-2xl font-black text-charcoal">
                           {z.occupiedCount}
-                          <span className="text-sm font-medium text-muted"> / {z.capacity}</span>
+                          <span className="text-base font-bold text-muted"> / {z.capacity}</span>
                         </p>
-                        <p className="font-mono text-xs text-muted">{formatPct(z.occupancyPct)}</p>
+                        <p className="text-xs font-bold text-muted">{formatPct(z.occupancyPct)}</p>
                       </div>
-                      <div className="mt-2">
+                      <div className="mt-2.5">
                         <OccupancyBar pct={z.occupancyPct} />
                       </div>
                     </div>
@@ -126,31 +126,37 @@ export default function DashboardPage() {
                   eyebrow="Infrastructure"
                   title="Camera Health"
                   actions={
-                    <Link href="/cameras" className="btn-ghost text-xs">
+                    <Link href="/cameras" className="btn-ghost min-h-[36px] rounded-full px-4 text-xs">
                       Status <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </Link>
                   }
                 />
                 <div className="grid grid-cols-2 gap-4 p-5">
                   <div className="surface-panel flex items-center gap-3 p-4">
-                    <Wifi className="h-6 w-6 text-emerald-300" aria-hidden="true" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-panel bg-emerald-50" aria-hidden="true">
+                      <Wifi className="h-5 w-5 text-emerald-600" />
+                    </div>
                     <div>
-                      <p className="font-mono text-2xl font-bold text-white">{data.summary.onlineCameras}</p>
-                      <p className="text-[11px] uppercase tracking-wider text-muted">Online</p>
+                      <p className="font-display text-2xl font-black text-charcoal">{data.summary.onlineCameras}</p>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted">Online</p>
                     </div>
                   </div>
                   <div className="surface-panel flex items-center gap-3 p-4">
-                    <WifiOff className="h-6 w-6 text-rose-300" aria-hidden="true" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-panel bg-white" aria-hidden="true">
+                      <WifiOff className="h-5 w-5 text-muted" />
+                    </div>
                     <div>
-                      <p className="font-mono text-2xl font-bold text-white">{data.summary.offlineCameras}</p>
-                      <p className="text-[11px] uppercase tracking-wider text-muted">Offline</p>
+                      <p className="font-display text-2xl font-black text-charcoal">{data.summary.offlineCameras}</p>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted">Offline</p>
                     </div>
                   </div>
-                  <div className="surface-panel flex items-center gap-3 p-4 col-span-2">
-                    <Activity className="h-6 w-6 text-orange" aria-hidden="true" />
+                  <div className="surface-panel col-span-2 flex items-center gap-3 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-panel bg-brand-soft" aria-hidden="true">
+                      <Activity className="h-5 w-5 text-brand" />
+                    </div>
                     <div>
-                      <p className="font-mono text-2xl font-bold text-white">{data.summary.totalZones}</p>
-                      <p className="text-[11px] uppercase tracking-wider text-muted">Active zones</p>
+                      <p className="font-display text-2xl font-black text-charcoal">{data.summary.totalZones}</p>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted">Active zones</p>
                     </div>
                   </div>
                 </div>
@@ -162,7 +168,7 @@ export default function DashboardPage() {
                   eyebrow="Live feed"
                   title="Recent Parking Activity"
                   actions={
-                    <Link href="/sessions" className="btn-ghost text-xs">
+                    <Link href="/sessions" className="btn-ghost min-h-[36px] rounded-full px-4 text-xs">
                       Sessions <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </Link>
                   }
@@ -170,29 +176,29 @@ export default function DashboardPage() {
                 {data.recentEvents.length === 0 ? (
                   <p className="p-5 text-sm text-muted">No recent parking events.</p>
                 ) : (
-                  <ul className="divide-y divide-white/5">
+                  <ul className="divide-y divide-line/30">
                     {data.recentEvents.map((ev) => (
                       <li key={ev.id} className="flex items-center justify-between gap-3 px-5 py-3">
                         <div className="flex items-center gap-3">
                           <span
-                            className={`flex h-7 w-7 items-center justify-center rounded-full ${
-                              ev.eventType === "ENTRY" ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300"
+                            className={`flex h-8 w-8 items-center justify-center rounded-panel ${
+                              ev.eventType === "ENTRY" ? "bg-emerald-50 text-emerald-600" : "bg-brand-soft text-brand"
                             }`}
                             aria-hidden="true"
                           >
                             <CarFront className="h-4 w-4" />
                           </span>
                           <div>
-                            <p className="font-mono text-sm font-semibold text-white">
+                            <p className="text-sm font-bold text-charcoal">
                               {ev.detectedPlate ?? "Unknown plate"}
                             </p>
-                            <p className="text-[11px] text-muted">
+                            <p className="text-[11px] font-semibold text-muted">
                               {ev.eventType} · {ev.source}
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-mono text-xs text-white">{formatDateTime(ev.detectedAt)}</p>
+                          <p className="text-xs font-bold text-charcoal">{formatDateTime(ev.detectedAt)}</p>
                         </div>
                       </li>
                     ))}
@@ -208,7 +214,7 @@ export default function DashboardPage() {
                   eyebrow="Operational alerts"
                   title="Notifications"
                   actions={
-                    <Link href="/notifications" className="btn-ghost text-xs">
+                    <Link href="/notifications" className="btn-ghost min-h-[36px] rounded-full px-4 text-xs">
                       View all <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </Link>
                   }
@@ -216,14 +222,16 @@ export default function DashboardPage() {
                 {data.recentNotifications.length === 0 ? (
                   <p className="p-5 text-sm text-muted">No notifications.</p>
                 ) : (
-                  <ul className="divide-y divide-white/5">
+                  <ul className="divide-y divide-line/30">
                     {data.recentNotifications.map((n) => (
                       <li key={n.id} className="flex items-center justify-between gap-3 px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <Bell className="h-4 w-4 text-orange" aria-hidden="true" />
+                          <span className="flex h-8 w-8 items-center justify-center rounded-panel bg-brand-soft text-brand" aria-hidden="true">
+                            <Bell className="h-4 w-4" />
+                          </span>
                           <div>
-                            <p className="text-sm text-white">{n.message}</p>
-                            <p className="text-[11px] text-muted">
+                            <p className="text-sm font-semibold text-charcoal">{n.message}</p>
+                            <p className="text-[11px] font-semibold text-muted">
                               {n.zone ? `Zone ${n.zone.code}` : "All zones"} · {formatDateTime(n.createdAt)}
                             </p>
                           </div>
@@ -240,7 +248,7 @@ export default function DashboardPage() {
                   eyebrow="Exceptions"
                   title="Anomalies"
                   actions={
-                    <Link href="/anomalies" className="btn-ghost text-xs">
+                    <Link href="/anomalies" className="btn-ghost min-h-[36px] rounded-full px-4 text-xs">
                       View all <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </Link>
                   }
@@ -248,20 +256,22 @@ export default function DashboardPage() {
                 {data.recentAnomalies.length === 0 ? (
                   <EmptyActivity />
                 ) : (
-                  <ul className="divide-y divide-white/5">
+                  <ul className="divide-y divide-line/30">
                     {data.recentAnomalies.map((a) => (
                       <li key={a.id} className="flex items-center justify-between gap-3 px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <TriangleAlert className="h-4 w-4 text-amber-400" aria-hidden="true" />
+                          <span className="flex h-8 w-8 items-center justify-center rounded-panel bg-amber-50 text-amber-600" aria-hidden="true">
+                            <TriangleAlert className="h-4 w-4" />
+                          </span>
                           <div>
                             <AnomalyTypeBadge type={a.anomalyType} />
-                            <p className="mt-1 text-[11px] text-muted">
+                            <p className="mt-1 text-[11px] font-semibold text-muted">
                               {a.zoneCode ? `Zone ${a.zoneCode}` : "—"} · {formatDateTime(a.createdAt)}
                             </p>
                           </div>
                         </div>
                         {a.detectedPlate ? (
-                          <p className="font-mono text-xs text-white">{a.detectedPlate}</p>
+                          <p className="text-xs font-bold text-charcoal">{a.detectedPlate}</p>
                         ) : null}
                       </li>
                     ))}
@@ -279,10 +289,10 @@ export default function DashboardPage() {
 function EmptyActivity() {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
-      <div className="font-mono text-3xl text-muted/40" aria-hidden="true">
-        ∅
+      <div className="flex h-10 w-10 items-center justify-center rounded-panel bg-graygreen/25 text-muted" aria-hidden="true">
+        <TriangleAlert className="h-5 w-5" />
       </div>
-      <p className="mt-2 text-sm text-muted">No anomalies detected.</p>
+      <p className="mt-2 text-sm font-semibold text-muted">No anomalies detected.</p>
     </div>
   );
 }

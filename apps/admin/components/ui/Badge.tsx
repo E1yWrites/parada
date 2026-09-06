@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CheckCircle2, Circle, OctagonAlert, Signal, CircleDot, XCircle, Clock, Armchair, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Circle, OctagonAlert, Signal, CircleDot, XCircle, Clock, Armchair, TriangleAlert, CircleOff } from "lucide-react";
 
 export type Availability = "AVAILABLE" | "LOW_AVAILABILITY" | "FULL" | "OFFLINE";
 
@@ -9,23 +9,23 @@ export const AVAILABILITY_META: Record<
 > = {
   AVAILABLE: {
     label: "Available",
-    className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
-    dotClass: "bg-emerald-400",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    dotClass: "bg-emerald-500",
   },
   LOW_AVAILABILITY: {
     label: "Low Availability",
-    className: "border-amber-400/30 bg-amber-400/10 text-amber-300",
-    dotClass: "bg-amber-400",
+    className: "border-amber-200 bg-amber-50 text-amber-700",
+    dotClass: "bg-amber-500",
   },
   FULL: {
     label: "Full",
-    className: "border-[#EA580C]/40 bg-[#EA580C]/10 text-orange",
-    dotClass: "bg-orange",
+    className: "border-brand/25 bg-brand-soft text-brand",
+    dotClass: "bg-brand",
   },
   OFFLINE: {
     label: "Offline",
-    className: "border-rose-400/30 bg-rose-400/10 text-rose-300",
-    dotClass: "bg-rose-400",
+    className: "border-line bg-white text-charcoal",
+    dotClass: "bg-muted",
   },
 };
 
@@ -41,13 +41,13 @@ export function AvailabilityBadge({ value }: { value: Availability }) {
 
 export function OnlineBadge({ online }: { online: boolean }) {
   return online ? (
-    <span className="status-pill border-emerald-400/30 bg-emerald-400/10 text-emerald-300">
-      <Signal className="h-3 w-3" aria-hidden="true" />
+    <span className="status-pill gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700">
+      <Signal className="h-3.5 w-3.5" aria-hidden="true" />
       Online
     </span>
   ) : (
-    <span className="status-pill border-rose-400/30 bg-rose-400/10 text-rose-300">
-      <XCircle className="h-3 w-3" aria-hidden="true" />
+    <span className="status-pill gap-1.5 border-line bg-white text-muted">
+      <CircleOff className="h-3.5 w-3.5" aria-hidden="true" />
       Offline
     </span>
   );
@@ -55,13 +55,13 @@ export function OnlineBadge({ online }: { online: boolean }) {
 
 export function ReadBadge({ read }: { read: boolean }) {
   return read ? (
-    <span className="status-pill border-white/10 bg-white/[0.03] text-muted">
-      <CircleDot className="h-3 w-3" aria-hidden="true" />
+    <span className="status-pill border-line bg-white text-muted">
+      <CircleDot className="h-3.5 w-3.5" aria-hidden="true" />
       Read
     </span>
   ) : (
-    <span className="status-pill border-[#F7931A]/40 bg-[#EA580C]/10 text-orange">
-      <span className="h-1.5 w-1.5 rounded-full bg-orange animate-pulse-dot" aria-hidden="true" />
+    <span className="status-pill gap-1.5 border-brand/25 bg-brand-soft text-brand">
+      <span className="h-1.5 w-1.5 rounded-full bg-brand animate-pulse-dot" aria-hidden="true" />
       Unread
     </span>
   );
@@ -70,11 +70,11 @@ export function ReadBadge({ read }: { read: boolean }) {
 export type Tone = "neutral" | "success" | "warn" | "danger" | "info";
 
 const TONES: Record<Tone, string> = {
-  neutral: "border-white/10 bg-white/[0.03] text-muted",
-  success: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
-  warn: "border-amber-400/30 bg-amber-400/10 text-amber-300",
-  danger: "border-rose-400/30 bg-rose-400/10 text-rose-300",
-  info: "border-sky-400/30 bg-sky-400/10 text-sky-300",
+  neutral: "border-line bg-white text-muted",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  warn: "border-amber-200 bg-amber-50 text-amber-700",
+  danger: "border-brand/25 bg-brand-soft text-brand",
+  info: "border-sky-200 bg-sky-50 text-sky-700",
 };
 
 export function Pill({
@@ -96,12 +96,12 @@ type SessionStatus = "ACTIVE" | "COMPLETED";
 export function SessionStatusBadge({ status }: { status: SessionStatus }) {
   return status === "ACTIVE" ? (
     <Pill tone="info" className="gap-1.5">
-      <span className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse-dot" aria-hidden="true" />
+      <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse-dot" aria-hidden="true" />
       Active
     </Pill>
   ) : (
-    <Pill tone="neutral">
-      <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+    <Pill tone="neutral" className="gap-1.5">
+      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
       Completed
     </Pill>
   );
@@ -109,13 +109,13 @@ export function SessionStatusBadge({ status }: { status: SessionStatus }) {
 
 export function ResolvedBadge({ resolved }: { resolved: boolean }) {
   return resolved ? (
-    <Pill tone="success">
-      <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+    <Pill tone="success" className="gap-1.5">
+      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
       Resolved
     </Pill>
   ) : (
-    <Pill tone="danger">
-      <OctagonAlert className="h-3 w-3" aria-hidden="true" />
+    <Pill tone="danger" className="gap-1.5">
+      <OctagonAlert className="h-3.5 w-3.5" aria-hidden="true" />
       Open
     </Pill>
   );
@@ -157,8 +157,8 @@ export function AnomalyTypeBadge({ type }: { type: string }) {
     Icon = OctagonAlert;
   }
   return (
-    <Pill tone={tone}>
-      <Icon className="h-3 w-3" aria-hidden="true" />
+    <Pill tone={tone} className="gap-1.5">
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       {ANOMALY_LABEL[type] ?? type}
     </Pill>
   );
@@ -176,8 +176,10 @@ export function StatCard({
   return (
     <div className="card p-5">
       <p className="label-tech">{label}</p>
-      <p className="mt-2 font-mono text-[2rem] font-bold leading-none text-white">{value}</p>
-      {detail ? <p className="mt-1 text-xs uppercase tracking-wider text-muted">{detail}</p> : null}
+      <p className="mt-2 font-display text-[2rem] font-black leading-none tracking-tight text-charcoal">
+        {value}
+      </p>
+      {detail ? <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-muted">{detail}</p> : null}
     </div>
   );
 }

@@ -3,15 +3,18 @@
 @tailwind utilities;
 
 :root {
-  --void: #030304;
-  --surface: #0f1115;
-  --foreground: #ffffff;
-  --muted: #94a3b8;
-  --border: #1e293b;
-  --orange: #f7931a;
-  --burnt-orange: #ea580c;
-  --gold: #ffd600;
-  color-scheme: dark;
+  --paper: #eeebe3;
+  --card: #ffffff;
+  --charcoal: #171e19;
+  --graygreen: #b7c6c2;
+  --muted: #64746e;
+  --brand: #ca0013;
+  --brand-dark: #9e0010;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ca0013;
+  --info: #3b82f6;
+  color-scheme: light;
 }
 
 @layer base {
@@ -20,19 +23,27 @@
   }
 
   body {
-    @apply bg-void text-foreground font-sans;
+    @apply bg-paper font-sans text-charcoal;
+    font-variant-numeric: tabular-nums;
   }
 
   ::selection {
-    background: rgba(247, 147, 26, 0.3);
-    color: #fff;
+    background: rgba(202, 0, 19, 0.18);
+    color: var(--charcoal);
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
   }
 }
 
-/* ---- Atmospheric, barely-visible technical backdrop ---- */
+/* ---- Warm atmospheric backdrop (light) ---- */
 .parada-background {
   position: relative;
-  background-color: var(--void);
+  min-height: 100vh;
+  background-color: var(--paper);
 }
 
 .parada-background::before {
@@ -41,78 +52,76 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 44px 44px;
-  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 75%);
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 75%);
-}
-
-.parada-background::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
   background:
-    radial-gradient(600px 300px at 85% -10%, rgba(247, 147, 26, 0.05), transparent 70%),
-    radial-gradient(500px 260px at 8% -5%, rgba(255, 214, 0, 0.04), transparent 70%),
-    radial-gradient(800px 500px at 50% 120%, rgba(234, 88, 12, 0.04), transparent 70%);
+    radial-gradient(700px 360px at 88% -8%, rgba(202, 0, 19, 0.06), transparent 70%),
+    radial-gradient(560px 300px at 2% 12%, rgba(183, 198, 194, 0.35), transparent 72%),
+    radial-gradient(900px 600px at 50% 115%, rgba(183, 198, 194, 0.18), transparent 70%);
 }
 
 @layer components {
-  /* ---- Cards ---- */
+  /* ---- Cards (40px = 2.5rem primary scale) ---- */
   .card {
-    @apply rounded-xl border border-white/10 bg-surface;
+    @apply rounded-card border bg-white/85 backdrop-blur-xl;
+    border-color: rgba(183, 198, 194, 0.3);
+    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.08);
   }
 
   .card-hover {
-    @apply transition-colors duration-200 hover:border-[#F7931A]/50;
+    @apply transition-all duration-200 hover:shadow-card-hover;
   }
 
+  /* Nested items (24px = 1.5rem secondary scale) */
   .surface-panel {
-    @apply rounded-xl bg-white/[0.02] border border-white/10;
+    @apply rounded-panel border bg-white/70;
+    border-color: rgba(183, 198, 194, 0.3);
   }
 
-  /* ---- Buttons ---- */
+  /* ---- Buttons (24px nested scale; pill for small/secondary) ---- */
   .btn {
-    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F7931A] focus-visible:ring-offset-2 focus-visible:ring-offset-void disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-panel px-5 text-sm font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-primary {
-    @apply btn bg-primary-gradient text-white shadow-[0_0_20px_-5px_rgba(234,88,12,0.5)] hover:scale-[1.02] hover:shadow-[0_0_24px_-2px_rgba(234,88,12,0.7)];
+    @apply btn bg-brand text-white shadow-[0_10px_20px_-10px_rgba(202,0,19,0.55)] hover:bg-brand-dark hover:shadow-[0_14px_24px_-10px_rgba(202,0,19,0.55)];
   }
 
   .btn-secondary {
-    @apply btn border border-white/15 bg-white/[0.02] text-white hover:border-[#F7931A]/50 hover:text-white;
+    @apply btn border border-line bg-white text-charcoal shadow-[0_2px_6px_-2px_rgba(23,30,25,0.08)] hover:border-charcoal/30 hover:bg-paper;
   }
 
   .btn-ghost {
-    @apply btn border border-transparent text-muted hover:border-white/10 hover:bg-white/[0.03] hover:text-[#F7931A];
+    @apply btn border border-transparent text-charcoal hover:bg-charcoal/[0.06] hover:text-charcoal;
+  }
+
+  .btn-success {
+    @apply btn bg-success text-white shadow-[0_10px_20px_-10px_rgba(16,185,129,0.6)] hover:bg-[#0DA271];
+  }
+
+  .btn-danger {
+    @apply btn border border-brand/30 bg-brand-soft text-brand hover:border-brand/50 hover:bg-brand hover:text-white;
   }
 
   /* ---- Inputs ---- */
   .input {
-    @apply min-h-[44px] w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-muted/60 transition-colors duration-200 focus-visible:outline-none focus-visible:border-[#F7931A] focus-visible:ring-2 focus-visible:ring-[#F7931A] focus-visible:ring-opacity-40;
+    @apply min-h-[44px] w-full rounded-panel border border-line bg-white px-4 py-2 text-sm text-charcoal placeholder:text-muted/70 transition-colors duration-200 focus-visible:outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/20;
   }
 
   select.input option {
-    @apply bg-surface text-white;
+    @apply bg-white text-charcoal;
   }
 
-  /* ---- Labels ---- */
+  /* ---- Labels (10px / 700 / monospaced-kern uppercase) ---- */
   .label {
-    @apply text-sm font-medium text-muted;
+    @apply text-[10px] font-bold uppercase tracking-[0.1em] text-charcoal;
   }
 
   .label-tech {
-    @apply text-[11px] font-semibold uppercase tracking-widest text-muted;
+    @apply text-[10px] font-bold uppercase tracking-[0.12em] text-muted;
   }
 
   /* ---- Status pill ---- */
   .status-pill {
-    @apply inline-flex min-h-[26px] items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider;
+    @apply inline-flex min-h-[26px] items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider;
   }
 
   /* ---- Tables ---- */
@@ -121,15 +130,15 @@
   }
 
   .table-base thead tr {
-    @apply border-b border-white/10;
+    @apply border-b border-line/50;
   }
 
   .table-base thead th {
-    @apply px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-muted;
+    @apply px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted;
   }
 
   .table-base tbody tr {
-    @apply border-b border-white/5 transition-colors duration-150 hover:bg-white/[0.02];
+    @apply border-b border-line/30 transition-colors duration-100 hover:bg-graygreen/15;
   }
 
   .table-base tbody tr:last-child {
@@ -142,13 +151,13 @@
 
   /* ---- Occupancy bar ---- */
   .occupancy-bar {
-    @apply relative h-1.5 w-full overflow-hidden rounded-full bg-white/10;
+    @apply relative h-2 w-full overflow-hidden rounded-full bg-graygreen/40;
   }
 
   /* ---- Scrollbar ---- */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #1e293b transparent;
+    scrollbar-color: #b7c6c2 transparent;
   }
 
   ::-webkit-scrollbar {
@@ -157,7 +166,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #1e293b;
+    background: #b7c6c2;
     border-radius: 9999px;
   }
 

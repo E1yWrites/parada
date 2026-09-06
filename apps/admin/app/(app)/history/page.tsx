@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { Inbox } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionHeader } from "@/components/ui/Card";
@@ -64,17 +65,17 @@ export default function HistoryPage() {
     {
       key: "ts",
       header: "Timestamp",
-      cell: (e) => <span className="font-mono text-xs text-white">{formatDateTime(e.occurredAt)}</span>,
+      cell: (e) => <span className="font-display text-sm font-bold text-muted">{formatDateTime(e.occurredAt)}</span>,
     },
     {
       key: "occupied",
       header: "Occupied",
-      cell: (e) => <span className="font-mono text-sm font-semibold text-white">{e.occupiedCount}</span>,
+      cell: (e) => <span className="font-display text-sm font-black text-charcoal">{e.occupiedCount}</span>,
     },
     {
       key: "available",
       header: "Available",
-      cell: (e) => <span className="font-mono text-sm text-muted">{e.availableCount}</span>,
+      cell: (e) => <span className="font-display text-sm font-bold text-muted">{e.availableCount}</span>,
     },
   ];
 
@@ -86,7 +87,7 @@ export default function HistoryPage() {
         description="Parking occupancy over time."
       />
 
-      <div className="mb-4 flex flex-wrap items-end gap-3">
+      <div className="mb-5 flex flex-wrap items-end gap-3">
         <div>
           <label htmlFor="hist-zone" className="label">
             Zone
@@ -129,17 +130,17 @@ export default function HistoryPage() {
             onChange={(e) => setTo(e.target.value)}
           />
         </div>
-        <button type="button" className="btn-secondary" onClick={applyRange}>
+        <button type="button" className="btn-primary" onClick={applyRange}>
           Apply
         </button>
       </div>
 
       {!zoneId ? (
         <Card className="flex flex-col items-center justify-center px-6 py-14 text-center">
-          <div className="font-mono text-3xl text-muted/40" aria-hidden="true">
-            ∅
+          <div className="flex h-12 w-12 items-center justify-center rounded-panel bg-graygreen/25 text-muted" aria-hidden="true">
+            <Inbox className="h-6 w-6" />
           </div>
-          <h3 className="mt-3 font-display text-base font-semibold text-white">Select a zone</h3>
+          <h3 className="mt-4 font-display text-lg font-black tracking-tight text-charcoal">Select a zone</h3>
           <p className="mt-1 max-w-sm text-sm text-muted">
             Choose a zone to view its occupancy history.
           </p>
@@ -154,10 +155,10 @@ export default function HistoryPage() {
         >
           {!history.data || history.data.entries.length === 0 ? (
             <Card className="flex flex-col items-center justify-center px-6 py-14 text-center">
-              <div className="font-mono text-3xl text-muted/40" aria-hidden="true">
-                ∅
+              <div className="flex h-12 w-12 items-center justify-center rounded-panel bg-graygreen/25 text-muted" aria-hidden="true">
+                <Inbox className="h-6 w-6" />
               </div>
-              <h3 className="mt-3 font-display text-base font-semibold text-white">
+              <h3 className="mt-4 font-display text-lg font-black tracking-tight text-charcoal">
                 No occupancy history
               </h3>
               <p className="mt-1 max-w-sm text-sm text-muted">
@@ -169,7 +170,7 @@ export default function HistoryPage() {
           ) : (
             <div className="space-y-6">
               <ZoneTimeline data={history.data} />
-              <DataTable columns={columns} rows={history.data.entries} />
+              <DataTable columns={columns} rows={history.data.entries} rowKey={(e) => `${e.occurredAt}-${e.id}`} />
             </div>
           )}
         </QueryBoundary>
@@ -183,10 +184,7 @@ function ZoneTimeline({ data }: { data: ZoneHistory }) {
   const capacity = data.zone.capacity || 1;
   return (
     <Card>
-      <SectionHeader
-        eyebrow={selectedZoneLabel(data)}
-        title="Parking Occupancy Over Time"
-      />
+      <SectionHeader eyebrow={selectedZoneLabel(data)} title="Parking Occupancy Over Time" />
       <div className="p-5">
         <div className="flex h-32 items-end gap-[2px] overflow-x-auto">
           {entries.map((e) => {
@@ -195,16 +193,16 @@ function ZoneTimeline({ data }: { data: ZoneHistory }) {
               <div
                 key={e.id}
                 title={`${formatDateTime(e.occurredAt)} · ${e.occupiedCount}/${capacity}`}
-                className="min-w-[3px] flex-1 bg-[#F7931A]/70 hover:bg-orange"
+                className="min-w-[3px] flex-1 rounded-sm bg-brand/60 transition-colors duration-200 hover:bg-brand"
                 style={{ height: `${h}%` }}
               />
             );
           })}
         </div>
-        <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
-          <span className="font-mono">{formatDateTime(entries[0]?.occurredAt)}</span>
+        <div className="mt-3 flex items-center justify-between text-[11px] text-muted">
+          <span className="font-display font-bold">{formatDateTime(entries[0]?.occurredAt)}</span>
           <span className="label-tech">Capacity {data.zone.capacity}</span>
-          <span className="font-mono">{formatDateTime(entries[entries.length - 1]?.occurredAt)}</span>
+          <span className="font-display font-bold">{formatDateTime(entries[entries.length - 1]?.occurredAt)}</span>
         </div>
       </div>
     </Card>

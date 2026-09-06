@@ -31,7 +31,7 @@ export default function ZoneDetailPage() {
 
   return (
     <div>
-      <Link href="/zones" className="btn-ghost mb-4 -ml-2 text-xs">
+      <Link href="/zones" className="btn-ghost mb-5 -ml-1 text-xs">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to zones
       </Link>
@@ -40,13 +40,13 @@ export default function ZoneDetailPage() {
         {zone ? (
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange/15">
-                  <MapPinned className="h-6 w-6 text-orange" aria-hidden="true" />
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-panel bg-brand-soft">
+                  <MapPinned className="h-6 w-6 text-brand" aria-hidden="true" />
                 </div>
                 <div>
                   <p className="label-tech">ZONE {zone.code}</p>
-                  <h1 className="font-display text-2xl font-bold text-white">{zone.name}</h1>
+                  <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">{zone.name}</h1>
                   {zone.description ? <p className="mt-0.5 text-sm text-muted">{zone.description}</p> : null}
                 </div>
               </div>
@@ -54,7 +54,7 @@ export default function ZoneDetailPage() {
             </div>
 
             {/* Metrics */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
               <MetricCard label="Capacity" value={zone.capacity} detail="Total spaces" />
               <MetricCard
                 label="Occupied"
@@ -66,28 +66,36 @@ export default function ZoneDetailPage() {
                 label="Available"
                 value={zone.availableCount}
                 detail="Open spaces"
-                accent={zone.availableCount === 0 ? "red" : "none"}
+                accent={zone.availableCount === 0 ? "red" : "green"}
               />
-              <MetricCard label="Occupancy" value={formatPct(zone.occupancyPct)} detail="Of capacity" accent="orange" />
+              <MetricCard
+                label="Occupancy"
+                value={formatPct(zone.occupancyPct)}
+                detail="Of capacity"
+                accent="info"
+              />
             </div>
 
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
               {/* Cameras */}
               <Card>
                 <SectionHeader eyebrow="Infrastructure" title="Gate Cameras" />
-                <div className="divide-y divide-white/5">
+                <div className="divide-y divide-line/30">
                   {[zone.entryCamera, zone.exitCamera].filter(Boolean).map((cam) => {
                     const isEntry = zone.entryCamera?.id === cam!.id;
                     return (
                       <div key={cam!.id} className="flex items-center justify-between px-5 py-4">
                         <div className="flex items-center gap-3">
-                          {isEntry ? (
-                            <DoorClosed className="h-4 w-4 text-emerald-300" aria-hidden="true" />
-                          ) : (
-                            <DoorOpen className="h-4 w-4 text-sky-300" aria-hidden="true" />
-                          )}
+                          <span
+                            className={`flex h-9 w-9 items-center justify-center rounded-panel ${
+                              isEntry ? "bg-emerald-50 text-emerald-600" : "bg-sky-50 text-sky-600"
+                            }`}
+                            aria-hidden="true"
+                          >
+                            {isEntry ? <DoorClosed className="h-4 w-4" /> : <DoorOpen className="h-4 w-4" />}
+                          </span>
                           <div>
-                            <p className="font-mono text-sm font-semibold text-white">{cam!.identifier}</p>
+                            <p className="font-display text-sm font-black text-charcoal">{cam!.identifier}</p>
                             <p className="text-[11px] uppercase tracking-wider text-muted">
                               {isEntry ? "Entry" : "Exit"} gate
                             </p>
@@ -122,9 +130,12 @@ export default function ZoneDetailPage() {
                     {history.data && history.data.entries.length > 0 ? (
                       <ul className="space-y-1.5">
                         {history.data.entries.slice(-8).map((e) => (
-                          <li key={e.id} className="flex items-center justify-between rounded-lg bg-white/[0.02] px-3 py-2 text-sm">
-                            <span className="font-mono text-xs text-muted">{formatDateTime(e.occurredAt)}</span>
-                            <span className="font-mono font-semibold text-white">{e.occupiedCount}</span>
+                          <li
+                            key={e.id}
+                            className="flex items-center justify-between rounded-panel bg-graygreen/15 px-3.5 py-2 text-sm"
+                          >
+                            <span className="font-display text-xs font-bold text-muted">{formatDateTime(e.occurredAt)}</span>
+                            <span className="font-display text-sm font-black text-charcoal">{e.occupiedCount}</span>
                           </li>
                         ))}
                       </ul>
@@ -148,7 +159,7 @@ export default function ZoneDetailPage() {
                         <div
                           key={e.id}
                           title={`${e.occupiedCount} / ${history.data!.zone.capacity}`}
-                          className="flex-1 rounded-sm bg-[#F7931A]/70 hover:bg-orange"
+                          className="flex-1 rounded-sm bg-brand/70 transition-colors duration-200 hover:bg-brand"
                           style={{ height: `${Math.max(4, h)}%` }}
                         />
                       );

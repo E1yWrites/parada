@@ -10,7 +10,8 @@ import { AvailabilityBadge } from "@/components/ui/Badge";
 import { formatPct } from "@/lib/format";
 
 function OccupancyBar({ pct }: { pct: number }) {
-  const color = pct >= 100 ? "bg-[#EA580C]" : pct >= 80 ? "bg-amber-400" : "bg-[#F7931A]";
+  const color =
+    pct >= 100 ? "bg-brand" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
   return (
     <div className="occupancy-bar">
       <div
@@ -40,47 +41,55 @@ export default function ZonesPage() {
         status={zones.status}
         error={zones.error}
         isEmpty={!zones.data || zones.data.length === 0}
-        emptyTitle="No parking zones."
+        emptyTitle="No parking zones yet."
+        emptyMessage="Zones will appear here once they are configured by the backend."
         loadingRows={4}
         onRetry={() => zones.refetch()}
       >
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {zones.data?.map((z) => (
-            <Link key={z.id} href={`/zones/${z.id}`} className="card card-hover block p-5">
+            <Link
+              key={z.id}
+              href={`/zones/${z.id}`}
+              className="card card-hover block p-5"
+              aria-label={`View zone ${z.name}`}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange/15">
-                    <MapPinned className="h-5 w-5 text-orange" aria-hidden="true" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-panel bg-brand-soft">
+                    <MapPinned className="h-5 w-5 text-brand" aria-hidden="true" />
                   </div>
                   <div>
                     <p className="label-tech">ZONE {z.code}</p>
-                    <p className="mt-0.5 text-sm font-medium text-white">{z.name}</p>
+                    <p className="mt-0.5 font-display text-base font-black text-charcoal">{z.name}</p>
                   </div>
                 </div>
                 <AvailabilityBadge value={z.availability} />
               </div>
 
-              <div className="mt-4">
+              <div className="mt-5">
                 <div className="flex items-baseline justify-between">
-                  <p className="font-mono text-3xl font-bold text-white">
+                  <p className="font-display text-3xl font-black leading-none text-charcoal">
                     {z.occupiedCount}
-                    <span className="text-base font-medium text-muted"> / {z.capacity}</span>
+                    <span className="text-base font-bold text-muted"> / {z.capacity}</span>
                   </p>
-                  <p className="font-mono text-xs text-muted">{formatPct(z.occupancyPct)}</p>
+                  <p className="text-xs font-bold text-muted">
+                    {z.availableCount} available · {formatPct(z.occupancyPct)}
+                  </p>
                 </div>
-                <div className="mt-2">
+                <div className="mt-2.5">
                   <OccupancyBar pct={z.occupancyPct} />
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
-                <div className="flex items-center gap-4 text-[11px] text-muted">
+              <div className="mt-5 flex items-center justify-between border-t border-line/50 pt-4">
+                <div className="flex items-center gap-4 text-xs font-semibold text-muted">
                   <span className="flex items-center gap-1.5">
-                    <DoorClosed className="h-3.5 w-3.5" aria-hidden="true" />
+                    <DoorClosed className="h-4 w-4 text-charcoal" aria-hidden="true" />
                     {z.entryCamera ? z.entryCamera.identifier : "No entry cam"}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <DoorOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                    <DoorOpen className="h-4 w-4 text-charcoal" aria-hidden="true" />
                     {z.exitCamera ? z.exitCamera.identifier : "No exit cam"}
                   </span>
                 </div>

@@ -6,38 +6,34 @@ export interface MetricCardProps {
   valueClass?: string;
   detail?: ReactNode;
   monotone?: boolean;
-  accent?: "none" | "orange" | "gold" | "green" | "amber" | "red";
+  accent?: "none" | "red" | "green" | "amber" | "info";
 }
 
 const ACCENTS: Record<NonNullable<MetricCardProps["accent"]>, string> = {
-  none: "text-white",
-  orange: "text-orange",
-  gold: "text-gold",
-  green: "text-emerald-300",
-  amber: "text-amber-300",
-  red: "text-rose-300",
+  none: "text-charcoal",
+  red: "text-brand",
+  green: "text-emerald-600",
+  amber: "text-amber-600",
+  info: "text-sky-600",
 };
 
-/**
- * Technical telemetry-style metric card used on the dashboard and zone views.
- * Values render in JetBrains Mono and are visually dominant without using
- * marketing-style hero typography.
- */
 export function MetricCard({
   label,
   value,
   valueClass = "",
   detail,
+  monotone = false,
   accent = "none",
 }: MetricCardProps) {
   return (
     <div className="card relative overflow-hidden p-5">
-      <div className="pointer-events-none absolute inset-x-0 -top-16 h-24 bg-gradient-to-b from-orange/[0.06] to-transparent" aria-hidden="true" />
       <p className="label-tech">{label}</p>
-      <p className={`mt-2 font-mono text-[2.1rem] font-bold leading-none tracking-tight ${ACCENTS[accent]} ${valueClass}`}>
+      <p className={`mt-2 font-display text-[2.1rem] font-black leading-none tracking-[0.01em] ${ACCENTS[accent]} ${valueClass}`}>
         {value}
       </p>
-      {detail ? <p className="mt-2 text-xs uppercase tracking-wider text-muted">{detail}</p> : null}
+      {detail ? (
+        <p className="mt-2 text-[11px] font-semibold uppercase tracking-wider text-muted">{detail}</p>
+      ) : null}
     </div>
   );
 }

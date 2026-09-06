@@ -32,8 +32,8 @@ export default function AnomaliesPage() {
       header: "Where",
       cell: (a) => (
         <div>
-          <p className="text-sm text-white">{a.zoneCode ? `Zone ${a.zoneCode}` : "—"}</p>
-          {a.cameraIdentifier ? <p className="font-mono text-[11px] text-muted">{a.cameraIdentifier}</p> : null}
+          <p className="text-sm font-semibold text-charcoal">{a.zoneCode ? `Zone ${a.zoneCode}` : "—"}</p>
+          {a.cameraIdentifier ? <p className="font-display text-[11px] font-bold text-muted">{a.cameraIdentifier}</p> : null}
         </div>
       ),
     },
@@ -42,7 +42,7 @@ export default function AnomaliesPage() {
       header: "Plate",
       cell: (a) =>
         a.detectedPlate ? (
-          <span className="font-mono text-sm font-semibold text-white">{a.detectedPlate}</span>
+          <span className="font-display text-sm font-black text-charcoal">{a.detectedPlate}</span>
         ) : (
           <span className="text-sm text-muted">—</span>
         ),
@@ -50,7 +50,7 @@ export default function AnomaliesPage() {
     {
       key: "when",
       header: "When",
-      cell: (a) => <span className="font-mono text-xs text-muted">{formatDateTime(a.createdAt)}</span>,
+      cell: (a) => <span className="font-display text-sm font-bold text-muted">{formatDateTime(a.createdAt)}</span>,
     },
     {
       key: "source",
@@ -81,7 +81,7 @@ export default function AnomaliesPage() {
         loadingRows={5}
         onRetry={() => anomalies.refetch()}
       >
-        <DataTable columns={columns} rows={anomalies.data ?? []} />
+        <DataTable columns={columns} rows={anomalies.data ?? []} rowKey={(a) => a.id} />
       </QueryBoundary>
     </div>
   );

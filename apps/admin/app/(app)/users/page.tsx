@@ -23,11 +23,11 @@ export default function UsersPage() {
       header: "User",
       cell: (u) => (
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.03]">
-            <Users className="h-4 w-4 text-orange" aria-hidden="true" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-panel bg-brand-soft">
+            <Users className="h-4 w-4 text-brand" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">{u.name}</p>
+            <p className="text-sm font-bold text-charcoal">{u.name}</p>
             <p className="text-[11px] text-muted">{u.email}</p>
           </div>
         </div>
@@ -53,17 +53,17 @@ export default function UsersPage() {
     {
       key: "vehicles",
       header: "Vehicles",
-      cell: (u) => <span className="font-mono text-sm text-white">{u._count.vehicles}</span>,
+      cell: (u) => <span className="font-display text-sm font-black text-charcoal">{u._count.vehicles}</span>,
     },
     {
       key: "sessions",
       header: "Sessions",
-      cell: (u) => <span className="font-mono text-sm text-white">{u._count.sessions}</span>,
+      cell: (u) => <span className="font-display text-sm font-black text-charcoal">{u._count.sessions}</span>,
     },
     {
       key: "created",
       header: "Joined",
-      cell: (u) => <span className="font-mono text-xs text-muted">{formatDate(u.createdAt)}</span>,
+      cell: (u) => <span className="font-display text-sm font-bold text-muted">{formatDate(u.createdAt)}</span>,
     },
   ];
 
@@ -83,7 +83,7 @@ export default function UsersPage() {
         loadingRows={5}
         onRetry={() => users.refetch()}
       >
-        <DataTable columns={columns} rows={users.data ?? []} />
+        <DataTable columns={columns} rows={users.data ?? []} rowKey={(u) => u.id} />
       </QueryBoundary>
     </div>
   );

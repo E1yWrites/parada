@@ -8,18 +8,19 @@ import {
   MapPinned,
   Camera,
   CarFront,
+  Clock3,
   Users,
   Bell,
   TriangleAlert,
-  Clock3,
-  FlaskConical,
+  History,
+  UserRoundCheck,
+  Activity,
+  Settings2,
   UserCircle2,
   LogOut,
   Menu,
   X,
-  Activity,
-  UserRoundCheck,
-  Settings2,
+  ChevronDown,
 } from "lucide-react";
 import { useAuth } from "./providers/auth-provider";
 import { FullPageSpinner } from "./ui/State";
@@ -33,6 +34,7 @@ interface NavItem {
 
 interface NavGroup {
   label: string;
+  collapsible?: boolean;
   items: NavItem[];
 }
 
@@ -42,37 +44,54 @@ const GROUPS: NavGroup[] = [
     items: [{ href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true }],
   },
   {
-    label: "Parking",
+    label: "Parking Operations",
+    collapsible: true,
     items: [
       { href: "/zones", label: "Zones", icon: MapPinned },
       { href: "/cameras", label: "Cameras", icon: Camera },
-      { href: "/sessions", label: "Sessions", icon: CarFront },
       { href: "/reservations", label: "Reservations", icon: Clock3 },
-      { href: "/violations", label: "Violations", icon: TriangleAlert },
-      { href: "/appeals", label: "Appeals", icon: Bell },
-      { href: "/analytics", label: "Analytics", icon: Activity },
+      { href: "/sessions", label: "Sessions", icon: CarFront },
     ],
   },
   {
     label: "Management",
+    collapsible: true,
     items: [
       { href: "/users", label: "Users", icon: Users },
+      { href: "/violations", label: "Violations", icon: TriangleAlert },
+      { href: "/appeals", label: "Appeals", icon: Bell },
       { href: "/guest-admit", label: "Guest Admission", icon: UserRoundCheck },
+    ],
+  },
+  {
+    label: "Analytics",
+    collapsible: true,
+    items: [
+      { href: "/analytics", label: "Analytics", icon: Activity },
+      { href: "/history", label: "History", icon: History },
+    ],
+  },
+  {
+    label: "System",
+    collapsible: true,
+    items: [
       { href: "/notifications", label: "Notifications", icon: Bell },
       { href: "/anomalies", label: "Anomalies", icon: TriangleAlert },
-      { href: "/history", label: "History", icon: Clock3 },
-      { href: "/settings", label: "Establishment Settings", icon: Settings2 },
     ],
   },
   {
     label: "Tools",
-    items: [{ href: "/simulator", label: "Simulator", icon: FlaskConical }],
+    items: [{ href: "/simulator", label: "Simulator", icon: Activity }],
   },
   {
     label: "Account",
     items: [{ href: "/account", label: "Account", icon: UserCircle2 }],
   },
 ];
+
+function groupId(label: string) {
+  return `nav-group-${label.toLowerCase().replace(/\s+/g, "-")}`;
+}
 
 function isActive(href: string, exact: boolean | undefined, pathname: string): boolean {
   if (exact) return pathname === href;
@@ -81,75 +100,127 @@ function isActive(href: string, exact: boolean | undefined, pathname: string): b
 
 function Brand() {
   return (
-    <Link href="/" className="flex items-center gap-2.5">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-gradient shadow-glow-orange">
+    <Link href="/" className="flex items-center gap-3">
+      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand shadow-[0_10px_18px_-8px_rgba(202,0,19,0.6)]">
         <Activity className="h-5 w-5 text-white" aria-hidden="true" />
       </div>
       <div className="leading-none">
-        <span className="font-display text-lg font-bold tracking-tight text-white">PARADA</span>
-        <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-widest text-muted">
-          Operations
+        <span className="font-display text-xl font-black tracking-[-0.02em] text-charcoal">PARADA</span>
+        <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
+          Smart Parking
         </span>
       </div>
     </Link>
   );
 }
 
+function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: string; onNavigate?: () => void }) {
+  const active = isActive(item.href, item.exact, pathname);
+  const Icon = item.icon;
+  return (
+    <li>
+      <Link
+        href={item.href}
+        onClick={onNavigate}
+        aria-current={active ? "page" : undefined}
+        className={`flex min-h-[44px] items-center gap-3 rounded-2xl border px-3 text-sm font-semibold transition-colors duration-200 ${
+          active
+            ? "border-line/60 bg-white text-charcoal shadow-[0_1px_2px_rgba(23,30,25,0.06)]"
+            : "border-transparent text-muted hover:bg-white hover:text-charcoal"
+        }`}
+      >
+        <Icon
+          className={`h-5 w-5 shrink-0 ${active ? "text-brand" : "text-muted"}`}
+          aria-hidden="true"
+        />
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      </Link>
+    </li>
+  );
+}
+
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const [open, setOpen] = useState<Set<string>>(
+    () => new Set(GROUPS.filter((g) => !g.collapsible).map((g) => g.label))
+  );
+
+  function toggle(label: string) {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  }
+
   return (
-    <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
-      {GROUPS.map((group) => (
-        <div key={group.label}>
-          <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted/60">
-            {group.label}
-          </p>
-          <ul className="space-y-0.5">
-            {group.items.map((item) => {
-              const active = isActive(item.href, item.exact, pathname);
-              const Icon = item.icon;
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={onNavigate}
-                    aria-current={active ? "page" : undefined}
-                    className={`relative flex min-h-[40px] items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-200 ${
-                      active
-                        ? "bg-[#EA580C]/10 text-[#F7931A] shadow-[0_0_20px_-5px_rgba(234,88,12,0.5)]"
-                        : "text-muted hover:bg-white/[0.03] hover:text-white"
-                    }`}
-                  >
-                    {active ? (
-                      <span
-                        className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-orange"
-                        aria-hidden="true"
-                      />
-                    ) : null}
-                    <Icon className={`h-[18px] w-[18px] ${active ? "text-[#F7931A]" : ""}`} aria-hidden="true" />
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+    <nav className="flex-1 overflow-y-auto px-5 py-4" aria-label="Primary">
+      {GROUPS.map((group) => {
+        const id = groupId(group.label);
+        const expanded = open.has(group.label);
+        return (
+          <div key={group.label} className="mb-6">
+            {group.collapsible ? (
+              <button
+                type="button"
+                onClick={() => toggle(group.label)}
+                aria-expanded={expanded}
+                aria-controls={id}
+                className="flex min-h-[34px] w-full items-center gap-2 rounded-xl px-3 font-display text-[11px] font-black uppercase tracking-[0.14em] text-muted transition-colors duration-200 hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+              >
+                <span>{group.label}</span>
+                <ChevronDown
+                  className={`ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+                  aria-hidden="true"
+                />
+              </button>
+            ) : (
+              <p className="px-3 pb-1.5 font-display text-[11px] font-black uppercase tracking-[0.14em] text-muted">
+                {group.label}
+              </p>
+            )}
+
+            {expanded ? (
+              <ul
+                id={id}
+                className="mt-2 space-y-1 border-l border-line/50 pl-3"
+                aria-label={`${group.label} navigation`}
+              >
+                {group.items.map((item) => (
+                  <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        );
+      })}
     </nav>
   );
 }
 
 function SidebarFooter({ onLogout }: { onLogout: () => void }) {
   return (
-    <div className="border-t border-white/10 p-3">
-      <button
-        type="button"
-        onClick={onLogout}
-        className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted transition-colors duration-200 hover:bg-white/[0.03] hover:text-orange"
-      >
-        <LogOut className="h-[18px] w-[18px]" aria-hidden="true" />
-        Logout
-      </button>
+    <div className="border-t border-line/50 p-4">
+      <div className="flex items-center gap-3 rounded-2xl px-3 py-2.5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-soft" aria-hidden="true">
+          <UserCircle2 className="h-5 w-5 text-brand" />
+        </div>
+        <div className="min-w-0 leading-tight">
+          <p className="truncate text-sm font-bold text-charcoal">Account</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Administrator</p>
+        </div>
+      </div>
+      <div className="mt-1">
+        <button
+          type="button"
+          onClick={onLogout}
+          className="flex min-h-[44px] w-full items-center gap-3 rounded-2xl px-3 text-sm font-semibold text-muted transition-colors duration-200 hover:bg-white hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+        >
+          <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
+          Logout
+        </button>
+      </div>
     </div>
   );
 }
@@ -163,10 +234,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!user) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-gradient shadow-glow-orange">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand shadow-[0_12px_24px_-10px_rgba(202,0,19,0.6)]">
           <Activity className="h-7 w-7 text-white" aria-hidden="true" />
         </div>
-        <h1 className="font-display text-xl font-bold text-white">Admin access required</h1>
+        <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">Admin access required</h1>
         <p className="max-w-sm text-sm text-muted">
           PARADA Operations is restricted to administrators. Sign in with an admin account.
         </p>
@@ -180,8 +251,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (user.role !== "ADMIN") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
-        <TriangleAlert className="h-10 w-10 text-rose-400" aria-hidden="true" />
-        <h1 className="font-display text-xl font-bold text-white">Forbidden</h1>
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft" aria-hidden="true">
+          <TriangleAlert className="h-7 w-7 text-brand" />
+        </div>
+        <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">Forbidden</h1>
         <p className="max-w-sm text-sm text-muted">
           Your account does not have administrator privileges.
         </p>
@@ -192,13 +265,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const pageTitle = "Operations";
-
   return (
     <div className="flex min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-white/10 bg-surface/60 backdrop-blur lg:flex">
-        <div className="border-b border-white/10 p-4">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line/40 bg-paper lg:flex">
+        <div className="px-5 pb-2 pt-5">
           <Brand />
         </div>
         <NavList />
@@ -209,17 +280,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {mobileOpen ? (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-charcoal/40 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
-          <aside className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-white/10 bg-surface">
-            <div className="flex items-center justify-between border-b border-white/10 p-4">
+          <aside className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-line/40 bg-paper">
+            <div className="flex items-center justify-between border-b border-line/40 px-4 py-4">
               <Brand />
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
-                className="flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-white/[0.03] hover:text-white"
+                className="flex h-11 w-11 items-center justify-center rounded-2xl text-muted transition-colors duration-200 hover:bg-white hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
                 aria-label="Close menu"
               >
                 <X className="h-5 w-5" aria-hidden="true" />
@@ -233,42 +304,45 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-white/10 bg-void/70 px-4 backdrop-blur sm:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-line/50 bg-white/75 px-4 backdrop-blur-xl sm:px-6">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="-ml-1 flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-white/[0.03] hover:text-white lg:hidden"
+              className="-ml-1 flex h-11 w-11 items-center justify-center rounded-panel text-muted hover:bg-charcoal/[0.05] hover:text-charcoal lg:hidden"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
             <div>
-              <p className="hidden text-[10px] font-semibold uppercase tracking-widest text-muted sm:block">
+              <p className="hidden text-[10px] font-bold uppercase tracking-[0.18em] text-muted sm:block">
                 Smart Parking · Control Center
               </p>
-              <p className="font-display text-sm font-semibold text-white">{pageTitle}</p>
+              <p className="font-display text-base font-black tracking-tight text-charcoal">Operations</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="hidden items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-300 sm:inline-flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse-dot" aria-hidden="true" />
-              System online
-            </span>
-            <div className="flex items-center gap-2.5 rounded-lg border border-white/10 bg-surface/60 px-3 py-1.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-orange/20">
-                <UserCircle2 className="h-4 w-4 text-orange" aria-hidden="true" />
+            <Link
+              href="/notifications"
+              className="flex h-11 w-11 items-center justify-center rounded-panel text-muted transition-colors duration-200 hover:bg-charcoal/[0.05] hover:text-brand"
+              aria-label="Notifications"
+            >
+              <Bell className="h-5 w-5" aria-hidden="true" />
+            </Link>
+            <div className="flex items-center gap-2.5 rounded-panel border border-line/50 bg-white px-3 py-1.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft" aria-hidden="true">
+                <UserCircle2 className="h-5 w-5 text-brand" />
               </div>
               <div className="hidden leading-tight sm:block">
-                <p className="text-xs font-semibold text-white">{user.name}</p>
-                <p className="text-[10px] uppercase tracking-wider text-muted">{user.role}</p>
+                <p className="text-sm font-bold text-charcoal">{user.name}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted">{user.role}</p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => signOut()}
-              className="flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-white/[0.03] hover:text-orange"
+              className="flex h-11 w-11 items-center justify-center rounded-panel text-muted transition-colors duration-200 hover:bg-charcoal/[0.05] hover:text-brand"
               aria-label="Logout"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
@@ -276,9 +350,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
-          {children}
-        </main>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 sm:py-10">{children}</main>
       </div>
     </div>
   );

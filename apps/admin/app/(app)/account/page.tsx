@@ -17,10 +17,10 @@ export default function AccountPage() {
         description="Your operator profile and access level."
       />
 
-      <div className="grid max-w-3xl grid-cols-1 gap-6">
+      <div className="grid max-w-3xl grid-cols-1 gap-5">
         <Card>
           <SectionHeader eyebrow="Identity" title="Profile" />
-          <dl className="divide-y divide-white/5 p-5">
+          <dl className="divide-y divide-line/30 p-5">
             <Row label="Name" value={user?.name ?? "—"} />
             <Row label="Email" value={user?.email ?? "—"} />
             <Row
@@ -41,7 +41,7 @@ export default function AccountPage() {
           <SectionHeader eyebrow="Tools" title="Session" />
           <div className="p-5">
             <p className="mb-4 text-sm text-muted">
-              You are signed in as <span className="text-white">{user?.email ?? "…"}</span>. Signing out ends this
+              You are signed in as <span className="font-bold text-charcoal">{user?.email ?? "…"}</span>. Signing out ends this
               admin session on the server.
             </p>
             <button type="button" className="btn-secondary" onClick={() => signOut()}>
@@ -58,7 +58,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 py-3">
       <dt className="text-sm text-muted">{label}</dt>
-      <dd className="text-right text-sm text-white">{value}</dd>
+      <dd className="text-right text-sm font-semibold text-charcoal">{value}</dd>
     </div>
   );
 }

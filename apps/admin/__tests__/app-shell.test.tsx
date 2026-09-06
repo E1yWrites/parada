@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { AppShell } from "@/components/AppShell";
 
 jest.mock("next/navigation", () => ({
@@ -65,5 +65,35 @@ describe("AppShell — role protection", () => {
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
     expect(screen.getByText("Simulator")).toBeInTheDocument();
     expect(screen.getByText("Logout")).toBeInTheDocument();
+  });
+
+  it("marks the active route with aria-current on the soft active container", () => {
+    setAuth({ user: { id: "u1", email: "admin@parada.local", role: "ADMIN" } as never, loading: false });
+    render(
+      <AppShell>
+        <div>content</div>
+      </AppShell>
+    );
+    expect(screen.getByRole("link", { name: /dashboard/i })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("expands and collapses navigation groups with aria-expanded state", () => {
+    setAuth({ user: { id: "u1", email: "admin@parada.local", role: "ADMIN" } as never, loading: false });
+    render(
+      <AppShell>
+        <div>content</div>
+      </AppShell>
+    );
+    const toggle = screen.getByRole("button", { name: /parking operations/i });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("link", { name: /zones/i })).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("link", { name: /zones/i })).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("link", { name: /zones/i })).not.toBeInTheDocument();
   });
 });

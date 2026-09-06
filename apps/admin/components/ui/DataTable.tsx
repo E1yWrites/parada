@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card } from "./Card";
+import { EmptyState } from "./State";
 
 export interface Column<T> {
   key: string;
@@ -14,22 +14,16 @@ export function DataTable<T>({
   rows,
   emptyTitle,
   emptyMessage,
+  rowKey,
 }: {
   columns: Column<T>[];
   rows: T[];
   emptyTitle?: string;
   emptyMessage?: string;
+  rowKey?: (row: T) => string;
 }) {
   if (rows.length === 0) {
-    return (
-      <Card className="flex flex-col items-center justify-center px-6 py-14 text-center">
-        <div className="font-mono text-2xl text-muted/40" aria-hidden="true">
-          ∅
-        </div>
-        <h3 className="mt-3 font-display text-base font-semibold text-white">{emptyTitle ?? "No records."}</h3>
-        {emptyMessage ? <p className="mt-1 max-w-sm text-sm text-muted">{emptyMessage}</p> : null}
-      </Card>
-    );
+    return <EmptyState title={emptyTitle ?? "No records."} message={emptyMessage} />;
   }
 
   return (
@@ -46,7 +40,7 @@ export function DataTable<T>({
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i}>
+            <tr key={rowKey ? rowKey(row) : i}>
               {columns.map((c) => (
                 <td key={c.key} className={c.className}>
                   {c.cell(row)}

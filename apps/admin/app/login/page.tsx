@@ -40,34 +40,36 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-gradient shadow-glow-orange">
-            <Activity className="h-8 w-8 text-white" aria-hidden="true" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-[1.75rem] bg-brand shadow-[0_16px_30px_-12px_rgba(202,0,19,0.6)]">
+            <Activity className="h-9 w-9 text-white" aria-hidden="true" />
           </div>
-          <h1 className="mt-4 font-display text-3xl font-bold tracking-tight text-white">PARADA</h1>
-          <p className="mt-1 label-tech">Smart Parking · Operations Console</p>
+          <h1 className="mt-4 font-display text-4xl font-black tracking-[-0.02em] text-charcoal">PARADA</h1>
+          <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+            Smart Parking · Operations Console
+          </p>
         </div>
 
         <Card className="p-6 sm:p-8">
           <div className="mb-6">
-            <h2 className="font-display text-lg font-semibold text-white">Administrator sign in</h2>
+            <h2 className="font-display text-xl font-black tracking-tight text-charcoal">Administrator sign in</h2>
             <p className="mt-1 text-sm text-muted">
               Access restricted to authorized operations staff.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             <div>
               <label htmlFor="email" className="label">
                 Email
               </label>
-              <div className="relative mt-1.5">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+              <div className="relative mt-2">
+                <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
                 <input
                   id="email"
                   type="email"
                   autoComplete="email"
                   required
-                  className="input pl-10"
+                  className="input pl-11"
                   placeholder="admin@parada.local"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -79,14 +81,14 @@ export default function LoginPage() {
               <label htmlFor="password" className="label">
                 Password
               </label>
-              <div className="relative mt-1.5">
-                <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+              <div className="relative mt-2">
+                <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
                 <input
                   id="password"
                   type="password"
                   autoComplete="current-password"
                   required
-                  className="input pl-10"
+                  className="input pl-11"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -95,7 +97,10 @@ export default function LoginPage() {
             </div>
 
             {error ? (
-              <div className="flex items-center gap-2 rounded-lg border border-rose-400/30 bg-rose-400/10 px-3 py-2.5 text-sm text-rose-300">
+              <div
+                role="alert"
+                className="flex items-center gap-2 rounded-panel border border-brand/25 bg-brand-soft px-3.5 py-2.5 text-sm font-semibold text-brand"
+              >
                 <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {error}
               </div>
@@ -107,7 +112,7 @@ export default function LoginPage() {
           </form>
         </Card>
 
-        <p className="mt-6 text-center text-xs text-muted">
+        <p className="mt-6 text-center text-xs font-semibold text-muted">
           Protected by authentication · HttpOnly session · Administrator role required
         </p>
       </div>

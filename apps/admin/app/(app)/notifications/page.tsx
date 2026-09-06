@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, BellRing, Check } from "lucide-react";
+import { AlertCircle, Bell, BellRing, Check } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
-import { Card } from "@/components/ui/Card";
+import { Card, SectionHeader } from "@/components/ui/Card";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import { ReadBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -46,11 +46,9 @@ export default function NotificationsPage() {
   });
 
   const mutationError = markRead.error ?? marksAll.error;
-
   const items = (notifications.data?.notifications ?? []).filter((n) =>
     filter === "UNREAD" ? !n.read : true
   );
-
   const unreadCount = notifications.data?.unreadCount ?? 0;
 
   return (
@@ -71,21 +69,21 @@ export default function NotificationsPage() {
         }
       />
 
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-surface p-1">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex items-center gap-1 rounded-panel border border-line/40 bg-white p-1">
           {(["ALL", "UNREAD"] as Filter[]).map((f) => (
             <button
               key={f}
               type="button"
               onClick={() => setFilter(f)}
-              className={`min-h-[32px] rounded-md px-3 text-xs font-semibold transition-colors duration-200 ${
-                filter === f ? "bg-[#EA580C]/15 text-orange" : "text-muted hover:text-white"
+              className={`min-h-[36px] rounded-panel px-4 text-xs font-bold uppercase tracking-wider transition-colors duration-200 ${
+                filter === f ? "bg-brand-soft text-brand" : "text-muted hover:bg-graygreen/20 hover:text-charcoal"
               }`}
               aria-pressed={filter === f}
             >
               {f}
               {f === "UNREAD" && unreadCount > 0 ? (
-                <span className="ml-1.5 rounded-full bg-orange/20 px-1.5 py-0.5 font-mono text-[10px] text-orange">
+                <span className="ml-1.5 rounded-full bg-brand px-2 py-0.5 font-display text-[11px] font-black text-white">
                   {unreadCount}
                 </span>
               ) : null}
@@ -95,7 +93,8 @@ export default function NotificationsPage() {
       </div>
 
       {mutationError ? (
-        <p role="alert" className="mb-4 rounded-lg border border-rose-400/30 bg-rose-400/10 px-3 py-2.5 text-sm text-rose-300">
+        <p role="alert" className="mb-4 flex items-center gap-2 rounded-panel border border-brand/25 bg-brand-soft px-3.5 py-2.5 text-sm font-semibold text-brand">
+          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
           {mutationError instanceof Error ? mutationError.message : "Unable to update notifications."}
         </p>
       ) : null}
@@ -112,28 +111,23 @@ export default function NotificationsPage() {
           {items.length === 0 ? (
             <p className="p-6 text-sm text-muted">No {filter === "UNREAD" ? "unread " : ""}notifications.</p>
           ) : (
-            <ul className="divide-y divide-white/5">
+            <ul className="divide-y divide-line/30">
               {items.map((n: AdminNotification) => (
                 <li key={n.id} className="flex items-center justify-between gap-4 px-5 py-4">
                   <div className="flex items-start gap-3">
                     <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                        n.read ? "bg-white/[0.03] text-muted" : "bg-[#EA580C]/15 text-orange"
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-panel ${
+                        n.read ? "bg-graygreen/20 text-muted" : "bg-brand-soft text-brand"
                       }`}
                       aria-hidden="true"
                     >
-                      {n.type === "ZONE_FULL" ? (
-                        <BellRing className="h-4 w-4" />
-                      ) : (
-                        <Bell className="h-4 w-4" />
-                      )}
+                      {n.type === "ZONE_FULL" ? <BellRing className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
                     </div>
                     <div>
-                      <p className={`text-sm ${n.read ? "text-muted" : "font-medium text-white"}`}>
-                        {n.message}
-                      </p>
+                      <p className={`text-sm ${n.read ? "text-muted" : "font-bold text-charcoal"}`}>{n.message}</p>
                       <p className="mt-0.5 text-[11px] text-muted">
-                        {n.zone ? `Zone ${n.zone.code}` : "All zones"} · {n.type} · {formatDateTime(n.createdAt)}
+                        <span className="font-semibold text-charcoal">{n.zone ? `Zone ${n.zone.code}` : "All zones"}</span>
+                        {" · "}{n.type} · {formatDateTime(n.createdAt)}
                       </p>
                     </div>
                   </div>
@@ -141,8 +135,8 @@ export default function NotificationsPage() {
                     <ReadBadge read={n.read} />
                     {!n.read ? (
                       <Button
-                        variant="ghost"
-                        className="min-h-[32px] px-3 text-xs"
+                        variant="secondary"
+                        className="min-h-[36px] px-4 text-xs"
                         onClick={() => markRead.mutate(n.id)}
                         disabled={markRead.isPending}
                       >
