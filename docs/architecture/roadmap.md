@@ -19,7 +19,7 @@ document -> STOP.
 | 9.9 | Mobile visual redesign (light theme) | DONE |
 | 10 | Admin Web UI overhaul | DONE |
 | 10.1 | System audit remediation (occupancy atomicity, camera-exit fees, assignment expiry, plate identity, reservation capacity, violations/appeals, driver notifications) | DONE |
-| 11 | OCR / Computer Vision (real model) | PENDING |
+| 11 | OCR / Computer Vision (real model) | DONE |
 | 12 | Real-Time Integration | PENDING |
 | 13 | Full System Integration | PENDING |
 | 14 | Testing + Accuracy Evaluation | PENDING |

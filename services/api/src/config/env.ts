@@ -28,6 +28,22 @@ function optionalInt(name: string, fallback: number): number {
   return Number.isInteger(value) && value > 0 ? value : fallback;
 }
 
+/**
+ * An env var that is present but blank means "not configured", not "configured
+ * to the empty string". `.env.example` ships `CAMERA_API_KEY=""`, so a plain
+ * `?? null` produced `""` — which is non-null, so the event endpoint demanded a
+ * key that no caller could ever match and rejected every camera event with 401
+ * while appearing unconfigured.
+ */
+function optionalSecret(name: string): string | null {
+  const value = process.env[name];
+  if (value === undefined) {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function required(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -54,7 +70,7 @@ export function loadEnv(): Env {
   }
 
   const env: Env = {
-    port: Number(process.env["PORT"] ?? "4000"),
+    port: Number(process.env["PORT"] ?? "4100"),
     host: process.env["HOST"] ?? "0.0.0.0",
     databaseUrl: required("DATABASE_URL"),
     nodeEnv,
@@ -67,7 +83,7 @@ export function loadEnv(): Env {
     // X-API-Key header on the event-ingestion endpoint. Null (not set) means
     // the endpoint is open — acceptable only in trusted development; set one in
     // any real deployment.
-    cameraApiKey: process.env["CAMERA_API_KEY"] ?? null,
+    cameraApiKey: optionalSecret("CAMERA_API_KEY"),
     ocrPlateConfidenceThreshold,
     // Fixed-window rate budgets. Guards against credential brute-forcing,
     // camera event flooding, and admin mutation abuse. The limiter is

@@ -6,9 +6,9 @@
   "main": "index.js",
   "scripts": {
     "build": "expo export --platform ios --platform android",
-    "dev": "EXPO_NO_WEB=1 expo start",
-    "dev:lan": "EXPO_NO_WEB=1 expo start --host lan",
-    "start": "EXPO_NO_WEB=1 expo start",
+    "dev": "cross-env EXPO_NO_WEB=1 expo start --port 8082",
+    "dev:lan": "cross-env EXPO_NO_WEB=1 expo start --host lan --port 8082",
+    "start": "cross-env EXPO_NO_WEB=1 expo start --port 8082",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand --forceExit"

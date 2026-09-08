@@ -104,7 +104,7 @@ type RequestOptions = {
   invalidateOnUnauthorized?: boolean;
 };
 
-const API_ROOT = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/+$/, "");
+const API_ROOT = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4100").replace(/\/+$/, "");
 const REQUEST_TIMEOUT_MS = 20_000;
 
 async function fetchWithTimeout(path: string, init: RequestInit): Promise<Response> {

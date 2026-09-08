@@ -13,15 +13,15 @@
     "validate": "prisma validate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
-    "seed": "DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5432/parada?schema=public\" ts-node src/seed/index.ts",
+    "seed": "cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada?schema=public\" ts-node src/seed/index.ts",
     "db:dev": "node scripts/start-dev-db.cjs",
-    "db:start": "mkdir -p .embedded-pg && BACKGROUND=1 nohup node scripts/start-dev-db.cjs > .embedded-pg/db.log 2>&1 &",
+    "db:start": "node scripts/start-dev-db-background.cjs",
     "db:stop": "node scripts/stop-dev-db.cjs",
-    "db:migrate": "DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5432/parada?schema=public\" prisma migrate deploy",
-    "db:test:setup": "node scripts/setup-test-db.cjs && DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5432/parada_test?schema=public\" prisma migrate deploy && DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5432/parada_test_api?schema=public\" prisma migrate deploy",
+    "db:migrate": "cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada?schema=public\" prisma migrate deploy",
+    "db:test:setup": "node scripts/setup-test-db.cjs && cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test?schema=public\" prisma migrate deploy && cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test_api?schema=public\" prisma migrate deploy",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
-    "test": "DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5432/parada_test?schema=public\" jest"
+    "test": "cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test?schema=public\" jest"
   },
   "dependencies": {
     "@parada/config": "0.1.0",

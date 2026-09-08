@@ -4,12 +4,12 @@
   "private": true,
   "description": "PARADA vision/OCR service (Python + FastAPI + OpenCV)",
   "scripts": {
-    "setup": ".venv/bin/pip install -r requirements.txt",
+    "setup": "node scripts/setup-venv.cjs",
     "build": "echo \"(vision) no build step — Python service\"",
-    "dev": ".venv/bin/uvicorn app.main:app --reload --port 8001",
+    "dev": "node scripts/venv-run.cjs uvicorn app.main:app --reload --port 8001",
     "lint": "echo \"(vision) no linter configured\"",
     "typecheck": "echo \"(vision) no type checker configured\"",
-    "test": ".venv/bin/pytest",
-    "camera": ".venv/bin/python -m app.camera.cli"
+    "test": "node scripts/venv-run.cjs pytest",
+    "camera": "node scripts/venv-run.cjs python -m app.camera.cli"
   }
 }

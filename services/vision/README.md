@@ -20,6 +20,7 @@ results, never a database client — see "Architecture" below.
 
 ## Setup
 
+**Linux/macOS/WSL:**
 ```bash
 cd services/vision
 python3 -m venv --without-pip .venv   # or: python3 -m venv .venv, if ensurepip works on your machine
@@ -27,16 +28,28 @@ curl -sS https://bootstrap.pypa.io/get-pip.py | .venv/bin/python3   # only neede
 .venv/bin/pip install -r requirements.txt
 ```
 
+**Windows (native, no WSL) or cross-platform:**
+```bash
+npm run setup -w @parada/vision
+```
+This runs `scripts/setup-venv.cjs`, which creates `.venv` with its bundled pip
+(auto-detecting `python`/`python3`/`py` on PATH) and installs
+`requirements.txt` — equivalent to the manual steps above but works on both
+Windows (`.venv\Scripts\`) and POSIX (`.venv/bin/`) without a separate
+get-pip.py bootstrap.
+
 Run the service:
 ```bash
-.venv/bin/uvicorn app.main:app --port 8001
-# or: npm run dev -w @parada/vision
+.venv/bin/uvicorn app.main:app --port 8001   # Linux/macOS/WSL, direct venv invocation
+# or, cross-platform (resolves .venv/bin vs .venv\Scripts automatically):
+npm run dev -w @parada/vision
 ```
 
 Run tests:
 ```bash
-.venv/bin/pytest
-# or: npm run test -w @parada/vision
+.venv/bin/pytest   # Linux/macOS/WSL, direct venv invocation
+# or, cross-platform:
+npm run test -w @parada/vision
 ```
 
 The first run of either the service or the real-inference tests downloads
@@ -164,28 +177,42 @@ and never enter the database, an API response, or a log.
 | `MAX_CAMERA_RECONNECTS` | `100` | reconnect ceiling; beyond this the camera stops (no crash) |
 
 The API connection uses the existing `PARADA_API_URL` (default
-`http://localhost:4000`) and `CAMERA_API_KEY` (`X-API-Key` header). **No user or
+`http://localhost:4100`) and `CAMERA_API_KEY` (`X-API-Key` header). **No user or
 admin JWT is used.**
 
 ## USB development
 
 1. Plug in the USB webcam and find its index:
    ```bash
-   ls /dev/video*                 # e.g. /dev/video0 -> index 0
+   ls /dev/video*                 # Linux/macOS/WSL, e.g. /dev/video0 -> index 0
    ```
-2. Configure the runtime source:
+   On native Windows there is no `/dev/video*`; OpenCV enumerates cameras by
+   integer index directly (`CAMERA_DEVICE_INDEX=0` is usually the default
+   webcam) — use the Windows Camera app or Device Manager to confirm which
+   physical camera maps to which index if more than one is attached.
+2. Configure the runtime source (bash/WSL — inline `VAR=value` env prefix):
    ```bash
    CAMERA_SOURCE=usb CAMERA_DEVICE_INDEX=0 CAMERA_IDENTIFIER=CAM-A01 \
      CAMERA_ZONE_ID=<zoneId> \
-     PARADA_API_URL=http://localhost:4000 CAMERA_API_KEY=<key> \
+     PARADA_API_URL=http://localhost:4100 CAMERA_API_KEY=<key> \
      npm run camera -w @parada/vision -- test
    ```
-3. Start the full loop:
+   PowerShell (native Windows) — set env vars first, then run:
+   ```powershell
+   $env:CAMERA_SOURCE="usb"; $env:CAMERA_DEVICE_INDEX="0"; $env:CAMERA_IDENTIFIER="CAM-A01"
+   $env:CAMERA_ZONE_ID="<zoneId>"
+   $env:PARADA_API_URL="http://localhost:4100"; $env:CAMERA_API_KEY="<key>"
+   npm run camera -w @parada/vision -- test
+   ```
+3. Start the full loop (bash/WSL):
    ```bash
    CAMERA_SOURCE=usb CAMERA_DEVICE_INDEX=0 CAMERA_IDENTIFIER=CAM-A01 \
-     PARADA_API_URL=http://localhost:4000 CAMERA_API_KEY=<key> \
+     PARADA_API_URL=http://localhost:4100 CAMERA_API_KEY=<key> \
      npm run camera -w @parada/vision -- run
    ```
+   PowerShell equivalent: set the same `$env:...` variables as above (omit
+   `CAMERA_ZONE_ID` if unset), then run
+   `npm run camera -w @parada/vision -- run`.
 4. Success looks like: `vision runtime started camera=CAM-A01 source=usb fps=2.00`
    followed by `event ... outcome=ok` lines; the zone's `occupiedCount` in the
    Admin Dashboard increases only for accepted (201) events.
@@ -204,7 +231,7 @@ admin JWT is used.**
 
 CAMERA_SOURCE=file CAMERA_FILE_PATH=tests/fixtures/videos/clear_plate.mp4 \
   CAMERA_IDENTIFIER=CAM-A01 CAMERA_ZONE_ID=<zoneId> \
-  PARADA_API_URL=http://localhost:4000 CAMERA_API_KEY=<key> \
+  PARADA_API_URL=http://localhost:4100 CAMERA_API_KEY=<key> \
   npm run camera -w @parada/vision -- run
 ```
 
@@ -218,7 +245,7 @@ the loop cleanly.
 
 ```bash
 CAMERA_SOURCE=rtsp VIDEO_SOURCE=rtsp://10.0.0.15:554/stream1 CAMERA_IDENTIFIER=CAM-A01 \
-  PARADA_API_URL=http://localhost:4000 CAMERA_API_KEY=<key> \
+  PARADA_API_URL=http://localhost:4100 CAMERA_API_KEY=<key> \
   npm run camera -w @parada/vision -- test
 ```
 

@@ -26,5 +26,5 @@ export function authCookieHeader(): Record<string, string> | null {
 }
 
 export function apiBaseUrl(): string {
-  return process.env["API_BASE_URL"] ?? "http://localhost:4000";
+  return process.env["API_BASE_URL"] ?? "http://localhost:4100";
 }

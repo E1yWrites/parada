@@ -11,7 +11,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
-    "test": "DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5432/parada_test_api?schema=public\" JWT_SECRET=\"test-secret-key-for-testing-only-32chars\" JWT_ISSUER=\"parada-api-test\" JWT_EXPIRES_IN=\"1d\" jest --runInBand"
+    "test": "cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test_api?schema=public\" JWT_SECRET=\"test-secret-key-for-testing-only-32chars\" JWT_ISSUER=\"parada-api-test\" JWT_EXPIRES_IN=\"1d\" jest --runInBand"
   },
   "dependencies": {
     "@parada/config": "0.1.0",

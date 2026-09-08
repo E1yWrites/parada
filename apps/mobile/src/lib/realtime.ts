@@ -7,7 +7,7 @@ import { queryKeys } from "@/lib/query";
 
 export type RealtimeStatus = "CONNECTED" | "DISCONNECTED" | "RECONNECTING" | "ERROR";
 
-const API_ROOT = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/+$/, "");
+const API_ROOT = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4100").replace(/\/+$/, "");
 
 const INVALIDATIONS: Record<RealtimeEventType, (readonly unknown[])[]> = {
   ZONE_OCCUPANCY_UPDATED: [queryKeys.zones],

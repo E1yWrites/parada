@@ -1,7 +1,9 @@
 import os
+import socket
 
 from fastapi.testclient import TestClient
 
+from app import config
 from app.main import app
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures", "images")
@@ -115,9 +117,25 @@ def test_detect_forward_requires_zone_id():
     assert response.status_code == 400
 
 
-def test_detect_forward_handles_unreachable_api_cleanly():
-    # No live API in this test process — proves a downstream network failure
-    # while forwarding is reported cleanly (never a 500/stack trace).
+def _closed_port() -> int:
+    """A port that is bound and immediately released, so nothing is listening.
+
+    This test previously relied on the DEFAULT PARADA_API_URL port simply
+    happening to be free. That made it pass or fail depending on whether a real
+    API happened to be running on the developer's machine — it failed as soon as
+    the API was started locally, because the forward then succeeded. Pinning an
+    unreachable target keeps "unreachable" deterministic without weakening what
+    is asserted.
+    """
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def test_detect_forward_handles_unreachable_api_cleanly(monkeypatch):
+    # Downstream API deliberately unreachable — proves a network failure while
+    # forwarding is reported cleanly (never a 500/stack trace).
+    monkeypatch.setattr(config, "PARADA_API_URL", f"http://127.0.0.1:{_closed_port()}")
     with TestClient(app) as client:
         response = client.post(
             "/detect",
