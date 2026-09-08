@@ -214,3 +214,200 @@ for a protected, internal ingestion path.
 - `services/api/src/routes/events.ts` — `POST /zones/:id/events` + X-API-Key gate.
 - `services/api/src/config/env.ts` — `CAMERA_API_KEY`,
   `OCR_PLATE_CONFIDENCE_THRESHOLD`.
+
+## Phase 11 — What Was Actually Built
+
+Real inference now exists in `services/vision`, superseding the "out of
+scope" note above. It deviates from this doc's earlier recommendation in one
+way: **EasyOCR instead of PaddleOCR/Tesseract**, for reasons specific to the
+development sandbox this was built in rather than a change in overall
+direction:
+
+- No `sudo`/apt access was available, so the `tesseract` system binary
+  (required by `pytesseract`) could not be installed.
+- PaddleOCR's dependency chain is heavier and more fragile to install than a
+  single pip-installable, self-contained package under the ~1-2GB of free
+  RAM this sandbox had at build time.
+- **EasyOCR** (CRAFT detector + CRNN recognizer, Apache-2.0, pip-only, no
+  system binary) met the "smallest mature, locally executable" bar and
+  provides genuine per-result recognition confidence.
+
+Plate **detection** (finding the plate-shaped region before OCR runs) is
+classical OpenCV — blackhat morphology + Sobel gradient + Otsu threshold +
+aspect-ratio-filtered contours — not a second neural network. This keeps the
+detection stage dependency-free and fast, and keeps "detection confidence"
+(a shape-based heuristic) clearly distinct from "OCR confidence" (the real
+value EasyOCR's recognition network reports).
+
+See `services/vision/README.md` for setup, the `/detect` API contract,
+model/version/license details, measured latency, and known limitations.
+
+## Phase 11A — Administrative Configuration (Resource & Camera Setup)
+
+Phase 11A lets an administrator configure the physical facility entirely from
+the Admin app — zones, capacity, physical-slot inventory, and zone-gate
+cameras — **without code changes or re-deployment**. The domain rules below are
+enforced by the backend (`ZoneConfigService` in
+`services/api/src/domain/zoneConfig.ts`) and are authoritative; the Admin UI is
+a thin client over them.
+
+### Distinction: capacity vs. physical inventory
+
+- **Zone capacity (`ParkingZone.capacity`) is the authoritative constraint** on
+  occupancy. It is what `OccupancyService` enforces when accepting events.
+- **Physical slots (`ParkingSlot`) are inventory/layout data only.** A zone has
+  a physical layout of N spaces; these are **never** occupancy, reservation,
+  camera, OCR, or navigation targets. Removing a physical space does not change
+  occupancy; it only reduces the configured layout.
+- A zone may have more or fewer physical spaces than allowed by editing
+  capacity; the boundaries are:
+  - active physical spaces **must not exceed** the zone capacity;
+  - capacity **must not be reduced below** current occupancy;
+  - capacity **must not be reduced below or equal to** `occupiedCount +
+    protectingCount` (active reservations protecting the zone).
+
+### Zone lifecycle
+
+- `POST /admin/zones`, `PATCH /admin/zones/:id`, `GET/POST /admin/zones/:id/slots`.
+- `status = ACTIVE | INACTIVE`. Deactivating a zone stops it being offered as an
+  available destination and stops new reservations/assignments, but **does not
+  delete** existing sessions, reservations, fees, or history.
+- Zone `code` is unique; a duplicate is a 409.
+
+### Camera lifecycle
+
+- `POST /admin/cameras`, `PATCH /admin/cameras/:id`.
+- A camera belongs to exactly one zone (`zoneId`) and has an immutable
+  `identifier` (the stable value the vision pipeline sends as
+  `cameraIdentifier`), a `gateType` (`ENTRY | EXIT | BIDIRECTIONAL`), and a
+  `status` (`ONLINE | OFFLINE`).
+- **`ONLINE` = operational, `OFFLINE` = disabled.** Disabling a camera makes
+  `OccupancyService.validateCamera` reject its events with 409 and stops new
+  events immediately; historical events, OCR results, sessions, and anomalies
+  are never deleted or rewritten. There is no hard "delete camera" — `OFFLINE`
+  is the intended disable path.
+- The direction validation rules (ENTRY/EXIT/BIDIRECTIONAL) documented above run
+  unchanged; configuration changes (zone re-assignment, direction, status) take
+  effect on the next event while leaving history intact.
+
+### Where configuration is expressed
+
+- `packages/types` — shared input DTOs (`AdminZoneCreateInput`,
+  `AdminZoneUpdateInput`, `AdminZoneSlotsInput`, `AdminCameraInput`,
+  `AdminCameraUpdateInput`).
+- `services/api/src/routes/admin.ts` — ADMIN-only mutation endpoints.
+- `services/api/src/domain/zoneConfig.ts` — validation + persistence logic.
+- `apps/admin` — Zones and Cameras pages plus the physical-space editor under
+  each zone's detail page.
+
+### Non-goals (explicitly out of Phase 11A)
+
+- Slot-level occupancy, reservation, camera binding, OCR, or turn-by-turn
+  navigation targeting. Physical slots remain inventory only.
+- Auditing of who changed a configuration (not modelled).
+- Per-slot or per-camera permissions; configuration is ADMIN-only in aggregate.
+
+## Phase 11C — Physical Camera Provisioning & Vision Connectivity
+
+Phase 11C connects the Phase 11A **logical camera configuration** to an
+**actual frame source**. It lives entirely in `services/vision` (Python) —
+there is **no** database schema change, no new API route, and no Admin/Mobile
+code change. The camera's physical-source representation was deliberately
+**not** added to the `Camera` model: database/Admin configuration stays purely
+logical (identifier, zone, direction, status), and the physical binding is
+server-side runtime configuration, so camera credentials never enter the
+database or any API DTO (see "Security" below).
+
+### Logical vs. physical separation
+
+| Layer | `CAM-A01` is... | Stored where |
+|---|---|---|
+| Logical configuration | `identifier=CAM-A01`, `zoneId=Zone A`, `gateType=BIDIRECTIONAL`, `status=ONLINE` | Database (`Camera`), managed via Admin; authoritative |
+| Physical source | a USB device index, or an RTSP URL, or a video-file path | Vision runtime env/config only |
+
+The join key is the **camera identifier** (`CAMERA_IDENTIFIER` in the Vision
+runtime). At event time the runtime sends `cameraIdentifier=CAM-A01` to the
+existing API, which resolves camera→zone→direction→status itself — Vision never
+duplicates the camera-zone mapping.
+
+### CameraSource abstraction
+
+```
+USB ─────────┐
+RTSP ────────┼──► CameraSource ─► Frame ─► process_image (existing pipeline)
+VIDEO FILE ──┘        │                                   │
+               open/read/close/isOpened            real OCR/detection
+                                                         │
+                                                  Normalized event
+                                                         │
+                                                  existing API POST /zones/:id/events
+```
+
+Every source implements the same minimal contract (`base.py`): `open()`,
+`read_frame()`, `close()`, `resolution()`, `describe()`. Concrete sources:
+`UsbCameraSource` (OpenCV `VideoCapture(device_index)`), `RtspCameraSource`
+(`VideoCapture(rtsp://...)` with `rtsp://`-only validation and credential
+redaction), `FileCameraSource` (deterministic Mp4 fixture, stops cleanly at
+EOF). There is exactly **one** vision pipeline (`app/pipeline/service.py`) for
+all three — no per-source OCR/business code.
+
+### Runtime (`CameraRuntime`)
+
+- Opens the source, reads frames at a capped `VISION_PROCESS_FPS` (default 2;
+  a 30–60 FPS webcam is never OCR'd at device rate).
+- Duplicate suppression (configurable `OBSERVATION_COOLDOWN_SECONDS`, default
+  5s): the same camera + same normalized plate + same direction within the
+  window is one observation, not N parking events. The API's
+  `(cameraId, sourceEventId)` unique constraint **remains the final authority**
+  — the runtime's deterministic `sourceEventId` (SHA-256 of the encoded frame)
+  makes retries idempotent, and a duplicate `409` is logged and never re-sent.
+- Failure isolation: a dead frame retries with backoff (`CAMERA_RECONNECT_DELAY`
+  + `MAX_CAMERA_RECONNECTS`); a source that cannot open after the bound logs an
+  error and stops that camera without crashing the service.
+- `429` from the API is a throttle: bounded backoff, **not** treated as an auth
+  failure (no credential rotation, no new token). `409` is a business answer
+  (duplicate/full/offline/direction) and is not retried. `5xx`/transport is
+  also bounded.
+- Clean shutdown: `close()` stops the loop within ~100ms and releases OpenCV
+  captures (no zombie handles).
+
+### Choice of source is trusted server-side config only
+
+No inbound API endpoint accepts "connect to this arbitrary URL" — there is **no
+SSRF surface**. The source is chosen by environment variables
+(`CAMERA_SOURCE`, `CAMERA_DEVICE_INDEX`, `CAMERA_FILE_PATH`, `VIDEO_SOURCE`)
+read by the runtime CLI. RTSP is restricted to `rtsp://`/`rtsps://` and its
+URL (including any embedded `user:password`) is redacted from every
+log/response/`describe()`; only the scheme/host/port are ever surfaced.
+
+### Development CLI
+
+`npm run camera -w @parada/vision` (`python -m app.camera.cli`):
+
+- `test` — open the configured source, report connection state, resolution,
+  frame availability, and whether a plate is readable (no credentials).
+- `run [--zone-id]` — the full frame→OCR→API loop; stops on Ctrl-C/SIGTERM or
+  video EOF.
+
+### Security
+
+- Camera credentials (RTSP user/password, X-API-Key) live only in the Vision
+  runtime environment; never in the database, never in any HTTP response, and
+  never in logs. `describe()`/`status_text()` redact URL userinfo.
+- Vision authenticates to the API only via the existing shared
+  `CAMERA_API_KEY` (`X-API-Key` header). It never holds user or admin JWTs.
+- No frames are persisted or uploaded anywhere; processing is fully in-memory.
+  The codebase has no secret-store system, which is documented as a known
+  limitation (deferred to the deployment phase).
+
+### Known limitations (Phase 11C — not a production claim)
+
+- No physical USB/RTSP camera was available in the development environment;
+  connectivity was proven with a real video-file source through the **real**
+  OCR pipeline into the **real** API and database (see the live-run section of
+  `services/vision/README.md`). CameraSource's USB/RTSP open/read/close paths
+  are unit-tested against mocks and OpenCV API contracts only.
+- CameraSource runtime configuration is per-process/file: multi-camera
+  management, dynamic reload, and distributed source provisioning are Phase 15.
+- Real-time streaming/WebSockets/SSE to clients remain Phase 12.
+- Formal OCR accuracy (precision/recall/CER) remains Phase 14.

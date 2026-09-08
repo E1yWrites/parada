@@ -49,8 +49,9 @@ Error codes map to HTTP status:
 | 401 | `UNAUTHORIZED` | Not authenticated or invalid/expired/revoked token |
 | 403 | `FORBIDDEN` | Insufficient role (USER vs ADMIN) |
 | 404 | `NOT_FOUND` | Unknown zone/camera/route/resource |
-| 409 | `CONFLICT` | Idempotency/full/empty/zone-mismatch/duplicate |
+| 409 | `CONFLICT` | Idempotency/full/empty/zone-mismatch/duplicate/forbidden status transition |
 | 422 | `UNPROCESSABLE` | Semantically invalid payload (e.g. weak password) |
+| 429 | `TOO_MANY_REQUESTS` | Rate limit exceeded (includes `Retry-After` header) |
 | 500 | `INTERNAL` | Unexpected error |
 
 ## Authentication
@@ -303,7 +304,7 @@ client-supplied user id is never trusted.
 | GET | `/zones/establishment` | Navigation destination; `null` until an admin configures one. |
 | POST | `/assignments` | Accept a zone (`{zoneId, vehicleId}`). One ACTIVE assignment per vehicle; expired ones are released automatically. |
 | GET | `/assignments`, `/assignments/:id` | The user's assignments. |
-| POST | `/reservations` | Hold a zone (`{zoneId, vehicleId, startAt?, endAt?}`). Refused when capacity plus existing holds would be exceeded. |
+| POST | `/reservations` | Hold a zone (`{zoneId, vehicleId, startAt?, endAt?}`). Reservations are serialized per zone (PostgreSQL advisory lock) and refused when capacity plus existing holds would be exceeded; overlapping duplicates for the same user/vehicle/zone return `409 CONFLICT`, non-overlapping windows are allowed. |
 | GET | `/reservations`, `/reservations/:id` | The user's reservations; window-expired ones are flipped to EXPIRED lazily. |
 | PATCH | `/reservations/:id/cancel` | Cancel an own reservation. |
 | POST | `/sessions/entry` | User-initiated entry (`{vehicleId, zoneId, enteredAt?}`). |
@@ -328,6 +329,26 @@ entry is a warning on the first offence; once a vehicle has exhausted its
 warning allowance the next one issues a `WRONG_ZONE` violation with the
 configured fine and notifies the driver.
 
+## Rate Limiting
+
+All limits are per fixed window unless otherwise noted, enforced
+in-memory, and scoped to the resource that actually needs protection. They are
+**per-process**: scale-out to multiple API instances requires a shared, distributed
+limiter (e.g. Redis) — single-instance deployments are fully protected today.
+
+| Scope | Shared key | Default | Window |
+|-------|-----------|---------|--------|
+| Auth (register + login) | All credential attempts (IP-agnostic) | 10 | 1 min |
+| Camera event ingestion | Trusted `cameraIdentifier` from the body (falls back to client IP) | 300 | 1 min |
+| Admin mutations (POST/PATCH/PUT/DELETE) | Authenticated admin user id (`ADMIN` role only) | 120 | 1 min |
+
+- Responses over the limit are `429 TOO_MANY_REQUESTS` and include a `Retry-After`
+  header (seconds).
+- A `429` is **not** an authentication failure: session tokens remain valid and
+  callers can keep performing reads (admin reads are not throttled).
+- Overrides per environment: `AUTH_RATE_LIMIT`, `CAMERA_EVENT_RATE_LIMIT`,
+  `ADMIN_RATE_LIMIT` (requests/minute). Tests inject tighter per-app limits.
+
 ## Additional Admin Endpoints
 
 | Method | Path | Notes |
@@ -336,7 +357,7 @@ configured fine and notifies the driver.
 | GET | `/admin/reservations` | All reservations with their owners. |
 | PATCH | `/admin/reservations/:id/cancel` | Cancel any reservation not already terminal. |
 | GET | `/admin/violations` | All violations with user, vehicle, zone, session and appeal. |
-| PATCH | `/admin/violations/:id/status` | Set a violation status. |
+| PATCH | `/admin/violations/:id/status` | Set a violation status. Enforced as a state machine: a PENDING violation may only be dismissed (DISMISSED); terminal states (APPROVED-UPHELD, DISMISSED, FINE_PAID) can never be reopened, and `FINE_PAID` is reserved for the (future) payment flow. Invalid enum values are `400`, disallowed transitions `409`. The acting identity always comes from the token, never the body. |
 | GET | `/admin/appeals` | All appeals with their violations. |
 | PATCH | `/admin/appeals/:id/status` | `APPROVED` dismisses the violation, `REJECTED` upholds it; the driver is notified either way. |
 | GET | `/admin/analytics` | Occupancy, sessions, revenue, peak hour over `?from`/`?to`. |

@@ -980,4 +980,167 @@ describe("PARADA database integrity", () => {
       expect(read?.guestSession).toBeNull();
     });
   });
+
+  describe("Phase 11A — zone resource configuration", () => {
+    it("creates a zone with zero occupancy and an authoritative capacity", async () => {
+      const created = await prisma.parkingZone.create({
+        data: { name: "Zone D", code: "D", capacity: 30, occupiedCount: 0 },
+      });
+      expect(created.occupiedCount).toBe(0);
+      expect(created.capacity).toBe(30);
+      expect(created.status).toBe("ACTIVE");
+    });
+
+    it("enforces unique zone codes", async () => {
+      await prisma.parkingZone.create({
+        data: { name: "Original", code: "UNIQ", capacity: 5 },
+      });
+      await expect(
+        prisma.parkingZone.create({
+          data: { name: "Duplicate", code: "UNIQ", capacity: 5 },
+        })
+      ).rejects.toThrow();
+    });
+
+    it("preserves occupiedCount when a zone is updated", async () => {
+      await prisma.parkingZone.update({
+        where: { id: zone.id },
+        data: { occupiedCount: 2, capacity: 5 },
+      });
+      const edited = await prisma.parkingZone.update({
+        where: { id: zone.id },
+        data: { name: "Renamed Zone", code: "TZ2", description: "updated" },
+      });
+      expect(edited.occupiedCount).toBe(2);
+      expect(edited.capacity).toBe(5);
+      expect(edited.name).toBe("Renamed Zone");
+    });
+
+    it("supports active/inactive status transitions", async () => {
+      const inactive = await prisma.parkingZone.update({
+        where: { id: zone.id },
+        data: { status: "INACTIVE" },
+      });
+      expect(inactive.status).toBe("INACTIVE");
+      const active = await prisma.parkingZone.update({
+        where: { id: zone.id },
+        data: { status: "ACTIVE" },
+      });
+      expect(active.status).toBe("ACTIVE");
+    });
+  });
+
+  describe("Phase 11A — camera resource configuration", () => {
+    it("registers a camera with a unique identifier and zone relation", async () => {
+      const created = await prisma.camera.create({
+        data: {
+          zoneId: zone.id,
+          name: "New Entry",
+          identifier: "cam-new-entry",
+          gateType: "ENTRY",
+          status: "ONLINE",
+        },
+      });
+      expect(created.zoneId).toBe(zone.id);
+      expect(created.identifier).toBe("cam-new-entry");
+    });
+
+    it("enforces a unique camera identifier", async () => {
+      await prisma.camera.create({
+        data: { zoneId: zone.id, name: "Dup", identifier: "cam-dup", gateType: "ENTRY" },
+      });
+      await expect(
+        prisma.camera.create({
+          data: { zoneId: zone.id, name: "Dup2", identifier: "cam-dup", gateType: "EXIT" },
+        })
+      ).rejects.toThrow();
+    });
+
+    it("supports direction and active/inactive (ONLINE/OFFLINE) states", async () => {
+      const created = await prisma.camera.create({
+        data: { zoneId: zone.id, name: "Bi", identifier: "cam-bi", gateType: "BIDIRECTIONAL" },
+      });
+      const edited = await prisma.camera.update({
+        where: { id: created.id },
+        data: { gateType: "EXIT", status: "OFFLINE" },
+      });
+      expect(edited.gateType).toBe("EXIT");
+      expect(edited.status).toBe("OFFLINE");
+    });
+
+    it("does not delete historical events or anomalies when a camera is disabled (OFFLINE)", async () => {
+      const cam = await prisma.camera.create({
+        data: { zoneId: zone.id, name: "Hist", identifier: "cam-hist", gateType: "BIDIRECTIONAL" },
+      });
+      const ev = await prisma.occupancyEvent.create({
+        data: {
+          zoneId: zone.id,
+          cameraId: cam.id,
+          eventType: "ENTRY",
+          previousOccupied: 0,
+          newOccupied: 1,
+          availableCount: 4,
+          source: "CAMERA",
+          sourceEventId: "hist-1",
+          detectedAt: new Date(),
+        },
+      });
+      await prisma.occupancyAnomaly.create({
+        data: {
+          occupancyEventId: ev.id,
+          cameraId: cam.id,
+          anomalyType: "UNREGISTERED_PLATE",
+          description: "kept",
+        },
+      });
+      await prisma.camera.update({ where: { id: cam.id }, data: { status: "OFFLINE" } });
+      const after = await prisma.occupancyEvent.findUnique({ where: { id: ev.id } });
+      expect(after).not.toBeNull();
+      expect(after?.cameraId).toBe(cam.id);
+      const anomalyAfter = await prisma.occupancyAnomaly.findFirst({
+        where: { occupancyEventId: ev.id },
+      });
+      expect(anomalyAfter).not.toBeNull();
+    });
+  });
+
+  describe("Phase 11A — physical slot inventory (layout only)", () => {
+    it("relates slots to a zone and never carries occupancy", async () => {
+      await prisma.parkingSlot.create({
+        data: { zoneId: zone.id, slotCode: "TZ01", label: "TZ01", status: "ACTIVE" },
+      });
+      await prisma.parkingSlot.create({
+        data: { zoneId: zone.id, slotCode: "TZ02", label: "TZ02", status: "ACTIVE" },
+      });
+      const slots = await prisma.parkingSlot.findMany({ where: { zoneId: zone.id } });
+      expect(slots).toHaveLength(2);
+      expect(slots[0]!.zoneId).toBe(zone.id);
+      // slots carry no occupancy-bearing field
+      expect(Object.keys(slots[0]!)).not.toContain("occupiedCount");
+    });
+
+    it("enforces a unique (zone, slotCode) pair", async () => {
+      await prisma.parkingSlot.create({
+        data: { zoneId: zone.id, slotCode: "TZ33", label: "TZ33" },
+      });
+      await expect(
+        prisma.parkingSlot.create({
+          data: { zoneId: zone.id, slotCode: "TZ33", label: "TZ33" },
+        })
+      ).rejects.toThrow();
+    });
+
+    it("allows slots to be marked inactive without deleting history", async () => {
+      const slot = await prisma.parkingSlot.create({
+        data: { zoneId: zone.id, slotCode: "TZ44", label: "TZ44" },
+      });
+      const updated = await prisma.parkingSlot.update({
+        where: { id: slot.id },
+        data: { status: "INACTIVE" },
+      });
+      expect(updated.status).toBe("INACTIVE");
+      const still = await prisma.parkingSlot.findUnique({ where: { id: slot.id } });
+      expect(still).not.toBeNull();
+    });
+  });
 });
