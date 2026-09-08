@@ -288,6 +288,57 @@ export interface ZoneAssignmentResponse {
   vehicle: Pick<Vehicle, "id" | "plateNumber" | "vehicleType">;
 }
 
+/** GET /notifications item: the establishment scopes it to the current user. */
+export interface NotificationResponse {
+  id: string;
+  zoneId: string;
+  type: NotificationType;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  zone: Pick<ParkingZone, "id" | "name" | "code">;
+}
+
+export interface ViolationAppealSummary {
+  id: string;
+  status: AppealStatus;
+  reason: string;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
+/** GET /violations item. `appeal` is null until the driver disputes it. */
+export interface ViolationResponse {
+  id: string;
+  userId: string;
+  vehicleId: string | null;
+  zoneId: string;
+  sessionId: string | null;
+  violationType: ViolationType;
+  description: string | null;
+  fineAmount: number;
+  status: ViolationStatus;
+  issuedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  zone: Pick<ParkingZone, "id" | "name" | "code">;
+  vehicle: Pick<Vehicle, "id" | "plateNumber" | "vehicleType"> | null;
+  appeal: ViolationAppealSummary | null;
+}
+
+/** Response of POST /violations/:id/appeal. */
+export interface ViolationAppealResponse {
+  id: string;
+  violationId: string;
+  userId: string;
+  reason: string;
+  status: AppealStatus;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Input for a user-initiated parking entry (POST /sessions/entry). */
 export interface SessionEntryInput {
   vehicleId: string;
@@ -352,3 +403,55 @@ export interface EstablishmentSettings {
   zoneDefaults: ZoneDefaultsConfig;
   location: EstablishmentLocation | null;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 11A — Admin establishment configuration contracts. Zone capacity is the
+// authoritative availability metric; physical slots (ParkingSlot) are pure
+// inventory/layout. Cameras are zone-gate infrastructure whose status is
+// ONLINE (operational) / OFFLINE (disabled); an OFFLINE camera is rejected by
+// the existing camera pipeline.
+// ---------------------------------------------------------------------------
+
+/** Body of POST /admin/zones. */
+export interface AdminZoneCreateInput {
+  name: string;
+  code: string;
+  description?: string | null;
+  capacity: number;
+  status?: ZoneStatus;
+}
+
+/** Body of PATCH /admin/zones/:id (partial update). */
+export interface AdminZoneUpdateInput {
+  name?: string;
+  code?: string;
+  description?: string | null;
+  capacity?: number;
+  status?: ZoneStatus;
+}
+
+/** Body of POST /admin/zones/:id/slots — desired ACTIVE physical inventory. */
+export interface AdminZoneSlotsInput {
+  slotCodes: string[];
+}
+
+/** Body of POST /admin/cameras. */
+export interface AdminCameraInput {
+  zoneId: string;
+  identifier: string;
+  name?: string;
+  location?: string | null;
+  gateType: GateType;
+  status?: CameraStatus;
+}
+
+/** Body of PATCH /admin/cameras/:id (partial update). */
+export interface AdminCameraUpdateInput {
+  zoneId?: string;
+  name?: string;
+  location?: string | null;
+  gateType?: GateType;
+  status?: CameraStatus;
+}
+
+export * from "./realtime";
