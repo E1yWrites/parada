@@ -11,6 +11,21 @@ export interface Env {
   jwtExpiresIn: string;
   cameraApiKey: string | null;
   ocrPlateConfidenceThreshold: number;
+  /** Attempts per fixed 60s window (per key) for credential endpoints. */
+  authRateLimitPerMinute: number;
+  /** Events per fixed 60s window, per trusted camera identifier. */
+  cameraEventRateLimitPerMinute: number;
+  /** Admin mutation requests per fixed 60s window, per authenticated admin. */
+  adminRateLimitPerMinute: number;
+}
+
+function optionalInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") {
+    return fallback;
+  }
+  const value = Number(raw);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
 }
 
 function required(name: string): string {
@@ -38,7 +53,7 @@ export function loadEnv(): Env {
     ocrPlateConfidenceThreshold = DEFAULT_OCR_CONFIDENCE_THRESHOLD;
   }
 
-  return {
+  const env: Env = {
     port: Number(process.env["PORT"] ?? "4000"),
     host: process.env["HOST"] ?? "0.0.0.0",
     databaseUrl: required("DATABASE_URL"),
@@ -54,5 +69,24 @@ export function loadEnv(): Env {
     // any real deployment.
     cameraApiKey: process.env["CAMERA_API_KEY"] ?? null,
     ocrPlateConfidenceThreshold,
+    // Fixed-window rate budgets. Guards against credential brute-forcing,
+    // camera event flooding, and admin mutation abuse. The limiter is
+    // in-memory and per-process (see http/rateLimit.ts); these defaults are
+    // deliberately generous so shared (NAT) egress and busy camera feeds keep
+    // working.
+    authRateLimitPerMinute: optionalInt("AUTH_RATE_LIMIT", 10),
+    cameraEventRateLimitPerMinute: optionalInt("CAMERA_EVENT_RATE_LIMIT", 300),
+    adminRateLimitPerMinute: optionalInt("ADMIN_RATE_LIMIT", 120),
   };
+
+  // The dev-only "open endpoint" fallback in eventsRouter (see its comment)
+  // must never reach a real deployment, where anyone could inject fabricated
+  // occupancy events.
+  if (env.nodeEnv === "production" && !env.cameraApiKey) {
+    throw new Error(
+      "Missing required environment variable: CAMERA_API_KEY (required outside development)."
+    );
+  }
+
+  return env;
 }

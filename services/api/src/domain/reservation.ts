@@ -162,15 +162,53 @@ export class ReservationService {
 
     try {
       return await prisma.$transaction(async (tx) => {
+        // Serialize reservations for THIS zone. Two concurrent creates for the
+        // same zone must not both pass the capacity check, so each creator
+        // takes a PostgreSQL advisory transaction lock keyed by the zone id.
+        // The lock is transaction-scoped (auto-released on commit/rollback),
+        // zone-granular (Zone B is never blocked by Zone A), and requires no
+        // schema or infrastructure change.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${zone.id}, 0))`;
+
         // Expire overdue reservations first so stale ones stop protecting capacity.
         await this.expireOverdue(windowMinutes, tx);
 
+        // Re-read the zone inside the transaction: the outer `zone` was fetched
+        // before this transaction opened, so it can no longer be trusted for the
+        // capacity check — an occupancy change (e.g. a camera entry) may have
+        // committed in between.
+        const currentZone = await tx.parkingZone.findUnique({ where: { id: zone.id } });
+        if (!currentZone) {
+          throw new NotFoundError(`Zone '${zone.id}' not found.`);
+        }
+
+        // Duplicate-booking guard: while holding the zone lock, reject a new
+        // reservation that overlaps an existing non-terminal reservation by the
+        // same user for the same vehicle in the same zone. The zone lock makes
+        // this check-then-insert race-free. Non-overlapping bookings (different
+        // windows) and different vehicles are still allowed. Expired/cancelled
+        // reservations (flipped by expireOverdue above) never block a re-book.
+        const conflicting = await tx.reservation.findFirst({
+          where: {
+            userId,
+            vehicleId: vehicle.id,
+            zoneId: zone.id,
+            status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
+            startAt: { lt: endAt },
+            endAt: { gt: startAt },
+          },
+          select: { id: true },
+        });
+        if (conflicting) {
+          throw new ConflictError("A reservation for this vehicle in this zone already overlaps the requested window.");
+        }
+
         const protecting = await this.countActiveProtection(tx, zone.id, windowMinutes, now);
-        if (zone.occupiedCount + protecting >= zone.capacity) {
+        if (currentZone.occupiedCount + protecting >= currentZone.capacity) {
           throw new ConflictError(`Zone '${zone.id}' has no available reservation capacity.`, {
-            occupiedCount: zone.occupiedCount,
+            occupiedCount: currentZone.occupiedCount,
             reservedCount: protecting,
-            capacity: zone.capacity,
+            capacity: currentZone.capacity,
           });
         }
 

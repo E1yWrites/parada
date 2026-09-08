@@ -4,8 +4,9 @@ import { BadRequestError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
 import { currentUserId } from "../middleware/auth";
 import type { ReservationService } from "../domain/reservation";
+import type { RealtimeHub } from "../realtime/hub";
 
-export function reservationsRouter(reservations: ReservationService): Router {
+export function reservationsRouter(reservations: ReservationService, realtimeHub?: RealtimeHub): Router {
   const router = Router();
 
   router.post(
@@ -33,6 +34,10 @@ export function reservationsRouter(reservations: ReservationService): Router {
         startAt,
         endAt,
       });
+      realtimeHub?.publish(
+        { type: "RESERVATION_CREATED", occurredAt: new Date().toISOString(), payload: reservation },
+        { audience: "USER", userId }
+      );
       res.status(201).json(ok(reservation));
     })
   );
@@ -60,6 +65,10 @@ export function reservationsRouter(reservations: ReservationService): Router {
     asyncHandler(async (req, res) => {
       const userId = currentUserId(res);
       const reservation = await reservations.cancel(userId, req.params["id"]!);
+      realtimeHub?.publish(
+        { type: "RESERVATION_CANCELLED", occurredAt: new Date().toISOString(), payload: reservation },
+        { audience: "USER", userId }
+      );
       res.json(ok(reservation));
     })
   );

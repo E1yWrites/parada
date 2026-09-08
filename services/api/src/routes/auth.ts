@@ -6,11 +6,17 @@ import { AuthService } from "../domain/auth";
 import { currentUserId } from "../middleware/auth";
 import { rateLimit } from "../http/rateLimit";
 
-export function authRouter(auth: AuthService, authMiddleware?: RequestHandler): Router {
+export function authRouter(
+  auth: AuthService,
+  authMiddleware?: RequestHandler,
+  options: { rateLimit?: { limit: number; windowMs: number } } = {}
+): Router {
   const router = Router();
 
-  // Credential endpoints are the only unauthenticated write surface.
-  const credentialLimit = rateLimit({ limit: 10, windowMs: 60_000 });
+  // Credential endpoints are the only unauthenticated write surface. Register
+  // and login share one bucket so an attacker cannot spread a registration
+  // burst across two independent allowances.
+  const credentialLimit = rateLimit(options.rateLimit ?? { limit: 10, windowMs: 60_000 });
 
   router.post(
     "/register",

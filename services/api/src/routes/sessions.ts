@@ -6,6 +6,7 @@ import { prisma } from "@parada/database";
 import type { ParkingSessionResponse } from "@parada/types";
 import { currentUserId } from "../middleware/auth";
 import type { ParkingSessionService } from "../domain/sessions";
+import type { RealtimeHub } from "../realtime/hub";
 
 type SessionRecord = {
   id: string;
@@ -39,7 +40,7 @@ function sessionResponse(session: SessionRecord): ParkingSessionResponse {
   };
 }
 
-export function sessionsRouter(sessionService?: ParkingSessionService): Router {
+export function sessionsRouter(sessionService?: ParkingSessionService, realtimeHub?: RealtimeHub): Router {
   const router = Router();
 
   router.get(
@@ -123,6 +124,10 @@ export function sessionsRouter(sessionService?: ParkingSessionService): Router {
       const enteredAt = typeof body["enteredAt"] === "string" ? body["enteredAt"] : undefined;
 
       const session = await sessionService.entry(userId, { vehicleId, zoneId, enteredAt });
+      realtimeHub?.publish(
+        { type: "PARKING_SESSION_STARTED", occurredAt: new Date().toISOString(), payload: session },
+        { audience: "USER", userId }
+      );
       res.status(201).json(ok({ session }));
     })
   );
@@ -138,6 +143,10 @@ export function sessionsRouter(sessionService?: ParkingSessionService): Router {
       const exitedAt = typeof body["exitedAt"] === "string" ? body["exitedAt"] : undefined;
 
       const result = await sessionService.exit(userId, req.params["id"]!, { exitedAt });
+      realtimeHub?.publish(
+        { type: "PARKING_SESSION_COMPLETED", occurredAt: new Date().toISOString(), payload: result.session },
+        { audience: "USER", userId }
+      );
       res.json(ok(result));
     })
   );

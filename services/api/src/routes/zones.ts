@@ -5,7 +5,7 @@ import { asyncHandler } from "../http/asyncHandler";
 import { OccupancyService } from "../domain/occupancy";
 import { ZoneService } from "../domain/zones";
 import { ConfigService } from "../domain/config";
-import { availabilityOf } from "./admin";
+import { availabilityOf } from "../domain/availability";
 
 export function zonesRouter(
   occupancy: OccupancyService,

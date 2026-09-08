@@ -2,28 +2,16 @@ import { Router } from "express";
 import { ok } from "../http/response";
 import { BadRequestError, NotFoundError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
-import { prisma, type Prisma } from "@parada/database";
+import { prisma, type Prisma, type ViolationStatus } from "@parada/database";
 import { requireRole, currentAuth } from "../middleware/auth";
-import { ZONE_OCCUPANCY_LOW_THRESHOLD } from "@parada/config";
+import { availabilityOf } from "../domain/availability";
 import type { OccupancyService } from "../domain/occupancy";
 import type { ConfigService } from "../domain/config";
 import type { ReservationService } from "../domain/reservation";
 import type { ViolationService } from "../domain/violations";
-
-type Availability = "AVAILABLE" | "LOW_AVAILABILITY" | "FULL" | "OFFLINE";
-
-export function availabilityOf(
-  occupiedCount: number,
-  capacity: number,
-  zoneStatus: "ACTIVE" | "INACTIVE"
-): Availability {
-  if (zoneStatus !== "ACTIVE") return "OFFLINE";
-  if (capacity <= 0) return "AVAILABLE";
-  if (occupiedCount >= capacity) return "FULL";
-  const availableFraction = (capacity - occupiedCount) / capacity;
-  if (availableFraction <= ZONE_OCCUPANCY_LOW_THRESHOLD) return "LOW_AVAILABILITY";
-  return "AVAILABLE";
-}
+import { ZoneConfigService } from "../domain/zoneConfig";
+import { rateLimit } from "../http/rateLimit";
+import type { RealtimeHub } from "../realtime/hub";
 
 function zoneSummary(z: {
   id: string;
@@ -49,10 +37,36 @@ function zoneSummary(z: {
   };
 }
 
-export function adminRouter(deps: { occupancy: OccupancyService; config?: ConfigService; reservations?: ReservationService; violations?: ViolationService }): Router {
+export function adminRouter(deps: {
+  occupancy: OccupancyService;
+  config?: ConfigService;
+  reservations?: ReservationService;
+  violations?: ViolationService;
+  zoneConfig?: ZoneConfigService;
+  rateLimit?: { limit: number; windowMs: number };
+  realtimeHub?: RealtimeHub;
+}): Router {
   const router = Router();
+  const zoneConfig = deps.zoneConfig ?? new ZoneConfigService({ reservations: deps.reservations });
 
   router.use(requireRole("ADMIN"));
+
+  // Mutation surfaces (POST/PATCH/PUT/DELETE) are budgeted per authenticated
+  // admin. Reads (dashboard polling, list views) are not rate-limited so a
+  // busy control plane keeps refreshing. Only requests that already passed
+  // role authorization consume the budget, so unauthenticated noise cannot
+  // starve a legitimate admin.
+  const adminMutationLimit = rateLimit({
+    ...(deps.rateLimit ?? { limit: 120, windowMs: 60_000 }),
+    keyFor: (_req, res) => `admin:${currentAuth(res).id}`,
+  });
+  router.use((req, res, next) => {
+    if (req.method === "POST" || req.method === "PATCH" || req.method === "PUT" || req.method === "DELETE") {
+      adminMutationLimit(req, res, next);
+      return;
+    }
+    next();
+  });
 
   router.get(
     "/admin/reservations",
@@ -66,7 +80,12 @@ export function adminRouter(deps: { occupancy: OccupancyService; config?: Config
     "/admin/reservations/:id/cancel",
     asyncHandler(async (req, res) => {
       if (!deps.reservations) throw new NotFoundError("Reservation service unavailable.");
-      res.json(ok(await deps.reservations.adminCancel(req.params["id"]!)));
+      const updated = await deps.reservations.adminCancel(req.params["id"]!);
+      deps.realtimeHub?.publish(
+        { type: "RESERVATION_CANCELLED", occurredAt: new Date().toISOString(), payload: updated },
+        { audience: "USER", userId: updated.userId }
+      );
+      res.json(ok(updated));
     })
   );
 
@@ -94,9 +113,10 @@ export function adminRouter(deps: { occupancy: OccupancyService; config?: Config
       if (!["PENDING", "APPEALED", "UPHELD", "DISMISSED", "FINE_PAID"].includes(status)) {
         throw new BadRequestError("Invalid violation status.");
       }
-      const existing = await prisma.violation.findUnique({ where: { id: req.params["id"] } });
-      if (!existing) throw new NotFoundError("Violation not found.");
-      const updated = await prisma.violation.update({ where: { id: existing.id }, data: { status } });
+      if (!deps.violations) throw new NotFoundError("Violation service unavailable.");
+      // The domain state machine decides whether this transition is legal; the
+      // route holds no transition logic and never trusts a body reviewer id.
+      const updated = await deps.violations.adminUpdateStatus(req.params["id"]!, status as ViolationStatus);
       res.json(ok(updated));
     })
   );
@@ -123,8 +143,24 @@ export function adminRouter(deps: { occupancy: OccupancyService; config?: Config
       if (!deps.violations) throw new NotFoundError("Violation service unavailable.");
       // Goes through the service so the violation status is settled and the
       // driver is notified of the outcome in the same transaction.
-      const updated = await deps.violations.review(req.params["id"]!, status, currentAuth(res).id);
-      res.json(ok(updated));
+      const { appeal, notification } = await deps.violations.review(req.params["id"]!, status, currentAuth(res).id);
+      deps.realtimeHub?.publish(
+        {
+          type: "NOTIFICATION_CREATED",
+          occurredAt: new Date().toISOString(),
+          payload: {
+            id: notification.id,
+            zoneId: notification.zoneId,
+            userId: notification.userId,
+            type: notification.type,
+            message: notification.message,
+            targetRole: notification.targetRole,
+            createdAt: notification.createdAt.toISOString(),
+          },
+        },
+        { audience: "USER", userId: notification.userId! }
+      );
+      res.json(ok(appeal));
     })
   );
 
@@ -298,37 +334,38 @@ export function adminRouter(deps: { occupancy: OccupancyService; config?: Config
   router.get(
     "/admin/zones",
     asyncHandler(async (_req, res) => {
-      const zones = await prisma.parkingZone.findMany({
-        orderBy: { code: "asc" },
-        select: {
-          id: true,
-          name: true,
-          code: true,
-          description: true,
-          capacity: true,
-          occupiedCount: true,
-          status: true,
-          cameras: {
-            select: {
-              id: true,
-              identifier: true,
-              name: true,
-              gateType: true,
-              status: true,
-            },
-          },
-        },
-      });
-      res.json(
-        ok(
-          zones.map((z) => ({
-            ...zoneSummary(z),
-            cameras: z.cameras,
-            entryCamera: z.cameras.find((c) => c.gateType === "ENTRY") ?? null,
-            exitCamera: z.cameras.find((c) => c.gateType === "EXIT") ?? null,
-          }))
-        )
-      );
+      res.json(ok(await zoneConfig.listZones()));
+    })
+  );
+
+  router.post(
+    "/admin/zones",
+    asyncHandler(async (req, res) => {
+      const created = await zoneConfig.createZone(req.body);
+      res.status(201).json(ok(created));
+    })
+  );
+
+  router.patch(
+    "/admin/zones/:id",
+    asyncHandler(async (req, res) => {
+      const updated = await zoneConfig.updateZone(req.params["id"]!, req.body);
+      res.json(ok(updated));
+    })
+  );
+
+  router.get(
+    "/admin/zones/:id/slots",
+    asyncHandler(async (req, res) => {
+      res.json(ok(await zoneConfig.listSlots(req.params["id"]!)));
+    })
+  );
+
+  router.post(
+    "/admin/zones/:id/slots",
+    asyncHandler(async (req, res) => {
+      const slots = await zoneConfig.setSlots(req.params["id"]!, req.body);
+      res.status(201).json(ok(slots));
     })
   );
 
@@ -383,6 +420,22 @@ export function adminRouter(deps: { occupancy: OccupancyService; config?: Config
           }))
         )
       );
+    })
+  );
+
+  router.post(
+    "/admin/cameras",
+    asyncHandler(async (req, res) => {
+      const created = await zoneConfig.createCamera(req.body);
+      res.status(201).json(ok(created));
+    })
+  );
+
+  router.patch(
+    "/admin/cameras/:id",
+    asyncHandler(async (req, res) => {
+      const updated = await zoneConfig.updateCamera(req.params["id"]!, req.body);
+      res.json(ok(updated));
     })
   );
 
@@ -704,6 +757,19 @@ export function adminRouter(deps: { occupancy: OccupancyService; config?: Config
         "CAMERA",
         { overrideAdminUserId: adminId }
       );
+
+      // Always the guest path (unregistered plate), but processEvent's return
+      // type is the wider union — narrow via "in" before reading guest fields.
+      if ("admitted" in result) {
+        deps.realtimeHub?.publish(
+          {
+            type: "GUEST_ADMISSION_ISSUE",
+            occurredAt: new Date().toISOString(),
+            payload: { zoneId: zoneIdRaw, admitted: result.admitted, deniedReason: result.deniedReason, anomalyType: result.anomalyType },
+          },
+          { audience: "ADMIN" }
+        );
+      }
 
       res.status(201).json(ok(result));
     })

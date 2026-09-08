@@ -4,8 +4,9 @@ import { BadRequestError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
 import { currentUserId } from "../middleware/auth";
 import type { AssignmentService } from "../domain/assignment";
+import type { RealtimeHub } from "../realtime/hub";
 
-export function assignmentsRouter(assignments: AssignmentService): Router {
+export function assignmentsRouter(assignments: AssignmentService, realtimeHub?: RealtimeHub): Router {
   const router = Router();
 
   router.post(
@@ -25,6 +26,10 @@ export function assignmentsRouter(assignments: AssignmentService): Router {
       }
 
       const assignment = await assignments.create(userId, { zoneId, vehicleId });
+      realtimeHub?.publish(
+        { type: "ASSIGNMENT_CREATED", occurredAt: new Date().toISOString(), payload: assignment },
+        { audience: "USER", userId }
+      );
       res.status(201).json(ok(assignment));
     })
   );

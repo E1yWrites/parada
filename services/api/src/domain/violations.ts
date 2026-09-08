@@ -1,4 +1,4 @@
-import { prisma, type Prisma } from "@parada/database";
+import { prisma, type Prisma, type ViolationStatus } from "@parada/database";
 import { WRONG_ZONE_WARNINGS_BEFORE_VIOLATION } from "@parada/config";
 import { ConflictError, ForbiddenError, NotFoundError } from "../http/errors";
 import { ConfigService, resolveViolationFine } from "./config";
@@ -14,6 +14,63 @@ import { ConfigService, resolveViolationFine } from "./config";
  */
 export class ViolationService {
   constructor(private readonly config: ConfigService) {}
+
+  /**
+   * The ONLY status transitions an admin may trigger directly through the
+   * status endpoint. Every other move is rejected as a domain conflict:
+   *   - the appeal flow (PENDING -> APPEALED, APPEALED -> DISMISSED/UPHELD)
+   *     runs through `appeal`/`review` instead;
+   *   - FINE_PAID is a terminal state reserved for a future payment workflow
+   *     and is not settable by status mutation.
+   * A status not listed has no out-edges (it is terminal/processing-only).
+   */
+  private static readonly ADMIN_STATUS_TRANSITIONS: Record<ViolationStatus, readonly ViolationStatus[]> = {
+    PENDING: ["DISMISSED"],
+    APPEALED: [],
+    UPHELD: [],
+    DISMISSED: [],
+    FINE_PAID: [],
+  };
+
+  /**
+   * Directly move a violation to a target status as an administrator. Only a
+   * transition the state machine permits is applied; anything else is a
+   * CONFLICT, never a silent database write. The acting administrator comes
+   * from the authenticated request context at the route (never the body) —
+   * the appeal path records the reviewer on `ViolationAppeal.reviewedBy`.
+   */
+  async adminUpdateStatus(violationId: string, target: ViolationStatus) {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.violation.findUnique({
+        where: { id: violationId },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
+          zone: { select: { id: true, name: true, code: true } },
+          session: { select: { id: true, zoneId: true, enteredAt: true, exitedAt: true, status: true } },
+          appeal: true,
+        },
+      });
+      if (!existing) throw new NotFoundError("Violation not found.");
+
+      const allowed = ViolationService.ADMIN_STATUS_TRANSITIONS[existing.status];
+      if (!allowed || !allowed.includes(target)) {
+        throw new ConflictError(`Cannot transition a ${existing.status} violation to '${target}' directly.`);
+      }
+
+      return tx.violation.update({
+        where: { id: violationId },
+        data: { status: target },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
+          zone: { select: { id: true, name: true, code: true } },
+          session: { select: { id: true, zoneId: true, enteredAt: true, exitedAt: true, status: true } },
+          appeal: true,
+        },
+      });
+    });
+  }
 
   /**
    * Issue a WRONG_ZONE violation if this vehicle has exhausted its warnings.
@@ -99,7 +156,7 @@ export class ViolationService {
         data: { violationId: violation.id, userId, reason, status: "PENDING" },
       });
       await tx.violation.update({ where: { id: violation.id }, data: { status: "APPEALED" } });
-      await tx.notification.create({
+      const notification = await tx.notification.create({
         data: {
           zoneId: violation.zoneId,
           type: "VIOLATION_APPEAL_SUBMITTED",
@@ -107,7 +164,7 @@ export class ViolationService {
           targetRole: "ADMIN",
         },
       });
-      return appeal;
+      return { appeal, notification };
     });
   }
 
@@ -128,12 +185,21 @@ export class ViolationService {
       const updated = await tx.violationAppeal.update({
         where: { id: appeal.id },
         data: { status, reviewedBy: reviewerId, reviewedAt: new Date() },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          violation: {
+            include: {
+              zone: { select: { id: true, name: true, code: true } },
+              vehicle: { select: { id: true, plateNumber: true } },
+            },
+          },
+        },
       });
       await tx.violation.update({
         where: { id: appeal.violationId },
         data: { status: status === "APPROVED" ? "DISMISSED" : "UPHELD" },
       });
-      await tx.notification.create({
+      const notification = await tx.notification.create({
         data: {
           zoneId: appeal.violation.zoneId,
           userId: appeal.userId,
@@ -145,7 +211,7 @@ export class ViolationService {
           targetRole: "USER",
         },
       });
-      return updated;
+      return { appeal: updated, notification };
     });
   }
 }

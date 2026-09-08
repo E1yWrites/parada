@@ -24,6 +24,8 @@ import { createAuthMiddleware } from "./middleware/auth";
 import { HttpError, InternalError } from "./http/errors";
 import { errorBody } from "./http/response";
 import { simulatorRouter } from "./routes/simulator";
+import { RealtimeHub } from "./realtime/hub";
+import { realtimeRouter } from "./routes/realtime";
 
 export interface AppOptions {
   occupancy?: OccupancyService;
@@ -34,6 +36,13 @@ export interface AppOptions {
   cameraApiKey?: string | null;
   /** OCR confidence below which a detected plate is not trusted as identity. */
   ocrPlateConfidenceThreshold?: number;
+  /** Override the credential-endpoint rate limit (defaults to env). */
+  authRateLimit?: { limit: number; windowMs: number };
+  /** Override the camera-event rate limit (defaults to env). */
+  cameraEventRateLimit?: { limit: number; windowMs: number };
+  /** Override the admin-mutation rate limit (defaults to env). */
+  adminRateLimit?: { limit: number; windowMs: number };
+  realtimeHub?: RealtimeHub;
 }
 
 export function createApp(options: AppOptions = {}): Express {
@@ -41,6 +50,7 @@ export function createApp(options: AppOptions = {}): Express {
   const env = loadEnv();
 
   const config = options.config ?? new ConfigService();
+  const realtimeHub = options.realtimeHub ?? new RealtimeHub();
   const assignmentService = options.assignments ?? new AssignmentService(config);
 
   const reservationService = new ReservationService(config);
@@ -67,29 +77,53 @@ export function createApp(options: AppOptions = {}): Express {
 
   const authMiddleware = createAuthMiddleware(auth["tokens"], auth);
 
-  app.use("/auth", authRouter(auth, authMiddleware));
+  app.use(
+    "/auth",
+    authRouter(auth, authMiddleware, {
+      rateLimit: options.authRateLimit ?? {
+        limit: env.authRateLimitPerMinute,
+        windowMs: 60_000,
+      },
+    })
+  );
 
   const zones = zonesRouter(occupancy, new ZoneService(), config, authMiddleware);
   const events = eventsRouter(occupancy, {
     cameraApiKey: options.cameraApiKey !== undefined ? options.cameraApiKey : env.cameraApiKey,
+    rateLimit: options.cameraEventRateLimit ?? {
+      limit: env.cameraEventRateLimitPerMinute,
+      windowMs: 60_000,
+    },
+    realtimeHub,
   });
   app.use(zones);
   app.use(events);
 
   app.use(authMiddleware);
+  app.use(realtimeRouter(realtimeHub));
 
   const sessionService = new ParkingSessionService(config, assignmentService, reservationService);
 
   const vehicles = vehiclesRouter();
-  const sessions = sessionsRouter(sessionService);
-  const reservations = reservationsRouter(reservationService);
-  const assignments = assignmentsRouter(assignmentService);
-  const admin = adminRouter({ occupancy, config, reservations: reservationService, violations: violationService });
+  const sessions = sessionsRouter(sessionService, realtimeHub);
+  const reservations = reservationsRouter(reservationService, realtimeHub);
+  const assignments = assignmentsRouter(assignmentService, realtimeHub);
+  const admin = adminRouter({
+    occupancy,
+    config,
+    reservations: reservationService,
+    violations: violationService,
+    rateLimit: options.adminRateLimit ?? {
+      limit: env.adminRateLimitPerMinute,
+      windowMs: 60_000,
+    },
+    realtimeHub,
+  });
   app.use(vehicles);
   app.use(sessions);
   app.use(reservations);
   app.use(assignments);
-  app.use(violationsRouter(violationService));
+  app.use(violationsRouter(violationService, realtimeHub));
   app.use(notificationsRouter());
   app.use(admin);
 

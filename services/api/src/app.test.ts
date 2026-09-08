@@ -977,8 +977,18 @@ describe("Authentication & Authorization", () => {
 
       const violations = await request(app).get("/admin/violations").set("Authorization", `Bearer ${adminToken}`).expect(200);
       expect(violations.body.data[0].id).toBe(violation.id);
-      await request(app).patch(`/admin/violations/${violation.id}/status`).set("Authorization", `Bearer ${adminToken}`).send({ status: "DISMISSED" }).expect(200);
-      await request(app).patch(`/admin/appeals/${appeal.id}/status`).set("Authorization", `Bearer ${adminToken}`).send({ status: "APPROVED" }).expect(200);
+      const violationUpdate = await request(app).patch(`/admin/violations/${violation.id}/status`).set("Authorization", `Bearer ${adminToken}`).send({ status: "DISMISSED" }).expect(200);
+      // The admin client's declared AdminViolation type requires these relations
+      // (matching what GET /admin/violations already returns) — the mutation
+      // response must actually carry them, not just the bare row.
+      expect(violationUpdate.body.data.user).toMatchObject({ id: adminId });
+      expect(violationUpdate.body.data.vehicle).toMatchObject({ id: vehicle.id });
+      expect(violationUpdate.body.data.zone).toMatchObject({ id: zone.id });
+
+      const appealUpdate = await request(app).patch(`/admin/appeals/${appeal.id}/status`).set("Authorization", `Bearer ${adminToken}`).send({ status: "APPROVED" }).expect(200);
+      // Same contract requirement for AdminAppeal's user/violation relations.
+      expect(appealUpdate.body.data.user).toMatchObject({ id: adminId });
+      expect(appealUpdate.body.data.violation).toMatchObject({ id: violation.id });
 
       const analytics = await request(app).get("/admin/analytics").set("Authorization", `Bearer ${adminToken}`).expect(200);
       expect(analytics.body.data.current.capacity).toBe(4);
@@ -1204,6 +1214,185 @@ describe("Phase 3 — Reservations", () => {
       .send({ zoneId: zone.id, vehicleId: (await seedVehicle(userAId, "CAP-003", tokenA)).id })
       .expect(409);
     expect(third.body.error.code).toBe("CONFLICT");
+  });
+
+  it("re-reads zone occupancy inside the transaction so a concurrent entry cannot be missed", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Race Zone", code: "RZ9", capacity: 1, occupiedCount: 0 } });
+    const vehicle = await seedVehicle(userAId, "RES-011", tokenA);
+
+    // Simulate a concurrent occupancy change (e.g. a camera/manual entry)
+    // landing between ReservationService's pre-transaction zone read and the
+    // transaction that decides whether capacity is still available.
+    const originalTransaction = prisma.$transaction.bind(prisma);
+    const spy = jest
+      .spyOn(prisma, "$transaction")
+      .mockImplementationOnce(async (...args: unknown[]) => {
+        await prisma.parkingZone.update({ where: { id: zone.id }, data: { occupiedCount: { increment: 1 } } });
+        return (originalTransaction as (...a: unknown[]) => unknown)(...args);
+      });
+
+    try {
+      const res = await request(app)
+        .post("/reservations")
+        .set("Authorization", `Bearer ${tokenA}`)
+        .send({ zoneId: zone.id, vehicleId: vehicle.id })
+        .expect(409);
+      expect(res.body.error.code).toBe("CONFLICT");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("serializes concurrent reservations so only the remaining capacity is granted", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Conc", code: "RZC", capacity: 10, occupiedCount: 8 } });
+    const a = await registerUser("resca@test.local", "RC A");
+    const b = await registerUser("rescb@test.local", "RC B");
+    const c = await registerUser("rescc@test.local", "RC C");
+    const va = await seedVehicle(a.id, "CONC-A", a.token);
+    const vb = await seedVehicle(b.id, "CONC-B", b.token);
+    const vc = await seedVehicle(c.id, "CONC-C", c.token);
+
+    // Genuinely overlapping requests: the DB-level advisory lock must let
+    // exactly capacity - occupiedCount = 2 of 3 succeed.
+    const attempts = await Promise.all([
+      request(app).post("/reservations").set("Authorization", `Bearer ${a.token}`).send({ zoneId: zone.id, vehicleId: va.id }),
+      request(app).post("/reservations").set("Authorization", `Bearer ${b.token}`).send({ zoneId: zone.id, vehicleId: vb.id }),
+      request(app).post("/reservations").set("Authorization", `Bearer ${c.token}`).send({ zoneId: zone.id, vehicleId: vc.id }),
+    ]);
+
+    expect(attempts.filter((r) => r.status === 201)).toHaveLength(2);
+    expect(attempts.filter((r) => r.status === 409)).toHaveLength(1);
+
+    // No partial records, no corruption, occupancy untouched.
+    const rows = await prisma.reservation.findMany({ where: { zoneId: zone.id } });
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.status === "CONFIRMED")).toBe(true);
+    const zoneNow = await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } });
+    expect(zoneNow.occupiedCount).toBe(8);
+    expect(zoneNow.capacity).toBe(10);
+  });
+
+  it("allows only one of two concurrent reservations into a single remaining slot", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Single", code: "RZS", capacity: 1 } });
+    const a = await registerUser("ressa@test.local", "RS A");
+    const b = await registerUser("ressb@test.local", "RS B");
+    const va = await seedVehicle(a.id, "SINGLE-A", a.token);
+    const vb = await seedVehicle(b.id, "SINGLE-B", b.token);
+
+    const attempts = await Promise.all([
+      request(app).post("/reservations").set("Authorization", `Bearer ${a.token}`).send({ zoneId: zone.id, vehicleId: va.id }),
+      request(app).post("/reservations").set("Authorization", `Bearer ${b.token}`).send({ zoneId: zone.id, vehicleId: vb.id }),
+    ]);
+
+    expect(attempts.filter((r) => r.status === 201)).toHaveLength(1);
+    expect(attempts.filter((r) => r.status === 409)).toHaveLength(1);
+    expect(await prisma.reservation.count({ where: { zoneId: zone.id } })).toBe(1);
+  });
+
+  it("rejects an overlapping duplicate reservation for the same vehicle and zone", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Dup", code: "RZD", capacity: 5 } });
+    const vehicle = await seedVehicle(userAId, "DUP-001", tokenA);
+
+    await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.id })
+      .expect(201);
+
+    const second = await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.id })
+      .expect(409);
+    expect(second.body.error.code).toBe("CONFLICT");
+    expect(await prisma.reservation.count({ where: { zoneId: zone.id } })).toBe(1);
+  });
+
+  it("allows non-overlapping reservations for the same vehicle in the same zone", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "NonOverlap", code: "RZN", capacity: 3 } });
+    const vehicle = await seedVehicle(userAId, "NON-001", tokenA);
+    const start = new Date(Date.now() + 10 * 60_000);
+
+    await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({
+        zoneId: zone.id,
+        vehicleId: vehicle.id,
+        startAt: start.toISOString(),
+        endAt: new Date(start.getTime() + 15 * 60_000).toISOString(),
+      })
+      .expect(201);
+
+    const laterStart = new Date(start.getTime() + 20 * 60_000);
+    await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({
+        zoneId: zone.id,
+        vehicleId: vehicle.id,
+        startAt: laterStart.toISOString(),
+        endAt: new Date(laterStart.getTime() + 15 * 60_000).toISOString(),
+      })
+      .expect(201);
+  });
+
+  it("releases capacity and the overlap guard once a reservation expires", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "ExpReuse", code: "RZE", capacity: 1 } });
+    const vehicle = await seedVehicle(userAId, "ERZ-001", tokenA);
+
+    const created = await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.id })
+      .expect(201);
+
+    // Simulate the arrival window elapsing: expiration is lazy, so the next
+    // write-path flips this to EXPIRED and frees its slot and overlap.
+    await prisma.reservation.update({
+      where: { id: created.body.data.id },
+      data: { startAt: new Date(Date.now() - 60 * 60_000) },
+    });
+
+    const again = await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.id })
+      .expect(201);
+    expect(again.body.data.status).toBe("CONFIRMED");
+
+    const first = await prisma.reservation.findUniqueOrThrow({ where: { id: created.body.data.id } });
+    expect(first.status).toBe("EXPIRED");
+  });
+
+  it("fails cleanly with no partial state when the capacity transaction rolls back", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Roll", code: "RZR", capacity: 2, occupiedCount: 2 } });
+    const vehicle = await seedVehicle(userAId, "ROLL-001", tokenA);
+
+    const res = await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.id })
+      .expect(409);
+    expect(res.body.error.code).toBe("CONFLICT");
+    expect(await prisma.reservation.count({ where: { zoneId: zone.id } })).toBe(0);
+    const zoneNow = await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } });
+    expect(zoneNow.occupiedCount).toBe(2);
+    // The failed transaction wrote no notifications or events.
+    expect(await prisma.notification.count()).toBe(0);
+    expect(await prisma.occupancyEvent.count()).toBe(0);
+  });
+
+  it("rejects reservations for inactive zones", async () => {
+    const zone = await prisma.parkingZone.create({ data: { name: "Inactive", code: "RZI", capacity: 5, status: "INACTIVE" } });
+    const vehicle = await seedVehicle(userAId, "RZIN-001", tokenA);
+
+    const res = await request(app)
+      .post("/reservations")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: zone.id, vehicleId: vehicle.id })
+      .expect(404);
+    expect(res.body.error.code).toBe("NOT_FOUND");
   });
 
   it("expires reservations outside the 15-minute arrival window", async () => {
@@ -1853,6 +2042,86 @@ describe("Violations, appeals & driver notifications", () => {
       .expect(404);
     expect((await prisma.notification.findUniqueOrThrow({ where: { id: theirs.id } })).read).toBe(false);
   });
+
+  it("lets an admin dismiss a PENDING violation through the state machine", async () => {
+    const violation = await issueViolation();
+    const res = await request(app)
+      .patch(`/admin/violations/${violation.id}/status`)
+      .set("Authorization", `Bearer ${tokenAdmin}`)
+      .send({ status: "DISMISSED" })
+      .expect(200);
+    expect(res.body.data.status).toBe("DISMISSED");
+    expect((await prisma.violation.findUniqueOrThrow({ where: { id: violation.id } })).status).toBe("DISMISSED");
+  });
+
+  it("rejects status transitions the violation state machine does not allow", async () => {
+    const violation = await issueViolation();
+
+    // A PENDING violation can only be dismissed directly or appealed; jumping
+    // to a terminal or mid-flow state is a domain conflict.
+    for (const target of ["FINE_PAID", "UPHELD", "APPEALED"]) {
+      const res = await request(app)
+        .patch(`/admin/violations/${violation.id}/status`)
+        .set("Authorization", `Bearer ${tokenAdmin}`)
+        .send({ status: target })
+        .expect(409);
+      expect(res.body.error.code).toBe("CONFLICT");
+    }
+
+    // No side effects from the rejected transitions: still PENDING, and no
+    // notification was persisted.
+    expect((await prisma.violation.findUniqueOrThrow({ where: { id: violation.id } })).status).toBe("PENDING");
+    expect(await prisma.notification.count()).toBe(0);
+  });
+
+  it("never lets a terminal violation be reopened", async () => {
+    const violation = await issueViolation();
+    await request(app)
+      .patch(`/admin/violations/${violation.id}/status`)
+      .set("Authorization", `Bearer ${tokenAdmin}`)
+      .send({ status: "DISMISSED" })
+      .expect(200);
+
+    const res = await request(app)
+      .patch(`/admin/violations/${violation.id}/status`)
+      .set("Authorization", `Bearer ${tokenAdmin}`)
+      .send({ status: "PENDING" })
+      .expect(409);
+    expect(res.body.error.code).toBe("CONFLICT");
+  });
+
+  it("derives the acting identity from the token, never from the body", async () => {
+    const violation = await issueViolation();
+    const imposter = await prisma.user.create({
+      data: { name: "Imposter", email: "vio-imposter@test.local", passwordHash: "x", role: "ADMIN" },
+    });
+
+    // A forged reviewer identity in the body is ignored; the authenticated
+    // admin performs the transition.
+    await request(app)
+      .patch(`/admin/violations/${violation.id}/status`)
+      .set("Authorization", `Bearer ${tokenAdmin}`)
+      .send({ status: "DISMISSED", adminId: imposter.id, reviewerId: imposter.id })
+      .expect(200);
+    expect((await prisma.violation.findUniqueOrThrow({ where: { id: violation.id } })).status).toBe("DISMISSED");
+
+    // A non-admin can never mutate the violation through this endpoint.
+    await request(app)
+      .patch(`/admin/violations/${violation.id}/status`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ status: "PENDING" })
+      .expect(403);
+  });
+
+  it("rejects invalid status values as malformed input", async () => {
+    const violation = await issueViolation();
+    const res = await request(app)
+      .patch(`/admin/violations/${violation.id}/status`)
+      .set("Authorization", `Bearer ${tokenAdmin}`)
+      .send({ status: "RESOLVED" })
+      .expect(400);
+    expect(res.body.error.code).toBe("BAD_REQUEST");
+  });
 });
 
 describe("Phase 4 — Authentication security coverage", () => {
@@ -2094,6 +2363,466 @@ describe("Phase 4 — Authentication security coverage", () => {
       const res = await request(app).get("/zones/recommendation").expect(200);
       expect(res.body.data.recommendedZone.id).toBe(zone.id);
     });
+  });
+});
+
+describe("Phase 11A — Admin establishment resource & camera configuration", () => {
+  const tokens = new TokenService({
+    secret: "test-secret-key-for-testing-only-32chars",
+    issuer: "parada-api-test",
+    expiresIn: "1d",
+  });
+  let app: ReturnType<typeof createApp>;
+  let adminToken: string;
+  let userToken: string;
+
+  beforeAll(async () => {
+    await cleanDatabase();
+  });
+
+  beforeEach(async () => {
+    await cleanDatabase();
+    const admin = await prisma.user.create({
+      data: { name: "Admin", email: "phase11a-admin@test.local", passwordHash: "x", role: "ADMIN" },
+    });
+    const user = await prisma.user.create({
+      data: { name: "User", email: "phase11a-user@test.local", passwordHash: "x", role: "USER" },
+    });
+    adminToken = tokens.sign({ id: admin.id, role: "ADMIN" }).token;
+    userToken = tokens.sign({ id: user.id, role: "USER" }).token;
+    app = createApp();
+  });
+
+  describe("ADMIN zone CRUD", () => {
+    it("creates a zone and exposes it to the public/mobile /zones contract", async () => {
+      await request(app)
+        .post("/admin/zones")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ name: "Zone D", code: "D", capacity: 30, description: "South extension" })
+        .expect(201);
+
+      const res = await request(app).get("/zones").expect(200);
+      const zone = res.body.data.find((z: { code: string }) => z.code === "D");
+      expect(zone).toMatchObject({ name: "Zone D", code: "D", capacity: 30, occupiedCount: 0, availableCount: 30, status: "ACTIVE" });
+    });
+
+    it("rejects a duplicate zone code", async () => {
+      await request(app)
+        .post("/admin/zones")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ name: "Zone A", code: "A", capacity: 10 })
+        .expect(201);
+      await request(app)
+        .post("/admin/zones")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ name: "Zone Dupe", code: "A", capacity: 10 })
+        .expect(409);
+    });
+
+    it("rejects a non-positive capacity", async () => {
+      const res = await request(app)
+        .post("/admin/zones")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ name: "Bad", code: "BAD", capacity: 0 })
+        .expect(400);
+      expect(res.body.error.code).toBe("BAD_REQUEST");
+    });
+
+    it("edits a zone name/code/status without changing occupancy", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Origin", code: "O", capacity: 10, occupiedCount: 3 },
+      });
+      const res = await request(app)
+        .patch(`/admin/zones/${zone.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ name: "Renamed", code: "R", status: "INACTIVE" })
+        .expect(200);
+      expect(res.body.data).toMatchObject({ name: "Renamed", code: "R", occupiedCount: 3, capacity: 10, status: "INACTIVE" });
+    });
+
+    it("deactivating a zone removes it from the public /zones list (no new availability)", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Zone B", code: "B", capacity: 5, occupiedCount: 2 },
+      });
+      await request(app)
+        .patch(`/admin/zones/${zone.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ status: "INACTIVE" })
+        .expect(200);
+      const res = await request(app).get("/zones").expect(200);
+      expect(res.body.data.some((z: { code: string }) => z.code === "B")).toBe(false);
+    });
+
+    it("REJECTS reducing capacity below current occupancy", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Zone C", code: "C", capacity: 10, occupiedCount: 6 },
+      });
+      await request(app)
+        .patch(`/admin/zones/${zone.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ capacity: 5 })
+        .expect(409);
+      const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } });
+      expect(after.capacity).toBe(10);
+      expect(after.occupiedCount).toBe(6);
+    });
+
+    it("REJECTS reducing capacity below reservation-protected capacity", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Zone R", code: "PR", capacity: 10, occupiedCount: 2 },
+      });
+      const user = await prisma.user.findUniqueOrThrow({ where: { email: "phase11a-user@test.local" } });
+      const vehicle = await prisma.vehicle.create({
+        data: { userId: user.id, plateNumber: "RES-0001", normalizedPlate: "RES0001", vehicleType: "CAR", status: "ACTIVE" },
+      });
+      await prisma.reservation.create({
+        data: {
+          userId: user.id,
+          vehicleId: vehicle.id,
+          zoneId: zone.id,
+          startAt: new Date(),
+          endAt: new Date(Date.now() + 3600000),
+          status: "CONFIRMED",
+        },
+      });
+      await request(app)
+        .patch(`/admin/zones/${zone.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ capacity: 3 })
+        .expect(409);
+      const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } });
+      expect(after.capacity).toBe(10);
+    });
+
+    it("allows an equal-or-greater capacity change", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Zone G", code: "PRG", capacity: 10, occupiedCount: 3 },
+      });
+      await request(app)
+        .patch(`/admin/zones/${zone.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ capacity: 6 })
+        .expect(200);
+      const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } });
+      expect(after.capacity).toBe(6);
+    });
+  });
+
+  describe("ADMIN physical-slot inventory (layout only)", () => {
+    it("lists and reconciles the physical inventory and never touches occupancy", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Zone S", code: "S", capacity: 30, occupiedCount: 4 },
+      });
+
+      const set = await request(app)
+        .post(`/admin/zones/${zone.id}/slots`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ slotCodes: ["S01", "S02", "S03"] })
+        .expect(201);
+      expect(set.body.data.map((s: { slotCode: string }) => s.slotCode).sort()).toEqual(["S01", "S02", "S03"]);
+
+      const list = await request(app)
+        .get(`/admin/zones/${zone.id}/slots`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .expect(200);
+      expect(list.body.data).toHaveLength(3);
+
+      const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } });
+      expect(after.occupiedCount).toBe(4);
+    });
+
+    it("rejects more physical spaces than the zone capacity", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Zone Cap", code: "CAPS", capacity: 2 },
+      });
+      await request(app)
+        .post(`/admin/zones/${zone.id}/slots`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ slotCodes: ["A", "B", "C"] })
+        .expect(409);
+    });
+
+    it("marks removed slots inactive instead of deleting them", async () => {
+      const zone = await prisma.parkingZone.create({ data: { name: "Zone D2", code: "D2", capacity: 5 } });
+      await request(app)
+        .post(`/admin/zones/${zone.id}/slots`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ slotCodes: ["D201", "D202"] })
+        .expect(201);
+      await request(app)
+        .post(`/admin/zones/${zone.id}/slots`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ slotCodes: ["D201"] })
+        .expect(201);
+      const rows = await prisma.parkingSlot.findMany({ where: { zoneId: zone.id } });
+      expect(rows).toHaveLength(2);
+      const d202 = rows.find((s) => s.slotCode === "D202");
+      expect(d202?.status).toBe("INACTIVE");
+    });
+  });
+
+  describe("ADMIN camera CRUD & configuration", () => {
+    let zone: { id: string };
+    beforeEach(async () => {
+      zone = await prisma.parkingZone.create({ data: { name: "Zone Cam", code: "CAM", capacity: 5 } });
+    });
+
+    it("registers a camera bound to a zone", async () => {
+      const res = await request(app)
+        .post("/admin/cameras")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ zoneId: zone.id, identifier: "CAM-A01", name: "Zone A Entry", gateType: "ENTRY", status: "ONLINE" })
+        .expect(201);
+      expect(res.body.data).toMatchObject({ identifier: "CAM-A01", gateType: "ENTRY", zone: { id: zone.id } });
+    });
+
+    it("rejects a duplicate camera identifier", async () => {
+      await request(app)
+        .post("/admin/cameras")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ zoneId: zone.id, identifier: "CAM-DUP", gateType: "ENTRY" })
+        .expect(201);
+      await request(app)
+        .post("/admin/cameras")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ zoneId: zone.id, identifier: "CAM-DUP", gateType: "EXIT" })
+        .expect(409);
+    });
+
+    it("rejects an invalid gate direction", async () => {
+      const res = await request(app)
+        .post("/admin/cameras")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ zoneId: zone.id, identifier: "CAM-BAD", gateType: "SIDEWAYS" })
+        .expect(400);
+      expect(res.body.error.code).toBe("BAD_REQUEST");
+    });
+
+    it("rejects a camera bound to a nonexistent zone", async () => {
+      await request(app)
+        .post("/admin/cameras")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ zoneId: "does-not-exist", identifier: "CAM-NOZONE", gateType: "ENTRY" })
+        .expect(404);
+    });
+
+    it("re-assigns a camera to another zone and edits direction/status", async () => {
+      const other = await prisma.parkingZone.create({ data: { name: "Other Zone", code: "OTH", capacity: 5 } });
+      const cam = await prisma.camera.create({
+        data: { zoneId: zone.id, name: "Cam", identifier: "CAM-REASSIGN", gateType: "ENTRY", status: "ONLINE" },
+      });
+      const res = await request(app)
+        .patch(`/admin/cameras/${cam.id}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ zoneId: other.id, gateType: "BIDIRECTIONAL", status: "OFFLINE" })
+        .expect(200);
+      expect(res.body.data).toMatchObject({ zone: { id: other.id }, gateType: "BIDIRECTIONAL", status: "OFFLINE" });
+    });
+  });
+
+  describe("ADMIN camera ↔ OCR/occupancy integration (Phase 11 regression)", () => {
+    it("resolves a registered configured camera against its zone via the existing pipeline", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Zone OCR", code: "OCR", capacity: 5 },
+      });
+      const camera = await prisma.camera.create({
+        data: { zoneId: zone.id, name: "OCR Entry", identifier: "CAM-OCR-ENTRY", gateType: "ENTRY", status: "ONLINE" },
+      });
+      const user = await prisma.user.findUniqueOrThrow({ where: { email: "phase11a-user@test.local" } });
+      await prisma.vehicle.create({
+        data: { userId: user.id, plateNumber: "OCR-1234", normalizedPlate: "OCR1234", vehicleType: "CAR", status: "ACTIVE" },
+      });
+
+      const res = await request(app)
+        .post(`/zones/${zone.id}/events`)
+        .send({ cameraIdentifier: camera.identifier, sourceEventId: "ocr-evt-1", eventType: "ENTRY", detectedPlate: "OCR-1234", ocrConfidence: 0.98 })
+        .expect(201);
+      expect(res.body.data.zoneId).toBe(zone.id);
+
+      const occ = await request(app).get(`/zones/${zone.id}/occupancy`).expect(200);
+      expect(occ.body.data.occupiedCount).toBe(1);
+
+      // GET /zones reflects the configured zone
+      const zones = await request(app).get("/zones").expect(200);
+      expect(zones.body.data.some((z: { code: string }) => z.code === "OCR")).toBe(true);
+    });
+
+    it("rejects events from a disabled (OFFLINE) camera per existing semantics", async () => {
+      const zone = await prisma.parkingZone.create({ data: { name: "Zone Off", code: "OFFCAM", capacity: 5 } });
+      await prisma.camera.create({
+        data: { zoneId: zone.id, name: "Off", identifier: "CAM-OFF", gateType: "BIDIRECTIONAL", status: "OFFLINE" },
+      });
+      const res = await request(app)
+        .post(`/zones/${zone.id}/events`)
+        .send({ cameraIdentifier: "CAM-OFF", sourceEventId: "off-evt", eventType: "ENTRY" })
+        .expect(409);
+      expect(res.body.error.message).toContain("offline");
+    });
+
+    it("still validates that a camera must belong to the target zone before occupancy", async () => {
+      const zoneA = await prisma.parkingZone.create({ data: { name: "Zone A", code: "CAMPA", capacity: 5 } });
+      const zoneB = await prisma.parkingZone.create({ data: { name: "Zone B", code: "CAMPB", capacity: 5 } });
+      await prisma.camera.create({
+        data: { zoneId: zoneA.id, name: "A Cam", identifier: "CAM-A", gateType: "BIDIRECTIONAL", status: "ONLINE" },
+      });
+      await request(app)
+        .post(`/zones/${zoneB.id}/events`)
+        .send({ cameraIdentifier: "CAM-A", sourceEventId: "cross-evt", eventType: "ENTRY" })
+        .expect(409);
+    });
+  });
+
+  describe("ADMIN authorization enforcement", () => {
+    it("denies USER mutations on zones and cameras", async () => {
+      await request(app).post("/admin/zones").set("Authorization", `Bearer ${userToken}`).send({ name: "X", code: "X", capacity: 5 }).expect(403);
+      await request(app)
+        .post("/admin/cameras")
+        .set("Authorization", `Bearer ${userToken}`)
+        .send({ zoneId: "any", identifier: "C", gateType: "ENTRY" })
+        .expect(403);
+      await request(app).get("/admin/zones").set("Authorization", `Bearer ${userToken}`).expect(403);
+    });
+
+    it("requires an admin token for every mutation", async () => {
+      await request(app).post("/admin/zones").send({ name: "X", code: "X", capacity: 5 }).expect(401);
+      await request(app).post("/admin/cameras").send({ zoneId: "any", identifier: "C", gateType: "ENTRY" }).expect(401);
+    });
+  });
+});
+
+describe("Phase 11B — Rate limiting (AUDIT-003)", () => {
+  const tokens = new TokenService({
+    secret: "test-secret-key-for-testing-only-32chars",
+    issuer: "parada-api-test",
+    expiresIn: "1d",
+  });
+
+  beforeEach(async () => {
+    await cleanDatabase();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  it("throttles credential attempts with 429, TOO_MANY_REQUESTS and Retry-After", async () => {
+    const app = createApp({ authRateLimit: { limit: 3, windowMs: 60_000 } });
+
+    for (let i = 0; i < 3; i++) {
+      await request(app)
+        .post("/auth/login")
+        .send({ email: "nobody@test.local", password: "WrongPass1!" })
+        .expect(401);
+    }
+    // The 4th request is throttled, not treated as a credential failure.
+    const limited = await request(app)
+      .post("/auth/login")
+      .send({ email: "nobody@test.local", password: "WrongPass1!" })
+      .expect(429);
+    expect(limited.body.error.code).toBe("TOO_MANY_REQUESTS");
+    expect(Number(limited.headers["retry-after"])).toBeGreaterThanOrEqual(1);
+  });
+
+  it("resets the credential budget after the window elapses", async () => {
+    const app = createApp({ authRateLimit: { limit: 2, windowMs: 150 } });
+
+    await request(app).post("/auth/login").send({ email: "win@test.local", password: "WrongPass1!" }).expect(401);
+    await request(app).post("/auth/login").send({ email: "win@test.local", password: "WrongPass1!" }).expect(401);
+    await request(app).post("/auth/login").send({ email: "win@test.local", password: "WrongPass1!" }).expect(429);
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    // Back under the limit: a fresh attempt is a credential error again (401),
+    // not a throttle.
+    await request(app).post("/auth/login").send({ email: "win@test.local", password: "WrongPass1!" }).expect(401);
+  });
+
+  it("throttles registration through the same credential budget", async () => {
+    const app = createApp({ authRateLimit: { limit: 2, windowMs: 60_000 } });
+
+    await request(app).post("/auth/register").send({ name: "R1", email: "rl1@test.local", password: "Password123!" }).expect(201);
+    await request(app).post("/auth/register").send({ name: "R2", email: "rl2@test.local", password: "Password123!" }).expect(201);
+    await request(app).post("/auth/register").send({ name: "R3", email: "rl3@test.local", password: "Password123!" }).expect(429);
+  });
+
+  it("throttles camera event ingestion per camera; other cameras stay usable", async () => {
+    const app = createApp({
+      cameraApiKey: "test-camera-key-123",
+      cameraEventRateLimit: { limit: 3, windowMs: 60_000 },
+    });
+    const zone = await prisma.parkingZone.create({ data: { name: "RL Zone", code: "RLZ", capacity: 5 } });
+    const camA = await prisma.camera.create({ data: { zoneId: zone.id, name: "RL A", identifier: "cam-rl-a", gateType: "ENTRY", status: "ONLINE" } });
+    const camB = await prisma.camera.create({ data: { zoneId: zone.id, name: "RL B", identifier: "cam-rl-b", gateType: "ENTRY", status: "ONLINE" } });
+
+    const send = (cameraIdentifier: string, n: number) =>
+      request(app)
+        .post(`/zones/${zone.id}/events`)
+        .set("X-API-Key", "test-camera-key-123")
+        .send({ cameraIdentifier, sourceEventId: `rl-evt-${n}`, eventType: "ENTRY" });
+
+    await send(camA.identifier, 1).expect(201);
+    await send(camA.identifier, 2).expect(201);
+    await send(camA.identifier, 3).expect(201);
+    const limited = await send(camA.identifier, 4).expect(429);
+    expect(limited.body.error.code).toBe("TOO_MANY_REQUESTS");
+
+    // A different camera keeps its own allowance.
+    await send(camB.identifier, 5).expect(201);
+
+    // Throttled requests persist nothing: exactly the 4 accepted events exist.
+    expect(await prisma.occupancyEvent.count()).toBe(4);
+  });
+
+  it("throttles admin mutations per admin while reads and auth stay intact", async () => {
+    const app = createApp({ adminRateLimit: { limit: 3, windowMs: 60_000 } });
+    const zone = await prisma.parkingZone.create({ data: { name: "RL Admin", code: "RLA", capacity: 5 } });
+    const admin = await prisma.user.create({
+      data: { name: "RL Admin", email: "rl-admin@test.local", passwordHash: "x", role: "ADMIN" },
+    });
+    const token = tokens.sign({ id: admin.id, role: "ADMIN" }).token;
+    const notif = await prisma.notification.create({
+      data: { zoneId: zone.id, type: "ZONE_FULL", message: "ops", targetRole: "ADMIN" },
+    });
+
+    // Reads are not throttled.
+    await request(app).get("/admin/dashboard").set("Authorization", `Bearer ${token}`).expect(200);
+
+    for (let i = 0; i < 3; i++) {
+      await request(app).patch(`/admin/notifications/${notif.id}/read`).set("Authorization", `Bearer ${token}`).expect(200);
+    }
+    const limited = await request(app).patch(`/admin/notifications/${notif.id}/read`).set("Authorization", `Bearer ${token}`).expect(429);
+    expect(limited.body.error.code).toBe("TOO_MANY_REQUESTS");
+
+    // A 429 is not an auth failure: the admin is still authenticated and reads work.
+    await request(app).get("/admin/dashboard").set("Authorization", `Bearer ${token}`).expect(200);
+  });
+
+  it("keeps a user authenticated across credential throttling", async () => {
+    const app = createApp({ authRateLimit: { limit: 5, windowMs: 60_000 } });
+
+    await request(app).post("/auth/register").send({ name: "RL User", email: "rl-user@test.local", password: "Password123!" }).expect(201);
+    const login = await request(app).post("/auth/login").send({ email: "rl-user@test.local", password: "Password123!" }).expect(200);
+    const token = login.body.data.token;
+    await request(app).get("/reservations").set("Authorization", `Bearer ${token}`).expect(200);
+
+    // Exhaust the shared credential budget (register + login consumed 2 of 5)...
+    let throttled = false;
+    for (let i = 0; i < 5; i++) {
+      const res = await request(app).post("/auth/login").send({ email: "rl-user@test.local", password: "WrongPass1!" });
+      if (res.status === 429) {
+        throttled = true;
+        break;
+      }
+      expect(res.status).toBe(401);
+    }
+    expect(throttled).toBe(true);
+
+    // ...and the session survives: the token still authorizes, and logout
+    // (which requires a valid, unrevoked token) succeeds.
+    const me = await request(app).get("/auth/me").set("Authorization", `Bearer ${token}`).expect(200);
+    expect(me.body.data.id).toBe(login.body.data.user.id);
+    await request(app).get("/reservations").set("Authorization", `Bearer ${token}`).expect(200);
+    await request(app).post("/auth/logout").set("Authorization", `Bearer ${token}`).expect(204);
   });
 });
 

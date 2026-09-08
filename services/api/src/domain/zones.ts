@@ -1,6 +1,6 @@
 import { prisma } from "@parada/database";
 import { NotFoundError } from "../http/errors";
-import { availabilityOf } from "../routes/admin";
+import { availabilityOf } from "./availability";
 import type { ZoneRecommendation } from "@parada/types";
 
 /**

@@ -187,9 +187,11 @@ export class OccupancyService {
    * resolve camera -> validate direction/status -> classify the plate (registered
    * vehicle vs. guest candidate) -> apply admission policy -> update zone -> insert
    * event + history -> create/close session (registered or guest) -> record any
-   * anomaly -> honor/consume reservations -> detect wrong-zone. Returns the created
-   * OccupancyEvent, or (for a CAMERA-sourced guest) a GuestAdmissionResult that
-   * carries the admission decision alongside the recorded occupancy event.
+   * anomaly -> honor/consume reservations -> detect wrong-zone. Returns
+   * `{ event, violation }` for a registered vehicle (violation is non-null only
+   * when a wrong-zone entry escalates), or (for a CAMERA-sourced guest) a
+   * GuestAdmissionResult that carries the admission decision alongside the
+   * recorded occupancy event.
    */
   async processEvent(
     input: OccupancyInput,
@@ -468,7 +470,7 @@ export class OccupancyService {
       if (wrongZone) {
         // Escalate BEFORE recording this entry's warning, so the count
         // reflects previous offences only. First offences stay warnings.
-        await this.violations?.escalateWrongZone(tx, {
+        const violation = await this.violations?.escalateWrongZone(tx, {
           userId: vehicle.userId,
           vehicleId,
           zoneId: zone.id,
@@ -494,6 +496,7 @@ export class OccupancyService {
             targetRole: "USER",
           },
         });
+        return { event, violation: violation ?? null };
       }
     } else if (eventType === "EXIT") {
       // Scoped to this zone: a vehicle may only be released through the gate
@@ -536,7 +539,7 @@ export class OccupancyService {
       }
     }
 
-    return event;
+    return { event, violation: null };
   }
 
   /**
