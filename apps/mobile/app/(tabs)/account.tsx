@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import { useRouter } from "expo-router";
 import Constants from "expo-constants";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,8 +11,10 @@ import { useSession } from "@/src/providers/SessionProvider";
 import { colors, radii, spacing, touchTarget } from "@/src/theme";
 
 export default function AccountScreen() {
+  const router = useRouter();
   const { user, signOut } = useSession();
   const account = useQuery({ queryKey: queryKeys.account, queryFn: api.me });
+  const notifications = useQuery({ queryKey: queryKeys.notifications, queryFn: api.notifications });
   const [signingOut, setSigningOut] = useState(false);
 
   const version = Constants.expoConfig?.version ?? "0.1.0";
@@ -75,6 +78,22 @@ export default function AccountScreen() {
               <RolePill role={profile.role} />
             </View>
           </Card>
+          <Card style={styles.linksCard} padding={0}>
+            <AccountLink
+              icon="notifications-outline"
+              label="Notifications"
+              badge={notifications.data?.unreadCount}
+              onPress={() => router.push("/notifications")}
+              testID="account-notifications"
+            />
+            <View style={styles.linkDivider} />
+            <AccountLink
+              icon="alert-circle-outline"
+              label="Violations"
+              onPress={() => router.push("/violations")}
+              testID="account-violations"
+            />
+          </Card>
           <Card style={styles.infoCard}>
             <InfoRow label="Status" value="Active driver account" />
             <InfoRow label="App version" value={version} testID="account-version" />
@@ -111,6 +130,42 @@ function RolePill({ role }: { role: string }) {
         {label}
       </Text>
     </View>
+  );
+}
+
+function AccountLink({
+  icon,
+  label,
+  badge,
+  onPress,
+  testID,
+}: {
+  icon: ComponentProps<typeof Ionicons>["name"];
+  label: string;
+  badge?: number;
+  onPress: () => void;
+  testID?: string;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={badge ? `${label}, ${badge} unread` : label}
+      onPress={onPress}
+      style={styles.linkRow}
+      testID={testID}>
+      <Ionicons name={icon} size={20} color={colors.foreground} />
+      <Text variant="body" style={styles.linkLabel}>
+        {label}
+      </Text>
+      {badge ? (
+        <View style={styles.linkBadge} testID={testID ? `${testID}-badge` : undefined}>
+          <Text variant="micro" color={colors.onAccent}>
+            {badge > 9 ? "9+" : String(badge)}
+          </Text>
+        </View>
+      ) : null}
+      <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+    </Pressable>
   );
 }
 
@@ -170,6 +225,34 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+  },
+  linksCard: {
+    overflow: "hidden",
+  },
+  linkDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginLeft: spacing.xl,
+  },
+  linkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+    minHeight: touchTarget,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+  },
+  linkLabel: {
+    flex: 1,
+  },
+  linkBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: radii.full,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
   },
   infoCard: {
     gap: spacing.xl,

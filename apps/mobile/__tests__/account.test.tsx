@@ -31,6 +31,8 @@ jest.mock("@/lib/api/client", () => {
       createVehicle: jest.fn(),
       sessions: jest.fn(),
       activeSession: jest.fn(),
+      notifications: jest.fn(),
+      violations: jest.fn(),
     },
   };
 });
@@ -68,6 +70,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSessionContext.user = user;
   (api.me as jest.Mock).mockResolvedValue(user);
+  (api.notifications as jest.Mock).mockResolvedValue({ notifications: [], unreadCount: 0 });
 });
 
 describe("account screen", () => {

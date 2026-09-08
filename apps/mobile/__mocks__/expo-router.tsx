@@ -21,9 +21,9 @@ export function usePathname(): string {
   return "/";
 }
 
-export function useLocalSearchParams(): Record<string, string | string[]> {
-  return {};
-}
+/** jest.fn() (not a plain function) so dynamic-route tests can override params
+ *  per test via `(useLocalSearchParams as jest.Mock).mockReturnValue(...)`. */
+export const useLocalSearchParams = jest.fn((): Record<string, string | string[]> => ({}));
 
 export function Redirect({ href }: { href: string }) {
   return <View testID={`redirect-${href}`} />;

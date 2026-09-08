@@ -5,6 +5,7 @@ import {
   formatDateTime,
   formatCurrency,
   formatVehicleType,
+  formatRelativeTime,
 } from "@/lib/format";
 
 describe("normalizePlateInput", () => {
@@ -67,6 +68,31 @@ describe("formatVehicleType", () => {
   });
   it("defaults unknown values to Car", () => {
     expect(formatVehicleType("HELICOPTER")).toBe("Car");
+  });
+});
+
+describe("formatRelativeTime", () => {
+  const now = new Date("2026-09-06T12:00:00.000Z");
+  it("renders 'Just now' under a minute", () => {
+    expect(formatRelativeTime("2026-09-06T11:59:30.000Z", now)).toBe("Just now");
+  });
+  it("renders minutes under an hour", () => {
+    expect(formatRelativeTime("2026-09-06T11:15:00.000Z", now)).toBe("45m");
+  });
+  it("renders hours under a day", () => {
+    expect(formatRelativeTime("2026-09-06T05:00:00.000Z", now)).toBe("7h");
+  });
+  it("renders 'Yesterday' once a full day has passed into the previous calendar day", () => {
+    expect(formatRelativeTime("2026-09-05T10:00:00.000Z", now)).toBe("Yesterday");
+  });
+  it("renders day count within the week", () => {
+    expect(formatRelativeTime("2026-09-02T12:00:00.000Z", now)).toBe("4d");
+  });
+  it("renders month/day beyond a week", () => {
+    expect(formatRelativeTime("2026-08-20T12:00:00.000Z", now)).toBe("Aug 20");
+  });
+  it("returns an empty string for invalid input", () => {
+    expect(formatRelativeTime("not-a-date", now)).toBe("");
   });
 });
 

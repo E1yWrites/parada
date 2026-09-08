@@ -27,6 +27,9 @@ type InputProps = {
   onSubmit?: () => void;
   returnKeyType?: ReturnKeyTypeOptions;
   textContentType?: "none" | "emailAddress" | "name" | "password" | "newPassword";
+  /** Multi-line text (e.g. an appeal reason). Renders a taller, top-aligned field. */
+  multiline?: boolean;
+  maxLength?: number;
   testID?: string;
 };
 
@@ -46,6 +49,8 @@ export function Input({
   onSubmit,
   returnKeyType,
   textContentType,
+  multiline = false,
+  maxLength,
   testID,
 }: InputProps) {
   const [secure, setSecure] = useState(secureTextEntry);
@@ -53,7 +58,7 @@ export function Input({
   return (
     <View style={styles.container} testID={testID ? `${testID}-wrap` : undefined}>
       <Text variant="micro">{label.toUpperCase()}</Text>
-      <View style={[styles.control, error ? styles.controlError : focused ? styles.controlFocused : undefined]}>
+      <View style={[styles.control, multiline ? styles.controlMultiline : undefined, error ? styles.controlError : focused ? styles.controlFocused : undefined]}>
         <TextInput
           testID={testID}
           value={value}
@@ -65,18 +70,21 @@ export function Input({
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
           editable={editable}
+          multiline={multiline}
+          maxLength={maxLength}
+          textAlignVertical={multiline ? "top" : "center"}
           onFocus={() => setFocused(true)}
           onBlur={() => {
             setFocused(false);
             onBlur?.();
           }}
-          onSubmitEditing={onSubmit}
+          onSubmitEditing={multiline ? undefined : onSubmit}
           returnKeyType={returnKeyType}
           textContentType={textContentType}
           selectionColor={colors.primary}
           accessibilityLabel={label}
           accessibilityState={{ disabled: !editable }}
-          style={[styles.input, variant === "mono" ? styles.monoInput : undefined]}
+          style={[styles.input, multiline ? styles.multilineInput : undefined, variant === "mono" ? styles.monoInput : undefined]}
         />
         {secureTextEntry ? (
           <View style={styles.eyeSlot}>
@@ -129,6 +137,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     paddingHorizontal: spacing.xl,
   },
+  controlMultiline: {
+    alignItems: "flex-start",
+    minHeight: 96,
+    paddingVertical: spacing.md,
+  },
   controlError: {
     borderColor: colors.danger,
   },
@@ -148,6 +161,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.monoBold,
     fontSize: fontSizes.monoValue,
     letterSpacing: 1.5,
+  },
+  multilineInput: {
+    minHeight: 80,
+    paddingVertical: 0,
   },
   eyeSlot: {
     marginLeft: spacing.md,

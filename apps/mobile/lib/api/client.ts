@@ -1,8 +1,11 @@
 import type {
+  NotificationResponse,
   ParkingSessionResponse,
   ReservationResponse,
   Vehicle,
   VehicleType,
+  ViolationAppealResponse,
+  ViolationResponse,
   ZoneAssignmentResponse,
   ZoneRecommendation,
 } from "@parada/types";
@@ -61,6 +64,9 @@ export type CreateReservationInput = {
   startAt?: string;
   endAt?: string;
 };
+
+/** GET /notifications payload: `{ notifications, unreadCount }`. */
+export type NotificationsPayload = { notifications: NotificationResponse[]; unreadCount: number };
 
 /** Account shape returned by /auth/me and embedded in auth responses. */
 export type UserDto = {
@@ -275,6 +281,71 @@ function isEstablishmentInfo(value: unknown): value is EstablishmentInfo {
   );
 }
 
+function isNotificationResponse(value: unknown): value is NotificationResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const n = value as Record<string, unknown>;
+  return (
+    typeof n.id === "string" &&
+    typeof n.zoneId === "string" &&
+    typeof n.type === "string" &&
+    typeof n.message === "string" &&
+    typeof n.read === "boolean" &&
+    typeof n.createdAt === "string" &&
+    isZoneRef(n.zone)
+  );
+}
+
+function isNotificationsPayload(value: unknown): value is NotificationsPayload {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const payload = value as Record<string, unknown>;
+  return (
+    typeof payload.unreadCount === "number" &&
+    Array.isArray(payload.notifications) &&
+    payload.notifications.every(isNotificationResponse)
+  );
+}
+
+function isViolationResponse(value: unknown): value is ViolationResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const v = value as Record<string, unknown>;
+  const appeal = v.appeal;
+  return (
+    typeof v.id === "string" &&
+    typeof v.zoneId === "string" &&
+    typeof v.violationType === "string" &&
+    typeof v.fineAmount === "number" &&
+    typeof v.status === "string" &&
+    typeof v.issuedAt === "string" &&
+    isZoneRef(v.zone) &&
+    (v.vehicle === null || (typeof v.vehicle === "object" && v.vehicle !== null && typeof (v.vehicle as Record<string, unknown>).plateNumber === "string")) &&
+    (appeal === null ||
+      (typeof appeal === "object" &&
+        appeal !== null &&
+        typeof (appeal as Record<string, unknown>).id === "string" &&
+        typeof (appeal as Record<string, unknown>).status === "string"))
+  );
+}
+
+function isViolationAppealResponse(value: unknown): value is ViolationAppealResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const a = value as Record<string, unknown>;
+  return (
+    typeof a.id === "string" &&
+    typeof a.violationId === "string" &&
+    typeof a.reason === "string" &&
+    typeof a.status === "string" &&
+    typeof a.createdAt === "string"
+  );
+}
+
 function requireValidatedObject<T>(
   value: T | null,
   guard: (item: unknown) => item is T,
@@ -446,4 +517,32 @@ export const api = {
   },
   activeSession: async () =>
     requireSessionResponse(await request<SessionDto | null>("/sessions/active")),
+
+  notifications: async () =>
+    requireValidatedObject(
+      await request<NotificationsPayload>("/notifications"),
+      isNotificationsPayload,
+      "INVALID_NOTIFICATIONS_RESPONSE",
+      "We couldn't load your notifications.",
+    ),
+  markNotificationRead: (id: string) =>
+    request<{ id: string; read: boolean }>(`/notifications/${id}/read`, { method: "PATCH" }),
+
+  violations: async () =>
+    requireValidatedList(
+      await request<ViolationResponse[]>("/violations"),
+      isViolationResponse,
+      "INVALID_VIOLATION_RESPONSE",
+      "We couldn't load your violations.",
+    ),
+  appealViolation: async (violationId: string, reason: string) =>
+    requireValidatedObject(
+      await request<ViolationAppealResponse>(`/violations/${violationId}/appeal`, {
+        method: "POST",
+        body: { reason },
+      }),
+      isViolationAppealResponse,
+      "INVALID_APPEAL_RESPONSE",
+      "We couldn't submit your appeal.",
+    ),
 };

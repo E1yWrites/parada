@@ -28,6 +28,8 @@ jest.mock("@/lib/api/client", () => {
       createReservation: jest.fn(),
       cancelReservation: jest.fn(),
       establishment: jest.fn(),
+      notifications: jest.fn(),
+      violations: jest.fn(),
     },
   };
 });
@@ -98,6 +100,7 @@ beforeEach(() => {
   (api.createAssignment as jest.Mock).mockResolvedValue({});
   (api.reservations as jest.Mock).mockResolvedValue([]);
   (api.establishment as jest.Mock).mockResolvedValue({ location: null });
+  (api.notifications as jest.Mock).mockResolvedValue({ notifications: [], unreadCount: 0 });
 });
 
 describe("tab route smoke tests", () => {

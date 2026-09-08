@@ -11,6 +11,8 @@ export const queryKeys = {
   vehicles: ["vehicles"] as const,
   sessions: ["sessions"] as const,
   activeSession: ["sessions", "active"] as const,
+  notifications: ["notifications"] as const,
+  violations: ["violations"] as const,
 };
 
 /** Shared React Query configuration for PARADA mobile. */

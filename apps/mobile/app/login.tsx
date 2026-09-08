@@ -86,6 +86,13 @@ export default function LoginScreen() {
           </Text>
         </Link>
       </Text>
+      <Text variant="caption" align="center" color={colors.muted}>
+        <Link href="/onboarding" testID="login-goto-onboarding">
+          <Text variant="caption" color={colors.primary}>
+            How PARADA works
+          </Text>
+        </Link>
+      </Text>
     </Screen>
   );
 }

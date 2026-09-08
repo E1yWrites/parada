@@ -464,3 +464,109 @@ describe("api client: network failures", () => {
     unsubscribe();
   });
 });
+
+const FIXTURE_NOTIFICATION = {
+  id: "n1",
+  zoneId: "z2",
+  type: "VIOLATION_ISSUED",
+  message: "A wrong-zone violation was issued for your vehicle. Fine: 500.",
+  read: false,
+  createdAt: FIXTURE_NOW,
+  zone: FIXTURE_ZONE_REF,
+};
+
+const FIXTURE_VIOLATION = {
+  id: "v1",
+  userId: "u1",
+  vehicleId: "veh1",
+  zoneId: "z2",
+  sessionId: null,
+  violationType: "WRONG_ZONE",
+  description: "Entered a zone other than the assigned zone 'A' after 2 warning(s).",
+  fineAmount: 500,
+  status: "PENDING",
+  issuedAt: FIXTURE_NOW,
+  createdAt: FIXTURE_NOW,
+  updatedAt: FIXTURE_NOW,
+  zone: FIXTURE_ZONE_REF,
+  vehicle: FIXTURE_VEHICLE_REF,
+  appeal: null,
+};
+
+describe("api client: notifications and violations", () => {
+  it("notifications resolves the list + unread count", async () => {
+    (global.fetch as unknown as jest.Mock) = mockFetch({
+      data: { notifications: [FIXTURE_NOTIFICATION], unreadCount: 1 },
+    });
+    await expect(api.notifications()).resolves.toEqual({
+      notifications: [FIXTURE_NOTIFICATION],
+      unreadCount: 1,
+    });
+  });
+
+  it("maps a malformed notifications payload to a friendly error", async () => {
+    (global.fetch as unknown as jest.Mock) = mockFetch({ data: { notifications: [{ id: "n1" }] } });
+    const err = (await api.notifications().catch((e: unknown) => e)) as ApiError;
+    expect(err.code).toBe("INVALID_NOTIFICATIONS_RESPONSE");
+    expect(err.message).toBe("We couldn't load your notifications.");
+  });
+
+  it("markNotificationRead PATCHes the notification", async () => {
+    const fetchMock = mockFetch({ data: { id: "n1", read: true } });
+    (global.fetch as unknown as jest.Mock) = fetchMock;
+    await expect(api.markNotificationRead("n1")).resolves.toEqual({ id: "n1", read: true });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/notifications\/n1\/read$/);
+    expect(init.method).toBe("PATCH");
+  });
+
+  it("violations resolves the driver's own violations, including a null appeal", async () => {
+    (global.fetch as unknown as jest.Mock) = mockFetch({ data: [FIXTURE_VIOLATION] });
+    await expect(api.violations()).resolves.toEqual([FIXTURE_VIOLATION]);
+  });
+
+  it("violations accepts a violation with an appeal attached", async () => {
+    const withAppeal = {
+      ...FIXTURE_VIOLATION,
+      status: "APPEALED",
+      appeal: { id: "ap1", status: "PENDING", reason: "It was a mistake.", reviewedAt: null, createdAt: FIXTURE_NOW },
+    };
+    (global.fetch as unknown as jest.Mock) = mockFetch({ data: [withAppeal] });
+    await expect(api.violations()).resolves.toEqual([withAppeal]);
+  });
+
+  it("maps a malformed violation list to a friendly error", async () => {
+    (global.fetch as unknown as jest.Mock) = mockFetch({ data: [{ id: "v1" }] });
+    const err = (await api.violations().catch((e: unknown) => e)) as ApiError;
+    expect(err.code).toBe("INVALID_VIOLATION_RESPONSE");
+    expect(err.message).toBe("We couldn't load your violations.");
+  });
+
+  it("appealViolation POSTs the reason and resolves the appeal", async () => {
+    const appeal = {
+      id: "ap1",
+      violationId: "v1",
+      userId: "u1",
+      reason: "It was a mistake.",
+      status: "PENDING",
+      reviewedBy: null,
+      reviewedAt: null,
+      createdAt: FIXTURE_NOW,
+      updatedAt: FIXTURE_NOW,
+    };
+    const fetchMock = mockFetch({ data: appeal });
+    (global.fetch as unknown as jest.Mock) = fetchMock;
+    await expect(api.appealViolation("v1", "It was a mistake.")).resolves.toEqual(appeal);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/violations\/v1\/appeal$/);
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ reason: "It was a mistake." });
+  });
+
+  it("maps a malformed appeal response to a friendly error", async () => {
+    (global.fetch as unknown as jest.Mock) = mockFetch({ data: { id: "ap1" } });
+    const err = (await api.appealViolation("v1", "reason").catch((e: unknown) => e)) as ApiError;
+    expect(err.code).toBe("INVALID_APPEAL_RESPONSE");
+    expect(err.message).toBe("We couldn't submit your appeal.");
+  });
+});

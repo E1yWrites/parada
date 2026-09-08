@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
 import { colors, radii, spacing } from "@/src/theme";
 import { Text } from "./Text";
+import type { NotificationType, ViolationStatus } from "@parada/types";
 
 type ZoneAvailability = "AVAILABLE" | "LOW_AVAILABILITY" | "FULL" | "OFFLINE";
 type SessionStatus = "ACTIVE" | "COMPLETED";
@@ -66,6 +67,46 @@ export function assignmentStatusMeta(status: ZoneAssignmentStatus): StatusMeta {
   }
 }
 
+/** Violation status → icon + text + color. A violation is only appealable
+ *  while PENDING; APPEALED means the driver is waiting on a decision. */
+export function violationStatusMeta(status: ViolationStatus): StatusMeta {
+  switch (status) {
+    case "PENDING":
+      return { label: "Pending", icon: "alert-circle", color: colors.warning };
+    case "APPEALED":
+      return { label: "Under review", icon: "hourglass", color: colors.muted };
+    case "UPHELD":
+      return { label: "Upheld", icon: "close-circle", color: colors.danger };
+    case "DISMISSED":
+      return { label: "Dismissed", icon: "checkmark-circle", color: colors.success };
+    case "FINE_PAID":
+      return { label: "Paid", icon: "checkmark-done", color: colors.muted };
+  }
+}
+
+/** Notification type → icon + color for the notification feed. Never asserts
+ *  an appeal's outcome from its type alone — the message text carries that. */
+export function notificationTypeMeta(type: NotificationType): { icon: StatusMeta["icon"]; color: string } {
+  switch (type) {
+    case "ZONE_FULL":
+      return { icon: "ban", color: colors.danger };
+    case "ZONE_LOW_AVAILABILITY":
+      return { icon: "alert-circle", color: colors.warning };
+    case "RESERVATION_EXPIRING":
+      return { icon: "time", color: colors.warning };
+    case "GUEST_ADMISSION_ISSUE":
+      return { icon: "alert-circle", color: colors.danger };
+    case "WRONG_ZONE_WARNING":
+      return { icon: "alert-circle", color: colors.warning };
+    case "VIOLATION_ISSUED":
+      return { icon: "alert-circle", color: colors.danger };
+    case "VIOLATION_APPEAL_SUBMITTED":
+      return { icon: "hourglass", color: colors.muted };
+    case "VIOLATION_APPEAL_RESULT":
+      return { icon: "chatbubble-ellipses", color: colors.highlight };
+  }
+}
+
 type StatusBadgeProps = {
   meta: StatusMeta;
   size?: "sm" | "md";
@@ -118,6 +159,18 @@ export function ReservationBadge({
   testID?: string;
 }) {
   return <StatusBadge meta={reservationStatusMeta(status)} size={size} testID={testID} />;
+}
+
+export function ViolationBadge({
+  status,
+  size = "md",
+  testID,
+}: {
+  status: ViolationStatus;
+  size?: "sm" | "md";
+  testID?: string;
+}) {
+  return <StatusBadge meta={violationStatusMeta(status)} size={size} testID={testID} />;
 }
 
 export function AssignmentBadge({

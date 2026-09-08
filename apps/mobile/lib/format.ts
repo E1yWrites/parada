@@ -69,6 +69,38 @@ export function formatVehicleType(type: string): string {
   }
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Render a past timestamp as "2h" / "Yesterday" / "Aug 29" for feed rows.
+ *  `now` is injectable for deterministic tests. */
+export function formatRelativeTime(iso: string, now: Date = new Date()): string {
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) {
+    return "";
+  }
+  const seconds = Math.max(0, Math.floor((now.getTime() - then.getTime()) / 1000));
+  if (seconds < 60) {
+    return "Just now";
+  }
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours}h`;
+  }
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const dayDiff = Math.round((startOfDay(now) - startOfDay(then)) / 86_400_000);
+  if (dayDiff === 1) {
+    return "Yesterday";
+  }
+  if (dayDiff < 7) {
+    return `${dayDiff}d`;
+  }
+  return `${MONTHS[then.getMonth()]} ${then.getDate()}`;
+}
+
 /** Deterministic Philippine-peso formatting, e.g. 20 -> "₱20.00". Intl-free so
  *  tests/snapshots never depend on host locale. */
 export function formatCurrency(amount: number | null | undefined): string {

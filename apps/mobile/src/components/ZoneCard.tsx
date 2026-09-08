@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Card } from "./Card";
 import { CapacityBar } from "./CapacityBar";
 import { AvailabilityBadge, parkingStatusMeta } from "./StatusBadge";
@@ -23,6 +24,7 @@ type ZoneCardProps = {
  * state — it never assigns, reserves or modifies occupancy.
  */
 export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardProps) {
+  const router = useRouter();
   const hasCapacity = Number.isFinite(zone.capacity) && zone.capacity > 0;
   const percent = hasCapacity
     ? Math.round(Math.min(Math.max(zone.occupiedCount / zone.capacity, 0), 1) * 100)
@@ -68,6 +70,15 @@ export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardPr
               status={zone.availability}
               testID={testID ? `${testID}-availability` : undefined}
             />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`View details for ${zone.name}`}
+              onPress={() => router.push(`/zones/${zone.id}`)}
+              hitSlop={8}
+              style={styles.detailsButton}
+              testID={testID ? `${testID}-details` : undefined}>
+              <Ionicons name="information-circle-outline" size={18} color={colors.muted} />
+            </Pressable>
           </View>
         </View>
         <CapacityBar
@@ -129,6 +140,15 @@ const styles = StyleSheet.create({
   },
   badgeSlot: {
     flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  detailsButton: {
+    minWidth: 28,
+    minHeight: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
   metrics: {
     flexDirection: "row",
