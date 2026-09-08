@@ -5,14 +5,29 @@ import type {
   OccupancyEventType,
   ParkingSessionStatus,
   Role,
+  SlotStatus,
   UserStatus,
   VehicleType,
   ZoneStatus,
 } from "@parada/types";
 import type { EstablishmentSettings } from "@parada/types";
+import type {
+  AdminCameraInput,
+  AdminCameraUpdateInput,
+  AdminZoneCreateInput,
+  AdminZoneSlotsInput,
+  AdminZoneUpdateInput,
+} from "@parada/types";
 
 export type { ParkingSessionStatus } from "@parada/types";
 export type { EstablishmentSettings } from "@parada/types";
+export type {
+  AdminCameraInput,
+  AdminCameraUpdateInput,
+  AdminZoneCreateInput,
+  AdminZoneSlotsInput,
+  AdminZoneUpdateInput,
+} from "@parada/types";
 
 export interface SessionUser {
   id: string;
@@ -53,6 +68,17 @@ export interface AdminZoneDetail extends AdminZone {
   }[];
   entryCamera: { id: string; identifier: string; name: string } | null;
   exitCamera: { id: string; identifier: string; name: string } | null;
+  physicalInventory: { total: number; active: number };
+}
+
+export interface AdminSlot {
+  id: string;
+  zoneId: string;
+  slotCode: string;
+  label: string;
+  positionX: number | null;
+  positionY: number | null;
+  status: SlotStatus;
 }
 
 export interface ZoneOccupancy {

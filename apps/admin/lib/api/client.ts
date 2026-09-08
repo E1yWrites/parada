@@ -3,8 +3,10 @@ import type {
   AdminCamera,
   AdminDashboard,
   AdminSession,
+  AdminSlot,
   AdminUser,
   AdminVehicle,
+  AdminZone,
   AdminZoneDetail,
   AdminReservation,
   AdminViolation,
@@ -21,6 +23,12 @@ import type {
   GuestAdmitRequest,
   GuestAdmitResult,
   EstablishmentSettings,
+} from "./types";
+import type {
+  AdminCameraInput,
+  AdminCameraUpdateInput,
+  AdminZoneCreateInput,
+  AdminZoneUpdateInput,
 } from "./types";
 
 export class ApiError extends Error {
@@ -81,8 +89,14 @@ export interface ApiClient {
 
   zones(): Promise<AdminZoneDetail[]>;
   zoneOccupancy(zoneId: string): Promise<ZoneOccupancy>;
+  createZone(payload: AdminZoneCreateInput): Promise<AdminZone>;
+  updateZone(zoneId: string, payload: AdminZoneUpdateInput): Promise<AdminZone>;
+  zoneSlots(zoneId: string): Promise<AdminSlot[]>;
+  setZoneSlots(zoneId: string, slotCodes: string[]): Promise<AdminSlot[]>;
 
   cameras(): Promise<AdminCamera[]>;
+  createCamera(payload: AdminCameraInput): Promise<AdminCamera>;
+  updateCamera(cameraId: string, payload: AdminCameraUpdateInput): Promise<AdminCamera>;
 
   sessions(): Promise<AdminSession[]>;
   users(): Promise<AdminUser[]>;
@@ -117,7 +131,7 @@ function buildClient(): ApiClient {
       if (!res.ok) {
         throw new ApiError(body?.error?.code ?? "UNAUTHORIZED", body?.error?.message ?? "Not authenticated.", res.status);
       }
-      return body.data.user as SessionUser;
+      return body.data as SessionUser;
     },
 
     async login(email, password) {
@@ -141,7 +155,26 @@ function buildClient(): ApiClient {
     zoneOccupancy: (zoneId) =>
       request<ZoneOccupancy>(`zones/${encodeURIComponent(zoneId)}/occupancy`),
 
+    createZone: (payload) => request<AdminZone>("admin/zones", jsonInit("POST", payload)),
+
+    updateZone: (zoneId, payload) =>
+      request<AdminZone>(`admin/zones/${encodeURIComponent(zoneId)}`, jsonInit("PATCH", payload)),
+
+    zoneSlots: (zoneId) =>
+      request<AdminSlot[]>(`admin/zones/${encodeURIComponent(zoneId)}/slots`),
+
+    setZoneSlots: (zoneId, slotCodes) =>
+      request<AdminSlot[]>(
+        `admin/zones/${encodeURIComponent(zoneId)}/slots`,
+        jsonInit("POST", { slotCodes })
+      ),
+
     cameras: () => request<AdminCamera[]>("admin/cameras"),
+
+    createCamera: (payload) => request<AdminCamera>("admin/cameras", jsonInit("POST", payload)),
+
+    updateCamera: (cameraId, payload) =>
+      request<AdminCamera>(`admin/cameras/${encodeURIComponent(cameraId)}`, jsonInit("PATCH", payload)),
 
     sessions: () => request<AdminSession[]>("admin/sessions"),
 

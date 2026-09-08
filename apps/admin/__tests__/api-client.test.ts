@@ -129,6 +129,16 @@ describe("api client proxy requests", () => {
     expect(global.location.assign).toHaveBeenCalledWith("/login");
   });
 
+  it("resolves the current session user from GET /api/auth/me", async () => {
+    // The route forwards the backend's { data: <user> } envelope verbatim —
+    // there is no nested `.user` in the response body.
+    const user = { id: "u1", name: "Admin", email: "admin@parada.local", role: "ADMIN", status: "ACTIVE", createdAt: "2026-01-01T00:00:00.000Z" };
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse({ data: user }));
+
+    await expect(api.me()).resolves.toEqual(user);
+    expect((global.fetch as jest.Mock).mock.calls[0][0]).toBe("/api/auth/me");
+  });
+
   it("throws a network ApiError when fetch rejects", async () => {
     global.fetch = jest.fn().mockRejectedValue(new TypeError("Network request failed"));
 
