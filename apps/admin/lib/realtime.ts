@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { isRealtimeEvent, type RealtimeEventType } from "@parada/types";
+import { REALTIME_SYNC_EVENT, isRealtimeEvent, type RealtimeEventType } from "@parada/types";
 
 export type RealtimeStatus = "CONNECTED" | "DISCONNECTED" | "RECONNECTING" | "ERROR";
 
@@ -34,18 +34,26 @@ export function useRealtime(): { status: RealtimeStatus } {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<RealtimeStatus>("DISCONNECTED");
   const everConnected = useRef(false);
+  /** Highest hub sequence this mount has acted on. Survives reconnects on
+   *  purpose: it is what makes a replayed or out-of-order frame identifiable. */
+  const lastSeq = useRef(0);
 
   useEffect(() => {
     const source = new EventSource("/api/realtime");
+
+    const resync = () => {
+      for (const key of CORE_QUERY_KEYS) {
+        void queryClient.invalidateQueries({ queryKey: key });
+      }
+    };
 
     source.onopen = () => {
       if (everConnected.current) {
         // Reconnect, not first connect: we cannot know what was missed while
         // disconnected, so refetch authoritative state instead of trusting
-        // event continuity.
-        for (const key of CORE_QUERY_KEYS) {
-          void queryClient.invalidateQueries({ queryKey: key });
-        }
+        // event continuity. The backend also replays what it still holds
+        // (Last-Event-ID); this is the safety net for what it cannot.
+        resync();
       }
       everConnected.current = true;
       setStatus("CONNECTED");
@@ -57,6 +65,12 @@ export function useRealtime(): { status: RealtimeStatus } {
       setStatus((prev) => (prev === "CONNECTED" ? "RECONNECTING" : "DISCONNECTED"));
     };
 
+    // The hub could not replay everything we missed. It sends no parking state
+    // with this — we go back to REST for it.
+    source.addEventListener(REALTIME_SYNC_EVENT, () => {
+      resync();
+    });
+
     for (const type of Object.keys(INVALIDATIONS) as RealtimeEventType[]) {
       source.addEventListener(type, (ev: MessageEvent) => {
         let parsed: unknown;
@@ -66,6 +80,11 @@ export function useRealtime(): { status: RealtimeStatus } {
           return;
         }
         if (!isRealtimeEvent(parsed)) return;
+        // Stale, duplicated, or out-of-order: the hub's seq only ever moves
+        // forward, so anything at or below what we have already acted on
+        // carries no new information and is dropped.
+        if (parsed.seq <= lastSeq.current) return;
+        lastSeq.current = parsed.seq;
         for (const queryKey of INVALIDATIONS[parsed.type]) {
           void queryClient.invalidateQueries({ queryKey });
         }

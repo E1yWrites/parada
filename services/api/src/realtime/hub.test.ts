@@ -1,5 +1,5 @@
 import { RealtimeHub } from "./hub";
-import type { RealtimeEvent } from "@parada/types";
+import type { RealtimeEventInput } from "@parada/types";
 
 function makeClient(id: string, userId: string, role: "USER" | "ADMIN") {
   const chunks: string[] = [];
@@ -9,7 +9,7 @@ function makeClient(id: string, userId: string, role: "USER" | "ADMIN") {
   };
 }
 
-const zoneEvent: RealtimeEvent = {
+const zoneEvent: RealtimeEventInput = {
   type: "ZONE_OCCUPANCY_UPDATED",
   occurredAt: "2026-09-08T00:00:00.000Z",
   payload: { zoneId: "z1", name: "A", code: "A", capacity: 5, occupiedCount: 1, availableCount: 4, status: "ACTIVE" },
@@ -94,5 +94,113 @@ describe("RealtimeHub", () => {
     hub.subscribe(b.client);
     expect(() => hub.subscribe(makeClient("c3", "user1", "USER").client)).toThrow();
     expect(hub.connectionCount("user1")).toBe(2);
+  });
+
+  describe("sequencing", () => {
+    it("assigns a strictly increasing seq across every audience", () => {
+      const hub = new RealtimeHub();
+      const first = hub.publish(zoneEvent, { audience: "PUBLIC" });
+      const second = hub.publish(zoneEvent, { audience: "ADMIN" });
+      const third = hub.publish(zoneEvent, { audience: "USER", userId: "userA" });
+
+      expect([first.seq, second.seq, third.seq]).toEqual([1, 2, 3]);
+      expect(hub.headSeq()).toBe(3);
+    });
+
+    it("writes the seq as the SSE id line so clients echo it back as Last-Event-ID", () => {
+      const hub = new RealtimeHub();
+      const user = makeClient("c1", "user1", "USER");
+      hub.subscribe(user.client);
+
+      hub.publish(zoneEvent, { audience: "PUBLIC" });
+
+      expect(user.chunks.join("")).toMatch(/^id: 1\nevent: ZONE_OCCUPANCY_UPDATED\ndata: /);
+    });
+
+    it("puts the same seq on the wire that it returns to the caller", () => {
+      const hub = new RealtimeHub();
+      const user = makeClient("c1", "user1", "USER");
+      hub.subscribe(user.client);
+      hub.publish(zoneEvent, { audience: "PUBLIC" });
+
+      const published = hub.publish(zoneEvent, { audience: "PUBLIC" });
+      const lastFrame = user.chunks[user.chunks.length - 1]!;
+      const parsed = JSON.parse(lastFrame.split("data: ")[1]!.trim());
+      expect(parsed.seq).toBe(published.seq);
+    });
+  });
+
+  describe("replay", () => {
+    it("returns nothing when the client's cursor is already at the head", () => {
+      const hub = new RealtimeHub();
+      hub.publish(zoneEvent, { audience: "PUBLIC" });
+      const user = makeClient("c1", "user1", "USER");
+
+      expect(hub.replay(user.client, 1)).toEqual([]);
+    });
+
+    it("returns only the events published after the cursor, in order", () => {
+      const hub = new RealtimeHub();
+      hub.publish(zoneEvent, { audience: "PUBLIC" });
+      hub.publish(zoneEvent, { audience: "PUBLIC" });
+      hub.publish(zoneEvent, { audience: "PUBLIC" });
+      const user = makeClient("c1", "user1", "USER");
+
+      const missed = hub.replay(user.client, 1);
+
+      expect(missed?.map((e) => e.seq)).toEqual([2, 3]);
+    });
+
+    it("re-authorizes on replay: a reconnecting user never receives another user's buffered events", () => {
+      const hub = new RealtimeHub();
+      hub.publish(zoneEvent, { audience: "USER", userId: "userA" });
+      hub.publish(zoneEvent, { audience: "ADMIN" });
+      hub.publish(zoneEvent, { audience: "PUBLIC" });
+      const userB = makeClient("c1", "userB", "USER");
+
+      const missed = hub.replay(userB.client, 0);
+
+      expect(missed?.map((e) => e.seq)).toEqual([3]);
+    });
+
+    it("replays every audience to a reconnecting ADMIN", () => {
+      const hub = new RealtimeHub();
+      hub.publish(zoneEvent, { audience: "USER", userId: "userA" });
+      hub.publish(zoneEvent, { audience: "ADMIN" });
+      const admin = makeClient("c1", "admin1", "ADMIN");
+
+      expect(hub.replay(admin.client, 0)?.map((e) => e.seq)).toEqual([1, 2]);
+    });
+
+    it("reports an unrecoverable gap when the cursor has aged out of the buffer", () => {
+      const hub = new RealtimeHub({ replayBufferSize: 2 });
+      hub.publish(zoneEvent, { audience: "PUBLIC" });
+      hub.publish(zoneEvent, { audience: "PUBLIC" });
+      hub.publish(zoneEvent, { audience: "PUBLIC" });
+      const user = makeClient("c1", "user1", "USER");
+
+      // The buffer now holds seq 2 and 3 only. A client sitting at seq 0 missed
+      // seq 1, which is gone — say so rather than implying continuity.
+      expect(hub.replay(user.client, 0)).toBeNull();
+      expect(hub.replay(user.client, 1)).not.toBeNull();
+    });
+
+    it("treats a cursor above the head as nothing-missed, and a negative cursor as a gap", () => {
+      const hub = new RealtimeHub();
+      hub.publish(zoneEvent, { audience: "PUBLIC" });
+      const user = makeClient("c1", "user1", "USER");
+
+      expect(hub.replay(user.client, 999)).toEqual([]);
+      expect(hub.replay(user.client, -1)).toBeNull();
+    });
+
+    it("never grows the replay buffer past its cap", () => {
+      const hub = new RealtimeHub({ replayBufferSize: 3 });
+      for (let i = 0; i < 25; i += 1) hub.publish(zoneEvent, { audience: "PUBLIC" });
+      const user = makeClient("c1", "user1", "USER");
+
+      expect(hub.replay(user.client, 22)?.map((e) => e.seq)).toEqual([23, 24, 25]);
+      expect(hub.replay(user.client, 21)).toBeNull();
+    });
   });
 });

@@ -41,11 +41,12 @@ jest.mock("react-native-sse", () => {
 });
 
 type MockEventSourceCtor = typeof MockEventSource & {
-  instances: Array<{
+  instances: {
     url: string;
     options: { headers?: Record<string, string> };
+    listeners: Map<string, (ev: { data: string }) => void>;
     emit: (type: string, data: unknown) => void;
-  }>;
+  }[];
 };
 const MockES = MockEventSource as unknown as MockEventSourceCtor;
 
@@ -66,6 +67,15 @@ function wrapper(queryClient: QueryClient) {
     createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
+function sessionCompleted(seq: number) {
+  return {
+    type: "PARKING_SESSION_COMPLETED",
+    occurredAt: "2026-09-08T00:00:00.000Z",
+    seq,
+    payload: { id: "s1", status: "COMPLETED" },
+  };
+}
+
 describe("useRealtime (mobile)", () => {
   it("connects with the stored bearer token as a header", async () => {
     const qc = new QueryClient();
@@ -81,11 +91,7 @@ describe("useRealtime (mobile)", () => {
     renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
     await waitFor(() => expect(MockES.instances.length).toBe(1));
 
-    MockES.instances[0]!.emit("PARKING_SESSION_COMPLETED", {
-      type: "PARKING_SESSION_COMPLETED",
-      occurredAt: "2026-09-08T00:00:00.000Z",
-      payload: { id: "s1", status: "COMPLETED" },
-    });
+    MockES.instances[0]!.emit("PARKING_SESSION_COMPLETED", sessionCompleted(1));
 
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["sessions", "active"] }));
   });
@@ -96,7 +102,7 @@ describe("useRealtime (mobile)", () => {
     renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
     await waitFor(() => expect(MockES.instances.length).toBe(1));
 
-    const source = MockES.instances[0]! as unknown as { listeners: Map<string, (ev: { data: string }) => void> };
+    const source = MockES.instances[0]!;
     source.listeners.get("open")?.({ data: "" });
     spy.mockClear();
     // Reconnect: open fires again after the connection was already established once.
@@ -111,8 +117,108 @@ describe("useRealtime (mobile)", () => {
     renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
     await waitFor(() => expect(MockES.instances.length).toBe(1));
 
-    (MockES.instances[0]! as unknown as { listeners: Map<string, (ev: { data: string }) => void> }).listeners.get("error")?.({ data: "" });
+    MockES.instances[0]!.listeners.get("error")?.({ data: "" });
 
     expect(notifySpy).not.toHaveBeenCalled();
+  });
+
+  describe("stale and out-of-order frames", () => {
+    it("ignores a replayed event whose seq it has already acted on", async () => {
+      const qc = new QueryClient();
+      const spy = jest.spyOn(qc, "invalidateQueries");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await waitFor(() => expect(MockES.instances.length).toBe(1));
+
+      MockES.instances[0]!.emit("PARKING_SESSION_COMPLETED", sessionCompleted(7));
+      spy.mockClear();
+      MockES.instances[0]!.emit("PARKING_SESSION_COMPLETED", sessionCompleted(7));
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("ignores an out-of-order event that arrives behind a newer one", async () => {
+      const qc = new QueryClient();
+      const spy = jest.spyOn(qc, "invalidateQueries");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await waitFor(() => expect(MockES.instances.length).toBe(1));
+
+      MockES.instances[0]!.emit("PARKING_SESSION_COMPLETED", sessionCompleted(7));
+      spy.mockClear();
+      MockES.instances[0]!.emit("PARKING_SESSION_STARTED", {
+        type: "PARKING_SESSION_STARTED",
+        occurredAt: "2020-01-01T00:00:00.000Z",
+        seq: 3,
+        payload: { id: "s1", status: "ACTIVE" },
+      });
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("keeps its cursor across a reconnect, so a replayed duplicate is still dropped", async () => {
+      const qc = new QueryClient();
+      const spy = jest.spyOn(qc, "invalidateQueries");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await waitFor(() => expect(MockES.instances.length).toBe(1));
+
+      const source = MockES.instances[0]!;
+      source.listeners.get("open")?.({ data: "" });
+      source.emit("PARKING_SESSION_COMPLETED", sessionCompleted(7));
+      // Drop and come back; the backend replays from the cursor and may resend
+      // seq 7 if the connection died mid-frame.
+      source.listeners.get("error")?.({ data: "" });
+      source.listeners.get("open")?.({ data: "" });
+      spy.mockClear();
+      source.emit("PARKING_SESSION_COMPLETED", sessionCompleted(7));
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("ignores a frame with no seq — an unsequenced frame cannot be placed in order", async () => {
+      const qc = new QueryClient();
+      const spy = jest.spyOn(qc, "invalidateQueries");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await waitFor(() => expect(MockES.instances.length).toBe(1));
+
+      const { seq: _seq, ...unsequenced } = sessionCompleted(1);
+      MockES.instances[0]!.emit("PARKING_SESSION_COMPLETED", unsequenced);
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("ignores a malformed frame without throwing", async () => {
+      const qc = new QueryClient();
+      const spy = jest.spyOn(qc, "invalidateQueries");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await waitFor(() => expect(MockES.instances.length).toBe(1));
+
+      const listener = MockES.instances[0]!.listeners.get("PARKING_SESSION_COMPLETED");
+      expect(() => listener?.({ data: "{not json" })).not.toThrow();
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("SYNC recovery frame", () => {
+    it("refetches core queries when the backend reports an unrecoverable gap", async () => {
+      const qc = new QueryClient();
+      const spy = jest.spyOn(qc, "invalidateQueries");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await waitFor(() => expect(MockES.instances.length).toBe(1));
+
+      MockES.instances[0]!.emit("SYNC", { reason: "GAP", sinceSeq: 0, headSeq: 40 });
+
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: queryKeys.activeSession }));
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: queryKeys.zones }));
+    });
+
+    it("never writes cache data from a SYNC frame — it carries no parking state", async () => {
+      const qc = new QueryClient();
+      const setSpy = jest.spyOn(qc, "setQueryData");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await waitFor(() => expect(MockES.instances.length).toBe(1));
+
+      MockES.instances[0]!.emit("SYNC", { reason: "GAP", sinceSeq: 0, headSeq: 40 });
+
+      expect(setSpy).not.toHaveBeenCalled();
+    });
   });
 });

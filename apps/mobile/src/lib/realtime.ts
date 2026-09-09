@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import EventSource from "react-native-sse";
-import { isRealtimeEvent, type RealtimeEventType } from "@parada/types";
+import { REALTIME_SYNC_EVENT, isRealtimeEvent, type RealtimeEventType } from "@parada/types";
 import { getToken } from "@/lib/auth/session";
 import { queryKeys } from "@/lib/query";
 
@@ -30,34 +30,49 @@ const CORE_QUERY_KEYS: (readonly unknown[])[] = [
   queryKeys.violations,
 ];
 
+/** Event names the connection subscribes to: every domain event plus the hub's
+ *  SYNC control frame. */
+type SubscribedEvent = RealtimeEventType | typeof REALTIME_SYNC_EVENT;
+
 /**
  * Direct-to-API SSE connection using the same bearer token every other mobile
  * request already sends (no proxy needed — unlike Admin, the token is not
  * httpOnly here). A disconnect/error NEVER calls notifyAuthInvalidated: only
  * an explicit 401 from the existing REST client does that (unchanged).
+ *
+ * react-native-sse tracks the last `id:` it saw and re-sends it as
+ * Last-Event-ID on its own reconnect, so the backend can replay what this
+ * device missed; anything it cannot replay arrives as a SYNC frame instead.
  */
 export function useRealtime(): { status: RealtimeStatus } {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<RealtimeStatus>("DISCONNECTED");
   const everConnected = useRef(false);
+  /** Highest hub sequence this mount has acted on. Survives reconnects on
+   *  purpose: it is what makes a replayed or out-of-order frame identifiable. */
+  const lastSeq = useRef(0);
 
   useEffect(() => {
-    let source: EventSource<RealtimeEventType> | null = null;
+    let source: EventSource<SubscribedEvent> | null = null;
     let cancelled = false;
+
+    const resync = () => {
+      for (const queryKey of CORE_QUERY_KEYS) {
+        void queryClient.invalidateQueries({ queryKey: queryKey as readonly unknown[] });
+      }
+    };
 
     (async () => {
       const token = await getToken();
       if (cancelled) return;
 
-      source = new EventSource(`${API_ROOT}/realtime/stream`, {
+      source = new EventSource<SubscribedEvent>(`${API_ROOT}/realtime/stream`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       source.addEventListener("open", () => {
         if (everConnected.current) {
-          for (const queryKey of CORE_QUERY_KEYS) {
-            void queryClient.invalidateQueries({ queryKey: queryKey as readonly unknown[] });
-          }
+          resync();
         }
         everConnected.current = true;
         setStatus("CONNECTED");
@@ -65,6 +80,12 @@ export function useRealtime(): { status: RealtimeStatus } {
 
       source.addEventListener("error", () => {
         setStatus((prev) => (prev === "CONNECTED" ? "RECONNECTING" : "DISCONNECTED"));
+      });
+
+      // The hub could not replay everything we missed. It sends no parking
+      // state with this — we go back to REST for it.
+      source.addEventListener(REALTIME_SYNC_EVENT, () => {
+        resync();
       });
 
       for (const type of Object.keys(INVALIDATIONS) as RealtimeEventType[]) {
@@ -77,6 +98,11 @@ export function useRealtime(): { status: RealtimeStatus } {
             return;
           }
           if (!isRealtimeEvent(parsed)) return;
+          // Stale, duplicated, or out-of-order: the hub's seq only ever moves
+          // forward, so anything at or below what we have already acted on
+          // carries no new information and is dropped.
+          if (parsed.seq <= lastSeq.current) return;
+          lastSeq.current = parsed.seq;
           for (const queryKey of INVALIDATIONS[parsed.type]) {
             void queryClient.invalidateQueries({ queryKey: queryKey as readonly unknown[] });
           }

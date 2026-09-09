@@ -48,4 +48,42 @@ describe("GET /api/realtime", () => {
     const text = await res.text();
     expect(text).toContain("connected");
   });
+
+  it("forwards the browser Last-Event-ID upstream so a resumed stream can be replayed", async () => {
+    getSessionToken.mockReturnValue("admin-token");
+    const upstreamBody = new ReadableStream({
+      start(controller) {
+        controller.close();
+      },
+    });
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { role: "ADMIN" } }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, body: upstreamBody, headers: new Headers() });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await GET(new Request("http://admin.test/api/realtime", { headers: { "Last-Event-ID": "42" } }));
+
+    const streamCall = fetchMock.mock.calls[1]!;
+    expect(streamCall[0]).toBe("http://backend.test/realtime/stream");
+    expect(streamCall[1].headers["Last-Event-ID"]).toBe("42");
+  });
+
+  it("omits Last-Event-ID on a first connection rather than sending an empty cursor", async () => {
+    getSessionToken.mockReturnValue("admin-token");
+    const upstreamBody = new ReadableStream({
+      start(controller) {
+        controller.close();
+      },
+    });
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { role: "ADMIN" } }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, body: upstreamBody, headers: new Headers() });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await GET(new Request("http://admin.test/api/realtime"));
+
+    expect(fetchMock.mock.calls[1]![1].headers).not.toHaveProperty("Last-Event-ID");
+  });
 });

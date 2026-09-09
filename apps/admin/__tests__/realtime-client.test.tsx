@@ -39,6 +39,15 @@ function wrapper(queryClient: QueryClient) {
   );
 }
 
+function zoneEvent(seq: number) {
+  return {
+    type: "ZONE_OCCUPANCY_UPDATED",
+    occurredAt: "2026-09-08T00:00:00.000Z",
+    seq,
+    payload: { zoneId: "z1", name: "A", code: "A", capacity: 5, occupiedCount: 1, availableCount: 4, status: "ACTIVE" },
+  };
+}
+
 describe("useRealtime (admin)", () => {
   it("connects to the same-origin relay and reports CONNECTED on open", async () => {
     const qc = new QueryClient();
@@ -55,11 +64,7 @@ describe("useRealtime (admin)", () => {
     const spy = jest.spyOn(qc, "invalidateQueries");
     renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
 
-    FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", {
-      type: "ZONE_OCCUPANCY_UPDATED",
-      occurredAt: "2026-09-08T00:00:00.000Z",
-      payload: { zoneId: "z1", name: "A", code: "A", capacity: 5, occupiedCount: 1, availableCount: 4, status: "ACTIVE" },
-    });
+    FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", zoneEvent(1));
 
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["zones"] }));
   });
@@ -100,6 +105,7 @@ describe("useRealtime (admin)", () => {
     FakeEventSource.instances[0]!.emit("PARKING_SESSION_STARTED", {
       type: "PARKING_SESSION_STARTED",
       occurredAt: "2020-01-01T00:00:00.000Z",
+      seq: 1,
       payload: { id: "s1", status: "ACTIVE" },
     });
 
@@ -119,5 +125,88 @@ describe("useRealtime (admin)", () => {
 
     await waitFor(() => expect(result.current.status).toBe("DISCONNECTED"));
     expect(clearSpy).not.toHaveBeenCalled();
+  });
+
+  describe("stale and out-of-order frames", () => {
+    it("ignores an event whose seq it has already acted on", () => {
+      const qc = new QueryClient();
+      const spy = jest.spyOn(qc, "invalidateQueries");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+
+      FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", zoneEvent(5));
+      spy.mockClear();
+      FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", zoneEvent(5));
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("ignores an event that arrives out of order behind a newer one", () => {
+      const qc = new QueryClient();
+      const spy = jest.spyOn(qc, "invalidateQueries");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+
+      FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", zoneEvent(9));
+      spy.mockClear();
+      FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", zoneEvent(4));
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("still acts on the next genuinely newer event after dropping a stale one", () => {
+      const qc = new QueryClient();
+      const spy = jest.spyOn(qc, "invalidateQueries");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+
+      FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", zoneEvent(9));
+      FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", zoneEvent(4));
+      spy.mockClear();
+      FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", zoneEvent(10));
+
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["zones"] }));
+    });
+
+    it("ignores a frame with no seq — an unsequenced frame cannot be placed in order", () => {
+      const qc = new QueryClient();
+      const spy = jest.spyOn(qc, "invalidateQueries");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+
+      const { seq: _seq, ...unsequenced } = zoneEvent(1);
+      FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", unsequenced);
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("ignores a malformed frame without throwing", () => {
+      const qc = new QueryClient();
+      const spy = jest.spyOn(qc, "invalidateQueries");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+
+      const source = FakeEventSource.instances[0]!;
+      expect(() => source.listeners.get("ZONE_OCCUPANCY_UPDATED")?.({ data: "{not json" } as MessageEvent)).not.toThrow();
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("SYNC recovery frame", () => {
+    it("refetches core queries when the backend reports an unrecoverable gap", () => {
+      const qc = new QueryClient();
+      const spy = jest.spyOn(qc, "invalidateQueries");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+
+      FakeEventSource.instances[0]!.emit("SYNC", { reason: "GAP", sinceSeq: 0, headSeq: 40 });
+
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["zones"] }));
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["sessions"] }));
+    });
+
+    it("never writes cache data from a SYNC frame — it carries no parking state", () => {
+      const qc = new QueryClient();
+      const setSpy = jest.spyOn(qc, "setQueryData");
+      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+
+      FakeEventSource.instances[0]!.emit("SYNC", { reason: "GAP", sinceSeq: 0, headSeq: 40 });
+
+      expect(setSpy).not.toHaveBeenCalled();
+    });
   });
 });
