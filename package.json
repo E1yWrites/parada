@@ -11,7 +11,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "node scripts/run-dev.cjs",
-    "dev:api": "npm run db:prepare && npm run build -w @parada/api && npm run start -w @parada/api",
+    "dev:api": "npm run db:prepare && npx turbo run build --filter=@parada/api && npm run start -w @parada/api",
     "dev:admin": "npm run dev -w @parada/admin",
     "dev:mobile": "npm run dev:lan -w @parada/mobile",
     "lint": "turbo run lint",

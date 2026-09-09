@@ -113,9 +113,84 @@ function warnAboutMobileLanUrl(apiPort) {
   }
 }
 
+/**
+ * The API requires DATABASE_URL and JWT_SECRET and throws on either being
+ * absent. Without this check that throw lands *after* the database has been
+ * migrated, the workspaces have been built, and admin + Expo have already been
+ * spawned — so the real error scrolls past behind Next.js and Metro output.
+ * Fail here instead, before any of that work, with the fix spelled out.
+ *
+ * Values are never printed: only which key is wrong.
+ */
+function preflightApiEnv() {
+  const envPath = path.join(root, "services", "api", ".env");
+  const generate = 'node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'base64\'))"';
+
+  let contents;
+  try {
+    contents = fs.readFileSync(envPath, "utf8");
+  } catch {
+    console.error(
+      [
+        "[run] services/api/.env is missing — the API cannot start without it.",
+        "",
+        "      .env is gitignored, so a fresh clone never has one. Create it:",
+        "",
+        "        cp services/api/.env.example services/api/.env",
+        "",
+        `      then set JWT_SECRET to a generated value:  ${generate}`,
+        "",
+        "      The example's DATABASE_URL already points at the embedded",
+        "      development database on 127.0.0.1:5442.",
+      ].join("\n")
+    );
+    process.exit(1);
+  }
+
+  const read = (key) => {
+    const match = new RegExp(`^\\s*${key}\\s*=\\s*"?([^"\\r\\n]*)"?`, "m").exec(contents);
+    return match ? match[1].trim() : "";
+  };
+
+  const problems = [];
+  const databaseUrl = read("DATABASE_URL");
+  const jwtSecret = read("JWT_SECRET");
+
+  if (!databaseUrl) {
+    problems.push("DATABASE_URL is missing or empty.");
+  } else if (databaseUrl.includes("user:password@host:port")) {
+    // The literal placeholder that shipped in .env.example before it was
+    // corrected. It parses as a URL but can never connect.
+    problems.push(
+      "DATABASE_URL is still the placeholder. For the embedded development database use:\n" +
+        '        DATABASE_URL="postgresql://parada:changeme@127.0.0.1:5442/parada?schema=public"'
+    );
+  }
+
+  if (!jwtSecret) {
+    problems.push("JWT_SECRET is missing or empty.");
+  } else if (jwtSecret === "replace-with-a-long-random-secret") {
+    problems.push(`JWT_SECRET is still the placeholder. Generate one:\n        ${generate}`);
+  }
+
+  if (problems.length > 0) {
+    console.error(`[run] services/api/.env is not usable yet:\n\n      - ${problems.join("\n      - ")}`);
+    process.exit(1);
+  }
+}
+
+preflightApiEnv();
+
 console.log("[run] Building API...");
 run(npm, ["run", "db:prepare"]);
-run(npm, ["run", "build", "-w", "@parada/api"]);
+// Build through turbo, not `npm run build -w @parada/api`. The API imports
+// @parada/database, @parada/types and @parada/config, which all resolve through
+// their built dist/ — and dist/ is gitignored, so on a fresh clone none of it
+// exists. Building the API workspace alone skipped those dependencies and failed
+// with ~150 "Cannot find module '@parada/...'" errors plus their knock-on
+// implicit-any noise. turbo.json already declares build.dependsOn ["^build"];
+// this just lets turbo honour it.
+run("npx", ["turbo", "run", "build", "--filter=@parada/api"]);
 
 start("API", ["run", "start"], "services/api");
 start("admin", ["run", "dev"], "apps/admin");
