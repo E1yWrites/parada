@@ -233,70 +233,83 @@ export class ParkingSessionService {
     const feeConfig = await this.config.getParkingFeeConfig();
     const fee = calculateParkingFee(durationMs, feeConfig);
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Atomic decrement: never allow occupiedCount below 0.
-      const updatedZone = await tx.parkingZone.updateMany({
-        where: { id: session.zoneId, occupiedCount: { gt: 0 } },
-        data: { occupiedCount: { decrement: 1 } },
+    // Two concurrent exits for the SAME session both pass the status check
+    // above. The unique constraint on `ParkingFee.sessionId` stops the second
+    // one: it aborts the whole transaction, so the double decrement of
+    // `occupiedCount` is rolled back and occupancy stays correct. That is a
+    // domain conflict (409), not the 500 a raw Prisma error produced.
+    let result;
+    try {
+      result = await prisma.$transaction(async (tx) => {
+        // Atomic decrement: never allow occupiedCount below 0.
+        const updatedZone = await tx.parkingZone.updateMany({
+          where: { id: session.zoneId, occupiedCount: { gt: 0 } },
+          data: { occupiedCount: { decrement: 1 } },
+        });
+        if (updatedZone.count !== 1) {
+          throw new ConflictError(`Zone '${session.zoneId}' has no occupancy to release.`);
+        }
+
+        // Read back the real post-decrement state; OccupancyHistory is the audit
+        // trail and must never carry invented counts.
+        const zoneAfter = await tx.parkingZone.findUniqueOrThrow({
+          where: { id: session.zoneId },
+          select: { capacity: true, occupiedCount: true },
+        });
+        const newOccupied = zoneAfter.occupiedCount;
+        const availableCount = zoneAfter.capacity - newOccupied;
+
+        const event = await tx.occupancyEvent.create({
+          data: {
+            zoneId: session.zoneId,
+            cameraId: null,
+            eventType: "EXIT",
+            previousOccupied: newOccupied + 1,
+            newOccupied,
+            availableCount,
+            source: "MANUAL",
+            vehicleId: session.vehicleId,
+            detectedAt: exitedAt,
+          },
+        });
+
+        await tx.occupancyHistory.create({
+          data: {
+            zoneId: session.zoneId,
+            occupiedCount: newOccupied,
+            availableCount,
+            occurredAt: exitedAt,
+          },
+        });
+
+        const updated = await tx.parkingSession.update({
+          where: { id: session.id },
+          data: {
+            exitEventId: event.id,
+            exitedAt,
+            durationSeconds,
+            feeAmount: fee.amount,
+            status: "COMPLETED",
+          },
+          include: sessionInclude,
+        });
+
+        const { row: feeRow } = await persistSessionFee(tx, {
+          sessionId: session.id,
+          zoneId: session.zoneId,
+          userId,
+          durationMs,
+          feeConfig,
+        });
+
+        return { updated, feeRow };
       });
-      if (updatedZone.count !== 1) {
-        throw new ConflictError(`Zone '${session.zoneId}' has no occupancy to release.`);
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw new ConflictError("This session has already been exited.");
       }
-
-      // Read back the real post-decrement state; OccupancyHistory is the audit
-      // trail and must never carry invented counts.
-      const zoneAfter = await tx.parkingZone.findUniqueOrThrow({
-        where: { id: session.zoneId },
-        select: { capacity: true, occupiedCount: true },
-      });
-      const newOccupied = zoneAfter.occupiedCount;
-      const availableCount = zoneAfter.capacity - newOccupied;
-
-      const event = await tx.occupancyEvent.create({
-        data: {
-          zoneId: session.zoneId,
-          cameraId: null,
-          eventType: "EXIT",
-          previousOccupied: newOccupied + 1,
-          newOccupied,
-          availableCount,
-          source: "MANUAL",
-          vehicleId: session.vehicleId,
-          detectedAt: exitedAt,
-        },
-      });
-
-      await tx.occupancyHistory.create({
-        data: {
-          zoneId: session.zoneId,
-          occupiedCount: newOccupied,
-          availableCount,
-          occurredAt: exitedAt,
-        },
-      });
-
-      const updated = await tx.parkingSession.update({
-        where: { id: session.id },
-        data: {
-          exitEventId: event.id,
-          exitedAt,
-          durationSeconds,
-          feeAmount: fee.amount,
-          status: "COMPLETED",
-        },
-        include: sessionInclude,
-      });
-
-      const { row: feeRow } = await persistSessionFee(tx, {
-        sessionId: session.id,
-        zoneId: session.zoneId,
-        userId,
-        durationMs,
-        feeConfig,
-      });
-
-      return { updated, feeRow };
-    });
+      throw err;
+    }
 
     return {
       session: sessionResponse((result.updated as unknown) as SessionRecord),

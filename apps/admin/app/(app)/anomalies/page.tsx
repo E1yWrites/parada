@@ -23,7 +23,7 @@ export default function AnomaliesPage() {
       cell: (a) => (
         <div>
           <AnomalyTypeBadge type={a.anomalyType} />
-          {a.description ? <p className="mt-1 max-w-xs text-[11px] text-muted">{a.description}</p> : null}
+          {a.description ? <p className="mt-1 max-w-xs break-words text-[11px] text-muted">{a.description}</p> : null}
         </div>
       ),
     },

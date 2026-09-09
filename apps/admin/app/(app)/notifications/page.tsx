@@ -114,7 +114,7 @@ export default function NotificationsPage() {
             <ul className="divide-y divide-line/30">
               {items.map((n: AdminNotification) => (
                 <li key={n.id} className="flex items-center justify-between gap-4 px-5 py-4">
-                  <div className="flex items-start gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
                     <div
                       className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-panel ${
                         n.read ? "bg-graygreen/20 text-muted" : "bg-brand-soft text-brand"
@@ -123,8 +123,8 @@ export default function NotificationsPage() {
                     >
                       {n.type === "ZONE_FULL" ? <BellRing className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
                     </div>
-                    <div>
-                      <p className={`text-sm ${n.read ? "text-muted" : "font-bold text-charcoal"}`}>{n.message}</p>
+                    <div className="min-w-0">
+                      <p className={`break-words text-sm ${n.read ? "text-muted" : "font-bold text-charcoal"}`}>{n.message}</p>
                       <p className="mt-0.5 text-[11px] text-muted">
                         <span className="font-semibold text-charcoal">{n.zone ? `Zone ${n.zone.code}` : "All zones"}</span>
                         {" · "}{n.type} · {formatDateTime(n.createdAt)}

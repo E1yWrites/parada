@@ -64,8 +64,12 @@ export function eventsRouter(occupancy: OccupancyService, options: EventsRouterO
 
   router.post(
     "/zones/:zoneId/events",
-    cameraEventLimit,
+    // Authenticate BEFORE metering. With the limiter first, an unauthenticated
+    // caller could name any camera in the body and burn that camera's entire
+    // per-minute budget, locking a real camera out of reporting occupancy.
+    // Only requests that already presented a valid key consume the budget.
     requireCameraApiKey,
+    cameraEventLimit,
     asyncHandler(async (req, res) => {
       const zoneId = req.params["zoneId"]!;
       const body: Record<string, unknown> = req.body ?? {};

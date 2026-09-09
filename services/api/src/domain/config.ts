@@ -16,6 +16,16 @@ import type {
 import { BadRequestError } from "../http/errors";
 
 /**
+ * A Prisma client that may be either the global one or an open interactive
+ * transaction. Configuration reads that happen INSIDE a transaction must use
+ * that transaction's client: the global client would check out a second
+ * connection from the same pool while the first is still held, which
+ * deadlocks once every pooled connection belongs to a transaction that is
+ * itself waiting for a free one.
+ */
+type ConfigReader = Pick<typeof prisma, "establishmentConfig">;
+
+/**
  * Reads runtime-configurable establishment settings from the singleton
  * `EstablishmentConfig` row, falling back to the shared defaults in
  * `@parada/config` when a value is absent.
@@ -25,12 +35,12 @@ import { BadRequestError } from "../http/errors";
  */
 export class ConfigService {
   /** The singleton row. One read per call site instead of one per getter. */
-  private async row() {
-    return prisma.establishmentConfig.findUnique({ where: { id: "singleton" } });
+  private async row(client: ConfigReader = prisma) {
+    return client.establishmentConfig.findUnique({ where: { id: "singleton" } });
   }
 
-  async getEstablishmentSettings(): Promise<EstablishmentSettings> {
-    const cfg = await this.row();
+  async getEstablishmentSettings(client?: ConfigReader): Promise<EstablishmentSettings> {
+    const cfg = await this.row(client);
     const rawViolations = cfg?.violations;
     const violations = Array.isArray(rawViolations)
       ? rawViolations.filter(isViolationPolicy).map((rawItem) => {
@@ -103,16 +113,16 @@ export class ConfigService {
    * `EstablishmentConfig.parkingFee` JSON object; validates/coerces the known
    * shape, falling back to DEFAULT_PARKING_FEE on absence or malformed data.
    */
-  async getParkingFeeConfig(): Promise<ParkingFeeConfig> {
-    return parseParkingFee((await this.row())?.parkingFee);
+  async getParkingFeeConfig(client?: ConfigReader): Promise<ParkingFeeConfig> {
+    return parseParkingFee((await this.row(client))?.parkingFee);
   }
 
   /**
    * Returns the configured reservation arrival window in minutes (default 15).
    * Reads `EstablishmentConfig.zoneDefaults.maxReservationDurationMinutes`.
    */
-  async getReservationWindowMinutes(): Promise<number> {
-    const raw = (await this.row())?.zoneDefaults;
+  async getReservationWindowMinutes(client?: ConfigReader): Promise<number> {
+    const raw = (await this.row(client))?.zoneDefaults;
     if (raw && typeof raw === "object") {
       const obj = raw as Record<string, unknown>;
       const value = obj["maxReservationDurationMinutes"];
@@ -129,8 +139,8 @@ export class ConfigService {
    * falling back to DEFAULT_GUEST_POLICY (PRIMARY_ZONE, primaryZoneId null)
    * on absence or malformed data.
    */
-  async getGuestPolicy(): Promise<GuestPolicyConfig> {
-    return parseGuestPolicy((await this.row())?.guestPolicy);
+  async getGuestPolicy(client?: ConfigReader): Promise<GuestPolicyConfig> {
+    return parseGuestPolicy((await this.row(client))?.guestPolicy);
   }
 }
 
@@ -239,9 +249,10 @@ function validateSettings(input: EstablishmentSettings): void {
  */
 export async function resolveViolationFine(
   config: ConfigService,
-  type: ViolationPolicyConfig["type"]
+  type: ViolationPolicyConfig["type"],
+  client?: ConfigReader
 ): Promise<number> {
-  const settings = await config.getEstablishmentSettings();
+  const settings = await config.getEstablishmentSettings(client);
   const configured = settings.violations.find((policy) => policy.type === type);
   if (configured) {
     return configured.fineAmount;

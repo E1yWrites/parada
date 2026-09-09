@@ -337,8 +337,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft" aria-hidden="true">
                 <UserCircle2 className="h-5 w-5 text-brand" />
               </div>
-              <div className="hidden leading-tight sm:block">
-                <p className="text-sm font-bold text-charcoal">{user.name}</p>
+              <div className="hidden min-w-0 leading-tight sm:block">
+                <p className="max-w-[12rem] truncate text-sm font-bold text-charcoal">{user.name}</p>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted">{user.role}</p>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { prisma } from "@parada/database";
+import { prisma, type Prisma } from "@parada/database";
 import { ConflictError, NotFoundError } from "../http/errors";
 import type { ConfigService } from "./config";
 import type { ZoneAssignmentResponse } from "@parada/types";
@@ -40,8 +40,9 @@ function toResponse(a: {
  *
  *   assigned zone  vs  actual parking zone
  *
- * "One active assignment per vehicle" is enforced here (application-level), as
- * the schema provides no unique constraint for it.
+ * "One active assignment per vehicle" is enforced both here and by the database
+ * (partial unique index `zone_assignments_one_active_per_vehicle`, added in
+ * migration 20260906120000), so a concurrent check-then-create cannot slip past.
  */
 export class AssignmentService {
   private readonly config: ConfigService;
@@ -137,10 +138,21 @@ export class AssignmentService {
     return toResponse(row);
   }
 
-  /** Returns the active assignment for a vehicle (if any) — used for wrong-zone
-   *  detection. Scoped to the requesting user; returns null if none. */
-  async getActiveForVehicle(userId: string, vehicleId: string): Promise<ZoneAssignmentResponse | null> {
-    const row = await prisma.zoneAssignment.findFirst({
+  /**
+   * Returns the active assignment for a vehicle (if any) — used for wrong-zone
+   * detection. Scoped to the requesting user; returns null if none.
+   *
+   * `tx` is passed by callers that are already inside an interactive
+   * transaction (the camera occupancy pipeline). Reading through the global
+   * client from there would check out a second pooled connection while the
+   * first is still held, which deadlocks under concurrency.
+   */
+  async getActiveForVehicle(
+    userId: string,
+    vehicleId: string,
+    tx: Prisma.TransactionClient | typeof prisma = prisma
+  ): Promise<ZoneAssignmentResponse | null> {
+    const row = await tx.zoneAssignment.findFirst({
       where: { userId, vehicleId, status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
       include: {

@@ -91,7 +91,10 @@ export class ViolationService {
       return null;
     }
 
-    const fineAmount = await resolveViolationFine(this.config, "WRONG_ZONE");
+    // Resolved on the caller's transaction client: this runs inside the
+    // occupancy transaction, so the global client would need a second pooled
+    // connection while the first is still held.
+    const fineAmount = await resolveViolationFine(this.config, "WRONG_ZONE", tx);
     const violation = await tx.violation.create({
       data: {
         userId: input.userId,
@@ -171,17 +174,27 @@ export class ViolationService {
   /**
    * Admin decision on an appeal. Approving dismisses the violation, rejecting
    * upholds it; either way the driver is notified of the outcome.
+   *
+   * An appeal is decided exactly ONCE. Without that guard a second review
+   * silently flipped a settled violation (DISMISSED -> UPHELD, or back), issued
+   * a contradicting notification to the driver, and overwrote the original
+   * reviewer and timestamp — so the audit trail no longer showed who actually
+   * decided it. The re-read happens inside the transaction so two concurrent
+   * reviews cannot both pass the check.
    */
   async review(appealId: string, status: "APPROVED" | "REJECTED", reviewerId: string) {
-    const appeal = await prisma.violationAppeal.findUnique({
-      where: { id: appealId },
-      include: { violation: true },
-    });
-    if (!appeal) {
-      throw new NotFoundError("Appeal not found.");
-    }
-
     return prisma.$transaction(async (tx) => {
+      const appeal = await tx.violationAppeal.findUnique({
+        where: { id: appealId },
+        include: { violation: true },
+      });
+      if (!appeal) {
+        throw new NotFoundError("Appeal not found.");
+      }
+      if (appeal.status !== "PENDING") {
+        throw new ConflictError(`This appeal has already been ${appeal.status.toLowerCase()}.`);
+      }
+
       const updated = await tx.violationAppeal.update({
         where: { id: appeal.id },
         data: { status, reviewedBy: reviewerId, reviewedAt: new Date() },

@@ -225,12 +225,12 @@ export default function DashboardPage() {
                   <ul className="divide-y divide-line/30">
                     {data.recentNotifications.map((n) => (
                       <li key={n.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                        <div className="flex items-center gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
                           <span className="flex h-8 w-8 items-center justify-center rounded-panel bg-brand-soft text-brand" aria-hidden="true">
                             <Bell className="h-4 w-4" />
                           </span>
-                          <div>
-                            <p className="text-sm font-semibold text-charcoal">{n.message}</p>
+                          <div className="min-w-0">
+                            <p className="break-words text-sm font-semibold text-charcoal">{n.message}</p>
                             <p className="text-[11px] font-semibold text-muted">
                               {n.zone ? `Zone ${n.zone.code}` : "All zones"} · {formatDateTime(n.createdAt)}
                             </p>

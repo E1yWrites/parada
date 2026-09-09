@@ -116,7 +116,10 @@ export class ReservationService {
     zoneId: string,
     exclude?: { userId: string; vehicleId: string }
   ): Promise<number> {
-    const windowMinutes = await this.config.getReservationWindowMinutes();
+    // Read the window through the caller's transaction: this runs inside an
+    // open transaction, and the global client would need a second pooled
+    // connection while the first is still held.
+    const windowMinutes = await this.config.getReservationWindowMinutes(tx);
     await this.expireOverdue(windowMinutes, tx);
     return this.countActiveProtection(tx, zoneId, windowMinutes, new Date(), exclude);
   }

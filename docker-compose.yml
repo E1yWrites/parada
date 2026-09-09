@@ -8,7 +8,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-parada}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # Default matches POSTGRES_PORT in .env.example and the embedded
+      # development database (127.0.0.1:5442). With the old 5432 default, a
+      # developer who started this compose file without exporting POSTGRES_PORT
+      # got a server on 5432 while every DATABASE_URL in the repo pointed at 5442.
+      - "${POSTGRES_PORT:-5442}:5432"
     volumes:
       - parada_pgdata:/var/lib/postgresql/data
 

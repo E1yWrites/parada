@@ -25,7 +25,7 @@ export default function AppealsPage() {
       cell: (a) => (
         <div>
           <p className="text-sm font-semibold text-charcoal">{a.user?.name ?? "Unknown user"}</p>
-          <p className="text-xs text-muted">{a.reason}</p>
+          <p className="max-w-xs break-words text-xs text-muted">{a.reason}</p>
         </div>
       ),
     },

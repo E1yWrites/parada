@@ -229,7 +229,13 @@ export interface ParkingFee {
   id: string;
   sessionId: string;
   zoneId: string;
-  userId: string;
+  /**
+   * Null for account-less GUEST sessions, mirroring `ParkingSession.userId`.
+   * The column was made nullable in migration
+   * 20260906120000_fees_guests_and_integrity_indexes; this contract had not
+   * followed, so a consumer could treat a guest fee's owner as guaranteed.
+   */
+  userId: string | null;
   amount: number;
   rateBreakdown: unknown;
   paidAt: Date | null;

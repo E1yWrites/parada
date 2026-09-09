@@ -257,10 +257,16 @@ export class OccupancyService {
     }
   }
 
-  /** Effective fee configuration, falling back to the shared default. */
-  private async getFeeConfig() {
+  /**
+   * Effective fee configuration, falling back to the shared default.
+   *
+   * Takes the caller's transaction client: this runs inside the occupancy
+   * transaction, and reading through the global client there would check out a
+   * second pooled connection while the first is still held.
+   */
+  private async getFeeConfig(tx: Prisma.TransactionClient) {
     if (this.config) {
-      return this.config.getParkingFeeConfig();
+      return this.config.getParkingFeeConfig(tx);
     }
     const { DEFAULT_PARKING_FEE } = await import("@parada/config");
     return { ...DEFAULT_PARKING_FEE };
@@ -363,12 +369,12 @@ export class OccupancyService {
     let wrongZone = false;
     let assignedZoneCode: string | null = null;
     if (eventType === "ENTRY" && this.assignments) {
-      const vehicle = await prisma.vehicle.findUnique({
+      const vehicle = await tx.vehicle.findUnique({
         where: { id: vehicleId },
         select: { userId: true },
       });
       if (vehicle) {
-        const active = await this.assignments.getActiveForVehicle(vehicle.userId, vehicleId);
+        const active = await this.assignments.getActiveForVehicle(vehicle.userId, vehicleId, tx);
         if (active && active.zoneId !== zone.id) {
           wrongZone = true;
           assignedZoneCode = active.zone.code;
@@ -384,7 +390,7 @@ export class OccupancyService {
     // vehicle, even though occupiedCount has not moved. The vehicle's own
     // reservation is excluded so a holder is never blocked by their own booking.
     if (eventType === "ENTRY") {
-      const vehicleOwner = await prisma.vehicle.findUnique({
+      const vehicleOwner = await tx.vehicle.findUnique({
         where: { id: vehicleId },
         select: { userId: true },
       });
@@ -512,7 +518,7 @@ export class OccupancyService {
           zoneId: existing.zoneId,
           userId: existing.userId,
           durationMs,
-          feeConfig: await this.getFeeConfig(),
+          feeConfig: await this.getFeeConfig(tx),
         });
         await tx.parkingSession.update({
           where: { id: existing.id },
@@ -702,7 +708,7 @@ export class OccupancyService {
           zoneId: guestSessionRow.session.zoneId,
           userId: guestSessionRow.session.userId,
           durationMs,
-          feeConfig: await this.getFeeConfig(),
+          feeConfig: await this.getFeeConfig(tx),
         });
         await tx.parkingSession.update({
           where: { id: guestSessionRow.session.id },
@@ -779,7 +785,7 @@ export class OccupancyService {
     // ENTRY -> guest admission decision. Policy eligibility is decided from
     // configuration; the capacity verdict comes from the atomic increment
     // itself, so a full zone can never be misread from a stale snapshot.
-    const decision = await this.decideGuestAdmission(zone, options);
+    const decision = await this.decideGuestAdmission(tx, zone, options);
     let admitted = decision.admitted;
     let deniedReason: string | null = decision.deniedReason;
     let counts: { previousOccupied: number; newOccupied: number; availableCount: number };
@@ -954,6 +960,7 @@ export class OccupancyService {
    * DENY_WHEN_FULL: admit when space; ALLOW_OVERFLOW: admit regardless.
    */
   private async decideGuestAdmission(
+    tx: Prisma.TransactionClient,
     zone: { id: string; code: string; capacity: number; occupiedCount: number },
     options: ProcessEventOptions
   ): Promise<
@@ -962,7 +969,7 @@ export class OccupancyService {
   > {
     let policy: GuestPolicyConfig;
     if (this.config) {
-      policy = await this.config.getGuestPolicy();
+      policy = await this.config.getGuestPolicy(tx);
     } else {
       const { DEFAULT_GUEST_POLICY } = await import("@parada/config");
       policy = DEFAULT_GUEST_POLICY;
