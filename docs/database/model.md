@@ -3,7 +3,7 @@
 Authoritative data model for the PostgreSQL database. Prisma schema lives in
 `packages/database/prisma/schema.prisma` and is the source of truth.
 
-## Entities (9)
+## Entities (18)
 
 | Entity | Purpose |
 |--------|---------|
@@ -13,11 +13,23 @@ Authoritative data model for the PostgreSQL database. Prisma schema lives in
 | `ParkingSlot` | **Physical inventory / layout only.** NOT camera-derived occupancy. |
 | `Camera` | A standard camera at a zone gate (ENTRY / EXIT / BIDIRECTIONAL). |
 | `OccupancyEvent` | The critical single write-point for occupancy changes (ENTRY/EXIT). |
+| `OccupancyAnomaly` | Pipeline mismatches recorded for admin review instead of fabricated data. |
 | `OccupancyHistory` | Immutable snapshot of zone occupancy state over time (analytics/audit). |
-| `ParkingSession` | **Vehicle-identified** parking presence (a real session exists only for a registered vehicle). |
-| `Notification` | Minimal admin + driver alerts (zone full / low availability). |
+| `ParkingSession` | Parking presence from entry to exit. Vehicle-identified for registered drivers; account-less for admitted guests. |
+| `GuestSession` | Guest/walk-in admission record wrapping a `ParkingSession`. |
+| `ParkingFee` | The fee computed and persisted when a session completes. |
+| `Reservation` | A capacity-protecting hold on a zone for a window. |
+| `ZoneAssignment` | A driver accepting a zone. Not a reservation and not a session. |
+| `Violation` | Establishment-defined violation (e.g. wrong zone), with its status state machine. |
+| `ViolationAppeal` | A driver's dispute of one violation, reviewed by an admin. |
+| `Notification` | Admin + driver alerts (zone state, violations, appeal outcomes). |
+| `EstablishmentConfig` | Single-row establishment settings: fees, guest policy, zone defaults, violation fines, location. |
+| `RevokedToken` | `jti` values revoked at logout, for server-side JWT invalidation. |
 
 No `Report` table — reports are generated dynamically from `OccupancyHistory`.
+
+**Recommendation ≠ Assignment ≠ Reservation ≠ Session.** These are four distinct
+records with distinct lifecycles and are never collapsed into one another.
 
 ## Key Design Decisions
 
@@ -59,9 +71,12 @@ which is **flexible/length-preserving** so raw OCR reads still match. `normalize
 user** (`@@unique([userId, normalizedPlate])`), so two users may register the same physical plate,
 but a single user cannot register it twice.
 
-### Vehicle-identified sessions
-`ParkingSession` is tied to a registered vehicle and its owner:
-- `userId` + `vehicleId` are **NOT NULL** (identity is required).
+### Sessions and identity
+`ParkingSession` is tied to a registered vehicle and its owner for driver sessions:
+- `userId` + `vehicleId` are **nullable**. They are always set for a registered
+  session; they are null only for account-less GUEST sessions (walk-ins admitted
+  under the establishment guest policy), which are wrapped by a `GuestSession`
+  row. `ParkingFee.userId` mirrors the same nullability.
 - Lifecycle: ENTRY → `ACTIVE` → EXIT → `COMPLETED`.
 - `entryEventId` unique (one session per entry); `exitEventId` nullable + unique; `durationSeconds` computed on exit.
 - A database **partial unique index** enforces at most one `ACTIVE` session per vehicle:
@@ -82,6 +97,7 @@ stay correct, but **no `ParkingSession` is created** (a session requires a real 
 |-------|-------|---------|
 | `users` | unique `email` | auth lookup |
 | `vehicles` | unique `(userId, normalizedPlate)`; `(normalizedPlate)`, `(userId)` | plate match per user |
+| `vehicles` | partial unique `(normalizedPlate)` where `status='ACTIVE'` | one active vehicle per physical plate |
 | `parking_zones` | unique `code`, unique `name` | lookups, dedup |
 | `parking_slots` | unique `(zoneId, slotCode)` | slot inventory per zone |
 | `cameras` | unique `identifier`; `zoneId` | camera identity + per-zone |
@@ -90,6 +106,7 @@ stay correct, but **no `ParkingSession` is created** (a session requires a real 
 | `parking_sessions` | `(zoneId, status)`, `(vehicleId, status)`, `(userId)`, `(enteredAt)` | active session counts, session history |
 | `parking_sessions` | partial unique `(vehicleId)` where `status='ACTIVE'` | one active session per vehicle |
 | `notifications` | `(targetRole, read)`, `(createdAt)` | alert fetching |
+| `zone_assignments` | partial unique `(vehicleId)` where `status='ACTIVE'` | one active assignment per vehicle |
 
 ## Migrations
 
@@ -97,6 +114,11 @@ stay correct, but **no `ParkingSession` is created** (a session requires a real 
 - `20260829143014_add_vehicle_and_session_identity` — additive: `Vehicle`, `VehicleType`/`VehicleStatus` enums, `OccupancyEvent` plate fields, `ParkingSession.userId/vehicleId` (NOT NULL), one-active-session-per-vehicle partial unique index.
 - `20260829151408_add_revoked_token` — `RevokedToken` table for server-side JWT logout revocation (`jti`).
 - `20260830002352_add_occupancy_anomaly` — `OccupancyAnomaly` entity (unknown plate / low confidence / exit without session) indexed by `anomalyType` and `resolved`.
+- `20260904091734_add_phase1_shared_contracts` — `EstablishmentConfig`, `Reservation`, `ZoneAssignment`, `Violation`, `ViolationAppeal`, `ParkingFee` and `GuestSession` tables plus their relations.
+- `20260904100000_add_notification_user_id` — `Notification.userId`, so a notification can target one driver rather than only a role.
+- `20260904115711_guest_session_accountless` — drops `NOT NULL` from `parking_sessions.userId`/`vehicleId` for account-less guest sessions.
+- `20260905093000_add_establishment_location` — establishment latitude/longitude for GPS navigation.
+- `20260906120000_fees_guests_and_integrity_indexes` — `parking_fees.userId` made nullable for guest fees; partial unique indexes `vehicles_one_active_per_normalized_plate` and `zone_assignments_one_active_per_vehicle`.
 
 Use `prisma migrate dev` for development, `prisma migrate deploy` for environments.
 `db push` is not the permanent strategy.
@@ -107,7 +129,7 @@ When running without Docker, `@parada/database` provides an **embedded
 PostgreSQL 18** dev instance (no root/system Postgres required):
 
 ```bash
-npm run db:start   -w @parada/database   # start on :5432 (background)
+npm run db:start   -w @parada/database   # start on :5442 (background)
 npm run db:stop    -w @parada/database   # stop it (reads .embedded-pg/server.pid)
 npm run db:migrate -w @parada/database   # apply migrations to the dev DB
 npm run seed       -w @parada/database   # seed dev data (dev credentials only)
@@ -115,8 +137,9 @@ npm run db:test:setup -w @parada/database  # create + migrate parada_test(_api) 
 ```
 
 Data persists in `packages/database/.embedded-pg/` (gitignored). The dev instance
-uses the same defaults as Docker Compose (`tcp://parada:changeme@127.0.0.1:5432`),
-so configs swap between the two unchanged.
+uses the same defaults as Docker Compose (`postgresql://parada:changeme@127.0.0.1:5442`),
+so configs swap between the two unchanged. Port `5442` is deliberate: the default
+`5432` collides with a system Postgres on the primary Windows development machine.
 
 ## Seed Data (dev only — fake data)
 

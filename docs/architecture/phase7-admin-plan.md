@@ -2,9 +2,14 @@
 
 ## Scope
 A secure admin operations web application layered on the existing parada
-services API. Pages use React Query polling for fresh operational data; no
-WebSocket/SSE transport is assumed. Every screen talks to the real
-`services/api` PostgreSQL-backed pipeline through the Next.js proxy route.
+services API. Every screen talks to the real `services/api` PostgreSQL-backed
+pipeline through the Next.js proxy route.
+
+> **Superseded in Phase 12.** This phase shipped with React Query polling and
+> assumed no WebSocket/SSE transport. Admin now also holds a Server-Sent Events
+> connection through the same-origin relay at `apps/admin/app/api/realtime/route.ts`,
+> which invalidates the affected React Query keys as events arrive. See
+> `docs/api/README.md` → “Realtime (Server-Sent Events)”.
 
 ## Status
 Phase 7 is **complete**. Work was done as *audit → preserve → repair →*
@@ -17,7 +22,7 @@ Browser ── HttpOnly parada_admin_token cookie ──► Next.js (apps/admin)
                                                      ▼
                                               services/api (Express)
                                                      ▼
-                              PostgreSQL (embedded pg 18 on :5432)
+                              PostgreSQL (embedded pg 18 on :5442)
 ```
 
 - JWT stored in a `HttpOnly` cookie; never in `localStorage`.
@@ -55,9 +60,10 @@ Browser ── HttpOnly parada_admin_token cookie ──► Next.js (apps/admin)
   `services/api/.env` + `apps/admin/.env.local` are gitignored).
 
 ## Simulator
-- `/simulator/scenario` (step) and `/simulator/run` (full run) both reach the
-  real pipeline behind `requireRole("ADMIN")`; all events persist with
-  `source = SIMULATOR` and deterministic `sourceEventId`s.
+- `POST /simulator/run` reaches the real pipeline behind `requireRole("ADMIN")`;
+  all events persist with `source = SIMULATOR` and deterministic
+  `sourceEventId`s. `GET /simulator/status` reports run stats and the supported
+  scenarios.
 - Verified E2E: SINGLE_ENTRY, SINGLE_EXIT, FILL_ZONE, UNKNOWN_VEHICLE,
   DUPLICATE_EVENT, COMPLETE_PARKING_LIFECYCLE, PLUS overflow rejection →
   ZONE_FULL + ZONE_LOW_AVAILABILITY notifications, UNREGISTERED_PLATE

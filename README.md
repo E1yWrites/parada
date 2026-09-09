@@ -23,90 +23,176 @@ PARADA/
 │   ├── mobile/     # Mobile app for drivers (React Native + Expo + TypeScript)
 │   └── admin/      # Web admin dashboard (Next.js + TypeScript)
 ├── services/
-│   ├── api/        # Backend API (Node.js + TypeScript)
-│   └── vision/     # Vision/OCR service (Python + FastAPI + OpenCV)
+│   ├── api/        # Backend API (Node.js + Express + TypeScript)
+│   └── vision/     # Vision/OCR service (Python + FastAPI + OpenCV + EasyOCR)
 ├── packages/
-│   ├── database/   # Prisma schema + DB access
+│   ├── database/   # Prisma schema + DB access + embedded dev database
 │   ├── types/      # Shared TypeScript types
 │   └── config/     # Shared configuration
-├── docs/           # Architecture, database, api, vision, testing, deployment docs
+├── docs/           # Architecture, database, api, mobile, vision docs
 ├── docker-compose.yml
 └── package.json    # npm workspaces + Turborepo
 ```
 
 ## Tech Stack
 
-| Layer        | Technology                                    |
-|--------------|-----------------------------------------------|
-| Mobile       | React Native + Expo + TypeScript               |
-| Admin Web    | Next.js + TypeScript + Tailwind CSS            |
-| Backend API  | Node.js + TypeScript                           |
-| Database     | PostgreSQL + Prisma                            |
-| Monorepo     | npm workspaces + Turborepo                     |
+| Layer        | Technology                                          |
+|--------------|-----------------------------------------------------|
+| Mobile       | React Native + Expo + TypeScript                     |
+| Admin Web    | Next.js + TypeScript + Tailwind CSS                  |
+| Backend API  | Node.js + Express + TypeScript                       |
+| Vision/OCR   | Python + FastAPI + OpenCV + EasyOCR                  |
+| Database     | PostgreSQL + Prisma (embedded Postgres in dev)       |
+| Realtime     | Server-Sent Events (API → admin relay / mobile)      |
+| Monorepo     | npm workspaces + Turborepo                           |
 
-Planned, not yet implemented: the vision/OCR service (`services/vision` is a
-placeholder) and real-time push. Camera events reach the backend today through
-the documented `POST /zones/:zoneId/events` contract, which the admin
-simulator drives end to end.
+## Data Flow
+
+```
+Camera → Vision/OCR → API → Domain → Database
+Mobile  → API → Domain → Database
+Admin   → Next.js proxy → API → Domain → Database
+Realtime (SSE) → Admin + Mobile
+```
+
+The backend is the only authority on parking business meaning. Vision identifies observations and
+forwards them over HTTP; it never touches Prisma or PostgreSQL. Mobile and admin never access the
+database directly — admin reaches the API through a server-side proxy that keeps the JWT in an
+HttpOnly cookie.
 
 ## Getting Started
 
-Prerequisites: Node.js 18+, npm 9+, PostgreSQL (or Docker).
+Prerequisites:
+
+- **Node.js 18+** and **npm 9+**
+- **Python 3.11** — only for the vision/OCR service
+- No PostgreSQL install and no Docker required: `packages/database` runs an **embedded PostgreSQL 18**
+  cluster on port `5442`, with data persisted in `packages/database/.embedded-pg/`.
 
 ```bash
 npm install
 ```
 
-Copy the appropriate `.env.example` to `.env` per package and fill in real values.
-Never commit real secrets. See each package's README for specifics.
+Copy the relevant `.env.example` to `.env` per package and fill in real values.
+**Never commit real secrets.** See each package's `.env.example` for specifics.
 
-## Development
-
-`npm run dev` starts the existing embedded development database and applies any
-pending non-destructive migrations. You can also prepare it separately:
+To set up the vision service's Python virtualenv (creates `services/vision/.venv` and installs
+`requirements.txt`):
 
 ```bash
-npm run db:start
-npm run db:migrate -w @parada/database
+npm run setup -w @parada/vision
 ```
 
-Start the current PARADA API, admin web app, and Expo mobile app together:
+## Development
 
 ```bash
 npm run dev          # database + API + admin + mobile
 npm run run          # alias for npm run dev
-npm run dev:api      # API only (builds services/api, then starts it)
-npm run dev:admin    # admin only (Next.js on port 3000)
+npm run dev:api      # API only (prepares the database, builds services/api, then starts it)
+npm run dev:admin    # admin only (Next.js)
 npm run dev:mobile   # mobile only (Expo LAN mode)
 npm run db:prepare   # start database and apply pending migrations
-npm run db:stop      # stop the embedded development database when finished
+npm run db:start     # start the embedded development database
+npm run db:stop      # stop it cleanly when finished
 npm run build        # build all workspaces
 npm run lint         # lint all workspaces
 npm run typecheck    # type check all workspaces
 npm run test         # run tests in all workspaces
 ```
 
-The API listens on port `4000` and the admin web app on port `3000`. Expo/Metro
-uses its normal development port, typically `8081`. For a physical device,
-set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to an API URL reachable from
-the phone, such as `http://<your-LAN-IP>:4000`; `localhost` on the phone is
-the phone itself. The API binds to `0.0.0.0` in development so LAN devices can
-reach it. The embedded database is persistent and is never reset by the
-development workflow. The vision workspace is currently a placeholder and is
-not started by the development workflow.
+`npm run dev` starts the embedded database, applies any pending non-destructive migrations, then
+runs the API, admin web app and Expo. The vision service is **not** started by this workflow — run
+it on its own when you need it:
+
+```bash
+npm run dev -w @parada/vision      # FastAPI on port 8001
+npm run camera -w @parada/vision   # camera runtime CLI (USB / RTSP / video file)
+```
+
+### Ports
+
+| Service                  | Port   |
+|--------------------------|--------|
+| API                      | `4100` |
+| Admin web                | `3000` |
+| Vision/OCR service       | `8001` |
+| Expo / Metro bundler     | `8082` |
+| Embedded PostgreSQL      | `5442` |
+
+Metro runs on **8082**, not Expo's default 8081, because on the primary Windows development machine
+port 8081 is claimed by the Windows Host Network Service (`hns`, used by Docker Desktop / WSL2 port
+proxying). It accepts the bind but never delivers connections, so Expo Go cannot reach the bundler
+on 8081. If 8081 is free on your machine you can change the `--port` flag in
+`apps/mobile/package.json`.
+
+The API binds to `0.0.0.0` in development so LAN devices can reach it. The embedded database is
+persistent and is never reset by the development workflow.
+
+### Running on a physical device
+
+`localhost` on a phone is the phone itself, so both of these must point at your machine's LAN
+address, in `apps/mobile/.env`:
+
+```
+EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:4100
+REACT_NATIVE_PACKAGER_HOSTNAME=<your-LAN-IP>
+```
+
+`REACT_NATIVE_PACKAGER_HOSTNAME` matters on a multi-homed host: Expo guesses which interface to
+advertise and can pick a VirtualBox, WSL or link-local adapter the phone cannot route to. Pin the
+address that is on the phone's own subnet. `npm run dev` warns at startup when `EXPO_PUBLIC_API_URL`
+is still loopback and prints the detected LAN addresses.
+
+On Windows, also make sure the firewall allows inbound `node.exe` on the **active network profile**
+for that adapter — a rule that only covers the Public profile will block a Private-profile adapter.
+
+## Testing
+
+Create the dedicated test databases once, then run the suites:
+
+```bash
+npm run db:start
+npm run db:test:setup -w @parada/database   # creates parada_test + parada_test_api
+npm run test                                 # all workspaces
+```
+
+The API and database suites run against **real PostgreSQL**, not mocks, and refuse to start unless
+`DATABASE_URL` points at a test database. Vision tests run under pytest in the service's virtualenv.
+
+Current state, as measured on the Phase 12 branch:
+
+| Workspace | Suites | Tests |
+|-----------|--------|-------|
+| `@parada/types` | 1 | 9 passed |
+| `@parada/database` | 1 | 49 passed |
+| `@parada/api` | 16 | 256 passed |
+| `@parada/admin` | 13 | 67 passed |
+| `@parada/mobile` | 28 | 321 passed |
+| `@parada/vision` (pytest) | — | 64 passed, 2 skipped |
+
+`npm run typecheck`, `npm run lint` and `npm run build` all pass across the workspaces. Lint reports
+warnings only (no errors). The two skipped vision tests are the opt-in live-API integration tests,
+which require a running API and are skipped without one.
+
+These are unit and integration results. **No physical-camera, on-device, or deployment testing is
+claimed.** Formal testing and OCR accuracy evaluation (precision/recall/CER) is Phase 14.
 
 ## Phases
 
-The project is developed in phases. `docs/architecture/roadmap.md` is the
-single source of truth for phase numbering and status.
+The project is developed in phases. **`docs/architecture/roadmap.md` is the single source of truth
+for phase numbering and status.** Phases 0–12 are complete. Phase 13 (Full System Integration) is
+next, followed by 14 (Testing + Accuracy Evaluation), 15 (Deployment) and 16 (Documentation +
+Final Review).
 
 ## Documentation
 
 See the `docs/` directory:
 
-- `docs/architecture/` — system architecture and decisions
+- `docs/architecture/` — system architecture, decisions, and the phase roadmap
 - `docs/database/` — schema and data model
-- `docs/api/` — API reference
+- `docs/api/` — API reference, including the realtime (SSE) stream contract
+- `docs/mobile/` — mobile app notes
 - `docs/vision/` — camera / OCR processing
+- `services/vision/README.md` — vision service setup, camera sources, and troubleshooting
 
-Testing and deployment guides are not written yet.
+Testing and deployment guides are not written yet (phases 14 and 15).

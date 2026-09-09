@@ -2,7 +2,7 @@
 
 - PARADA is an LPU Batangas capstone.
 - Current stack: Mobile (Expo/React Native), Admin (Next.js), API (Express/TS), Vision (Python), PostgreSQL/Prisma.
-- Completed through Phase 11C. Next: 12 → 13 → 14 → 15 → 16.
+- Completed through Phase 12. Next: 13 → 14 → 15 → 16.
 - Work ONLY on the requested phase/task. Never start the next phase automatically.
 
 ## Core Rules

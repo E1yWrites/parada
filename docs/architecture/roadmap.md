@@ -20,7 +20,9 @@ document -> STOP.
 | 10 | Admin Web UI overhaul | DONE |
 | 10.1 | System audit remediation (occupancy atomicity, camera-exit fees, assignment expiry, plate identity, reservation capacity, violations/appeals, driver notifications) | DONE |
 | 11 | OCR / Computer Vision (real model) | DONE |
-| 12 | Real-Time Integration | PENDING |
+| 11A | Administrative configuration (zones, capacity, physical-slot inventory, gate cameras) | DONE |
+| 11C | Physical camera provisioning + vision connectivity (USB / RTSP / video file) | DONE |
+| 12 | Real-Time Integration | DONE |
 | 13 | Full System Integration | PENDING |
 | 14 | Testing + Accuracy Evaluation | PENDING |
 | 15 | Deployment | PENDING |
@@ -42,3 +44,11 @@ Key decisions from Phase 0 (user-approved [USER CLARIFICATION]):
 4. **Navigation** = GPS to facility + internal zone guidance.
 5. **Notifications** = admin + driver alerts.
 6. **Roles** = User + Admin only.
+
+Added in later phases:
+
+7. **Realtime transport = Server-Sent Events** (Phase 12), not WebSockets. Delivery is
+   one-directional (backend → clients) and rides the existing bearer/cookie auth, so SSE
+   avoids a second auth path and a socket server. Realtime is **delivery only**: the
+   database and domain layer stay authoritative, clients never create parking state from
+   an event, and every event is published only after its transaction has committed.

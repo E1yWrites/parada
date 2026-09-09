@@ -2,8 +2,13 @@
 
 Phase 5 establishes the **integration contract** between the camera/vision layer
 and the backend. The backend is deliberately **agnostic to the specific
-computer-vision/OCR implementation**; no real camera or ML model is required to
-complete this phase.
+computer-vision/OCR implementation**; no real camera or ML model was required to
+complete that phase.
+
+> Real OCR now exists (Phase 11) and real frame sources now exist (Phase 11C).
+> The Phase 5 contract below is unchanged and still authoritative — see
+> “Phase 11 — What Was Actually Built” and “Phase 11C” further down, and
+> `services/vision/README.md` for the running service.
 
 ## The Pipeline
 
@@ -12,7 +17,7 @@ CAMERA
   ↓  (raw frames)
 VISION / OCR
   ↓  (produces a normalized event — see contract below)
-NORMALIZED PARADING EVENT
+NORMALIZED VISION EVENT
   ↓  POST /zones/:id/events  (authenticated by X-API-Key)
 BACKEND
   ↓
@@ -145,7 +150,7 @@ vehicle. Physical occupancy updates remain intact.
 Use the documented event endpoint with a valid camera identifier:
 
 ```bash
-curl -X POST http://localhost:4000/zones/<zoneId>/events \
+curl -X POST http://localhost:4100/zones/<zoneId>/events \
   -H "Content-Type: application/json" \
   -H "X-API-Key: <CAMERA_API_KEY>" \
   -d '{
@@ -187,7 +192,7 @@ for a protected, internal ingestion path.
   that outputs plate text + confidence. Among open-source options,
   **PaddleOCR (PP-OCRv4)** provides competitive accuracy with a real confidence
   score and a prebuilt Windows wheel.
-- **Entry/exit detection**: derived from camera gate configuration (ENRY/EXIT),
+- **Entry/exit detection**: derived from camera gate configuration (ENTRY/EXIT),
   not from CV — the camera is assigned a direction. This removes the need for
   vehicle tracking/direction CV.
 
@@ -409,5 +414,8 @@ log/response/`describe()`; only the scheme/host/port are ever surfaced.
   are unit-tested against mocks and OpenCV API contracts only.
 - CameraSource runtime configuration is per-process/file: multi-camera
   management, dynamic reload, and distributed source provisioning are Phase 15.
-- Real-time streaming/WebSockets/SSE to clients remain Phase 12.
+- Real-time delivery to clients was completed in Phase 12 (Server-Sent Events);
+  see `docs/api/README.md` → “Realtime (Server-Sent Events)”. Vision is
+  unaffected: it still only POSTs events to the API, and the API decides what to
+  publish after the transaction commits.
 - Formal OCR accuracy (precision/recall/CER) remains Phase 14.
