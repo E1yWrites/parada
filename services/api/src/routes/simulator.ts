@@ -4,13 +4,15 @@ import { BadRequestError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
 import { requireRole } from "../middleware/auth";
 import { SimulatorService, SIMULATOR_SCENARIOS, type SimulatorScenario } from "../domain/simulator";
+import { publishZoneSnapshot } from "../realtime/occupancyEvents";
+import type { RealtimeHub } from "../realtime/hub";
 
 /**
  * Simulator control plane — ADMIN ONLY. A USER must never be able to
  * artificially change parking occupancy, so every route here requires
  * authentication + the ADMIN role (route-level requireRole("ADMIN")).
  */
-export function simulatorRouter(simulator: SimulatorService): Router {
+export function simulatorRouter(simulator: SimulatorService, realtimeHub?: RealtimeHub): Router {
   const router = Router();
 
   router.use(requireRole("ADMIN"));
@@ -45,6 +47,13 @@ export function simulatorRouter(simulator: SimulatorService): Router {
         unknownPlate: typeof unknownPlate === "string" ? unknownPlate : undefined,
         fillTo: typeof fillTo === "number" ? fillTo : undefined,
       });
+
+      // A scenario drives the real pipeline, so every other connected client
+      // (dashboards, mobile zone lists) sees the committed zone state at once
+      // instead of waiting for its next poll.
+      if (realtimeHub) {
+        await publishZoneSnapshot(realtimeHub, result.zone.id);
+      }
 
       res.status(201).json(ok(result));
     })

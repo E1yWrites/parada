@@ -1,0 +1,90 @@
+{
+  "generated_at": "2026-09-13T16:22:08.525567+00:00",
+  "api_url": "http://127.0.0.1:4100",
+  "vision_url": "http://localhost:8001",
+  "host": {
+    "platform": "Windows-10-10.0.26200-SP0",
+    "cpu": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+    "logical_cpus": 16
+  },
+  "zone": {
+    "code": "A",
+    "id": "cmtswvcy300004sqcp85gidd5",
+    "occupancy_before": {
+      "occupiedCount": 0,
+      "availableCount": 20
+    },
+    "occupancy_after": {
+      "occupiedCount": 0,
+      "availableCount": 20
+    }
+  },
+  "preflight_exit_status": 409,
+  "cameras": {
+    "entry": "cam-a-entry",
+    "exit": "cam-a-exit"
+  },
+  "plate": "ABC 1234",
+  "cycles": 20,
+  "pipeline_inprocess": {
+    "n": 20,
+    "mean_ms": 84.59837500049616,
+    "median_ms": 85.35899999696994,
+    "p95_ms": 90.74716998948134,
+    "max_ms": 97.22940000938252,
+    "min_ms": 76.74619999306742,
+    "reads_correct": 20
+  },
+  "vision_http": {
+    "n": 20,
+    "mean_ms": 84.53981499842484,
+    "median_ms": 82.80594999814639,
+    "p95_ms": 92.66669500066202,
+    "max_ms": 104.65370000747498,
+    "min_ms": 78.7244999955874,
+    "reads_correct": 20
+  },
+  "vision_http_server_processing": {
+    "n": 20,
+    "mean_ms": 82.79999999867869,
+    "median_ms": 78.00000000861473,
+    "p95_ms": 93.99999999732245,
+    "max_ms": 93.99999999732245,
+    "min_ms": 77.99999999406282
+  },
+  "api_direct": {
+    "n": 40,
+    "mean_ms": 19.91129750131222,
+    "median_ms": 15.627299995685462,
+    "p95_ms": 22.009030001208785,
+    "max_ms": 154.10070000507403,
+    "min_ms": 12.088599993148819,
+    "status": {
+      "201": 40
+    }
+  },
+  "vision_forward": {
+    "n": 40,
+    "mean_ms": 379.7373350000271,
+    "median_ms": 375.07950000144774,
+    "p95_ms": 411.7075250018388,
+    "max_ms": 436.3063000055263,
+    "min_ms": 358.96900000807364,
+    "status": {
+      "201": 40
+    },
+    "reads_correct": 40
+  },
+  "vision_forward_sse_delivery": {
+    "n": 40,
+    "mean_ms": 397.8449574991828,
+    "median_ms": 390.9883000087575,
+    "p95_ms": 464.2018899947288,
+    "max_ms": 493.43270000827033,
+    "min_ms": 363.07920000399463,
+    "frames_not_received_within_5s": 0,
+    "status": {
+      "201": 40
+    }
+  }
+}

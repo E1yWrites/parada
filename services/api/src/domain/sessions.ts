@@ -151,6 +151,17 @@ export class ParkingSessionService {
           throw new ConflictError(`Zone '${zone.id}' is full.`);
         }
 
+        // A successful entry consumes the driver's own in-window reservation
+        // for this zone (same rule as the camera pipeline), so it stops
+        // protecting a space the vehicle now physically occupies.
+        if (this.reservations) {
+          await this.reservations.consumeForEntry(
+            tx,
+            { userId, vehicleId: vehicle.id, zoneId: zone.id },
+            enteredAt
+          );
+        }
+
         // Read back the real post-increment state rather than reusing the
         // pre-transaction snapshot, which is stale under concurrent entries.
         const zoneAfter = await tx.parkingZone.findUniqueOrThrow({

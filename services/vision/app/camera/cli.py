@@ -114,7 +114,11 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="mode", required=True)
     sub.add_parser("test", help="open the configured source and report health")
     runp = sub.add_parser("run", help="run the full frame->OCR->API loop")
-    runp.add_argument("--zone-id", help="explicit zone id (optional; API resolves by default)")
+    runp.add_argument(
+        "--zone-id",
+        help="zone the camera is configured under (defaults to CAMERA_ZONE_ID; required, "
+        "because the API ingests events at POST /zones/:zoneId/events)",
+    )
 
     args = parser.parse_args(argv)
 
@@ -131,7 +135,15 @@ def main(argv: list[str] | None = None) -> int:
             return _test(source, vision_config.CAMERA_IDENTIFIER)
         except KeyboardInterrupt:
             return 130
-    return _run(source, vision_config.CAMERA_IDENTIFIER, args.zone_id or (vision_config.CAMERA_ZONE_ID or None))
+    zone_id = args.zone_id or (vision_config.CAMERA_ZONE_ID or None)
+    if not zone_id:
+        print(
+            "configuration error: CAMERA_ZONE_ID (or --zone-id) is required for `run` — "
+            "the API ingests camera events at POST /zones/:zoneId/events, so the runtime "
+            f"must know which zone camera '{vision_config.CAMERA_IDENTIFIER}' belongs to."
+        )
+        return 2
+    return _run(source, vision_config.CAMERA_IDENTIFIER, zone_id)
 
 
 if __name__ == "__main__":

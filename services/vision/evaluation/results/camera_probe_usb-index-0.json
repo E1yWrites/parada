@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-09-13T16:22:38.864593+00:00",
+  "device_label": "usb-index-0",
+  "source": {
+    "source": "usb",
+    "connected": true,
+    "streaming": true,
+    "width": 1920,
+    "height": 1080,
+    "deviceIndex": 0,
+    "env": {
+      "CAMERA_SOURCE": "usb",
+      "CAMERA_DEVICE_INDEX": 0
+    }
+  },
+  "open_ms": 1086.6032000049017,
+  "frames_requested": 30,
+  "frames_read": 30,
+  "read_failures": 0,
+  "frame_shape": [
+    1080,
+    1920,
+    3
+  ],
+  "read_latency": {
+    "n": 30,
+    "mean_ms": 3.6090866657711254,
+    "median_ms": 1.7072999980882742,
+    "p95_ms": 2.1135750001121774,
+    "max_ms": 57.9518000013195,
+    "min_ms": 1.4783000078750774
+  },
+  "jpeg_encode_latency": {
+    "n": 30,
+    "mean_ms": 6.043833333145206,
+    "median_ms": 5.917000002227724,
+    "p95_ms": 6.724299997586058,
+    "max_ms": 7.694100000662729,
+    "min_ms": 5.036000002291985
+  },
+  "inference_latency": {
+    "n": 30,
+    "mean_ms": 404.69524333214696,
+    "median_ms": 430.2086500028963,
+    "p95_ms": 690.8910350030052,
+    "max_ms": 874.6231999975862,
+    "min_ms": 49.06779999146238
+  },
+  "status_counts": {
+    "OCR_FAILED": 30
+  },
+  "detections": [],
+  "note": "no plate was presented to the camera; DETECTED entries are live false positives on an ordinary scene"
+}

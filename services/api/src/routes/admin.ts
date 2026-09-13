@@ -12,6 +12,7 @@ import type { ViolationService } from "../domain/violations";
 import { ZoneConfigService } from "../domain/zoneConfig";
 import { rateLimit } from "../http/rateLimit";
 import type { RealtimeHub } from "../realtime/hub";
+import { publishOccupancyOutcome, publishZoneSnapshot, withoutNotifications } from "../realtime/occupancyEvents";
 
 function zoneSummary(z: {
   id: string;
@@ -350,6 +351,11 @@ export function adminRouter(deps: {
     "/admin/zones/:id",
     asyncHandler(async (req, res) => {
       const updated = await zoneConfig.updateZone(req.params["id"]!, req.body);
+      // Capacity/status edits change availability without an occupancy
+      // event, so push the committed snapshot to every zone consumer.
+      if (deps.realtimeHub) {
+        await publishZoneSnapshot(deps.realtimeHub, updated.id);
+      }
       res.json(ok(updated));
     })
   );
@@ -758,20 +764,15 @@ export function adminRouter(deps: {
         { overrideAdminUserId: adminId }
       );
 
-      // Always the guest path (unregistered plate), but processEvent's return
-      // type is the wider union — narrow via "in" before reading guest fields.
-      if ("admitted" in result) {
-        deps.realtimeHub?.publish(
-          {
-            type: "GUEST_ADMISSION_ISSUE",
-            occurredAt: new Date().toISOString(),
-            payload: { zoneId: zoneIdRaw, admitted: result.admitted, deniedReason: result.deniedReason, anomalyType: result.anomalyType },
-          },
-          { audience: "ADMIN" }
-        );
+      // An admitted guest changes occupancy exactly like a camera event, so the
+      // same post-commit realtime fan-out applies (zone snapshot, admission
+      // decision, notifications). The pipeline's `notifications` list is
+      // realtime-only and is not part of the wire response.
+      if (deps.realtimeHub) {
+        await publishOccupancyOutcome(deps.realtimeHub, zoneIdRaw, result);
       }
 
-      res.status(201).json(ok(result));
+      res.status(201).json(ok(withoutNotifications(result)));
     })
   );
 

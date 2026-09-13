@@ -10,6 +10,7 @@ import {
   NotFoundError,
 } from "../http/errors";
 import type {
+  Notification,
   OccupancyEventType,
   OccupancySource,
 } from "@parada/database";
@@ -75,6 +76,12 @@ export interface GuestAdmissionResult {
   /** anomaly type recorded for this event (GUEST_DENIED / GUEST_ADMITTED / ...). */
   anomalyType: string | null;
   guestSessionId: string | null;
+  /**
+   * Notification rows the pipeline created in the same transaction (admin
+   * zone-state alerts, guest-admission issues). Returned so the HTTP layer can
+   * publish them over realtime after commit; not part of the wire response.
+   */
+  notifications: Notification[];
 }
 
 export interface ProcessEventOptions {
@@ -188,10 +195,12 @@ export class OccupancyService {
    * vehicle vs. guest candidate) -> apply admission policy -> update zone -> insert
    * event + history -> create/close session (registered or guest) -> record any
    * anomaly -> honor/consume reservations -> detect wrong-zone. Returns
-   * `{ event, violation }` for a registered vehicle (violation is non-null only
-   * when a wrong-zone entry escalates), or (for a CAMERA-sourced guest) a
-   * GuestAdmissionResult that carries the admission decision alongside the
-   * recorded occupancy event.
+   * `{ event, violation, notifications }` for a registered vehicle (violation
+   * is non-null only when a wrong-zone entry escalates), or (for a
+   * CAMERA-sourced guest) a GuestAdmissionResult that carries the admission
+   * decision alongside the recorded occupancy event. `notifications` lists the
+   * Notification rows created inside the transaction so the caller can
+   * publish them over realtime once the transaction has committed.
    */
   async processEvent(
     input: OccupancyInput,
@@ -201,6 +210,9 @@ export class OccupancyService {
     const { zoneId, cameraIdentifier, sourceEventId, eventType } = input;
 
     const { zone, camera } = await this.validateCamera(zoneId, cameraIdentifier);
+    // Sink for every Notification row this event creates; only ever read after
+    // the transaction commits (a rolled-back event publishes nothing).
+    const notifications: Notification[] = [];
 
     if (camera.status === "OFFLINE") {
       throw new ConflictError(`Camera '${cameraIdentifier}' is offline and cannot accept events.`);
@@ -233,6 +245,7 @@ export class OccupancyService {
             source,
             sourceEventId,
             detectedAt,
+            notifications,
           });
         }
         // ---- GUEST candidate path (unknown / low-confidence plate) ----
@@ -244,6 +257,7 @@ export class OccupancyService {
           source,
           sourceEventId,
           detectedAt,
+          notifications,
         }, options);
       });
     } catch (err) {
@@ -358,9 +372,10 @@ export class OccupancyService {
       source: OccupancySource;
       sourceEventId: string;
       detectedAt: Date;
+      notifications: Notification[];
     }
   ) {
-    const { zone, camera, match, eventType, source, sourceEventId, detectedAt } = ctx;
+    const { zone, camera, match, eventType, source, sourceEventId, detectedAt, notifications } = ctx;
     const vehicleId = match.vehicleId!;
 
     // Wrong-zone warning applies only to registered ENTRY events. A
@@ -389,8 +404,9 @@ export class OccupancyService {
     // A space held by someone else's reservation is not available to this
     // vehicle, even though occupiedCount has not moved. The vehicle's own
     // reservation is excluded so a holder is never blocked by their own booking.
+    let vehicleOwner: { userId: string } | null = null;
     if (eventType === "ENTRY") {
-      const vehicleOwner = await tx.vehicle.findUnique({
+      vehicleOwner = await tx.vehicle.findUnique({
         where: { id: vehicleId },
         select: { userId: true },
       });
@@ -417,8 +433,12 @@ export class OccupancyService {
 
     // Only a successful registered ENTRY consumes an in-window reservation.
     // Failed/full entries must leave the reservation available.
-    if (eventType === "ENTRY") {
-      await this.consumeReservationForZone(tx, match, zone.id, detectedAt);
+    if (eventType === "ENTRY" && vehicleOwner && this.reservations) {
+      await this.reservations.consumeForEntry(
+        tx,
+        { userId: vehicleOwner.userId, vehicleId, zoneId: zone.id },
+        detectedAt
+      );
     }
 
     const event = await tx.occupancyEvent.create({
@@ -455,7 +475,7 @@ export class OccupancyService {
       previousOccupied,
       newOccupied,
       availableCount,
-    });
+    }, notifications);
 
     if (eventType === "ENTRY") {
       const vehicle = await tx.vehicle.findUniqueOrThrow({
@@ -476,12 +496,15 @@ export class OccupancyService {
       if (wrongZone) {
         // Escalate BEFORE recording this entry's warning, so the count
         // reflects previous offences only. First offences stay warnings.
-        const violation = await this.violations?.escalateWrongZone(tx, {
+        const escalated = await this.violations?.escalateWrongZone(tx, {
           userId: vehicle.userId,
           vehicleId,
           zoneId: zone.id,
           assignedZoneCode: assignedZoneCode ?? "unknown",
         });
+        if (escalated) {
+          notifications.push(escalated.notification);
+        }
         await tx.occupancyAnomaly.create({
           data: {
             occupancyEventId: event.id,
@@ -493,16 +516,18 @@ export class OccupancyService {
             resolved: false,
           },
         });
-        await tx.notification.create({
-          data: {
-            zoneId: zone.id,
-            userId: vehicle.userId,
-            type: "WRONG_ZONE_WARNING",
-            message: `Your vehicle (${match.detectedPlate}) entered a zone different from your assigned zone.`,
-            targetRole: "USER",
-          },
-        });
-        return { event, violation: violation ?? null };
+        notifications.push(
+          await tx.notification.create({
+            data: {
+              zoneId: zone.id,
+              userId: vehicle.userId,
+              type: "WRONG_ZONE_WARNING",
+              message: `Your vehicle (${match.detectedPlate}) entered a zone different from your assigned zone.`,
+              targetRole: "USER",
+            },
+          })
+        );
+        return { event, violation: escalated?.violation ?? null, notifications };
       }
     } else if (eventType === "EXIT") {
       // Scoped to this zone: a vehicle may only be released through the gate
@@ -545,7 +570,7 @@ export class OccupancyService {
       }
     }
 
-    return { event, violation: null };
+    return { event, violation: null, notifications };
   }
 
   /**
@@ -566,10 +591,11 @@ export class OccupancyService {
       source: OccupancySource;
       sourceEventId: string;
       detectedAt: Date;
+      notifications: Notification[];
     },
     options: ProcessEventOptions
   ) {
-    const { zone, camera, match, eventType, source, sourceEventId, detectedAt } = ctx;
+    const { zone, camera, match, eventType, source, sourceEventId, detectedAt, notifications } = ctx;
 
     // SIMULATOR source: legacy unknown handling (count occupancy, no guest
     // session). Keeps the admin/demo simulator behavior intact.
@@ -616,7 +642,7 @@ export class OccupancyService {
         previousOccupied,
         newOccupied,
         availableCount,
-      });
+      }, notifications);
 
       if (eventType === "ENTRY") {
         const reason =
@@ -696,7 +722,7 @@ export class OccupancyService {
           previousOccupied: releaseFrom,
           newOccupied,
           availableCount,
-        });
+        }, notifications);
 
         const durationMs = Math.max(
           0,
@@ -726,7 +752,7 @@ export class OccupancyService {
           deniedReason: null,
           anomalyType: null,
           guestSessionId: guestSessionRow.session.id,
-        });
+        }, notifications);
       }
 
       // No active guest session in this zone. This also covers a guest trying
@@ -779,7 +805,7 @@ export class OccupancyService {
             ? "GUEST_EXIT_WRONG_ZONE"
             : "GUEST_EXIT_WITHOUT_SESSION",
         guestSessionId: null,
-      });
+      }, notifications);
     }
 
     // ENTRY -> guest admission decision. Policy eligibility is decided from
@@ -848,7 +874,7 @@ export class OccupancyService {
         previousOccupied,
         newOccupied,
         availableCount,
-      });
+      }, notifications);
 
       // Account-less guest parking session (userId/vehicleId null) wrapping a
       // GuestSession identified by the detected plate.
@@ -886,14 +912,16 @@ export class OccupancyService {
         },
       });
       if (options.overrideAdminUserId) {
-        await tx.notification.create({
-          data: {
-            zoneId: zone.id,
-            type: "GUEST_ADMISSION_ISSUE",
-            message: `Guest admitted by admin override under normal policy denial.`,
-            targetRole: "ADMIN",
-          },
-        });
+        notifications.push(
+          await tx.notification.create({
+            data: {
+              zoneId: zone.id,
+              type: "GUEST_ADMISSION_ISSUE",
+              message: `Guest admitted by admin override under normal policy denial.`,
+              targetRole: "ADMIN",
+            },
+          })
+        );
       }
 
       return this.guestResult(event, {
@@ -901,7 +929,7 @@ export class OccupancyService {
         deniedReason: null,
         anomalyType,
         guestSessionId: session.id,
-      });
+      }, notifications);
     }
 
     // DENIED: occupancy unchanged, recorded as an auditable anomaly.
@@ -916,21 +944,23 @@ export class OccupancyService {
         resolved: false,
       },
     });
-    await tx.notification.create({
-      data: {
-        zoneId: zone.id,
-        type: "GUEST_ADMISSION_ISSUE",
-        message: `Guest entry denied (${deniedReason}).`,
-        targetRole: "ADMIN",
-      },
-    });
+    notifications.push(
+      await tx.notification.create({
+        data: {
+          zoneId: zone.id,
+          type: "GUEST_ADMISSION_ISSUE",
+          message: `Guest entry denied (${deniedReason}).`,
+          targetRole: "ADMIN",
+        },
+      })
+    );
 
     return this.guestResult(event, {
       admitted: false,
       deniedReason,
       anomalyType: "GUEST_DENIED",
       guestSessionId: null,
-    });
+    }, notifications);
   }
 
   /**
@@ -946,9 +976,10 @@ export class OccupancyService {
       newOccupied: number;
       availableCount: number;
     },
-    admission: GuestAdmissionResult
+    admission: Omit<GuestAdmissionResult, "notifications">,
+    notifications: Notification[]
   ) {
-    return { ...event, ...admission };
+    return { ...event, ...admission, notifications };
   }
 
   /**
@@ -1013,51 +1044,6 @@ export class OccupancyService {
   }
 
   /**
-   * Find an ACTIVE (window-valid) reservation for this vehicle/zone and consume
-   * it (set to ACTIVE) so it stops protecting extra capacity. Expired/cancelled
-   * reservations are left alone and treated as inactive. Returns true if a
-   * matching active reservation was honored.
-   */
-  private async consumeReservationForZone(
-    tx: Prisma.TransactionClient,
-    match: VehicleMatch,
-    zoneId: string,
-    now: Date
-  ): Promise<boolean> {
-    if (!match.vehicleId) {
-      return false;
-    }
-    const vehicle = await tx.vehicle.findUnique({
-      where: { id: match.vehicleId },
-      select: { userId: true },
-    });
-    if (!vehicle) {
-      return false;
-    }
-    const active = await tx.reservation.findFirst({
-      where: {
-        userId: vehicle.userId,
-        vehicleId: match.vehicleId,
-        zoneId,
-        status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
-        startAt: { lte: now },
-        endAt: { gte: now },
-      },
-      orderBy: { startAt: "asc" },
-    });
-    if (active) {
-      if (active.status !== "ACTIVE") {
-        await tx.reservation.update({
-          where: { id: active.id },
-          data: { status: "ACTIVE" },
-        });
-      }
-      return true;
-    }
-    return false;
-  }
-
-  /**
    * Generate admin/maintainer notifications on a state TRANSITION, not on every
    * event. A ZONE_FULL notification is created only when the zone first becomes
    * full; a ZONE_LOW_AVAILABILITY notification only when availability first
@@ -1074,7 +1060,8 @@ export class OccupancyService {
       previousOccupied: number;
       newOccupied: number;
       availableCount: number;
-    }
+    },
+    sink: Notification[]
   ): Promise<void> {
     const { zoneId, capacity, previousOccupied, newOccupied, availableCount } = input;
 
@@ -1085,14 +1072,16 @@ export class OccupancyService {
     const wasFull = previousOccupied >= capacity;
     const nowFull = newOccupied >= capacity;
     if (!wasFull && nowFull) {
-      await tx.notification.create({
-        data: {
-          zoneId,
-          type: "ZONE_FULL",
-          message: `Zone is FULL (${capacity}/${capacity} occupied).`,
-          targetRole: "ADMIN",
-        },
-      });
+      sink.push(
+        await tx.notification.create({
+          data: {
+            zoneId,
+            type: "ZONE_FULL",
+            message: `Zone is FULL (${capacity}/${capacity} occupied).`,
+            targetRole: "ADMIN",
+          },
+        })
+      );
     }
 
     const availableFraction = availableCount / capacity;
@@ -1100,14 +1089,16 @@ export class OccupancyService {
     const nowLow = availableFraction <= ZONE_OCCUPANCY_LOW_THRESHOLD;
     const wasLow = previousAvailableFraction <= ZONE_OCCUPANCY_LOW_THRESHOLD;
     if (!wasLow && nowLow) {
-      await tx.notification.create({
-        data: {
-          zoneId,
-          type: "ZONE_LOW_AVAILABILITY",
-          message: `Zone availability is low (${availableCount}/${capacity} available).`,
-          targetRole: "ADMIN",
-        },
-      });
+      sink.push(
+        await tx.notification.create({
+          data: {
+            zoneId,
+            type: "ZONE_LOW_AVAILABILITY",
+            message: `Zone availability is low (${availableCount}/${capacity} available).`,
+            targetRole: "ADMIN",
+          },
+        })
+      );
     }
   }
 

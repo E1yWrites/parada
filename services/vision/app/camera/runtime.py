@@ -20,6 +20,7 @@ import time
 from dataclasses import dataclass, field
 
 import cv2
+import httpx
 import numpy as np
 
 from .. import api_client, config
@@ -60,6 +61,16 @@ class CameraRuntime:
     event_type: str = "ENTRY"  # fixed for a single-camera runtime; the API enforces direction
 
     def __post_init__(self) -> None:
+        # The only ingestion contract the API exposes is
+        # POST /zones/:zoneId/events — the zone is part of the URL, so a runtime
+        # without one would post every event to "/zones/None/events" and be
+        # rejected with 404 forever. Refuse to construct instead.
+        if not self.zone_id:
+            raise ValueError(
+                "zone_id is required: the API ingests camera events at "
+                "POST /zones/:zoneId/events. Set CAMERA_ZONE_ID (or pass --zone-id) "
+                f"to the zone that camera '{self.camera_identifier}' is configured under."
+            )
         if self.process_fps <= 0:
             self.process_fps = 1.0
         self._stop_flag = False
@@ -87,9 +98,22 @@ class CameraRuntime:
         - 429 is a throttle — a bounded backoff then normal continuation; it is
           never treated as an auth failure (no credential change, no new token).
         - 5xx/transport: bounded retries with backoff, capped so we never
-          hammer the API forever.
+          hammer the API forever. A transport failure (API down, DNS, timeout)
+          is isolated here: it is counted, logged without the payload, and the
+          loop backs off and keeps reading frames — it never crashes the camera.
         """
-        status_code, body = api_client.forward_event(self.zone_id, event)
+        try:
+            status_code, body = api_client.forward_event(self.zone_id, event)
+        except (httpx.HTTPError, OSError) as exc:
+            self.stats.api_error += 1
+            logger.warning(
+                "api unreachable (%s); backing off %.1fs camera=%s",
+                type(exc).__name__,
+                self.reconnect_delay,
+                self.camera_identifier,
+            )
+            self._wait_interruptible(self.reconnect_delay)
+            return "error:transport"
         if status_code == 201:
             self.stats.api_ok += 1
             return "ok"

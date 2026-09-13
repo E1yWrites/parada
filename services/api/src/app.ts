@@ -128,7 +128,7 @@ export function createApp(options: AppOptions = {}): Express {
   app.use(admin);
 
   const simulator = new SimulatorService(occupancy);
-  app.use(simulatorRouter(simulator));
+  app.use(simulatorRouter(simulator, realtimeHub));
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json(errorBody({ code: "NOT_FOUND", message: "Route not found." }));

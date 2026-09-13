@@ -331,9 +331,13 @@ database or any API DTO (see "Security" below).
 | Physical source | a USB device index, or an RTSP URL, or a video-file path | Vision runtime env/config only |
 
 The join key is the **camera identifier** (`CAMERA_IDENTIFIER` in the Vision
-runtime). At event time the runtime sends `cameraIdentifier=CAM-A01` to the
-existing API, which resolves camera→zone→direction→status itself — Vision never
-duplicates the camera-zone mapping.
+runtime). At event time the runtime posts `cameraIdentifier=CAM-A01` to the
+existing `POST /zones/:zoneId/events` route under its configured
+`CAMERA_ZONE_ID`; the API then verifies that the camera really belongs to that
+zone and resolves direction/status itself (409 on a mismatch) — the
+camera→zone mapping stays authoritative in the database, and Vision never
+re-implements it. `CAMERA_ZONE_ID` is therefore required for `run` (the CLI
+refuses to start without it, Phase 13).
 
 ### CameraSource abstraction
 
@@ -372,7 +376,9 @@ all three — no per-source OCR/business code.
 - `429` from the API is a throttle: bounded backoff, **not** treated as an auth
   failure (no credential rotation, no new token). `409` is a business answer
   (duplicate/full/offline/direction) and is not retried. `5xx`/transport is
-  also bounded.
+  also bounded: an unreachable API (connection refused, DNS, timeout) is
+  counted and logged, the runtime backs off, and the frame loop keeps running
+  (Phase 13 regression: it previously crashed the camera loop).
 - Clean shutdown: `close()` stops the loop within ~100ms and releases OpenCV
   captures (no zombie handles).
 
@@ -418,4 +424,6 @@ log/response/`describe()`; only the scheme/host/port are ever surfaced.
   see `docs/api/README.md` → “Realtime (Server-Sent Events)”. Vision is
   unaffected: it still only POSTs events to the API, and the API decides what to
   publish after the transaction commits.
-- Formal OCR accuracy (precision/recall/CER) remains Phase 14.
+- Formal OCR accuracy was measured in Phase 14 on a synthetic benchmark — see
+  `docs/vision/phase14-evaluation.md` (77.4 % exact / 93.8 % character accuracy on
+  1150 synthetic positives, 0/100 false positives; not a production claim).

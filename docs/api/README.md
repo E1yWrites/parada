@@ -314,7 +314,7 @@ client-supplied user id is never trusted.
 | GET | `/zones/establishment` | Navigation destination; `null` until an admin configures one. |
 | POST | `/assignments` | Accept a zone (`{zoneId, vehicleId}`). One ACTIVE assignment per vehicle; expired ones are released automatically. |
 | GET | `/assignments`, `/assignments/:id` | The user's assignments. |
-| POST | `/reservations` | Hold a zone (`{zoneId, vehicleId, startAt?, endAt?}`). Reservations are serialized per zone (PostgreSQL advisory lock) and refused when capacity plus existing holds would be exceeded; overlapping duplicates for the same user/vehicle/zone return `409 CONFLICT`, non-overlapping windows are allowed. |
+| POST | `/reservations` | Hold a zone (`{zoneId, vehicleId, startAt?, endAt?}`). Reservations are serialized per zone (PostgreSQL advisory lock) and refused when capacity plus existing holds would be exceeded; overlapping duplicates for the same user/vehicle/zone return `409 CONFLICT`, non-overlapping windows are allowed. A hold protects a space only until the holder arrives: a successful entry (camera or `POST /sessions/entry`) flips it to `ACTIVE`, and an `ACTIVE` reservation no longer counts against capacity because the vehicle is now in `occupiedCount` (Phase 13). |
 | GET | `/reservations`, `/reservations/:id` | The user's reservations; window-expired ones are flipped to EXPIRED lazily. |
 | PATCH | `/reservations/:id/cancel` | Cancel an own reservation. |
 | POST | `/sessions/entry` | User-initiated entry (`{vehicleId, zoneId, enteredAt?}`). |
@@ -388,15 +388,15 @@ is the runtime guard clients apply to every decoded frame.
 
 | Event | Audience | Published from |
 |-------|----------|----------------|
-| `ZONE_OCCUPANCY_UPDATED` | PUBLIC | `POST /zones/:zoneId/events` (camera/vision) |
-| `PARKING_SESSION_STARTED` | owner | `POST /sessions/entry` |
-| `PARKING_SESSION_COMPLETED` | owner | `POST /sessions/:id/exit` |
+| `ZONE_OCCUPANCY_UPDATED` | PUBLIC | `POST /zones/:zoneId/events` (camera/vision), `POST /sessions/entry`, `POST /sessions/:id/exit`, `POST /admin/guest-admit`, `POST /simulator/run`, `PATCH /admin/zones/:id` (capacity/status edits) |
+| `PARKING_SESSION_STARTED` | owner | `POST /sessions/entry`, camera ENTRY for a registered vehicle (Phase 13) |
+| `PARKING_SESSION_COMPLETED` | owner | `POST /sessions/:id/exit`, camera EXIT for a registered vehicle (Phase 13) |
 | `RESERVATION_CREATED` | owner | `POST /reservations` |
 | `RESERVATION_CANCELLED` | owner | `PATCH /reservations/:id/cancel`, `PATCH /admin/reservations/:id/cancel` |
 | `ASSIGNMENT_CREATED` | owner | `POST /assignments` |
 | `VIOLATION_CREATED` | owner | camera pipeline (wrong-zone violation) |
 | `GUEST_ADMISSION_ISSUE` | ADMIN | camera pipeline, `POST /admin/guest-admit` |
-| `NOTIFICATION_CREATED` | owner | `POST /violations/:id/appeal`, `PATCH /admin/appeals/:id/status` |
+| `NOTIFICATION_CREATED` | owner, or ADMIN for operational alerts | `POST /violations/:id/appeal`, `PATCH /admin/appeals/:id/status`, every `Notification` the occupancy pipeline writes (`ZONE_FULL`, `ZONE_LOW_AVAILABILITY`, `GUEST_ADMISSION_ISSUE`, `WRONG_ZONE_WARNING`, `VIOLATION_ISSUED` — Phase 13) |
 
 Authorization is enforced per connection, on delivery **and on replay**:
 

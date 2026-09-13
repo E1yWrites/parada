@@ -7,6 +7,7 @@ import os
 import time
 from unittest.mock import patch
 
+import httpx
 import pytest
 
 from app.camera.base import CameraSourceError, FrameReadError
@@ -171,6 +172,24 @@ def test_api_5xx_is_bounded(mock_forward, fake):
     # Every non-duplicate event attempt fails with 500; debounce is disabled so
     # each distinct processed frame attempts forwarding. Bounded by n_frames.
     assert rt.stats.api_error == fake.n_frames
+
+
+@patch("app.camera.runtime.api_client.forward_event", side_effect=httpx.ConnectError("connection refused"))
+def test_api_transport_failure_is_isolated_and_the_camera_keeps_running(mock_forward, fake):
+    """API down / DNS / timeout: the loop must not crash. Each failed handoff
+    is counted, the runtime backs off, and it keeps reading frames until the
+    source ends — then shuts the source down cleanly."""
+    fake.n_frames = 4
+    rt = _runtime(fake, cooldown_seconds=0.0, reconnect_delay=0.0)
+    rt.run()  # must not raise
+    assert rt.stats.api_error == fake.n_frames
+    assert rt.stats.frames_read == fake.n_frames
+    assert fake.closes >= 1
+
+
+def test_runtime_requires_a_zone_id():
+    with pytest.raises(ValueError, match="CAMERA_ZONE_ID"):
+        CameraRuntime(source=FakeSource(1), camera_identifier="CAM-A01", zone_id=None)
 
 
 @patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))

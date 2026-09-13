@@ -73,9 +73,11 @@ export class ReservationService {
 
   /**
    * Count reservations that still protect capacity for a given zone at a point
-   * in time. A reservation protects capacity if its status is not
-   * EXPIRED/CANCELLED and its arrival window (startAt + window) is still ahead
-   * of `now` (i.e. it has not expired).
+   * in time. A reservation protects capacity while the holder has NOT arrived
+   * yet: status PENDING/CONFIRMED and an arrival window (startAt ± window)
+   * that covers `now`. An ACTIVE reservation has been consumed by the holder's
+   * entry — that vehicle is already counted in `occupiedCount`, so counting it
+   * here too would hold a phantom second space until the window lapsed.
    */
   private countActiveProtection(
     tx: Prisma.TransactionClient,
@@ -87,7 +89,7 @@ export class ReservationService {
     return tx.reservation.count({
       where: {
         zoneId,
-        status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
+        status: { in: ["PENDING", "CONFIRMED"] },
         // Bounded on BOTH sides: a reservation only protects capacity around
         // its own arrival window. Without the upper bound a booking weeks out
         // would consume a space today.
@@ -122,6 +124,42 @@ export class ReservationService {
     const windowMinutes = await this.config.getReservationWindowMinutes(tx);
     await this.expireOverdue(windowMinutes, tx);
     return this.countActiveProtection(tx, zoneId, windowMinutes, new Date(), exclude);
+  }
+
+  /**
+   * Consume the holder's in-window reservation for this zone on a successful
+   * entry: flip it to ACTIVE so it stops protecting a space (the vehicle now
+   * occupies one). Runs in the caller's entry transaction — both the camera
+   * pipeline and user-initiated entry go through here, so a reservation is
+   * never consumed twice or left protecting capacity after arrival.
+   * Expired/cancelled reservations are ignored. Returns true when one was honored.
+   */
+  async consumeForEntry(
+    tx: Prisma.TransactionClient,
+    holder: { userId: string; vehicleId: string; zoneId: string },
+    now: Date
+  ): Promise<boolean> {
+    const active = await tx.reservation.findFirst({
+      where: {
+        userId: holder.userId,
+        vehicleId: holder.vehicleId,
+        zoneId: holder.zoneId,
+        status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
+        startAt: { lte: now },
+        endAt: { gte: now },
+      },
+      orderBy: { startAt: "asc" },
+    });
+    if (!active) {
+      return false;
+    }
+    if (active.status !== "ACTIVE") {
+      await tx.reservation.update({
+        where: { id: active.id },
+        data: { status: "ACTIVE" },
+      });
+    }
+    return true;
   }
 
   private async requireOwnedVehicle(userId: string, vehicleId: string) {

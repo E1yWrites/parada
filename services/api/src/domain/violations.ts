@@ -75,8 +75,9 @@ export class ViolationService {
   /**
    * Issue a WRONG_ZONE violation if this vehicle has exhausted its warnings.
    * Runs inside the caller's occupancy transaction so the violation and the
-   * event that caused it commit together. Returns the violation, or null when
-   * the entry is still within the warning allowance.
+   * event that caused it commit together. Returns the violation together with
+   * the driver notification it created (so the caller can publish it after
+   * commit), or null when the entry is still within the warning allowance.
    */
   async escalateWrongZone(
     tx: Prisma.TransactionClient,
@@ -108,7 +109,7 @@ export class ViolationService {
       },
     });
 
-    await tx.notification.create({
+    const notification = await tx.notification.create({
       data: {
         zoneId: input.zoneId,
         userId: input.userId,
@@ -118,7 +119,7 @@ export class ViolationService {
       },
     });
 
-    return violation;
+    return { violation, notification };
   }
 
   /** The authenticated user's own violations, newest first. */

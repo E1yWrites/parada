@@ -159,30 +159,32 @@ npm run test                                 # all workspaces
 The API and database suites run against **real PostgreSQL**, not mocks, and refuse to start unless
 `DATABASE_URL` points at a test database. Vision tests run under pytest in the service's virtualenv.
 
-Current state, as measured on the Phase 12 branch:
+Current state, as measured in Phase 14 (Phase 13 integration applied):
 
 | Workspace | Suites | Tests |
 |-----------|--------|-------|
 | `@parada/types` | 1 | 9 passed |
 | `@parada/database` | 1 | 49 passed |
-| `@parada/api` | 16 | 256 passed |
-| `@parada/admin` | 13 | 67 passed |
-| `@parada/mobile` | 28 | 321 passed |
-| `@parada/vision` (pytest) | — | 64 passed, 2 skipped |
+| `@parada/api` | 17 | 267 passed |
+| `@parada/admin` | 16 | 79 passed |
+| `@parada/mobile` | 29 | 324 passed |
+| `@parada/vision` (pytest) | — | 73 passed, 2 skipped |
 
 `npm run typecheck`, `npm run lint` and `npm run build` all pass across the workspaces. Lint reports
 warnings only (no errors). The two skipped vision tests are the opt-in live-API integration tests,
 which require a running API and are skipped without one.
 
-These are unit and integration results. **No physical-camera, on-device, or deployment testing is
-claimed.** Formal testing and OCR accuracy evaluation (precision/recall/CER) is Phase 14.
+These are unit and integration results. **No on-device or deployment testing is claimed.** The
+Phase 14 OCR accuracy evaluation (synthetic benchmark, per-condition results, end-to-end latency
+and a live USB-camera connectivity probe — no plate was shown to the camera) is documented in
+`docs/vision/phase14-evaluation.md`; it is a characterisation on synthetic data, not a
+production accuracy claim.
 
 ## Phases
 
 The project is developed in phases. **`docs/architecture/roadmap.md` is the single source of truth
-for phase numbering and status.** Phases 0–12 are complete. Phase 13 (Full System Integration) is
-next, followed by 14 (Testing + Accuracy Evaluation), 15 (Deployment) and 16 (Documentation +
-Final Review).
+for phase numbering and status.** Phases 0–14 are complete. Phase 15 (Deployment) is next,
+followed by 16 (Documentation + Final Review).
 
 ## Documentation
 

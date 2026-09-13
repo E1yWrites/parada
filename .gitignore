@@ -37,3 +37,6 @@ services/vision/.pytest_cache/
 
 # Superpowers subagent-driven-development scratch workspace
 .superpowers/
+
+# Phase 14 evaluation dataset (regenerated with `python -m evaluation.dataset`; manifest is committed)
+services/vision/evaluation/dataset/images/

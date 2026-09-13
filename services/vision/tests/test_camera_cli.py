@@ -42,6 +42,7 @@ def test_cli_run_mode_stops_cleanly_at_video_eof(fixture_video, monkeypatch):
     monkeypatch.setattr("app.config.CAMERA_SOURCE", "file")
     monkeypatch.setattr("app.config.CAMERA_FILE_PATH", fixture_video)
     monkeypatch.setattr("app.config.CAMERA_IDENTIFIER", "CAM-A01")
+    monkeypatch.setattr("app.config.CAMERA_ZONE_ID", "zone-1")
     # Disable reconnects so EOF exits cleanly fast.
     monkeypatch.setattr("app.config.MAX_CAMERA_RECONNECTS", "0")
 
@@ -49,6 +50,27 @@ def test_cli_run_mode_stops_cleanly_at_video_eof(fixture_video, monkeypatch):
         code = main(["run"])
         assert code == 0
         assert fwd.call_count >= 1
+        # Every event is posted under the configured zone — never "/zones/None".
+        assert all(call.args[0] == "zone-1" for call in fwd.call_args_list)
+
+
+def test_cli_run_mode_refuses_to_start_without_a_zone(fixture_video, monkeypatch, capsys):
+    """The API's only ingestion route is POST /zones/:zoneId/events, so a
+    runtime that does not know its zone would post to /zones/None/events and
+    be answered 404 for every frame. That is a configuration error and must
+    stop the CLI up front, with no event ever sent."""
+    monkeypatch.setattr("app.config.CAMERA_SOURCE", "file")
+    monkeypatch.setattr("app.config.CAMERA_FILE_PATH", fixture_video)
+    monkeypatch.setattr("app.config.CAMERA_IDENTIFIER", "CAM-A01")
+    monkeypatch.setattr("app.config.CAMERA_ZONE_ID", "")
+
+    with patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}})) as fwd:
+        code = main(["run"])
+
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "CAMERA_ZONE_ID" in out
+    assert fwd.call_count == 0
 
 
 def test_file_source_runtime_reads_and_OCR_processes_real_frames(fixture_video):

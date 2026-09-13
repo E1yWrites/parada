@@ -59,9 +59,10 @@ VIDEO_SOURCE = os.environ.get("VIDEO_SOURCE", "")
 # through the API; the API is the authority on camera-zone-direction.
 CAMERA_IDENTIFIER = os.environ.get("CAMERA_IDENTIFIER", "CAM-A01")
 
-# Also allow the logical camera's configured zone to be pinned explicitly when
-# runtime and admin config intentionally agree; otherwise the API resolves the
-# zone from the camera identifier included in each event.
+# The zone this camera is configured under in Admin. REQUIRED for `run`: the
+# API's only ingestion endpoint is POST /zones/:zoneId/events, and it then
+# verifies that CAMERA_IDENTIFIER really belongs to that zone (409 otherwise),
+# so the mapping stays authoritative in the database.
 CAMERA_ZONE_ID = os.environ.get("CAMERA_ZONE_ID", "")
 
 # Frame-rate ceiling. A webcam may deliver 30-60 FPS but we must not run

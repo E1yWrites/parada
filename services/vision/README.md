@@ -142,8 +142,11 @@ image shows.
   `tests/fixtures/images/` (see `generate_fixtures.py` — programmatically
   drawn, not real vehicle photos, so no licensing concern), not real-world
   camera footage from varied angles/lighting/plate designs.
-- No physical camera hardware testing was performed.
-- Formal accuracy evaluation is deferred to Phase 14.
+- Phase 14 measured this pipeline on a 1250-image synthetic benchmark and probed
+  two real USB webcams (connectivity + live false-positive behaviour only; no plate
+  was presented). Results, method and limitations: `docs/vision/phase14-evaluation.md`;
+  harness: `evaluation/` (`python -m evaluation.dataset`, `python -m evaluation.run_ocr_eval`,
+  `python -m evaluation.run_e2e_latency`, `python -m evaluation.run_camera_probe`).
 
 ## Measured performance (this sandbox: 16 vCPU, CPU-only inference, no GPU used)
 
@@ -170,7 +173,7 @@ and never enter the database, an API response, or a log.
 | `CAMERA_FILE_PATH` | (empty) | path to a video fixture for `file` |
 | `VIDEO_SOURCE` | (empty) | `rtsp://` URL for `rtsp` |
 | `CAMERA_IDENTIFIER` | `CAM-A01` | the LOGICAL camera this source feeds (join key to the API) |
-| `CAMERA_ZONE_ID` | (empty) | optional pinned zone; if unset the API resolves camera→zone from the identifier |
+| `CAMERA_ZONE_ID` | (empty) | **required for `run`** — the zone the camera is configured under. The API's only ingestion route is `POST /zones/:zoneId/events`; it then verifies the camera really belongs to that zone (409 otherwise). `run` refuses to start without it |
 | `VISION_PROCESS_FPS` | `2` | processing ceiling — frames above this are not OCR'd |
 | `OBSERVATION_COOLDOWN_SECONDS` | `5` | same camera + same plate + same direction within this window = one observation |
 | `CAMERA_RECONNECT_DELAY_SECONDS` | `2` | backoff between reconnect attempts |
@@ -207,6 +210,7 @@ admin JWT is used.**
 3. Start the full loop (bash/WSL):
    ```bash
    CAMERA_SOURCE=usb CAMERA_DEVICE_INDEX=0 CAMERA_IDENTIFIER=CAM-A01 \
+     CAMERA_ZONE_ID=<zoneId> \
      PARADA_API_URL=http://localhost:4100 CAMERA_API_KEY=<key> \
      npm run camera -w @parada/vision -- run
    ```
@@ -245,6 +249,7 @@ the loop cleanly.
 
 ```bash
 CAMERA_SOURCE=rtsp VIDEO_SOURCE=rtsp://10.0.0.15:554/stream1 CAMERA_IDENTIFIER=CAM-A01 \
+  CAMERA_ZONE_ID=<zoneId> \
   PARADA_API_URL=http://localhost:4100 CAMERA_API_KEY=<key> \
   npm run camera -w @parada/vision -- test
 ```
@@ -287,7 +292,9 @@ zone/camera/direction/status itself (no duplication in Vision).
 | `RTSP stream could not be opened` | Wrong URL/host/path, or stream requires auth. Verify `VIDEO_SOURCE` is `rtsp://...` and reachable. |
 | `Video file not found: ...` | `CAMERA_FILE_PATH` is empty/mistyped; `generate_video.py` was not run. |
 | `OCR model is not loaded` / health `unhealthy` | EasyOCR weights missing or failed to load; check `~/.EasyOCR` and re-run setup. |
+| `configuration error: CAMERA_ZONE_ID (or --zone-id) is required` | `run` needs the zone the camera is configured under (Admin → Cameras). Without it every event would target `/zones/None/events` and be rejected. |
 | `api event error status=401` | `CAMERA_API_KEY` does not match the API's key (or the API enforces one but none is set). This is a **config** error, not an auth-vs-Vision issue. |
+| `api unreachable (ConnectError); backing off` | The API is down or `PARADA_API_URL` is wrong. The runtime keeps reading frames and retries each new observation after `CAMERA_RECONNECT_DELAY_SECONDS`; it never crashes on a transport failure. |
 | `api rejected event status=409 reason=Duplicate camera event` | Normal: the same physical observation was re-sent; the API's idempotency key absorbed it. Not an error. |
 | `api throttled event (429)` | The API's camera rate limit was hit; runtime backs off automatically (bounded). |
 | Camera stops after `MAX_CAMERA_RECONNECTS` | The source is genuinely gone; the runtime isolates it (does not crash) and exits cleanly. Check the physical connection. |

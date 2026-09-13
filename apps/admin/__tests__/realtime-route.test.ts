@@ -5,10 +5,14 @@ import { GET } from "@/app/api/realtime/route";
 
 jest.mock("@/lib/auth", () => ({
   getSessionToken: jest.fn(),
+  clearSessionToken: jest.fn(),
   apiBaseUrl: () => "http://backend.test",
 }));
 
-const { getSessionToken } = jest.requireMock("@/lib/auth") as { getSessionToken: jest.Mock };
+const { getSessionToken, clearSessionToken } = jest.requireMock("@/lib/auth") as {
+  getSessionToken: jest.Mock;
+  clearSessionToken: jest.Mock;
+};
 
 describe("GET /api/realtime", () => {
   afterEach(() => jest.resetAllMocks());
@@ -17,6 +21,18 @@ describe("GET /api/realtime", () => {
     getSessionToken.mockReturnValue(null);
     const res = await GET(new Request("http://admin.test/api/realtime"));
     expect(res.status).toBe(401);
+  });
+
+  it("relays an expired/revoked token as 401 and clears the cookie (an EventSource never retries a 401, so the console must re-login)", async () => {
+    getSessionToken.mockReturnValue("expired-token");
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: { code: "UNAUTHORIZED", message: "Invalid or expired token." } }),
+    }) as unknown as typeof fetch;
+    const res = await GET(new Request("http://admin.test/api/realtime"));
+    expect(res.status).toBe(401);
+    expect(clearSessionToken).toHaveBeenCalledTimes(1);
   });
 
   it("returns 403 when the token is not an admin", async () => {

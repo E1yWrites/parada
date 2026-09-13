@@ -1,0 +1,78 @@
+{
+  "generated_at": "2026-09-13T16:16:23.264837+00:00",
+  "api_url": "http://localhost:4100",
+  "vision_url": "http://localhost:8001",
+  "host": {
+    "platform": "Windows-10-10.0.26200-SP0",
+    "cpu": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+    "logical_cpus": 16
+  },
+  "zone": {
+    "code": "A",
+    "id": "cmtswvcy300004sqcp85gidd5",
+    "occupancy_before": {
+      "occupiedCount": 0,
+      "availableCount": 20
+    },
+    "occupancy_after": {
+      "occupiedCount": 0,
+      "availableCount": 20
+    }
+  },
+  "preflight_exit_status": 201,
+  "cameras": {
+    "entry": "cam-a-entry",
+    "exit": "cam-a-exit"
+  },
+  "plate": "ABC 1234",
+  "cycles": 20,
+  "pipeline_inprocess": {
+    "n": 20,
+    "mean_ms": 198.37933000017074,
+    "median_ms": 82.22970000497298,
+    "p95_ms": 256.06575000420133,
+    "max_ms": 2322.4516000045696,
+    "min_ms": 76.51869999244809,
+    "reads_correct": 20
+  },
+  "vision_http": {
+    "n": 20,
+    "mean_ms": 102.95553500036476,
+    "median_ms": 97.4437500044587,
+    "p95_ms": 122.20366498731897,
+    "max_ms": 198.58869999006856,
+    "min_ms": 86.83529999689199,
+    "reads_correct": 20
+  },
+  "vision_http_server_processing": {
+    "n": 20,
+    "mean_ms": 99.14999999964493,
+    "median_ms": 93.99999999732245,
+    "p95_ms": 128.9000000004308,
+    "max_ms": 203.00000000861473,
+    "min_ms": 77.99999999406282
+  },
+  "api_direct": {
+    "n": 40,
+    "mean_ms": 74.66285249865905,
+    "median_ms": 18.669049997697584,
+    "p95_ms": 41.42300499224768,
+    "max_ms": 2067.505400002119,
+    "min_ms": 14.31149999552872,
+    "status": {
+      "201": 40
+    }
+  },
+  "vision_forward": {
+    "n": 40,
+    "mean_ms": 2432.0289850016707,
+    "median_ms": 2428.910700000415,
+    "p95_ms": 2489.8905950030894,
+    "max_ms": 2494.905600004131,
+    "min_ms": 2383.4955000056652,
+    "status": {
+      "201": 40
+    },
+    "reads_correct": 40
+  }
+}

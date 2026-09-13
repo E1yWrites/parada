@@ -22,9 +22,9 @@ document -> STOP.
 | 11 | OCR / Computer Vision (real model) | DONE |
 | 11A | Administrative configuration (zones, capacity, physical-slot inventory, gate cameras) | DONE |
 | 11C | Physical camera provisioning + vision connectivity (USB / RTSP / video file) | DONE |
-| 12 | Real-Time Integration | DONE |
-| 13 | Full System Integration | PENDING |
-| 14 | Testing + Accuracy Evaluation | PENDING |
+| 12 | Real-Time Integration (SSE) | DONE |
+| 13 | Full System Integration (end-to-end audit + integration-defect fixes + cross-layer regression) | DONE |
+| 14 | Testing + Accuracy Evaluation (synthetic OCR benchmark, condition study, E2E latency, USB probe, full regression — `docs/vision/phase14-evaluation.md`) | DONE |
 | 15 | Deployment | PENDING |
 | 16 | Documentation + Final Review | PENDING |
 

@@ -6,6 +6,7 @@ import { asyncHandler } from "../http/asyncHandler";
 import { rateLimit } from "../http/rateLimit";
 import { OccupancyService } from "../domain/occupancy";
 import { ZoneService } from "../domain/zones";
+import { publishOccupancyOutcome, withoutNotifications } from "../realtime/occupancyEvents";
 import type { RealtimeHub } from "../realtime/hub";
 import type { OccupancyEventType } from "@parada/database";
 
@@ -117,49 +118,16 @@ export function eventsRouter(occupancy: OccupancyService, options: EventsRouterO
       });
 
       // Preserve the existing wire contract: clients today receive the bare
-      // occupancy event. The registered-vehicle path now nests it under
-      // `.event`; the guest path is unchanged.
-      const occupancyEvent = "event" in result ? result.event : result;
-      const violation = "violation" in result ? result.violation : null;
+      // occupancy event. The registered-vehicle path nests it under `.event`;
+      // the guest path returns the event + admission decision. The pipeline's
+      // `notifications` are realtime-only and never part of the response.
+      const occupancyEvent = "event" in result ? result.event : withoutNotifications(result);
 
-      // Publish AFTER processEvent's transaction has committed. A read-back via
-      // the existing ZoneService (not the mutation's own return value) keeps
-      // this route decoupled from OccupancyService's internal return shape.
+      // Publish AFTER processEvent's transaction has committed. Everything is
+      // read back from the database (zone, session), never taken from the
+      // mutation's own return value.
       if (options.realtimeHub) {
-        const zone = await zones.getById(zoneId);
-        options.realtimeHub.publish(
-          {
-            type: "ZONE_OCCUPANCY_UPDATED",
-            occurredAt: new Date().toISOString(),
-            payload: {
-              zoneId: zone.id,
-              name: zone.name,
-              code: zone.code,
-              capacity: zone.capacity,
-              occupiedCount: zone.occupiedCount,
-              availableCount: zone.availableCount,
-              status: zone.status,
-            },
-          },
-          { audience: "PUBLIC" }
-        );
-
-        if (violation) {
-          options.realtimeHub.publish(
-            { type: "VIOLATION_CREATED", occurredAt: new Date().toISOString(), payload: violation as never },
-            { audience: "USER", userId: violation.userId }
-          );
-        }
-        if ("admitted" in result) {
-          options.realtimeHub.publish(
-            {
-              type: "GUEST_ADMISSION_ISSUE",
-              occurredAt: new Date().toISOString(),
-              payload: { zoneId, admitted: result.admitted, deniedReason: result.deniedReason, anomalyType: result.anomalyType },
-            },
-            { audience: "ADMIN" }
-          );
-        }
+        await publishOccupancyOutcome(options.realtimeHub, zoneId, result, zones);
       }
 
       res.status(201).json(ok(occupancyEvent));
