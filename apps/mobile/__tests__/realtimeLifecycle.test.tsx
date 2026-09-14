@@ -9,7 +9,7 @@ jest.mock("@/lib/api/client", () => {
   const actual = jest.requireActual("@/lib/api/client");
   return {
     ...actual,
-    api: { me: jest.fn(), login: jest.fn(), logout: jest.fn() },
+    api: { me: jest.fn(), login: jest.fn(), logout: jest.fn(), changePassword: jest.fn() },
   };
 });
 
@@ -115,6 +115,34 @@ describe("realtime connection follows the signed-in session", () => {
     expect(MockES.instances[0]!.closed).toBe(true);
     expect(MockES.instances[1]!.options.headers?.Authorization).toBe("Bearer tok-sam");
     expect(MockES.instances[1]!.closed).toBe(false);
+  });
+
+  it("re-opens the stream with the fresh token after a password change (the server drops the old stream)", async () => {
+    (api.me as jest.Mock).mockRejectedValue(new Error("no token"));
+    (api.login as jest.Mock).mockResolvedValueOnce({ user: alex, token: "tok-alex" });
+    (api.changePassword as jest.Mock).mockResolvedValueOnce({ user: alex, token: "tok-alex-2" });
+
+    render(
+      <AppProviders>
+        <Probe />
+      </AppProviders>,
+    );
+    await waitFor(() => expect(session?.isLoading).toBe(false));
+    await act(async () => {
+      await session!.signIn("alex@parada.test", "password123");
+    });
+    await waitFor(() => expect(MockES.instances).toHaveLength(1));
+    expect(MockES.instances[0]!.options.headers?.Authorization).toBe("Bearer tok-alex");
+
+    await act(async () => {
+      await session!.changePassword("password123", "password456");
+    });
+
+    await waitFor(() => expect(MockES.instances).toHaveLength(2));
+    expect(MockES.instances[0]!.closed).toBe(true);
+    expect(MockES.instances[1]!.options.headers?.Authorization).toBe("Bearer tok-alex-2");
+    expect(MockES.instances[1]!.closed).toBe(false);
+    expect(session!.token).toBe("tok-alex-2");
   });
 
   it("opens the stream on launch when a stored token is still valid", async () => {

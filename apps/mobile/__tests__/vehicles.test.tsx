@@ -28,6 +28,9 @@ const baseVehicle = (over: Partial<Vehicle>): Vehicle => ({
   plateNumber: "XYZ-5678",
   normalizedPlate: "XYZ5678",
   vehicleType: "MOTORCYCLE",
+  make: null,
+  model: null,
+  color: null,
   status: "ACTIVE",
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -44,6 +47,9 @@ const addedVehicle: Vehicle = baseVehicle({
   plateNumber: "QRS-9999",
   normalizedPlate: "QRS9999",
   vehicleType: "MOTORCYCLE",
+  make: null,
+  model: null,
+  color: null,
 });
 
 beforeEach(() => {
@@ -81,7 +87,15 @@ describe("vehicles screen", () => {
     fireEvent.press(screen.getByTestId("vehicle-type-MOTORCYCLE"));
     fireEvent.press(screen.getByTestId("vehicle-submit"));
 
-    await waitFor(() => expect(api.createVehicle).toHaveBeenCalledWith("QRS9999", "MOTORCYCLE"));
+    await waitFor(() =>
+      expect(api.createVehicle).toHaveBeenCalledWith({
+        plateNumber: "QRS9999",
+        vehicleType: "MOTORCYCLE",
+        make: null,
+        model: null,
+        color: null,
+      }),
+    );
     await waitFor(() => expect(screen.getByText("QRS-9999")).toBeOnTheScreen());
     expect(api.vehicles).toHaveBeenCalledTimes(2);
   });

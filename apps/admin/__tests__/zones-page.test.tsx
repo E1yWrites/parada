@@ -21,6 +21,8 @@ const zone: AdminZoneDetail = {
   occupancyPct: 33,
   status: "ACTIVE",
   availability: "AVAILABLE",
+  navigationLat: null,
+  navigationLng: null,
   cameras: [],
   entryCamera: null,
   exitCamera: null,
@@ -65,6 +67,41 @@ describe("Admin zones page — Phase 11A configuration", () => {
         expect.objectContaining({ name: "Zone D", code: "D", capacity: 40, status: "ACTIVE" })
       );
     });
+  });
+
+  it("sends the zone's navigation coordinates on create and rejects a half-filled pair locally", async () => {
+    mockedApi.zones.mockResolvedValue([]);
+    mockedApi.createZone.mockResolvedValue({ ...zone, id: "z-nav", navigationLat: 13.76447, navigationLng: 121.06462 });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /new zone/i }));
+    fireEvent.change(screen.getByPlaceholderText("Zone A"), { target: { value: "Nav Zone" } });
+    fireEvent.change(screen.getByPlaceholderText("A"), { target: { value: "N" } });
+    fireEvent.change(screen.getByLabelText("Navigation latitude"), { target: { value: "13.76447" } });
+    fireEvent.click(screen.getByRole("button", { name: /create zone/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/both a navigation latitude and longitude/);
+    expect(mockedApi.createZone).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Navigation longitude"), { target: { value: "121.06462" } });
+    fireEvent.click(screen.getByRole("button", { name: /create zone/i }));
+    await waitFor(() => {
+      expect(mockedApi.createZone).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Nav Zone", code: "N", navigationLat: 13.76447, navigationLng: 121.06462 })
+      );
+    });
+  });
+
+  it("rejects out-of-range coordinates before calling the API", async () => {
+    mockedApi.zones.mockResolvedValue([]);
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: /new zone/i }));
+    fireEvent.change(screen.getByPlaceholderText("Zone A"), { target: { value: "Bad" } });
+    fireEvent.change(screen.getByPlaceholderText("A"), { target: { value: "B" } });
+    fireEvent.change(screen.getByLabelText("Navigation latitude"), { target: { value: "91" } });
+    fireEvent.change(screen.getByLabelText("Navigation longitude"), { target: { value: "121" } });
+    fireEvent.click(screen.getByRole("button", { name: /create zone/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/between -90 and 90/);
+    expect(mockedApi.createZone).not.toHaveBeenCalled();
   });
 
   it("deactivates an active zone after confirmation", async () => {

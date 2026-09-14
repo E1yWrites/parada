@@ -13,6 +13,8 @@ type NavigateButtonProps = {
   label: string;
   /** Render as the screen's one filled action (on the pass card). */
   primary?: boolean;
+  /** Explanation shown when `destination` is null (defaults to a generic line). */
+  unavailableMessage?: string;
   testID?: string;
 };
 
@@ -29,7 +31,13 @@ type NavigateState =
  * navigation app to the destination. Outgoing state mirrors the friendly
  * message set from the phase spec. Never loops on denied permission.
  */
-export function NavigateButton({ destination, label, primary = false, testID }: NavigateButtonProps) {
+export function NavigateButton({
+  destination,
+  label,
+  primary = false,
+  unavailableMessage = "Navigation isn't available right now.",
+  testID,
+}: NavigateButtonProps) {
   const [state, setState] = useState<NavigateState>({ kind: "idle" });
   const busyRef = useRef(false);
 
@@ -117,7 +125,7 @@ export function NavigateButton({ destination, label, primary = false, testID }: 
         </Text>
       ) : !canNavigate ? (
         <Text variant="caption" color={colors.muted} testID={`${testID ?? "navigate"}-unavailable`}>
-          Navigation isn't available right now.
+          {unavailableMessage}
         </Text>
       ) : null}
     </View>

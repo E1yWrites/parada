@@ -141,6 +141,18 @@ enum ZoneAssignmentStatus {
   ACTIVE
   EXPIRED
   REVOKED
+  // Driver-initiated release before entry (Pre-audit remediation). The row is
+  // kept as history; only ACTIVE assignments drive wrong-zone detection.
+  CANCELLED
+}
+
+// One-time secrets issued to a user for account verification / recovery. The
+// secret itself is never stored: only an HMAC of it (see api domain/verification).
+enum VerificationPurpose {
+  EMAIL_VERIFY
+  EMAIL_CHANGE
+  PHONE_CHANGE
+  PASSWORD_RESET
 }
 
 // ---------------------------------------------------------------------------
@@ -148,26 +160,90 @@ enum ZoneAssignmentStatus {
 // ---------------------------------------------------------------------------
 
 model User {
-  id           String     @id @default(cuid())
-  name         String
-  email        String     @unique
-  passwordHash String
-  role         Role       @default(USER)
-  status       UserStatus @default(ACTIVE)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                String     @id @default(cuid())
+  name              String
+  email             String     @unique
+  // Optional public handle; stored lowercase, unique when present.
+  username          String?    @unique
+  phone             String?
+  passwordHash      String
+  role              Role       @default(USER)
+  status            UserStatus @default(ACTIVE)
+  // Null until the 6-digit registration code is confirmed. Login is refused
+  // (EMAIL_NOT_VERIFIED) while null; existing rows were backfilled as verified.
+  emailVerifiedAt   DateTime?
+  // A requested new address that becomes `email` only after its code is
+  // confirmed; `email` stays authoritative until then.
+  pendingEmail      String?
+  pendingPhone      String?
+  // Audit stamp of the last password change / reset.
+  passwordChangedAt DateTime?
+  // Bumped on every password change / reset. A bearer token carries the
+  // version it was issued under and is rejected once they differ, which
+  // invalidates every other session deterministically (JWT `iat` is only
+  // second-resolution).
+  tokenVersion      Int        @default(0)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
-  vehicles         Vehicle[]
-  sessions         ParkingSession[]
-  reservations     Reservation[]
-  zoneAssignments  ZoneAssignment[]
-  violations       Violation[]
-  violationAppeals ViolationAppeal[]
-  parkingFees      ParkingFee[]
-  notifications    Notification[]
+  avatar             UserAvatar?
+  verificationTokens VerificationToken[]
+  vehicles           Vehicle[]
+  sessions           ParkingSession[]
+  reservations       Reservation[]
+  zoneAssignments    ZoneAssignment[]
+  violations         Violation[]
+  violationAppeals   ViolationAppeal[]
+  parkingFees        ParkingFee[]
+  notifications      Notification[]
 
   @@index([role])
   @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// UserAvatar  (profile picture; small, client-resized image kept in the
+// database so the single-instance deployment needs no file volume)
+// ---------------------------------------------------------------------------
+
+model UserAvatar {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  mimeType  String
+  sizeBytes Int
+  data      Bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_avatars")
+}
+
+// ---------------------------------------------------------------------------
+// VerificationToken  (email verification codes, email/phone change codes and
+// password-reset tokens). Single-use (consumedAt), expiring, attempt-limited.
+// ---------------------------------------------------------------------------
+
+model VerificationToken {
+  id         String              @id @default(cuid())
+  userId     String
+  purpose    VerificationPurpose
+  // HMAC-SHA256 of the secret (code or token); the plaintext is only ever
+  // sent to the user.
+  tokenHash  String              @unique
+  // For EMAIL_CHANGE / PHONE_CHANGE: the value that becomes authoritative on
+  // confirmation.
+  target     String?
+  attempts   Int                 @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("verification_tokens")
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +256,12 @@ model Vehicle {
   plateNumber     String
   normalizedPlate String
   vehicleType     VehicleType   @default(CAR)
+  // Optional descriptive fields (driver-editable, never used for identity).
+  make            String?
+  model           String?
+  color           String?
+  // INACTIVE = unregistered by the driver. History (sessions, violations,
+  // fees) keeps pointing at the row; it is never hard-deleted.
   status          VehicleStatus @default(ACTIVE)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -210,6 +292,10 @@ model ParkingZone {
   capacity      Int
   occupiedCount Int        @default(0)
   status        ZoneStatus @default(ACTIVE)
+  // Admin-configured turn-by-turn destination for this zone (WGS84). Both
+  // null until configured; the API never infers or fabricates coordinates.
+  navigationLat Float?
+  navigationLng Float?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 

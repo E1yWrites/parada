@@ -15,7 +15,26 @@ const { getSessionToken, clearSessionToken } = jest.requireMock("@/lib/auth") as
 };
 
 function backend(status: number, body: unknown) {
-  return { ok: status >= 200 && status < 300, status, json: async () => body, text: async () => JSON.stringify(body) };
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: new Headers({ "content-type": "application/json" }),
+    json: async () => body,
+    text: async () => JSON.stringify(body),
+  };
+}
+
+function binaryBackend(status: number, bytes: Uint8Array, contentType: string) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: new Headers({ "content-type": contentType, etag: '"abc"', "cache-control": "private, max-age=0, must-revalidate" }),
+    json: async () => {
+      throw new Error("not json");
+    },
+    text: async () => new TextDecoder().decode(bytes),
+    arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+  };
 }
 
 describe("GET /api/proxy/[...path] — session mapping", () => {
@@ -75,5 +94,22 @@ describe("GET /api/proxy/[...path] — session mapping", () => {
     const [url, init] = (global.fetch as jest.Mock).mock.calls[1] as [string, RequestInit];
     expect(url).toBe("http://backend.test/admin/zones?limit=5");
     expect((init.headers as Headers).get("Authorization")).toBe("Bearer admin-token");
+  });
+
+  it("relays a profile picture byte-for-byte with its real content type (not as JSON)", async () => {
+    getSessionToken.mockReturnValue("admin-token");
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(backend(200, { data: { role: "ADMIN" } }))
+      .mockResolvedValueOnce(binaryBackend(200, png, "image/png")) as unknown as typeof fetch;
+
+    const res = await GET(new Request("http://admin.test/api/proxy/users/u1/avatar?v=1"), { params: { path: ["users", "u1", "avatar"] } });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(res.headers.get("etag")).toBe('"abc"');
+    expect(res.headers.get("cache-control")).toContain("private");
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(png);
   });
 });

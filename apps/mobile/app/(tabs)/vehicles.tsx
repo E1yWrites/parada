@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useRouter } from "expo-router";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { VehicleType } from "@parada/types";
+import type { VehicleCreateInput, VehicleType } from "@parada/types";
 import {
   Button,
   Card,
@@ -26,6 +27,7 @@ const VEHICLE_TYPES: VehicleType[] = ["CAR", "MOTORCYCLE", "VAN", "TRUCK", "OTHE
 
 export default function VehiclesScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const vehicles = useQuery({ queryKey: queryKeys.vehicles, queryFn: api.vehicles });
 
@@ -38,7 +40,13 @@ export default function VehiclesScreen() {
       <FlatList
         data={vehicles.data ?? []}
         keyExtractor={(vehicle) => vehicle.id}
-        renderItem={({ item }) => <VehicleCard vehicle={item} testID={`vehicle-${item.plateNumber}`} />}
+        renderItem={({ item }) => (
+          <VehicleCard
+            vehicle={item}
+            onPress={() => router.push(`/vehicles/${item.id}`)}
+            testID={`vehicle-${item.plateNumber}`}
+          />
+        )}
         contentContainerStyle={[styles.listContent, { paddingBottom: tabClearance(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -126,15 +134,20 @@ function AddVehicleForm({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const [plate, setPlate] = useState("");
   const [type, setType] = useState<VehicleType>("CAR");
+  const [make, setMake] = useState("");
+  const [model, setModel] = useState("");
+  const [color, setColor] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: ({ plateNumber, vehicleType }: { plateNumber: string; vehicleType: VehicleType }) =>
-      api.createVehicle(plateNumber, vehicleType),
+    mutationFn: (input: VehicleCreateInput) => api.createVehicle(input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.vehicles });
       setPlate("");
       setType("CAR");
+      setMake("");
+      setModel("");
+      setColor("");
       setError(null);
       onClose();
     },
@@ -149,7 +162,13 @@ function AddVehicleForm({ onClose }: { onClose: () => void }) {
       setError("Enter a plate number.");
       return;
     }
-    mutation.mutate({ plateNumber: cleaned, vehicleType: type });
+    mutation.mutate({
+      plateNumber: cleaned,
+      vehicleType: type,
+      make: make.trim() || null,
+      model: model.trim() || null,
+      color: color.trim() || null,
+    });
   };
 
   return (
@@ -197,6 +216,9 @@ function AddVehicleForm({ onClose }: { onClose: () => void }) {
           ))}
         </View>
       </View>
+      <Input testID="vehicle-make" label="Make (optional)" value={make} onChangeText={setMake} placeholder="Toyota" autoCapitalize="words" maxLength={40} />
+      <Input testID="vehicle-model" label="Model (optional)" value={model} onChangeText={setModel} placeholder="Vios" autoCapitalize="words" maxLength={40} />
+      <Input testID="vehicle-color" label="Color (optional)" value={color} onChangeText={setColor} placeholder="Silver" autoCapitalize="words" maxLength={30} />
       <Button
         testID="vehicle-submit"
         title={mutation.isPending ? "Registering…" : "Register vehicle"}

@@ -21,6 +21,8 @@ const zone: AdminZoneDetail = {
   occupancyPct: 0,
   status: "ACTIVE",
   availability: "AVAILABLE",
+  navigationLat: null,
+  navigationLng: null,
   cameras: [],
   entryCamera: null,
   exitCamera: null,

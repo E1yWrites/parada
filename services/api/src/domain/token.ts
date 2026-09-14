@@ -21,12 +21,14 @@ export interface TokenClaims {
   sub: string;
   jti: string;
   role: Role;
+  /** Password/session generation the token was issued under (`tv` claim; 0 when absent). */
+  tokenVersion: number;
 }
 
 export class TokenService {
   constructor(private readonly config: TokenConfig) {}
 
-  sign(user: { id: string; role: Role }): AuthToken {
+  sign(user: { id: string; role: Role; tokenVersion?: number }): AuthToken {
     const jti = randomUUID();
     const options: SignOptions = {
       ...SIGN_OPTIONS,
@@ -34,7 +36,7 @@ export class TokenService {
       expiresIn: this.config.expiresIn as SignOptions["expiresIn"],
     };
     const token = jwt.sign(
-      { sub: user.id, jti, role: user.role },
+      { sub: user.id, jti, role: user.role, tv: user.tokenVersion ?? 0 },
       this.config.secret,
       options
     );
@@ -53,15 +55,17 @@ export class TokenService {
     if (typeof payload !== "object" || payload === null) {
       throw new jwt.JsonWebTokenError("Invalid token payload.");
     }
-    const { sub, jti, role } = payload as {
+    const { sub, jti, role, tv } = payload as {
       sub?: unknown;
       jti?: unknown;
       role?: unknown;
+      tv?: unknown;
     };
     if (typeof sub !== "string" || typeof jti !== "string") {
       throw new jwt.JsonWebTokenError("Token is missing required claims.");
     }
     const validRole: Role = role === "ADMIN" ? "ADMIN" : "USER";
-    return { sub, jti, role: validRole };
+    const tokenVersion = typeof tv === "number" && Number.isInteger(tv) && tv >= 0 ? tv : 0;
+    return { sub, jti, role: validRole, tokenVersion };
   }
 }

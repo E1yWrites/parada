@@ -15,7 +15,7 @@ import { Text } from "./Text";
 import { api, ApiError, type CreateAssignmentInput } from "@/lib/api/client";
 import { activeAssignmentFrom, isActiveVehicle, upsertAssignment } from "@/lib/assignment";
 import type { ZoneAssignmentResponse } from "@parada/types";
-import { resolveEstablishmentDestination } from "@/lib/navigation";
+import { ZONE_NAVIGATION_UNCONFIGURED, type NavigationDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
 import { colors, spacing } from "@/src/theme";
 
@@ -37,7 +37,17 @@ function isConflictError(err: unknown): boolean {
   return err instanceof ApiError && (err.code === "CONFLICT" || err.status === 409);
 }
 
-export function ParkingRecommendation() {
+type ParkingRecommendationProps = {
+  /** Per-zone destination resolver from the parent's zones query (null = not configured). */
+  destinationFor?: (zoneId: string) => NavigationDestination | null;
+  /** False while the zones query is still loading — the navigate action is withheld. */
+  destinationReady?: boolean;
+};
+
+export function ParkingRecommendation({
+  destinationFor = () => null,
+  destinationReady = true,
+}: ParkingRecommendationProps = {}) {
   const queryClient = useQueryClient();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
 
@@ -47,10 +57,6 @@ export function ParkingRecommendation() {
     queryKey: queryKeys.recommendation,
     queryFn: api.recommendedZone,
     refetchInterval: 30_000,
-  });
-  const establishment = useQuery({
-    queryKey: queryKeys.establishment,
-    queryFn: api.establishment,
   });
 
   const assign = useMutation({
@@ -74,7 +80,8 @@ export function ParkingRecommendation() {
   const recommended = recommendation.data?.recommendedZone ?? null;
   const confirmedAssignment =
     assign.data ?? activeAssignmentFrom(assignments.data);
-  const navigationDestination = resolveEstablishmentDestination(establishment.data);
+  // Directions target the assigned zone's own admin-configured coordinates.
+  const navigationDestination = confirmedAssignment ? destinationFor(confirmedAssignment.zoneId) : null;
 
   const activeVehicles = (vehicles.data ?? []).filter(isActiveVehicle);
   const soleVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
@@ -127,11 +134,12 @@ export function ParkingRecommendation() {
               {confirmedAssignment.vehicle.plateNumber}
             </Text>
           </View>
-          {establishment.isPending ? null : (
+          {!destinationReady ? null : (
             <NavigateButton
               destination={navigationDestination}
               label="Navigate to assigned zone"
               primary
+              unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
               testID="assignment-navigate"
             />
           )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { avatarSrc } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionHeader } from "@/components/ui/Card";
 import { Pill } from "@/components/ui/Badge";
@@ -16,8 +17,16 @@ export default function AccountPage() {
       <div className="grid max-w-3xl grid-cols-1 gap-5">
         <Card>
           <SectionHeader title="Profile" />
+          {avatarSrc(user) ? (
+            <div className="px-5 pt-5">
+              {/* eslint-disable-next-line @next/next/no-img-element -- authenticated proxy URL */}
+              <img src={avatarSrc(user) ?? undefined} alt="" className="h-16 w-16 rounded-control object-cover" data-testid="account-avatar" />
+            </div>
+          ) : null}
           <dl className="divide-y divide-line px-5">
             <Row label="Name" value={user?.name ?? "—"} />
+            <Row label="Username" value={user?.username ? `@${user.username}` : "—"} />
+            <Row label="Phone" value={user?.phone ?? "—"} />
             <Row label="Email" value={user?.email ?? "—"} />
             <Row
               label="Role"

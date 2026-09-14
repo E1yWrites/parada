@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import {
@@ -16,18 +16,21 @@ import {
   ZoneAssignmentPanel,
   ZoneCard,
 } from "@/src/components";
-import { api, ApiError, type PublicZone } from "@/lib/api/client";
+import { api, ApiError, avatarUrl, type PublicZone } from "@/lib/api/client";
+import type { ZoneAssignmentResponse } from "@parada/types";
 import { activeAssignmentFrom } from "@/lib/assignment";
 import { currentReservationFrom } from "@/lib/current";
-import { resolveEstablishmentDestination } from "@/lib/navigation";
+import { resolveZoneDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
 import { useNow } from "@/src/hooks/useNow";
-import { useSessionUser } from "@/src/providers/SessionProvider";
+import { useSessionToken, useSessionUser } from "@/src/providers/SessionProvider";
 import { spacing } from "@/src/theme";
 
 export default function ParkingScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const user = useSessionUser();
+  const sessionToken = useSessionToken();
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const zones = useQuery({
     queryKey: queryKeys.zones,
@@ -49,10 +52,6 @@ export default function ParkingScreen() {
     queryKey: queryKeys.reservations,
     queryFn: api.reservations,
   });
-  const establishment = useQuery({
-    queryKey: queryKeys.establishment,
-    queryFn: api.establishment,
-  });
   const notifications = useQuery({ queryKey: queryKeys.notifications, queryFn: api.notifications });
 
   const activeSession = active.data ?? null;
@@ -63,8 +62,35 @@ export default function ParkingScreen() {
     void active.refetch();
     void assignmentList.refetch();
     void reservationList.refetch();
-    void establishment.refetch();
   };
+
+  // Backend-enforced release of an accepted recommendation (PATCH
+  // /assignments/:id/cancel). The response is authoritative: it goes into the
+  // assignments cache, then everything derived from it is refetched.
+  const cancelAssignment = useMutation({
+    mutationFn: (assignmentId: string) => api.cancelAssignment(assignmentId),
+    onSuccess: (cancelled) => {
+      queryClient.setQueryData(queryKeys.assignments, (old: ZoneAssignmentResponse[] | undefined) =>
+        (old ?? []).map((item) => (item.id === cancelled.id ? cancelled : item)),
+      );
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.assignments });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.zones });
+    },
+  });
+  const onCancelAssignment = useCallback(
+    async (assignmentId: string) => {
+      await cancelAssignment.mutateAsync(assignmentId);
+    },
+    [cancelAssignment],
+  );
+
+  // Directions always target the zone's own admin-configured coordinates.
+  const destinationFor = useCallback(
+    (zoneId: string) => resolveZoneDestination(zones.data?.find((zone) => zone.id === zoneId) ?? null),
+    [zones.data],
+  );
 
   const selectedZone = zones.data?.find((zone) => zone.id === selectedZoneId) ?? null;
   const assignment = activeAssignmentFrom(assignmentList.data);
@@ -86,7 +112,7 @@ export default function ParkingScreen() {
     <Screen
       title="Parking"
       subtitle="Live zone availability from the gate cameras"
-      leading={<Avatar name={user?.name} testID="parking-avatar" />}
+      leading={<Avatar name={user?.name} uri={avatarUrl(user)} authToken={sessionToken} testID="parking-avatar" />}
       right={
         <IconButton
           icon="notifications-outline"
@@ -103,8 +129,9 @@ export default function ParkingScreen() {
         session={activeSession}
         assignment={assignment}
         reservation={reservation}
-        destination={resolveEstablishmentDestination(establishment.data)}
-        destinationReady={establishment.status === "success"}
+        destinationFor={destinationFor}
+        destinationReady={zones.status === "success"}
+        onCancelAssignment={onCancelAssignment}
         now={now}
         activePending={active.isPending}
         activeError={active.isError}
@@ -116,7 +143,9 @@ export default function ParkingScreen() {
         reservationError={reservationList.isError}
         onRetry={refresh}
       />
-      {showRecommendation ? <ParkingRecommendation /> : null}
+      {showRecommendation ? (
+        <ParkingRecommendation destinationFor={destinationFor} destinationReady={zones.status === "success"} />
+      ) : null}
       <SectionHeader title="Zones" caption="Updated every 30 seconds" testID="zones-header" />
       {zones.isPending ? (
         <LoadingState label="Loading park availability…" testID="zones-loading" />

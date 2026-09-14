@@ -38,16 +38,116 @@ export type ReservationStatus =
   | "EXPIRED"
   | "CANCELLED";
 export type FeeStatus = "PENDING" | "PAID" | "WAIVED";
-export type ZoneAssignmentStatus = "ACTIVE" | "EXPIRED" | "REVOKED";
+export type ZoneAssignmentStatus = "ACTIVE" | "EXPIRED" | "REVOKED" | "CANCELLED";
 
 export interface User {
   id: string;
   name: string;
   email: string;
+  username: string | null;
+  phone: string | null;
   role: Role;
   status: UserStatus;
+  emailVerifiedAt: Date | null;
+  pendingEmail: string | null;
+  pendingPhone: string | null;
+  passwordChangedAt: Date | null;
+  tokenVersion: number;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * The account as every API response exposes it (never includes the password
+ * hash). `avatarUpdatedAt` is null while no profile picture is stored; when
+ * set, the picture is served by GET /users/:id/avatar.
+ */
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  username: string | null;
+  phone: string | null;
+  role: Role;
+  status: UserStatus;
+  emailVerifiedAt: string | null;
+  pendingEmail: string | null;
+  pendingPhone: string | null;
+  avatarUpdatedAt: string | null;
+  createdAt: string;
+}
+
+/** When a freshly issued code/token expires and when a new one may be requested. */
+export interface VerificationChallenge {
+  expiresAt: string;
+  resendAvailableAt: string;
+}
+
+/** POST /auth/register: the account exists but cannot sign in until verified. */
+export interface RegisterResponse {
+  user: AuthUser;
+  verification: VerificationChallenge;
+}
+
+/** POST /auth/login and POST /auth/password: a usable bearer token. */
+export interface LoginResponse {
+  user: AuthUser;
+  token: string;
+}
+
+/**
+ * Error `details` carried by the EMAIL_NOT_VERIFIED (403) login refusal so the
+ * client can continue verification without registering again. `verification`
+ * is null when the resend cooldown blocked issuing a fresh code.
+ */
+export interface EmailNotVerifiedDetails {
+  email: string;
+  verification: VerificationChallenge | null;
+}
+
+export interface VerifyEmailInput {
+  email: string;
+  code: string;
+}
+
+export interface ResendVerificationInput {
+  email: string;
+}
+
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  newPassword: string;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/** PATCH /auth/me — only non-verification-sensitive fields. */
+export interface ProfileUpdateInput {
+  name?: string;
+  /** null clears the handle. */
+  username?: string | null;
+}
+
+/** POST /auth/me/email — starts an email change; confirmed with the code sent to the NEW address. */
+export interface EmailChangeRequestInput {
+  email: string;
+}
+
+/** POST /auth/me/phone — starts a phone change; confirmed with the code sent to the verified email. */
+export interface PhoneChangeRequestInput {
+  /** null clears the phone number (no verification needed). */
+  phone: string | null;
+}
+
+export interface ConfirmCodeInput {
+  code: string;
 }
 
 export interface ParkingZone {
@@ -59,6 +159,9 @@ export interface ParkingZone {
   occupiedCount: number;
   availableCount: number;
   status: ZoneStatus;
+  /** Admin-configured turn-by-turn destination; null until configured. */
+  navigationLat: number | null;
+  navigationLng: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -81,9 +184,30 @@ export interface Vehicle {
   plateNumber: string;
   normalizedPlate: string;
   vehicleType: VehicleType;
+  make: string | null;
+  model: string | null;
+  color: string | null;
   status: VehicleStatus;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Body of POST /vehicles. */
+export interface VehicleCreateInput {
+  plateNumber: string;
+  vehicleType: VehicleType;
+  make?: string | null;
+  model?: string | null;
+  color?: string | null;
+}
+
+/** Body of PATCH /vehicles/:id (partial; owner only). */
+export interface VehicleUpdateInput {
+  plateNumber?: string;
+  vehicleType?: VehicleType;
+  make?: string | null;
+  model?: string | null;
+  color?: string | null;
 }
 
 export interface Camera {
@@ -263,6 +387,8 @@ export interface ZoneRecommendation {
     occupiedCount: number;
     availableCount: number;
     status: ZoneStatus;
+    navigationLat: number | null;
+    navigationLng: number | null;
   } | null;
 }
 
@@ -425,6 +551,9 @@ export interface AdminZoneCreateInput {
   description?: string | null;
   capacity: number;
   status?: ZoneStatus;
+  /** Both or neither; validated server-side to WGS84 ranges. */
+  navigationLat?: number | null;
+  navigationLng?: number | null;
 }
 
 /** Body of PATCH /admin/zones/:id (partial update). */
@@ -434,6 +563,8 @@ export interface AdminZoneUpdateInput {
   description?: string | null;
   capacity?: number;
   status?: ZoneStatus;
+  navigationLat?: number | null;
+  navigationLng?: number | null;
 }
 
 /** Body of POST /admin/zones/:id/slots — desired ACTIVE physical inventory. */

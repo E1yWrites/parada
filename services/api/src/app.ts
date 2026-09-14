@@ -26,6 +26,9 @@ import { errorBody } from "./http/response";
 import { simulatorRouter } from "./routes/simulator";
 import { RealtimeHub } from "./realtime/hub";
 import { realtimeRouter } from "./routes/realtime";
+import { AccountService } from "./domain/account";
+import { usersRouter } from "./routes/users";
+import { createMailerFromEnv, type Mailer } from "./mail/mailer";
 
 export interface AppOptions {
   occupancy?: OccupancyService;
@@ -43,6 +46,8 @@ export interface AppOptions {
   /** Override the admin-mutation rate limit (defaults to env). */
   adminRateLimit?: { limit: number; windowMs: number };
   realtimeHub?: RealtimeHub;
+  /** Outbound mail transport (defaults to the env-configured one). Ignored when `auth` is supplied. */
+  mailer?: Mailer;
 }
 
 export function createApp(options: AppOptions = {}): Express {
@@ -65,10 +70,24 @@ export function createApp(options: AppOptions = {}): Express {
     violations: violationService,
   });
 
-  const auth = options.auth ?? new AuthService({
-    secret: env.jwtSecret,
-    issuer: env.jwtIssuer,
-    expiresIn: env.jwtExpiresIn,
+  const auth =
+    options.auth ??
+    new AuthService(
+      {
+        secret: env.jwtSecret,
+        issuer: env.jwtIssuer,
+        expiresIn: env.jwtExpiresIn,
+      },
+      {
+        mailer: options.mailer ?? createMailerFromEnv(env.mail, env.nodeEnv),
+        appName: env.appName,
+        mobileScheme: env.mobileScheme,
+      }
+    );
+  const accountService = new AccountService({
+    mailer: auth.mailer,
+    verification: auth.verification,
+    appName: env.appName,
   });
 
   app.use(express.json());
@@ -84,6 +103,8 @@ export function createApp(options: AppOptions = {}): Express {
         limit: env.authRateLimitPerMinute,
         windowMs: 60_000,
       },
+      account: accountService,
+      realtimeHub,
     })
   );
 
@@ -101,6 +122,7 @@ export function createApp(options: AppOptions = {}): Express {
 
   app.use(authMiddleware);
   app.use(realtimeRouter(realtimeHub));
+  app.use(usersRouter(accountService));
 
   const sessionService = new ParkingSessionService(config, assignmentService, reservationService);
 
@@ -138,6 +160,21 @@ export function createApp(options: AppOptions = {}): Express {
     (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
       if (err instanceof HttpError) {
         res.status(err.status).json(errorBody({ code: err.code, message: err.message, details: err.details }));
+        return;
+      }
+      // body-parser failures (malformed JSON, oversized body) are client
+      // errors, not server faults: report them as such instead of a 500.
+      const parseErr = err as { type?: string; status?: number } | null;
+      if (parseErr && typeof parseErr.type === "string" && parseErr.type.startsWith("entity.")) {
+        const tooLarge = parseErr.type === "entity.too.large";
+        res
+          .status(tooLarge ? 413 : 400)
+          .json(
+            errorBody({
+              code: tooLarge ? "PAYLOAD_TOO_LARGE" : "BAD_REQUEST",
+              message: tooLarge ? "The request body is too large." : "The request body could not be parsed.",
+            })
+          );
         return;
       }
       const internal = new InternalError();

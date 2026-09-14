@@ -52,7 +52,7 @@ The normalized shape produced by any vision service and consumed by the backend:
 ```json
 {
   "sourceEventId": "camera-event-123",
-  "cameraIdentifier": "cam-a-entry",
+  "cameraIdentifier": "cam-a-main-gate",
   "eventType": "ENTRY",
   "detectedPlate": "ABC-1234",
   "ocrConfidence": 0.96,
@@ -155,7 +155,7 @@ curl -X POST http://localhost:4100/zones/<zoneId>/events \
   -H "X-API-Key: <CAMERA_API_KEY>" \
   -d '{
     "sourceEventId": "sim-001",
-    "cameraIdentifier": "cam-a-entry",
+    "cameraIdentifier": "cam-a-main-gate",
     "eventType": "ENTRY",
     "detectedPlate": "ABC-1234",
     "ocrConfidence": 0.96

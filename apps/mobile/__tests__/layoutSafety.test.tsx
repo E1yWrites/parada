@@ -49,6 +49,8 @@ function makeZone(overrides: Partial<PublicZone> = {}): PublicZone {
     availableCount: 12,
     status: "ACTIVE",
     availability: "AVAILABLE",
+    navigationLat: null,
+    navigationLng: null,
     ...overrides,
   };
 }

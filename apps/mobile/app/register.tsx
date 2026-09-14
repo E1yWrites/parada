@@ -44,8 +44,10 @@ export default function RegisterScreen() {
     setError(null);
     setSubmitting(true);
     try {
-      await signUp(name.trim(), email.trim(), password);
-      router.replace("/(tabs)/parking");
+      const result = await signUp(name.trim(), email.trim(), password);
+      // No session yet: the 6-digit code mailed to this address must be
+      // confirmed before sign-in is possible.
+      router.replace({ pathname: "/verify-email", params: { email: result.user.email } });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Unable to create your account. Please try again.");
     } finally {

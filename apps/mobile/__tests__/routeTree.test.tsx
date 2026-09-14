@@ -8,9 +8,18 @@ import { Text } from "react-native";
 import { Stack, Tabs, usePathname } from "expo-router";
 import { renderRouter, screen } from "expo-router/testing-library";
 import { waitFor } from "@testing-library/react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as SecureStore from "expo-secure-store";
 import Index from "@/app/index";
+import { api } from "@/lib/api/client";
+import { markOnboardingCompleted, resetOnboarding } from "@/lib/onboarding";
+import { SessionProvider } from "@/src/providers/SessionProvider";
 
 jest.unmock("expo-router");
+jest.mock("@/lib/api/client", () => {
+  const actual = jest.requireActual("@/lib/api/client");
+  return { ...actual, api: { ...actual.api, me: jest.fn() } };
+});
 jest.mock("expo-constants", () => {
   const expo = require("../app.json").expo;
   return {
@@ -29,8 +38,16 @@ function page(name: string) {
 function NotFound() {
   return <Text>{`NOTFOUND:${usePathname()}`}</Text>;
 }
+// The real root layout mounts SessionProvider; `app/index.tsx` reads the
+// session to decide the startup redirect, so the test layout must too.
 function RootLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <SessionProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </SessionProvider>
+    </QueryClientProvider>
+  );
 }
 function TabsLayout() {
   return <Tabs screenOptions={{ headerShown: false }} />;
@@ -49,6 +66,12 @@ const routes = {
   notifications: page("notifications"),
   onboarding: page("onboarding"),
   register: page("register"),
+  "verify-email": page("verify-email"),
+  "forgot-password": page("forgot-password"),
+  "reset-password": page("reset-password"),
+  "account/profile": page("account/profile"),
+  "account/password": page("account/password"),
+  "vehicles/[id]": page("vehicles/[id]"),
   "violations/[id]": page("violations/[id]"),
   "violations/index": page("violations/index"),
   "zones/[id]": page("zones/[id]"),
@@ -59,11 +82,48 @@ async function renderAt(initialUrl: string) {
   await waitFor(() => expect(screen.queryByText(/^(PAGE|NOTFOUND):/)).toBeTruthy());
 }
 
+beforeEach(async () => {
+  jest.clearAllMocks();
+  (SecureStore as typeof SecureStore & { __reset: () => void }).__reset();
+  await resetOnboarding();
+});
+
 describe("route tree (real expo-router)", () => {
-  it('resolves "/" to the parking tab instead of the generated Unmatched Route', async () => {
+  it('resolves "/" on a first installation to onboarding instead of the generated Unmatched Route', async () => {
+    await renderAt("/");
+    expect(screen.getByText("PAGE:onboarding@/onboarding")).toBeTruthy();
+    expect(screen.queryByText(/^NOTFOUND:/)).toBeNull();
+  });
+
+  it('resolves "/" to login once onboarding was completed on this installation', async () => {
+    await markOnboardingCompleted();
+    await renderAt("/");
+    expect(screen.getByText("PAGE:login@/login")).toBeTruthy();
+  });
+
+  it('resolves "/" to the parking tab for a restored session (no onboarding, no login)', async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-persisted");
+    (api.me as jest.Mock).mockResolvedValue({
+      id: "u1",
+      name: "Alex Driver",
+      email: "alex@parada.test",
+      username: null,
+      phone: null,
+      role: "USER",
+      status: "ACTIVE",
+      emailVerifiedAt: "2026-01-01T00:00:00.000Z",
+      pendingEmail: null,
+      pendingPhone: null,
+      avatarUpdatedAt: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
     await renderAt("/");
     expect(screen.getByText("PAGE:parking@/parking")).toBeTruthy();
-    expect(screen.queryByText(/^NOTFOUND:/)).toBeNull();
+  });
+
+  it("resolves the password-reset deep link (parada://reset-password?token=…) to the reset screen", async () => {
+    await renderAt("/reset-password?token=abc");
+    expect(screen.getByText("PAGE:reset-password@/reset-password")).toBeTruthy();
   });
 
   it("still resolves the other entry points directly", async () => {

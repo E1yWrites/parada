@@ -25,8 +25,8 @@ What is measured (wall clock, from this client, per event):
                           written to the results.
 
 The seeded registered plate ABC-1234 is rendered (base evaluation geometry) so
-the API exercises the REGISTERED path: ENTRY through cam-a-entry opens a
-ParkingSession, EXIT through cam-a-exit closes it with a fee. Every frame is
+the API exercises the REGISTERED path: ENTRY through cam-a-main-gate opens a
+ParkingSession, EXIT through cam-a-north-gate closes it with a fee. Every frame is
 made byte-unique (one background pixel varies) so sourceEventId differs and
 the API's idempotency key does not collapse the run. Zone occupancy is read
 before and after to show the run leaves the zone where it started.
@@ -56,8 +56,10 @@ VISION_URL = os.environ.get("VISION_URL", "http://localhost:8001")
 API_URL = config.PARADA_API_URL
 PLATE_TEXT = "ABC 1234"  # seeded registered vehicle ABC-1234 (packages/database/src/seed)
 ZONE_CODE = os.environ.get("E2E_ZONE_CODE", "A")
-CAM_ENTRY = os.environ.get("E2E_CAMERA_ENTRY", "cam-a-entry")
-CAM_EXIT = os.environ.get("E2E_CAMERA_EXIT", "cam-a-exit")
+# Seeded Zone A gate cameras (both BIDIRECTIONAL): ENTRY frames go through the
+# main gate, EXIT frames through the north gate.
+CAM_ENTRY = os.environ.get("E2E_CAMERA_ENTRY", "cam-a-main-gate")
+CAM_EXIT = os.environ.get("E2E_CAMERA_EXIT", "cam-a-north-gate")
 
 
 RUN_NONCE = int(time.time()) & 0xFFFF  # makes frames unique ACROSS runs too

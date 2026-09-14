@@ -41,6 +41,8 @@ const zoneA: PublicZone = {
   availableCount: 8,
   status: "ACTIVE",
   availability: "AVAILABLE",
+  navigationLat: null,
+  navigationLng: null,
 };
 const fullZone: PublicZone = {
   id: "z3",
@@ -52,6 +54,8 @@ const fullZone: PublicZone = {
   availableCount: 0,
   status: "ACTIVE",
   availability: "FULL",
+  navigationLat: null,
+  navigationLng: null,
 };
 
 const activeVehicle: Vehicle = {
@@ -60,6 +64,9 @@ const activeVehicle: Vehicle = {
   plateNumber: "ABC-1234",
   normalizedPlate: "ABC1234",
   vehicleType: "CAR",
+  make: null,
+  model: null,
+  color: null,
   status: "ACTIVE",
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -70,6 +77,9 @@ const secondVehicle: Vehicle = {
   plateNumber: "XYZ-5678",
   normalizedPlate: "XYZ5678",
   vehicleType: "CAR",
+  make: null,
+  model: null,
+  color: null,
   status: "ACTIVE",
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),

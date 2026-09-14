@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ActiveSessionBanner } from "./ActiveSessionBanner";
+import { Button } from "./Button";
 import { GlassCard } from "./GlassCard";
 import { PlateChip } from "./PlateChip";
 import { Stamp } from "./Stamp";
@@ -10,7 +12,8 @@ import { NavigateButton } from "./NavigateButton";
 import { Text } from "./Text";
 import type { SessionDto } from "@/lib/api/client";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { type NavigationDestination } from "@/lib/navigation";
+import { ZONE_NAVIGATION_UNCONFIGURED, type NavigationDestination } from "@/lib/navigation";
+import { ApiError } from "@/lib/api/client";
 import type { ReservationResponse, ZoneAssignmentResponse } from "@parada/types";
 import { colors, radii, spacing } from "@/src/theme";
 
@@ -21,10 +24,13 @@ type CurrentParkingStateProps = {
   assignment: ZoneAssignmentResponse | null;
   /** Newest live reservation (see lib/current). */
   reservation: ReservationResponse | null;
-  /** Establishment navigation destination (Phase 9.5); null until configured. */
-  destination: NavigationDestination | null;
-  /** True once the establishment query has settled (success). */
+  /** Per-zone navigation destination from the zone's admin-configured
+   *  coordinates; null when that zone has none (never fabricated). */
+  destinationFor: (zoneId: string) => NavigationDestination | null;
+  /** True once the zones query has settled (success). */
   destinationReady: boolean;
+  /** Cancels the accepted assignment (backend-enforced; only before entry). */
+  onCancelAssignment?: (assignmentId: string) => Promise<void>;
   /** Injectable clock for live elapsed rendering. */
   now: Date;
   /** Active-session query still loading. */
@@ -63,8 +69,9 @@ export function CurrentParkingState({
   session,
   assignment,
   reservation,
-  destination,
+  destinationFor,
   destinationReady,
+  onCancelAssignment,
   now,
   activePending,
   activeError,
@@ -97,7 +104,7 @@ export function CurrentParkingState({
       <SessionState
         session={session}
         assignment={currentAssignment}
-        destination={destination}
+        destination={destinationFor(session.zoneId)}
         destinationReady={destinationReady}
         now={now}
         assignmentError={assignmentError}
@@ -135,14 +142,15 @@ export function CurrentParkingState({
       {currentAssignment ? (
         <AssignmentState
           assignment={currentAssignment}
-          destination={destination}
+          destination={destinationFor(currentAssignment.zoneId)}
           destinationReady={destinationReady}
+          onCancel={onCancelAssignment}
         />
       ) : null}
       {currentReservation ? (
         <ReservationState
           reservation={currentReservation}
-          destination={destination}
+          destination={destinationFor(currentReservation.zoneId)}
           destinationReady={destinationReady}
         />
       ) : null}
@@ -227,6 +235,7 @@ function SessionState({
               destination={destination}
               label="Navigate to parking"
               primary
+              unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
               testID="current-state-navigate"
             />
           ) : null}
@@ -240,9 +249,28 @@ type AssignmentStateProps = {
   assignment: ZoneAssignmentResponse;
   destination: NavigationDestination | null;
   destinationReady: boolean;
+  onCancel?: (assignmentId: string) => Promise<void>;
 };
 
-function AssignmentState({ assignment, destination, destinationReady }: AssignmentStateProps) {
+function AssignmentState({ assignment, destination, destinationReady, onCancel }: AssignmentStateProps) {
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  async function handleCancel() {
+    if (!onCancel || cancelling) {
+      return;
+    }
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await onCancel(assignment.id);
+    } catch (err) {
+      setCancelError(err instanceof ApiError ? err.message : "We couldn't cancel this assignment. Please try again.");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   const summary = [
     `Assigned to ${assignment.zone.name}.`,
     `Vehicle ${assignment.vehicle.plateNumber}.`,
@@ -281,8 +309,31 @@ function AssignmentState({ assignment, destination, destinationReady }: Assignme
           destination={destination}
           label="Navigate to assigned zone"
           primary
+          unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
           testID="assignment-navigate"
         />
+      ) : null}
+      {onCancel ? (
+        <View style={styles.cancelBlock}>
+          <Button
+            variant="danger"
+            size="sm"
+            title={cancelling ? "Cancelling…" : "Cancel assignment"}
+            loading={cancelling}
+            onPress={() => void handleCancel()}
+            accessibilityLabel={`Cancel assignment to ${assignment.zone.name}`}
+            testID="assignment-cancel"
+          />
+          {cancelError ? (
+            <Text variant="caption" color={colors.danger} accessibilityRole="alert" testID="assignment-cancel-error">
+              {cancelError}
+            </Text>
+          ) : (
+            <Text variant="caption" color={colors.muted}>
+              You can cancel until your vehicle enters the zone.
+            </Text>
+          )}
+        </View>
       ) : null}
     </GlassCard>
   );
@@ -329,6 +380,7 @@ function ReservationState({ reservation, destination, destinationReady }: Reserv
           destination={destination}
           label="Navigate to parking"
           primary
+          unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
           testID="reservation-navigate"
         />
       ) : null}
@@ -339,6 +391,9 @@ function ReservationState({ reservation, destination, destinationReady }: Reserv
 const styles = StyleSheet.create({
   pass: {
     gap: spacing.xl2,
+  },
+  cancelBlock: {
+    gap: spacing.sm,
   },
   passBody: {
     gap: spacing.lg,

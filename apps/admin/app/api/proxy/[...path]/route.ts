@@ -83,6 +83,19 @@ async function proxy(req: Request, params: { path: string[] }) {
       headers,
       body,
     });
+
+    // JSON is the norm; the avatar endpoint answers with image bytes, which
+    // must reach the browser byte-for-byte with their real content type.
+    const responseType = backendRes.headers.get("content-type") ?? "application/json";
+    if (!responseType.startsWith("application/json")) {
+      const bytes = await backendRes.arrayBuffer();
+      const passthrough = new Headers({ "Content-Type": responseType });
+      for (const name of ["cache-control", "etag", "last-modified"]) {
+        const value = backendRes.headers.get(name);
+        if (value) passthrough.set(name, value);
+      }
+      return new NextResponse(bytes, { status: backendRes.status, headers: passthrough });
+    }
     const text = await backendRes.text();
 
     return new NextResponse(text, {

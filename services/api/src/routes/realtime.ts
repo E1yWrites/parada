@@ -47,7 +47,13 @@ export function realtimeRouter(hub: RealtimeHub): Router {
     res.flushHeaders?.();
 
     const clientId = `${auth.id}:${auth.jti}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-    const client = { id: clientId, userId: auth.id, role: auth.role, write: (chunk: string) => res.write(chunk) };
+    const client = {
+      id: clientId,
+      userId: auth.id,
+      role: auth.role,
+      write: (chunk: string) => res.write(chunk),
+      close: () => res.end(),
+    };
 
     let unsubscribe: (() => void) | null = null;
     try {

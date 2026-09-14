@@ -46,6 +46,8 @@ const baseZone = (over: Partial<PublicZone>): PublicZone => ({
   availableCount: 8,
   status: "ACTIVE",
   availability: "AVAILABLE",
+  navigationLat: null,
+  navigationLng: null,
   ...over,
 });
 
@@ -58,6 +60,8 @@ const fullZone = baseZone({
   occupiedCount: 10,
   availableCount: 0,
   availability: "FULL",
+  navigationLat: null,
+  navigationLng: null,
 });
 
 const vehicle: Vehicle = {
@@ -66,6 +70,9 @@ const vehicle: Vehicle = {
   plateNumber: "ABC-1234",
   normalizedPlate: "ABC1234",
   vehicleType: "CAR",
+  make: null,
+  model: null,
+  color: null,
   status: "ACTIVE",
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),

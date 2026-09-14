@@ -21,6 +21,8 @@ const tokenService = new TokenService({
 });
 
 const TABLES = [
+  "verification_tokens",
+  "user_avatars",
   "guest_sessions",
   "violation_appeals",
   "violations",

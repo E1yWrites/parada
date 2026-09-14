@@ -62,6 +62,9 @@ const vehicle: Vehicle = {
   plateNumber: "ABC-1234",
   normalizedPlate: "ABC1234",
   vehicleType: "CAR",
+  make: null,
+  model: null,
+  color: null,
   status: "ACTIVE",
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -310,27 +313,26 @@ describe("parking recommendation: Phase 9.5 GPS navigation", () => {
     jest.spyOn(Linking, "openURL").mockResolvedValue(true as never);
   });
 
-  it("shows navigation as unavailable when no destination is configured", async () => {
+  it("shows navigation as unavailable when the assigned zone has no coordinates configured", async () => {
     (api.assignments as jest.Mock).mockResolvedValue([assignment]);
-    (api.establishment as jest.Mock).mockResolvedValue({ location: null });
-    renderWithProviders(<ParkingRecommendation />);
+    renderWithProviders(<ParkingRecommendation destinationFor={() => null} destinationReady />);
 
     await waitFor(() => expect(screen.getByTestId("assignment-confirmed")).toBeOnTheScreen());
     await waitFor(() => expect(screen.getByTestId("assignment-navigate")).toBeOnTheScreen());
     expect(screen.getByTestId("assignment-navigate")).toBeDisabled();
     expect(screen.getByTestId("assignment-navigate-unavailable")).toHaveTextContent(
-      "Navigation isn't available right now.",
+      "Navigation coordinates for this zone haven't been configured yet.",
     );
   });
 
-  it("navigates to the establishment from the configured destination + real device location", async () => {
+  it("navigates to the assigned zone's configured coordinates + real device location", async () => {
     (api.assignments as jest.Mock).mockResolvedValue([assignment]);
-    (api.establishment as jest.Mock).mockResolvedValue({
-      location: { address: "123 Test Ave", latitude: 14.5502, longitude: 121.0402 },
-    });
+    const destinationFor = jest.fn((zoneId: string) =>
+      zoneId === assignment.zoneId ? { label: "Zone A", latitude: 14.5502, longitude: 121.0402 } : null,
+    );
     (LocationMock as LocationModule).__setPermission({ granted: true, canAskAgain: true });
     (LocationMock as LocationModule).__setPosition({ latitude: 14.5995, longitude: 120.9842 });
-    renderWithProviders(<ParkingRecommendation />);
+    renderWithProviders(<ParkingRecommendation destinationFor={destinationFor} destinationReady />);
 
     await waitFor(() => expect(screen.getByTestId("assignment-confirmed")).toBeOnTheScreen());
     await waitFor(() => expect(screen.getByTestId("assignment-navigate")).toBeOnTheScreen());
@@ -342,14 +344,14 @@ describe("parking recommendation: Phase 9.5 GPS navigation", () => {
         expect.stringContaining("maps://?saddr=14.5995,120.9842&daddr=14.5502,121.0402"),
       ),
     );
+    expect(destinationFor).toHaveBeenCalledWith(assignment.zoneId);
     expect(api.createAssignment).not.toHaveBeenCalled();
     expect(api.cancelReservation).not.toHaveBeenCalled();
   });
 
-  it("does not show navigation while the establishment data is still loading", async () => {
+  it("does not show navigation while the zones (coordinates) are still loading", async () => {
     (api.assignments as jest.Mock).mockResolvedValue([assignment]);
-    (api.establishment as jest.Mock).mockReturnValue(new Promise(() => {}));
-    renderWithProviders(<ParkingRecommendation />);
+    renderWithProviders(<ParkingRecommendation destinationFor={() => null} destinationReady={false} />);
 
     await waitFor(() => expect(screen.getByTestId("assignment-confirmed")).toBeOnTheScreen());
     expect(screen.queryByTestId("assignment-navigate")).not.toBeOnTheScreen();

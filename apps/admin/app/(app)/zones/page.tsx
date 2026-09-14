@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, DoorOpen, DoorClosed, Plus, Power, Play, Save, AlertCircle, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api/client";
+import { parseCoordinates } from "@/lib/coordinates";
 import { PageHeader } from "@/components/PageHeader";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import { AvailabilityBadge, PlateChip, AVAILABILITY_BAR } from "@/components/ui/Badge";
@@ -33,12 +34,22 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: () => void; onClose
     capacity: 10,
     status: "ACTIVE",
   });
+  const [navigationLat, setNavigationLat] = useState("");
+  const [navigationLng, setNavigationLng] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const create = useMutation({
-    mutationFn: () => api.createZone(form),
+    mutationFn: () => {
+      const navigation = parseCoordinates(navigationLat, navigationLng);
+      if ("error" in navigation) {
+        return Promise.reject(new ApiError("BAD_REQUEST", navigation.error, 400));
+      }
+      return api.createZone({ ...form, ...navigation });
+    },
     onSuccess: () => {
       setForm({ name: "", code: "", description: "", capacity: 10, status: "ACTIVE" });
+      setNavigationLat("");
+      setNavigationLng("");
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["zones"] });
       onCreated();
@@ -119,6 +130,33 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: () => void; onClose
             value={form.capacity}
             onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
             required
+          />
+        </div>
+        <div>
+          <label htmlFor="zone-lat" className="label">
+            Navigation latitude
+          </label>
+          <input
+            id="zone-lat"
+            className="input font-mono"
+            inputMode="decimal"
+            value={navigationLat}
+            onChange={(e) => setNavigationLat(e.target.value)}
+            placeholder="13.76447"
+          />
+          <p className="field-help">Optional now; drivers&apos; Directions stay disabled until both are set.</p>
+        </div>
+        <div>
+          <label htmlFor="zone-lng" className="label">
+            Navigation longitude
+          </label>
+          <input
+            id="zone-lng"
+            className="input font-mono"
+            inputMode="decimal"
+            value={navigationLng}
+            onChange={(e) => setNavigationLng(e.target.value)}
+            placeholder="121.06462"
           />
         </div>
         <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4 sm:col-span-2">

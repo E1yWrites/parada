@@ -17,8 +17,11 @@ function RealtimeConnection() {
  * at app start and keep reconnecting with it forever.
  */
 function RealtimeMount() {
-  const { user } = useSession();
-  return user ? <RealtimeConnection key={user.id} /> : null;
+  const { user, token } = useSession();
+  // Keyed on the token too: a password change hands this device a fresh
+  // token and the server drops the stream opened with the old one, so the
+  // connection must be re-established with the new credential.
+  return user ? <RealtimeConnection key={`${user.id}:${token ?? ""}`} /> : null;
 }
 
 /** App-wide providers: React Query + PARADA session. */

@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { DEFAULT_OCR_CONFIDENCE_THRESHOLD } from "@parada/config";
+import type { MailEnv } from "../mail/mailer";
 
 export interface Env {
   port: number;
@@ -17,6 +18,14 @@ export interface Env {
   cameraEventRateLimitPerMinute: number;
   /** Admin mutation requests per fixed 60s window, per authenticated admin. */
   adminRateLimitPerMinute: number;
+  /** Outbound mail transport for verification / recovery flows. */
+  mail: MailEnv;
+  /**
+   * Public name of the establishment used in outbound mail, and the mobile
+   * deep-link scheme embedded in password-reset mail.
+   */
+  appName: string;
+  mobileScheme: string;
 }
 
 function optionalInt(name: string, fallback: number): number {
@@ -93,11 +102,40 @@ export function loadEnv(): Env {
     authRateLimitPerMinute: optionalInt("AUTH_RATE_LIMIT", 10),
     cameraEventRateLimitPerMinute: optionalInt("CAMERA_EVENT_RATE_LIMIT", 300),
     adminRateLimitPerMinute: optionalInt("ADMIN_RATE_LIMIT", 120),
+    mail: { transport: "console", smtp: null },
+    appName: process.env["APP_NAME"]?.trim() || "PARADA",
+    mobileScheme: process.env["MOBILE_APP_SCHEME"]?.trim() || "parada",
   };
 
   // The dev-only "open endpoint" fallback in eventsRouter (see its comment)
   // must never reach a real deployment, where anyone could inject fabricated
   // occupancy events.
+  // Mail: SMTP whenever a host is configured; the console transport is a
+  // development convenience that createMailerFromEnv refuses in production.
+  const smtpHost = optionalSecret("SMTP_HOST");
+  const mailFrom = optionalSecret("MAIL_FROM");
+  const transportRaw = (process.env["MAIL_TRANSPORT"] ?? "").trim().toLowerCase();
+  const transport: MailEnv["transport"] =
+    transportRaw === "smtp" || (transportRaw === "" && smtpHost)
+      ? "smtp"
+      : transportRaw === "memory"
+        ? "memory"
+        : "console";
+  env.mail = {
+    transport,
+    smtp:
+      smtpHost && mailFrom
+        ? {
+            host: smtpHost,
+            port: optionalInt("SMTP_PORT", 587),
+            secure: (process.env["SMTP_SECURE"] ?? "").trim().toLowerCase() === "true",
+            user: optionalSecret("SMTP_USER"),
+            pass: optionalSecret("SMTP_PASS"),
+            from: mailFrom,
+          }
+        : null,
+  };
+
   if (env.nodeEnv === "production" && !env.cameraApiKey) {
     throw new Error(
       "Missing required environment variable: CAMERA_API_KEY (required outside development)."

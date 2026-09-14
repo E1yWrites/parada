@@ -25,6 +25,8 @@ Authoritative data model for the PostgreSQL database. Prisma schema lives in
 | `Notification` | Admin + driver alerts (zone state, violations, appeal outcomes). |
 | `EstablishmentConfig` | Single-row establishment settings: fees, guest policy, zone defaults, violation fines, location. |
 | `RevokedToken` | `jti` values revoked at logout, for server-side JWT invalidation. |
+| `UserAvatar` | One profile picture per user (client-resized JPEG/PNG/WebP bytes, ≤ 2 MB) kept in the database so the single-instance deployment needs no file volume. |
+| `VerificationToken` | One-time secrets: registration / email-change / phone-change 6-digit codes and password-reset tokens. Only an HMAC of the secret is stored; single use (`consumedAt`), expiring, attempt-limited. |
 
 No `Report` table — reports are generated dynamically from `OccupancyHistory`.
 
@@ -119,6 +121,7 @@ stay correct, but **no `ParkingSession` is created** (a session requires a real 
 - `20260904115711_guest_session_accountless` — drops `NOT NULL` from `parking_sessions.userId`/`vehicleId` for account-less guest sessions.
 - `20260905093000_add_establishment_location` — establishment latitude/longitude for GPS navigation.
 - `20260906120000_fees_guests_and_integrity_indexes` — `parking_fees.userId` made nullable for guest fees; partial unique indexes `vehicles_one_active_per_normalized_plate` and `zone_assignments_one_active_per_vehicle`.
+- `20260914120000_account_lifecycle_and_zone_navigation` — `ZoneAssignmentStatus.CANCELLED` (driver release before entry, kept as history); `users.username` (unique), `phone`, `emailVerifiedAt` (existing rows backfilled as verified), `pendingEmail`, `pendingPhone`, `passwordChangedAt`, `tokenVersion`; `user_avatars`; `verification_tokens` + `VerificationPurpose` enum; `vehicles.make/model/color`; `parking_zones.navigationLat/navigationLng` (per-zone Directions target, null until an admin configures it).
 
 Use `prisma migrate dev` for development, `prisma migrate deploy` for environments.
 `db push` is not the permanent strategy.

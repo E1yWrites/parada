@@ -16,6 +16,7 @@ const INVALIDATIONS: Record<RealtimeEventType, (readonly unknown[])[]> = {
   RESERVATION_CREATED: [queryKeys.reservations],
   RESERVATION_CANCELLED: [queryKeys.reservations],
   ASSIGNMENT_CREATED: [queryKeys.assignments],
+  ASSIGNMENT_CANCELLED: [queryKeys.assignments],
   VIOLATION_CREATED: [queryKeys.violations],
   GUEST_ADMISSION_ISSUE: [],
   NOTIFICATION_CREATED: [queryKeys.notifications],

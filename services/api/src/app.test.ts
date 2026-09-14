@@ -8,6 +8,8 @@ import { AuthService } from "./domain/auth";
 import { TokenService } from "./domain/token";
 
 const TABLES = [
+  "verification_tokens",
+  "user_avatars",
   "guest_sessions",
   "violation_appeals",
   "violations",
@@ -31,6 +33,16 @@ async function cleanDatabase() {
   for (const table of TABLES) {
     await prisma.$executeRawUnsafe(`DELETE FROM "${table}";`);
   }
+}
+
+/**
+ * Registration now leaves an account unverified (login answers 403
+ * EMAIL_NOT_VERIFIED until the emailed code is confirmed — covered in
+ * routes/account.test.ts). These suites are about other concerns, so they
+ * verify through the database instead of the mail transport.
+ */
+async function verifyAllUsers() {
+  await prisma.user.updateMany({ where: { emailVerifiedAt: null }, data: { emailVerifiedAt: new Date() } });
 }
 
 interface SeedCtx {
@@ -178,6 +190,7 @@ describe("PARADA API", () => {
           name: "Admin User",
           email: "est-admin@test.local",
           passwordHash: await argon2.hash("AdminPass123!", { type: argon2.argon2id }),
+          emailVerifiedAt: new Date(),
           role: "ADMIN",
           status: "ACTIVE",
         },
@@ -473,6 +486,7 @@ describe("Authentication & Authorization", () => {
         .post("/auth/register")
         .send({ name: "Test User", email: "test@test.local", password: "Password123!" })
         .expect(201);
+      await verifyAllUsers();
 
       expect(res.body.data.user).toEqual(
         expect.objectContaining({
@@ -483,7 +497,10 @@ describe("Authentication & Authorization", () => {
         })
       );
       expect(res.body.data.user.id).toBeDefined();
-      expect(res.body.data.token).toBeDefined();
+      // No bearer token until the emailed 6-digit code is confirmed.
+      expect(res.body.data.token).toBeUndefined();
+      expect(res.body.data.user.emailVerifiedAt).toBeNull();
+      expect(typeof res.body.data.verification.expiresAt).toBe("string");
       expect(res.body.data.user.passwordHash).toBeUndefined();
     });
 
@@ -492,6 +509,7 @@ describe("Authentication & Authorization", () => {
         .post("/auth/register")
         .send({ name: "Test User", email: "dup@test.local", password: "Password123!" })
         .expect(201);
+      await verifyAllUsers();
 
       await request(app)
         .post("/auth/register")
@@ -521,6 +539,7 @@ describe("Authentication & Authorization", () => {
         .post("/auth/register")
         .send({ name: "Login User", email: "login@test.local", password: "Password123!" })
         .expect(201);
+      await verifyAllUsers();
 
       const res = await request(app)
         .post("/auth/login")
@@ -536,6 +555,7 @@ describe("Authentication & Authorization", () => {
         .post("/auth/register")
         .send({ name: "Login User", email: "login2@test.local", password: "Password123!" })
         .expect(201);
+      await verifyAllUsers();
 
       await request(app)
         .post("/auth/login")
@@ -557,6 +577,7 @@ describe("Authentication & Authorization", () => {
         .post("/auth/register")
         .send({ name: "Me User", email: "me@test.local", password: "Password123!" })
         .expect(201);
+      await verifyAllUsers();
 
       const login = await request(app)
         .post("/auth/login")
@@ -586,6 +607,7 @@ describe("Authentication & Authorization", () => {
         .post("/auth/register")
         .send({ name: "Hash User", email: "hash@test.local", password: "Password123!" })
         .expect(201);
+      await verifyAllUsers();
 
       const login = await request(app)
         .post("/auth/login")
@@ -603,6 +625,7 @@ describe("Authentication & Authorization", () => {
         .post("/auth/register")
         .send({ name: "Logout User", email: "logout@test.local", password: "Password123!" })
         .expect(201);
+      await verifyAllUsers();
 
       const login = await request(app)
         .post("/auth/login")
@@ -634,10 +657,12 @@ describe("Authentication & Authorization", () => {
         .post("/auth/register")
         .send({ name: "User One", email: "user1@test.local", password: "Password123!" })
         .expect(201);
+      await verifyAllUsers();
       await request(app)
         .post("/auth/register")
         .send({ name: "User Two", email: "user2@test.local", password: "Password123!" })
         .expect(201);
+      await verifyAllUsers();
 
       const login1 = await request(app)
         .post("/auth/login")
@@ -721,10 +746,12 @@ describe("Authentication & Authorization", () => {
         .post("/auth/register")
         .send({ name: "Session User", email: "session1@test.local", password: "Password123!" })
         .expect(201);
+      await verifyAllUsers();
       await request(app)
         .post("/auth/register")
         .send({ name: "Other User", email: "session2@test.local", password: "Password123!" })
         .expect(201);
+      await verifyAllUsers();
 
       const login1 = await request(app)
         .post("/auth/login")
@@ -866,12 +893,14 @@ describe("Authentication & Authorization", () => {
         .post("/auth/register")
         .send({ name: "Regular User", email: "reguser@test.local", password: "Password123!" })
         .expect(201);
+      await verifyAllUsers();
 
       const admin = await prisma.user.create({
         data: {
           name: "Admin User",
           email: "admin@test.local",
           passwordHash: await argon2.hash("AdminPass123!", { type: argon2.argon2id }),
+          emailVerifiedAt: new Date(),
           role: "ADMIN",
           status: "ACTIVE",
         },
@@ -1120,6 +1149,7 @@ describe("Phase 3 — Reservations", () => {
       .post("/auth/register")
       .send({ name, email, password: "Password123!" })
       .expect(201);
+    await verifyAllUsers();
     const login = await request(app).post("/auth/login").send({ email, password: "Password123!" }).expect(200);
     return { token: login.body.data.token, id: login.body.data.user.id };
   }
@@ -1486,6 +1516,7 @@ describe("Phase 3 — Assignments", () => {
 
     // register returns 201 for both (idempotent within a fresh DB).
     await Promise.all([regA(), regB()]);
+    await verifyAllUsers();
 
     const loginA = await request(app).post("/auth/login").send({ email: "assa@test.local", password: "Password123!" }).expect(200);
     const loginB = await request(app).post("/auth/login").send({ email: "assb@test.local", password: "Password123!" }).expect(200);
@@ -1635,6 +1666,7 @@ describe("Phase 3 — Session entry & exit (user-initiated)", () => {
       request(app).post("/auth/register").send({ name: "Sess B", email: "sessb@test.local", password: "Password123!" });
     await registerA();
     await registerB();
+    await verifyAllUsers();
 
     const loginA = await request(app).post("/auth/login").send({ email: "sessa@test.local", password: "Password123!" }).expect(200);
     const loginB = await request(app).post("/auth/login").send({ email: "sessb@test.local", password: "Password123!" }).expect(200);
@@ -2150,7 +2182,9 @@ describe("Phase 4 — Authentication security coverage", () => {
   async function registerAndLogin(email: string, password = "Password123!") {
     const reg = await registerUser(email, password).expect(201);
     const userId = reg.body.data.user.id;
-    const token = reg.body.data.token;
+    await verifyAllUsers();
+    const login = await request(app).post("/auth/login").send({ email, password }).expect(200);
+    const token = login.body.data.token as string;
     return { email, userId, token, reg };
   }
 
@@ -2216,6 +2250,7 @@ describe("Phase 4 — Authentication security coverage", () => {
   describe("Login — response safety & enumeration resistance", () => {
     it("does not return the password hash or any secret field on login", async () => {
       await registerUser("loginresp@test.local").expect(201);
+      await verifyAllUsers();
       const res = await request(app)
         .post("/auth/login")
         .send({ email: "loginresp@test.local", password: "Password123!" })
@@ -2227,6 +2262,7 @@ describe("Phase 4 — Authentication security coverage", () => {
 
     it("returns the identical generic 401 for a nonexistent email and a wrong password", async () => {
       await registerUser("enum@test.local", "Password123!").expect(201);
+      await verifyAllUsers();
 
       const nonexistent = await request(app)
         .post("/auth/login")
@@ -2741,7 +2777,9 @@ describe("Phase 11B — Rate limiting (AUDIT-003)", () => {
     const app = createApp({ authRateLimit: { limit: 2, windowMs: 60_000 } });
 
     await request(app).post("/auth/register").send({ name: "R1", email: "rl1@test.local", password: "Password123!" }).expect(201);
+    await verifyAllUsers();
     await request(app).post("/auth/register").send({ name: "R2", email: "rl2@test.local", password: "Password123!" }).expect(201);
+    await verifyAllUsers();
     await request(app).post("/auth/register").send({ name: "R3", email: "rl3@test.local", password: "Password123!" }).expect(429);
   });
 
@@ -2801,6 +2839,7 @@ describe("Phase 11B — Rate limiting (AUDIT-003)", () => {
     const app = createApp({ authRateLimit: { limit: 5, windowMs: 60_000 } });
 
     await request(app).post("/auth/register").send({ name: "RL User", email: "rl-user@test.local", password: "Password123!" }).expect(201);
+    await verifyAllUsers();
     const login = await request(app).post("/auth/login").send({ email: "rl-user@test.local", password: "Password123!" }).expect(200);
     const token = login.body.data.token;
     await request(app).get("/reservations").set("Authorization", `Bearer ${token}`).expect(200);

@@ -42,7 +42,9 @@ export function VehicleCard({ vehicle, onPress, testID }: VehicleCardProps) {
           {vehicle.plateNumber}
         </Text>
         <Text variant="caption" numberOfLines={2} testID={testID ? `${testID}-type` : undefined}>
-          {formatVehicleType(vehicle.vehicleType)}
+          {[formatVehicleType(vehicle.vehicleType), [vehicle.color, vehicle.make, vehicle.model].filter(Boolean).join(" ")]
+            .filter((part) => part && part.length > 0)
+            .join(" · ")}
         </Text>
       </View>
       <StatusBadge meta={vehicleStatusMeta[vehicle.status]} size="sm" testID={testID ? `${testID}-status` : undefined} />

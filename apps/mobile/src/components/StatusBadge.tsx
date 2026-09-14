@@ -8,7 +8,7 @@ import type { NotificationType, ViolationStatus } from "@parada/types";
 type ZoneAvailability = "AVAILABLE" | "LOW_AVAILABILITY" | "FULL" | "OFFLINE";
 type SessionStatus = "ACTIVE" | "COMPLETED";
 type ReservationStatus = "PENDING" | "CONFIRMED" | "ACTIVE" | "EXPIRED" | "CANCELLED";
-type ZoneAssignmentStatus = "ACTIVE" | "EXPIRED" | "REVOKED";
+type ZoneAssignmentStatus = "ACTIVE" | "EXPIRED" | "REVOKED" | "CANCELLED";
 
 type StatusMeta = {
   label: string;
@@ -64,6 +64,8 @@ export function assignmentStatusMeta(status: ZoneAssignmentStatus): StatusMeta {
       return { label: "Expired", icon: "hourglass", color: colors.muted };
     case "REVOKED":
       return { label: "Revoked", icon: "close-circle", color: colors.muted };
+    case "CANCELLED":
+      return { label: "Cancelled", icon: "close-circle", color: colors.muted };
   }
 }
 

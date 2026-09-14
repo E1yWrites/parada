@@ -16,6 +16,7 @@ const INVALIDATIONS: Record<RealtimeEventType, string[][]> = {
   RESERVATION_CREATED: [["reservations"]],
   RESERVATION_CANCELLED: [["reservations"]],
   ASSIGNMENT_CREATED: [["dashboard"]],
+  ASSIGNMENT_CANCELLED: [["dashboard"]],
   VIOLATION_CREATED: [["violations"], ["dashboard"]],
   GUEST_ADMISSION_ISSUE: [["anomalies"], ["dashboard"]],
   NOTIFICATION_CREATED: [["notifications"]],

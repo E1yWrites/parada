@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useRouter } from "expo-router";
+import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button, Input, Screen, Text } from "@/src/components";
@@ -11,7 +11,14 @@ import { colors, fonts, radii, spacing } from "@/src/theme";
 export default function LoginScreen() {
   const { signIn } = useSession();
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const params = useLocalSearchParams<{ email?: string; notice?: string }>();
+  const notice =
+    params.notice === "verified"
+      ? "Your email is verified. Sign in to continue."
+      : params.notice === "reset"
+        ? "Your password was changed. Sign in with your new password."
+        : null;
+  const [email, setEmail] = useState(typeof params.email === "string" ? params.email : "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -29,6 +36,16 @@ export default function LoginScreen() {
       await signIn(email.trim(), password);
       router.replace("/(tabs)/parking");
     } catch (err) {
+      if (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED") {
+        // Correct credentials, unverified account: continue verification
+        // instead of asking the user to register again.
+        const details = err.details as { email?: string } | undefined;
+        router.replace({
+          pathname: "/verify-email",
+          params: { email: details?.email ?? email.trim().toLowerCase() },
+        });
+        return;
+      }
       setError(err instanceof ApiError ? err.message : "Unable to sign in. Please try again.");
     } finally {
       setSubmitting(false);
@@ -46,6 +63,14 @@ export default function LoginScreen() {
           Sign in to see live zone availability and your parking.
         </Text>
       </View>
+      {notice && !error ? (
+        <View style={styles.notice} testID="login-notice">
+          <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+          <Text variant="caption" color={colors.success} style={styles.alertText}>
+            {notice}
+          </Text>
+        </View>
+      ) : null}
       {error ? (
         <View style={styles.alert}>
           <Ionicons name="alert-circle" size={18} color={colors.danger} />
@@ -89,6 +114,13 @@ export default function LoginScreen() {
       </View>
       <View style={styles.links}>
         <Text variant="caption" align="center">
+          <Link href="/forgot-password" testID="login-goto-forgot">
+            <Text variant="caption" color={colors.primary} style={styles.linkText}>
+              Forgot your password?
+            </Text>
+          </Link>
+        </Text>
+        <Text variant="caption" align="center">
           New here?{" "}
           <Link href="/register" testID="login-goto-register">
             <Text variant="caption" color={colors.primary} style={styles.linkText}>
@@ -125,6 +157,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     backgroundColor: colors.dangerSoft,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+  },
+  notice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: colors.successSoft,
     borderRadius: radii.md,
     padding: spacing.lg,
   },

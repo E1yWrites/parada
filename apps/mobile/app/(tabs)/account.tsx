@@ -5,14 +5,15 @@ import Constants from "expo-constants";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { Avatar, Button, Card, ErrorState, IconTile, LoadingState, Screen, Text } from "@/src/components";
-import { api, ApiError } from "@/lib/api/client";
+import { AvatarEditor } from "@/src/components/AvatarEditor";
+import { api, ApiError, avatarUrl } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { useSession } from "@/src/providers/SessionProvider";
 import { colors, radii, spacing, touchTarget } from "@/src/theme";
 
 export default function AccountScreen() {
   const router = useRouter();
-  const { user, signOut } = useSession();
+  const { user, token, signOut } = useSession();
   const account = useQuery({ queryKey: queryKeys.account, queryFn: api.me });
   const notifications = useQuery({ queryKey: queryKeys.notifications, queryFn: api.notifications });
   const [signingOut, setSigningOut] = useState(false);
@@ -65,7 +66,7 @@ export default function AccountScreen() {
           ) : null}
 
           <Card style={styles.profileCard} testID="account-profile">
-            <Avatar name={profile.name} size={52} testID="account-avatar" />
+            <Avatar name={profile.name} uri={avatarUrl(profile)} authToken={token} size={52} testID="account-avatar" />
             <View style={styles.profileText}>
               <Text variant="title" numberOfLines={2} testID="account-name">
                 {profile.name}
@@ -73,11 +74,38 @@ export default function AccountScreen() {
               <Text variant="caption" numberOfLines={1} testID="account-email">
                 {profile.email}
               </Text>
+              {profile.username ? (
+                <Text variant="caption" numberOfLines={1} testID="account-username">
+                  @{profile.username}
+                </Text>
+              ) : null}
             </View>
             <RolePill role={profile.role} />
           </Card>
 
+          {account.isError ? null : (
+            <Card testID="account-photo">
+              <AvatarEditor user={profile} testID="account-avatar-editor" />
+            </Card>
+          )}
+
           <Card style={styles.linksCard} padding={0}>
+            <AccountLink
+              icon="person-circle-outline"
+              label="Edit profile"
+              caption="Name, username, email and phone"
+              onPress={() => router.push("/account/profile")}
+              testID="account-edit-profile"
+            />
+            <View style={styles.linkDivider} />
+            <AccountLink
+              icon="key-outline"
+              label="Change password"
+              caption="Signs out your other devices"
+              onPress={() => router.push("/account/password")}
+              testID="account-change-password"
+            />
+            <View style={styles.linkDivider} />
             <AccountLink
               icon="notifications-outline"
               label="Notifications"
@@ -98,6 +126,8 @@ export default function AccountScreen() {
 
           <Card style={styles.infoCard} padding={0}>
             <InfoRow label="Status" value="Active driver account" />
+            <View style={styles.linkDivider} />
+            <InfoRow label="Phone" value={profile.phone ?? "Not set"} testID="account-phone" />
             <View style={styles.linkDivider} />
             <InfoRow label="App version" value={version} testID="account-version" />
             <View style={styles.linkDivider} />

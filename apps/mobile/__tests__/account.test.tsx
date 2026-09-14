@@ -41,8 +41,14 @@ const user: UserDto = {
   id: "u1",
   name: "Alex Driver",
   email: "alex@parada.test",
+  username: null,
+  phone: null,
   role: "USER",
   status: "ACTIVE",
+  emailVerifiedAt: "2026-01-01T00:00:00.000Z",
+  pendingEmail: null,
+  pendingPhone: null,
+  avatarUpdatedAt: null,
   createdAt: "2026-01-01T00:00:00.000Z",
 };
 

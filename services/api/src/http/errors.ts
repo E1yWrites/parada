@@ -48,6 +48,30 @@ export class UnprocessableError extends HttpError {
   }
 }
 
+export class TooManyRequestsError extends HttpError {
+  constructor(message = "Too many requests. Please wait and try again.", details?: unknown) {
+    super(429, "TOO_MANY_REQUESTS", message, details);
+  }
+}
+
+/** Login refused because the account's email address is not yet verified. */
+export class EmailNotVerifiedError extends HttpError {
+  constructor(details: unknown) {
+    super(403, "EMAIL_NOT_VERIFIED", "Verify your email address to continue.", details);
+  }
+}
+
+/**
+ * A verification code / reset token was rejected. The code tells the client
+ * whether asking for a new one is the remedy (`*_EXPIRED`) or the input was
+ * simply wrong (`*_INVALID`).
+ */
+export class VerificationError extends HttpError {
+  constructor(code: "CODE_INVALID" | "CODE_EXPIRED" | "TOKEN_INVALID" | "TOKEN_EXPIRED", message: string) {
+    super(422, code, message);
+  }
+}
+
 export class InternalError extends HttpError {
   constructor(message = "An unexpected error occurred.") {
     super(500, "INTERNAL", message);

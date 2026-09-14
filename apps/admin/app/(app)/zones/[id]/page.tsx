@@ -13,6 +13,7 @@ import { AvailabilityBadge, OnlineBadge, Pill, PlateChip, AVAILABILITY_BAR } fro
 import { Button } from "@/components/ui/Button";
 import { formatDateTime, formatPct } from "@/lib/format";
 import type { AdminZoneDetail, AdminSlot } from "@/lib/api/types";
+import { parseCoordinates } from "@/lib/coordinates";
 
 function activeCodes(slots: AdminSlot[]): string[] {
   return slots.filter((s) => s.status === "ACTIVE").map((s) => s.slotCode);
@@ -30,19 +31,28 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
     description: zone.description ?? "",
     capacity: zone.capacity,
     status: zone.status,
+    // Kept as text so a half-typed "13." is not coerced; parsed on save.
+    navigationLat: zone.navigationLat === null ? "" : String(zone.navigationLat),
+    navigationLng: zone.navigationLng === null ? "" : String(zone.navigationLng),
   });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   const save = useMutation({
-    mutationFn: () =>
-      api.updateZone(zone.id, {
+    mutationFn: () => {
+      const navigation = parseCoordinates(form.navigationLat, form.navigationLng);
+      if ("error" in navigation) {
+        return Promise.reject(new ApiError("BAD_REQUEST", navigation.error, 400));
+      }
+      return api.updateZone(zone.id, {
         name: form.name,
         code: form.code,
         description: form.description,
         capacity: form.capacity,
         status: form.status,
-      }),
+        ...navigation,
+      });
+    },
     onSuccess: (next) => {
       setForm({
         name: next.name,
@@ -50,6 +60,8 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
         description: next.description ?? "",
         capacity: next.capacity,
         status: next.status,
+        navigationLat: next.navigationLat === null ? "" : String(next.navigationLat),
+        navigationLng: next.navigationLng === null ? "" : String(next.navigationLng),
       });
       setError(null);
       setSaved(true);
@@ -115,6 +127,30 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
             required
           />
           <p className="field-help">Cannot drop below the current occupancy or reserved spaces.</p>
+        </div>
+        <div>
+          <label htmlFor="edit-zone-lat" className="label">Navigation latitude</label>
+          <input
+            id="edit-zone-lat"
+            className="input font-mono"
+            inputMode="decimal"
+            value={form.navigationLat}
+            onChange={(e) => setForm({ ...form, navigationLat: e.target.value })}
+            placeholder="13.76447"
+          />
+          <p className="field-help">WGS84, -90 to 90. Drivers&apos; Directions open the map at exactly this point.</p>
+        </div>
+        <div>
+          <label htmlFor="edit-zone-lng" className="label">Navigation longitude</label>
+          <input
+            id="edit-zone-lng"
+            className="input font-mono"
+            inputMode="decimal"
+            value={form.navigationLng}
+            onChange={(e) => setForm({ ...form, navigationLng: e.target.value })}
+            placeholder="121.06462"
+          />
+          <p className="field-help">-180 to 180. Leave both empty to disable Directions for this zone.</p>
         </div>
         <div>
           <label htmlFor="edit-zone-status" className="label">Status</label>
@@ -315,6 +351,11 @@ export default function ZoneDetailPage() {
                   <h1 className="font-display text-[1.75rem] font-black leading-tight tracking-tight text-charcoal">{zone.name}</h1>
                 </div>
                 {zone.description ? <p className="mt-1.5 text-sm text-muted">{zone.description}</p> : null}
+                <p className="mt-1.5 font-mono text-xs font-semibold text-muted" data-testid="zone-navigation-summary">
+                  {zone.navigationLat !== null && zone.navigationLng !== null
+                    ? `Directions target: ${zone.navigationLat}, ${zone.navigationLng}`
+                    : "Directions target: not configured (drivers see Directions disabled)"}
+                </p>
               </div>
               <AvailabilityBadge value={zone.availability} />
             </div>

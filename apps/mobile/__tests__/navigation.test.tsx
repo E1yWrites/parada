@@ -54,6 +54,8 @@ const zones: PublicZone[] = [
     availableCount: 10,
     status: "ACTIVE",
     availability: "AVAILABLE",
+    navigationLat: null,
+    navigationLng: null,
   },
 ];
 
@@ -64,6 +66,9 @@ const vehicles: Vehicle[] = [
     plateNumber: "XYZ-5678",
     normalizedPlate: "XYZ5678",
     vehicleType: "CAR",
+    make: null,
+    model: null,
+    color: null,
     status: "ACTIVE",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),

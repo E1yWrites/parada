@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Users } from "lucide-react";
-import { api } from "@/lib/api/client";
+import { api, avatarSrc } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
@@ -21,17 +21,34 @@ export default function UsersPage() {
     {
       key: "user",
       header: "User",
-      cell: (u) => (
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-brand-soft">
-            <Users className="h-4 w-4 text-brand" aria-hidden="true" />
+      cell: (u) => {
+        const src = avatarSrc(u);
+        return (
+          <div className="flex items-center gap-3">
+            {src ? (
+              // eslint-disable-next-line @next/next/no-img-element -- authenticated proxy URL; next/image would re-request it unauthenticated
+              <img
+                src={src}
+                alt=""
+                className="h-9 w-9 shrink-0 rounded-control object-cover"
+                data-testid={`user-avatar-${u.id}`}
+              />
+            ) : (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-brand-soft">
+                <Users className="h-4 w-4 text-brand" aria-hidden="true" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-charcoal">{u.name}</p>
+              <p className="truncate text-[11px] text-muted">
+                {u.email}
+                {u.username ? <span className="text-muted"> · @{u.username}</span> : null}
+              </p>
+              {u.phone ? <p className="truncate font-mono text-[11px] text-muted">{u.phone}</p> : null}
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-bold text-charcoal">{u.name}</p>
-            <p className="text-[11px] text-muted">{u.email}</p>
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "role",
@@ -47,6 +64,12 @@ export default function UsersPage() {
       key: "status",
       header: "Status",
       cell: (u) => (u.status === "ACTIVE" ? <Pill tone="success">Active</Pill> : <Pill tone="danger">Inactive</Pill>),
+    },
+    {
+      key: "verified",
+      header: "Email",
+      cell: (u) =>
+        u.emailVerifiedAt ? <Pill tone="success">Verified</Pill> : <Pill tone="warn">Unverified</Pill>,
     },
     {
       key: "vehicles",

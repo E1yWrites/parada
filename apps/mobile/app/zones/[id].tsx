@@ -17,7 +17,7 @@ import {
 } from "@/src/components";
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
-import { resolveEstablishmentDestination } from "@/lib/navigation";
+import { ZONE_NAVIGATION_UNCONFIGURED, resolveZoneDestination } from "@/lib/navigation";
 import { colors, spacing } from "@/src/theme";
 
 export default function ZoneDetailScreen() {
@@ -27,7 +27,6 @@ export default function ZoneDetailScreen() {
   // from there, and `description` (used below for wayfinding) is only on the
   // list payload — the single-zone /occupancy endpoint omits it.
   const zones = useQuery({ queryKey: queryKeys.zones, queryFn: api.zones, refetchInterval: 30_000 });
-  const establishment = useQuery({ queryKey: queryKeys.establishment, queryFn: api.establishment });
   const zoneData = zones.data?.find((z) => z.id === id) ?? null;
   const status = zoneData ? parkingStatusMeta(zoneData.availability) : null;
   const isFull = zoneData ? zoneData.availableCount <= 0 : false;
@@ -73,9 +72,10 @@ export default function ZoneDetailScreen() {
               testID="zone-detail-occupancy"
             />
             <NavigateButton
-              destination={resolveEstablishmentDestination(establishment.data)}
-              label="Navigate to parking"
+              destination={resolveZoneDestination(zoneData)}
+              label="Directions to this zone"
               primary
+              unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
               testID="zone-detail-navigate"
             />
           </GlassCard>

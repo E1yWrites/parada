@@ -5,6 +5,7 @@ import { Button, GlassCard, Illustration, Screen, Text } from "@/src/components"
 import { BrandMark } from "@/src/components/BrandMark";
 import type { IllustrationName } from "@/src/components/Illustration";
 import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
+import { markOnboardingCompleted } from "@/lib/onboarding";
 import { colors, motion, radii, spacing } from "@/src/theme";
 
 type Slide = {
@@ -58,9 +59,15 @@ export default function OnboardingScreen() {
     }).start();
   }, [index, reducedMotion, reveal]);
 
+  // Finishing or skipping records completion for this installation, so the
+  // next launch goes straight to login.
+  function finish() {
+    void markOnboardingCompleted().finally(() => router.replace("/login"));
+  }
+
   function next() {
     if (last) {
-      router.replace("/login");
+      finish();
       return;
     }
     setIndex((i) => Math.min(i + 1, SLIDES.length - 1));
@@ -75,7 +82,7 @@ export default function OnboardingScreen() {
             variant="ghost"
             size="sm"
             title="Skip"
-            onPress={() => router.replace("/login")}
+            onPress={finish}
             accessibilityLabel="Skip onboarding"
             testID="onboarding-skip"
           />

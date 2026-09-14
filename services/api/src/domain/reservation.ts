@@ -162,9 +162,10 @@ export class ReservationService {
     return true;
   }
 
+  /** Owned AND registered: an unregistered (INACTIVE) vehicle is not eligible for new parking activity. */
   private async requireOwnedVehicle(userId: string, vehicleId: string) {
     const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, userId },
+      where: { id: vehicleId, userId, status: "ACTIVE" },
     });
     if (!vehicle) {
       throw new NotFoundError("Vehicle not found.");

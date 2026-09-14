@@ -31,8 +31,14 @@ const user = {
   id: "u1",
   name: "Alex Driver",
   email: "alex@parada.test",
+  username: null,
+  phone: null,
   role: "USER",
   status: "ACTIVE",
+  emailVerifiedAt: "2026-01-01T00:00:00.000Z",
+  pendingEmail: null,
+  pendingPhone: null,
+  avatarUpdatedAt: null,
   createdAt: "2026-01-01T00:00:00.000Z",
 };
 
@@ -56,6 +62,31 @@ describe("login screen", () => {
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalled());
     await expect(getToken()).resolves.toBe("tok-uid");
     await waitFor(() => expect(__router.replace).toHaveBeenCalledWith("/(tabs)/parking"));
+  });
+
+  it("continues verification (never re-registers) when the account is unverified", async () => {
+    (api.login as jest.Mock).mockRejectedValue(
+      new ApiError("EMAIL_NOT_VERIFIED", "Verify your email address to continue.", 403, {
+        email: "alex@parada.test",
+        verification: null,
+      }),
+    );
+    renderWithAppProviders(<LoginScreen />);
+
+    fireEvent.changeText(screen.getByTestId("login-email"), "Alex@parada.test");
+    fireEvent.changeText(screen.getByTestId("login-password"), "password123");
+    fireEvent.press(screen.getByTestId("login-submit"));
+
+    await waitFor(() =>
+      expect(__router.replace).toHaveBeenCalledWith({ pathname: "/verify-email", params: { email: "alex@parada.test" } }),
+    );
+    await expect(getToken()).resolves.toBeNull();
+    expect(screen.queryByTestId("login-error")).toBeNull();
+  });
+
+  it("offers password recovery from the login screen", () => {
+    renderWithAppProviders(<LoginScreen />);
+    expect(screen.getByTestId("login-goto-forgot")).toBeOnTheScreen();
   });
 
   it("shows the backend error and does not navigate on 401", async () => {
@@ -95,8 +126,11 @@ describe("register screen", () => {
     expect(screen.getByText("Passwords do not match.")).toBeOnTheScreen();
   });
 
-  it("creates the account, stores the token and navigates to tabs", async () => {
-    (api.register as jest.Mock).mockResolvedValue({ user, token: "tok-reg" });
+  it("creates the account, stores NO token, and continues to email verification", async () => {
+    (api.register as jest.Mock).mockResolvedValue({
+      user: { ...user, emailVerifiedAt: null },
+      verification: { expiresAt: "2026-01-01T00:10:00.000Z", resendAvailableAt: "2026-01-01T00:01:00.000Z" },
+    });
     renderWithAppProviders(<RegisterScreen />);
 
     fireEvent.changeText(screen.getByTestId("register-name"), "Alex Driver");
@@ -108,8 +142,11 @@ describe("register screen", () => {
     await waitFor(() =>
       expect(api.register).toHaveBeenCalledWith("Alex Driver", "alex@parada.test", "password123"),
     );
-    await expect(getToken()).resolves.toBe("tok-reg");
-    await waitFor(() => expect(__router.replace).toHaveBeenCalledWith("/(tabs)/parking"));
+    await waitFor(() =>
+      expect(__router.replace).toHaveBeenCalledWith({ pathname: "/verify-email", params: { email: "alex@parada.test" } }),
+    );
+    await expect(getToken()).resolves.toBeNull();
+    expect(__router.replace).not.toHaveBeenCalledWith("/(tabs)/parking");
   });
 });
 

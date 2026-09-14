@@ -40,6 +40,8 @@ const zones: PublicZone[] = [
     availableCount: 5,
     status: "ACTIVE",
     availability: "AVAILABLE",
+    navigationLat: null,
+    navigationLng: null,
   },
   {
     id: "z2",
@@ -51,6 +53,8 @@ const zones: PublicZone[] = [
     availableCount: 1,
     status: "ACTIVE",
     availability: "LOW_AVAILABILITY",
+    navigationLat: null,
+    navigationLng: null,
   },
   {
     id: "z3",
@@ -62,6 +66,8 @@ const zones: PublicZone[] = [
     availableCount: 0,
     status: "ACTIVE",
     availability: "FULL",
+    navigationLat: null,
+    navigationLng: null,
   },
   {
     id: "z4",
@@ -73,6 +79,8 @@ const zones: PublicZone[] = [
     availableCount: 4,
     status: "INACTIVE",
     availability: "OFFLINE",
+    navigationLat: null,
+    navigationLng: null,
   },
 ];
 
@@ -86,6 +94,8 @@ const zoneZero: PublicZone = {
   availableCount: 0,
   status: "ACTIVE",
   availability: "AVAILABLE",
+  navigationLat: null,
+  navigationLng: null,
 };
 
 const SESSION_START_ISO = new Date(Date.now() - 60 * 60 * 1000).toISOString();

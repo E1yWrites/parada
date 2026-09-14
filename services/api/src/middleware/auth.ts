@@ -33,7 +33,11 @@ function readBearerToken(req: Request): string | null {
 
 export function createAuthMiddleware(
   tokens: TokenService,
-  auth: { isRevoked: (jti: string) => Promise<boolean> }
+  auth: {
+    isRevoked: (jti: string) => Promise<boolean>;
+    /** Account still ACTIVE and token issued under the current password generation. */
+    isSessionValid?: (claims: { sub: string; tokenVersion: number }) => Promise<boolean>;
+  }
 ): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -48,6 +52,9 @@ export function createAuthMiddleware(
         throw new UnauthorizedError("Invalid or expired token.");
       }
       if (await auth.isRevoked(claims.jti)) {
+        throw new UnauthorizedError("Token has been revoked.");
+      }
+      if (auth.isSessionValid && !(await auth.isSessionValid(claims))) {
         throw new UnauthorizedError("Token has been revoked.");
       }
       res.locals.auth = { id: claims.sub, role: claims.role, jti: claims.jti };

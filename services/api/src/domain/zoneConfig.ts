@@ -7,6 +7,7 @@ import type {
   AdminZoneUpdateInput,
 } from "@parada/types";
 import { BadRequestError, ConflictError, NotFoundError } from "../http/errors";
+import { validateCoordinatePair } from "../http/validate";
 import { availabilityOf } from "./availability";
 import type { ReservationService } from "./reservation";
 
@@ -51,6 +52,8 @@ export class ZoneConfigService {
         capacity: true,
         occupiedCount: true,
         status: true,
+        navigationLat: true,
+        navigationLng: true,
         cameras: {
           select: {
             id: true,
@@ -84,11 +87,12 @@ export class ZoneConfigService {
     const capacity = validateCapacity(input.capacity);
     const description = normalizeDescription(input.description);
     const status: ZoneStatus = input.status === "INACTIVE" ? "INACTIVE" : "ACTIVE";
+    const navigation = validateCoordinatePair(input.navigationLat, input.navigationLng);
 
     const select = this.zoneSelect();
     try {
       const created = await prisma.parkingZone.create({
-        data: { name, code, capacity, occupiedCount: 0, description, status },
+        data: { name, code, capacity, occupiedCount: 0, description, status, ...navigation },
         select,
       });
       return this.toSummary(created);
@@ -110,6 +114,13 @@ export class ZoneConfigService {
         throw new BadRequestError("Zone status must be ACTIVE or INACTIVE.");
       }
       data.status = input.status;
+    }
+
+    if (input.navigationLat !== undefined || input.navigationLng !== undefined) {
+      // Both must be sent together: a lone latitude is never a destination.
+      const navigation = validateCoordinatePair(input.navigationLat, input.navigationLng);
+      data.navigationLat = navigation.navigationLat;
+      data.navigationLng = navigation.navigationLng;
     }
 
     const capacityRequested = input.capacity !== undefined ? validateCapacity(input.capacity) : undefined;
@@ -332,7 +343,7 @@ export class ZoneConfigService {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  private zoneSelect(): Prisma.ParkingZoneSelect {
+  private zoneSelect() {
     return {
       id: true,
       name: true,
@@ -341,7 +352,9 @@ export class ZoneConfigService {
       capacity: true,
       occupiedCount: true,
       status: true,
-    };
+      navigationLat: true,
+      navigationLng: true,
+    } satisfies Prisma.ParkingZoneSelect;
   }
 
   private cameraSelect(): Prisma.CameraSelect {
@@ -365,6 +378,8 @@ export class ZoneConfigService {
     capacity: number;
     occupiedCount: number;
     status: ZoneStatus;
+    navigationLat: number | null;
+    navigationLng: number | null;
   }) {
     return {
       id: z.id,
@@ -377,6 +392,8 @@ export class ZoneConfigService {
       occupancyPct: z.capacity > 0 ? (z.occupiedCount / z.capacity) * 100 : 0,
       status: z.status,
       availability: availabilityOf(z.occupiedCount, z.capacity, z.status),
+      navigationLat: z.navigationLat,
+      navigationLng: z.navigationLng,
     };
   }
 

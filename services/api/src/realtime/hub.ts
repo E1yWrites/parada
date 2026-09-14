@@ -6,6 +6,8 @@ export interface RealtimeClient {
   userId: string;
   role: Role;
   write: (chunk: string) => void;
+  /** Ends the transport (used when the account's sessions are invalidated). */
+  close?: () => void;
 }
 
 export type PublishScope =
@@ -87,6 +89,29 @@ export class RealtimeHub {
         }
       }
     };
+  }
+
+  /**
+   * Drops every connection held by `userId`. Called when the account's tokens
+   * are invalidated (password change / reset): the bearer token was checked
+   * once at connect time, so without this an already-open stream would keep
+   * receiving the user's events after every token was revoked. Returns how
+   * many connections were closed.
+   */
+  disconnectUser(userId: string): number {
+    const ids = [...(this.byUser.get(userId) ?? [])];
+    for (const id of ids) {
+      const client = this.clients.get(id);
+      if (!client) continue;
+      this.clients.delete(id);
+      try {
+        client.close?.();
+      } catch {
+        // A transport that is already gone must not stop the others.
+      }
+    }
+    this.byUser.delete(userId);
+    return ids.length;
   }
 
   /**

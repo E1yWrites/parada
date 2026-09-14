@@ -62,21 +62,59 @@ Error codes map to HTTP status:
 Stateless JWT (HS256) with server-side revocation for logout. Token payload:
 
 ```json
-{ "sub": "<userId>", "jti": "<uuid>", "role": "USER|ADMIN" }
+{ "sub": "<userId>", "jti": "<uuid>", "role": "USER|ADMIN", "tv": 0 }
 ```
 
 - `jti` (JWT ID) is a unique token identifier used for revocation.
 - On logout, the `jti` is stored in `revoked_tokens` table; subsequent requests with that token are rejected (401).
+- `tv` is the account's `tokenVersion` at issue time. A password change or
+  reset increments it, so every token issued before the change is rejected
+  (401) on its next request; the change/reset response carries a fresh token.
+- Every authenticated request also re-checks that the account still exists
+  and is `ACTIVE`.
 - Token expiry configured via `JWT_EXPIRES_IN` (default `1d`).
+
+### Account verification and recovery
+
+Registration creates the account **unverified** and mails a 6-digit code
+(10-minute expiry, single use, 5 wrong guesses burn it, 60 s resend
+cooldown). Login answers `403 EMAIL_NOT_VERIFIED` until the code is confirmed;
+its `details` carry `{ email, verification }` so a client can resume the
+verification step without registering again (a fresh code is issued on that
+login when the cooldown allows). Password reset uses a 256-bit hex token
+(30-minute expiry, single use) delivered as `parada://reset-password?token=…`.
+Only an HMAC-SHA256 of each secret is stored (`verification_tokens`); the
+plaintext exists only in the outbound mail. Mail goes through the transport
+configured by `MAIL_TRANSPORT` / `SMTP_*` (see `.env.example`); production
+refuses to start without SMTP, development can print mail to stdout, and the
+test suites use an in-memory transport.
 
 ### Auth Endpoints
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/auth/register` | No | Create account (USER role only) |
-| POST | `/auth/login` | No | Verify credentials, return JWT |
+| POST | `/auth/register` | No | Create account (USER role only), mail verification code. **No token.** |
+| POST | `/auth/verify-email` | No | `{email, code}` — confirm the code; the account becomes usable |
+| POST | `/auth/resend-verification` | No | `{email}` — generic `202`; new code only for unverified accounts, 60 s cooldown (`429` with `resendAvailableAt`) |
+| POST | `/auth/login` | No | Verify credentials, return JWT (`403 EMAIL_NOT_VERIFIED` while unverified) |
+| POST | `/auth/forgot-password` | No | `{email}` — generic `202`; mails a single-use 30-minute reset token when the account exists |
+| POST | `/auth/reset-password` | No | `{token, newPassword}` — consumes the token, invalidates every session |
 | POST | `/auth/logout` | Yes | Revoke current token server-side |
 | GET | `/auth/me` | Yes | Return current user profile |
+| PATCH | `/auth/me` | Yes | `{name?, username?}` — username unique (case-insensitive), `null` clears it |
+| POST | `/auth/password` | Yes | `{currentPassword, newPassword, confirmPassword?}` — returns `{user, token}`; every other session is invalidated |
+| POST | `/auth/me/email` | Yes | `{email}` — start an email change; code mailed to the NEW address; `pendingEmail` recorded, current email stays authoritative |
+| POST | `/auth/me/email/confirm` | Yes | `{code}` — the new address becomes `email` (409 if taken meanwhile) |
+| DELETE | `/auth/me/email` | Yes | Cancel a pending email change |
+| POST | `/auth/me/phone` | Yes | `{phone}` — start a phone change (code mailed to the verified email; there is no SMS provider); `{phone: null}` clears it immediately |
+| POST | `/auth/me/phone/confirm` | Yes | `{code}` — apply the pending phone |
+| PUT | `/auth/me/avatar` | Yes | Raw image bytes as the body (JPEG/PNG/WebP sniffed from magic bytes, ≤ 2 MB) |
+| DELETE | `/auth/me/avatar` | Yes | Remove the profile picture |
+| GET | `/users/:id/avatar` | Yes | The picture (owner or ADMIN only); `ETag`, `Cache-Control: private` |
+
+All unauthenticated credential endpoints share one rate-limit bucket
+(`AUTH_RATE_LIMIT`, default 10/min per IP). Responses never include
+`passwordHash`; passwords, codes and tokens are never logged.
 
 #### `POST /auth/register`
 
@@ -84,8 +122,8 @@ Stateless JWT (HS256) with server-side revocation for logout. Token payload:
 { "name": "John Doe", "email": "john@example.com", "password": "Password123!" }
 ```
 
-- Password min 8 characters.
-- Returns `{ user: PublicUser, token: string }`.
+- Password 8–128 characters; email validated and lower-cased; name 2–80 characters.
+- Returns `{ user: AuthUser, verification: { expiresAt, resendAvailableAt } }` — **no token** until `/auth/verify-email` succeeds.
 - Role is always `USER` (ADMIN granted only via seed/admin action).
 
 #### `POST /auth/login`
@@ -95,11 +133,22 @@ Stateless JWT (HS256) with server-side revocation for logout. Token payload:
 ```
 
 - Generic error message prevents user enumeration.
-- Returns `{ user: PublicUser, token: string }`.
+- Returns `{ user: AuthUser, token: string }`; `AuthUser` carries `username`,
+  `phone`, `emailVerifiedAt`, `pendingEmail`, `pendingPhone` and
+  `avatarUpdatedAt` (null when no picture is stored).
 
 #### `POST /auth/logout`
 
 Requires `Authorization: Bearer <token>`. Revokes the token's `jti`. Returns `204`.
+
+#### Zone navigation coordinates
+
+`GET /zones`, `GET /zones/recommendation` and every admin zone payload carry
+`navigationLat` / `navigationLng` — the zone's own Directions target, set by an
+admin through `POST /admin/zones` / `PATCH /admin/zones/:id` (both or neither;
+validated server-side to -90..90 / -180..180, `400` for a lone value, `422`
+for an out-of-range one). Both are `null` until configured; the API never
+infers a point and clients disable Directions for such a zone.
 
 #### `GET /auth/me`
 
@@ -122,7 +171,8 @@ Authorization: Bearer <token>
 
 ### Ownership Enforcement
 
-- `GET /vehicles`, `POST /vehicles`, `GET /vehicles/:id` — scoped to authenticated user's `userId`.
+- `GET /vehicles`, `POST /vehicles`, `GET|PATCH|DELETE /vehicles/:id` — scoped to authenticated user's `userId`.
+- `PATCH /auth/me`, `/auth/me/*`, `PATCH /assignments/:id/cancel` — always the token's own user; no target id is accepted.
 - `GET /sessions`, `GET /sessions/active`, `GET /sessions/:id` — scoped to authenticated user's `userId`.
 - Client-supplied `userId` is **ignored**; ownership derived from token.
 - Admin endpoints (`/admin/sessions`, `/admin/users`) require `ADMIN` role (403 for USER).
@@ -153,7 +203,7 @@ dev only). See `docs/vision/architecture.md`.
 Request body (the **normalized vision event contract**):
 ```jsonc
 {
-  "cameraIdentifier": "cam-a-entry",   // required, unique camera identifier
+  "cameraIdentifier": "cam-a-main-gate",   // required, unique camera identifier
   "sourceEventId": "evt-0001",          // required, client-supplied idempotency key
   "eventType": "ENTRY" | "EXIT",        // required, gate direction
   "detectedPlate": "ABC-1234",          // optional, raw plate from OCR
@@ -186,6 +236,10 @@ Returns `201` with the created `occupancy_event`.
 |----------|---------|---------|
 | `CAMERA_API_KEY` | *(unset)* | Shared key the vision service sends via `X-API-Key`. Unset = open (dev only). |
 | `OCR_PLATE_CONFIDENCE_THRESHOLD` | `0.5` | Minimum OCR confidence to trust a plate as vehicle identity. |
+| `MAIL_TRANSPORT` | `smtp` when `SMTP_HOST` is set, else `console` | `smtp` = any SMTP-compatible provider via `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASS`/`MAIL_FROM` (**required in production**; startup fails otherwise). `console` prints mail to stdout (development only). `memory` is the test transport (never valid in production). |
+| `APP_NAME` | `PARADA` | Name used in verification / reset mail. |
+| `MOBILE_APP_SCHEME` | `parada` | Deep-link scheme in the password-reset mail (must match `apps/mobile/app.json` `scheme`). |
+| `AUTH_RATE_LIMIT` | `10` | Credential endpoints per minute per IP (register, login, verify, resend, forgot, reset share one bucket). Raise for shared/NAT egress. |
 
 ## Anomalies
 
@@ -205,13 +259,31 @@ List authenticated user's registered vehicles.
 ### `POST /vehicles` (auth required)
 Register a new vehicle for the authenticated user.
 ```json
-{ "plateNumber": "ABC-1234", "vehicleType": "CAR" }
+{ "plateNumber": "ABC-1234", "vehicleType": "CAR", "make": "Toyota", "model": "Vios", "color": "Red" }
 ```
-- `plateNumber` normalized (uppercase, alphanumeric only).
-- Duplicate plate for same user -> 422.
+- `plateNumber` normalized (uppercase, alphanumeric only; 2–12 characters).
+- `make` / `model` / `color` are optional descriptive fields (never identity).
+- Duplicate ACTIVE plate for same user -> 422; plate ACTIVE on another account -> 409
+  (database partial unique index `vehicles_one_active_per_normalized_plate`).
+- Re-registering a plate this user previously unregistered reactivates the
+  same row (history stays linked).
 
 ### `GET /vehicles/:id` (auth required)
-Get a specific vehicle (only if owned by authenticated user).
+Get a specific vehicle (only if owned by authenticated user and ACTIVE).
+
+### `PATCH /vehicles/:id` (auth required)
+Edit `plateNumber`, `vehicleType`, `make`, `model`, `color` (all optional;
+`null` clears a descriptive field). A **plate** change is refused with `409`
+(`details.reason` = `ACTIVE_SESSION` / `ACTIVE_ASSIGNMENT` /
+`ACTIVE_RESERVATION`) while the vehicle is parked, assigned or reserved,
+because the plate is what the gate camera matches.
+
+### `DELETE /vehicles/:id` (auth required)
+Unregister: the row becomes `INACTIVE` and is never deleted — sessions,
+violations and fees keep pointing at it. Refused with the same `409` reasons
+while the vehicle is in use. An INACTIVE vehicle is not listed, cannot be
+assigned/reserved/entered, and is no longer matched by the camera pipeline
+(the plate reads as unregistered).
 
 ### `GET /sessions` (auth required)
 List authenticated user's parking sessions (with zone, vehicle, entry/exit events).
@@ -314,6 +386,7 @@ client-supplied user id is never trusted.
 | GET | `/zones/establishment` | Navigation destination; `null` until an admin configures one. |
 | POST | `/assignments` | Accept a zone (`{zoneId, vehicleId}`). One ACTIVE assignment per vehicle; expired ones are released automatically. |
 | GET | `/assignments`, `/assignments/:id` | The user's assignments. |
+| PATCH | `/assignments/:id/cancel` | Release an accepted recommendation **before entry**. Only the owner, only while `ACTIVE` and unexpired, and only while the vehicle has no ACTIVE parking session (`409` otherwise). The row stays as history with status `CANCELLED`; nothing about occupancy, reservations or sessions changes, and the vehicle may be assigned again immediately. Publishes `ASSIGNMENT_CANCELLED`. |
 | POST | `/reservations` | Hold a zone (`{zoneId, vehicleId, startAt?, endAt?}`). Reservations are serialized per zone (PostgreSQL advisory lock) and refused when capacity plus existing holds would be exceeded; overlapping duplicates for the same user/vehicle/zone return `409 CONFLICT`, non-overlapping windows are allowed. A hold protects a space only until the holder arrives: a successful entry (camera or `POST /sessions/entry`) flips it to `ACTIVE`, and an `ACTIVE` reservation no longer counts against capacity because the vehicle is now in `occupiedCount` (Phase 13). |
 | GET | `/reservations`, `/reservations/:id` | The user's reservations; window-expired ones are flipped to EXPIRED lazily. |
 | PATCH | `/reservations/:id/cancel` | Cancel an own reservation. |
@@ -394,6 +467,7 @@ is the runtime guard clients apply to every decoded frame.
 | `RESERVATION_CREATED` | owner | `POST /reservations` |
 | `RESERVATION_CANCELLED` | owner | `PATCH /reservations/:id/cancel`, `PATCH /admin/reservations/:id/cancel` |
 | `ASSIGNMENT_CREATED` | owner | `POST /assignments` |
+| `ASSIGNMENT_CANCELLED` | owner | `PATCH /assignments/:id/cancel` |
 | `VIOLATION_CREATED` | owner | camera pipeline (wrong-zone violation) |
 | `GUEST_ADMISSION_ISSUE` | ADMIN | camera pipeline, `POST /admin/guest-admit` |
 | `NOTIFICATION_CREATED` | owner, or ADMIN for operational alerts | `POST /violations/:id/appeal`, `PATCH /admin/appeals/:id/status`, every `Notification` the occupancy pipeline writes (`ZONE_FULL`, `ZONE_LOW_AVAILABILITY`, `GUEST_ADMISSION_ISSUE`, `WRONG_ZONE_WARNING`, `VIOLATION_ISSUED` — Phase 13) |
@@ -583,3 +657,16 @@ Seeded dev accounts (passwords are development-only, never use in production):
 Pre-registered vehicles:
 - `driver@parada.local`: `ABC-1234` (CAR), `XYZ-5678` (MOTORCYCLE)
 - `admin@parada.local`: `MNO-9999` (VAN)
+
+Seeded zones and gate cameras (LPU-Batangas Main Campus, Capitol Site — data in
+`packages/database/src/seed/lpuBatangas.ts`; coordinates are installer notes
+only, zones carry no geometry):
+
+| Zone | Code | Capacity | Cameras (all `BIDIRECTIONAL`, `ONLINE`) |
+|------|------|---------:|------------------------------------------|
+| Main Loop | `A` | 30 | `cam-a-main-gate` (P. Herrera cor. Doña Aurelia), `cam-a-north-gate` (Doña Aurelia) |
+| Back Parking | `B` | 30 | `cam-b-access-path` (tree-covered path from the rotonda, beside the Mabini Building) |
+| Capitol Off-Campus Lot | `C` | 100 | `cam-c-entrance` (Oriental Garden Subdivision road off Pres. J.P. Laurel Hwy) |
+
+The establishment navigation destination is the main gate,
+`13.76447, 121.06462` (`EstablishmentConfig.location`).

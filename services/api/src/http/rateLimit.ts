@@ -1,12 +1,6 @@
 import type { RequestHandler } from "express";
 import type { Request, Response } from "express";
-import { HttpError } from "./errors";
-
-class TooManyRequestsError extends HttpError {
-  constructor(message = "Too many requests. Please wait and try again.") {
-    super(429, "TOO_MANY_REQUESTS", message);
-  }
-}
+import { TooManyRequestsError } from "./errors";
 
 export interface RateLimitOptions {
   limit: number;

@@ -25,6 +25,8 @@ const zoneB: PublicZone = {
   availableCount: 4,
   status: "ACTIVE",
   availability: "LOW_AVAILABILITY",
+  navigationLat: null,
+  navigationLng: null,
 };
 
 beforeEach(() => {

@@ -5,6 +5,8 @@ import { ConfigService } from "./config";
 import { prisma } from "@parada/database";
 
 const TABLES = [
+  "verification_tokens",
+  "user_avatars",
   "guest_sessions",
   "violation_appeals",
   "violations",

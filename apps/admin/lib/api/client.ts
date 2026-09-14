@@ -45,6 +45,16 @@ export class ApiError extends Error {
 
 const PROXY_BASE = "/api/proxy";
 
+/**
+ * Profile-picture URL for an `<img>`: goes through the same cookie-authenticated
+ * proxy as every other request (the API endpoint is owner-or-admin only). The
+ * stamp query busts the browser cache on replacement.
+ */
+export function avatarSrc(user: { id: string; avatarUpdatedAt?: string | null } | null | undefined): string | null {
+  if (!user || !user.avatarUpdatedAt) return null;
+  return `${PROXY_BASE}/users/${encodeURIComponent(user.id)}/avatar?v=${encodeURIComponent(user.avatarUpdatedAt)}`;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {

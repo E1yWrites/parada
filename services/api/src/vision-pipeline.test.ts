@@ -18,6 +18,8 @@ import { ConfigService } from "./domain/config";
  */
 
 const TABLES = [
+  "verification_tokens",
+  "user_avatars",
   "guest_sessions",
   "violation_appeals",
   "violations",

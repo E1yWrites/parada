@@ -2,8 +2,27 @@ import request from "supertest";
 import { createApp } from "../app";
 import { RealtimeHub } from "../realtime/hub";
 import { AuthService } from "../domain/auth";
+import { prisma } from "@parada/database";
 
 const auth = new AuthService({ secret: "test-secret-key-for-testing-only-32chars", issuer: "parada-api-test", expiresIn: "1d" });
+
+/**
+ * The auth middleware now checks that the token's account still exists and is
+ * ACTIVE (a deleted or deactivated account, or a stale password generation,
+ * is rejected), so every signed token needs a real user row behind it.
+ */
+async function signFor(id: string, role: "USER" | "ADMIN" = "USER"): Promise<string> {
+  await prisma.user.upsert({
+    where: { id },
+    update: {},
+    create: { id, name: id, email: `${id.toLowerCase()}@realtime.test.local`, passwordHash: "x", role, emailVerifiedAt: new Date() },
+  });
+  return auth["tokens"].sign({ id, role }).token;
+}
+
+afterAll(async () => {
+  await prisma.$disconnect();
+});
 
 // supertest's `Test` type doesn't declare these superagent internals, but
 // they exist at runtime (superagent's Request prototype) and are needed to
@@ -34,7 +53,7 @@ describe("GET /realtime/stream", () => {
   it("streams a hello comment and a heartbeat is scheduled for a valid USER token", async () => {
     const hub = new RealtimeHub();
     const app = createApp({ auth, realtimeHub: hub });
-    const { token } = auth["tokens"].sign({ id: "user1", role: "USER" });
+    const token = await signFor("user1", "USER");
 
     await new Promise<void>((resolve, reject) => {
       const req = request(app)
@@ -64,7 +83,7 @@ describe("GET /realtime/stream", () => {
   it("registering two connections for the same user is reflected in hub.connectionCount", async () => {
     const hub = new RealtimeHub({ maxConnectionsPerUser: 5 });
     const app = createApp({ auth, realtimeHub: hub });
-    const { token } = auth["tokens"].sign({ id: "user2", role: "USER" });
+    const token = await signFor("user2", "USER");
 
     const reqs = [0, 1].map(
       () =>
@@ -142,7 +161,7 @@ describe("GET /realtime/stream — missed-event recovery", () => {
   it("replays only the events after the client's Last-Event-ID cursor", async () => {
     const hub = new RealtimeHub();
     const app = createApp({ auth, realtimeHub: hub });
-    const { token } = auth["tokens"].sign({ id: "replayUser", role: "USER" });
+    const token = await signFor("replayUser", "USER");
 
     hub.publish(zoneEvent, { audience: "PUBLIC" });
     hub.publish(zoneEvent, { audience: "PUBLIC" });
@@ -159,7 +178,7 @@ describe("GET /realtime/stream — missed-event recovery", () => {
   it("replays nothing when the cursor is already at the head", async () => {
     const hub = new RealtimeHub();
     const app = createApp({ auth, realtimeHub: hub });
-    const { token } = auth["tokens"].sign({ id: "caughtUpUser", role: "USER" });
+    const token = await signFor("caughtUpUser", "USER");
 
     hub.publish(zoneEvent, { audience: "PUBLIC" });
 
@@ -178,7 +197,7 @@ describe("GET /realtime/stream — missed-event recovery", () => {
   it("re-authorizes replayed events: a reconnecting user never receives another user's buffered event", async () => {
     const hub = new RealtimeHub();
     const app = createApp({ auth, realtimeHub: hub });
-    const { token } = auth["tokens"].sign({ id: "nosyUser", role: "USER" });
+    const token = await signFor("nosyUser", "USER");
 
     hub.publish(zoneEvent, { audience: "USER", userId: "someoneElse" });
     hub.publish(zoneEvent, { audience: "ADMIN" });
@@ -194,7 +213,7 @@ describe("GET /realtime/stream — missed-event recovery", () => {
   it("sends a SYNC frame instead of partial data when the cursor has aged out of the buffer", async () => {
     const hub = new RealtimeHub({ replayBufferSize: 1 });
     const app = createApp({ auth, realtimeHub: hub });
-    const { token } = auth["tokens"].sign({ id: "gapUser", role: "USER" });
+    const token = await signFor("gapUser", "USER");
 
     hub.publish(zoneEvent, { audience: "PUBLIC" });
     hub.publish(zoneEvent, { audience: "PUBLIC" });
@@ -212,7 +231,7 @@ describe("GET /realtime/stream — missed-event recovery", () => {
   it("accepts the cursor as a query parameter for a client that reconnects by hand", async () => {
     const hub = new RealtimeHub();
     const app = createApp({ auth, realtimeHub: hub });
-    const { token } = auth["tokens"].sign({ id: "queryCursorUser", role: "USER" });
+    const token = await signFor("queryCursorUser", "USER");
 
     hub.publish(zoneEvent, { audience: "PUBLIC" });
     hub.publish(zoneEvent, { audience: "PUBLIC" });
@@ -247,7 +266,7 @@ describe("GET /realtime/stream — missed-event recovery", () => {
   it("treats a malformed cursor as no cursor rather than failing the stream", async () => {
     const hub = new RealtimeHub();
     const app = createApp({ auth, realtimeHub: hub });
-    const { token } = auth["tokens"].sign({ id: "badCursorUser", role: "USER" });
+    const token = await signFor("badCursorUser", "USER");
 
     hub.publish(zoneEvent, { audience: "PUBLIC" });
 

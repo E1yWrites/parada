@@ -28,6 +28,12 @@ for (const key of [
   "AUTH_RATE_LIMIT",
   "CAMERA_EVENT_RATE_LIMIT",
   "ADMIN_RATE_LIMIT",
+  "SMTP_HOST",
+  "MAIL_FROM",
 ]) {
   delete process.env[key];
 }
+
+// Verification / recovery mail never leaves the test process: the in-memory
+// transport captures messages so suites can read the code they carry.
+process.env["MAIL_TRANSPORT"] = "memory";

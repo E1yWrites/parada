@@ -33,8 +33,11 @@ export interface SessionUser {
   id: string;
   name: string;
   email: string;
+  username?: string | null;
+  phone?: string | null;
   role: Role;
   status: UserStatus;
+  avatarUpdatedAt?: string | null;
   createdAt: string;
 }
 
@@ -56,6 +59,9 @@ export interface AdminZone {
   occupancyPct: number;
   status: ZoneStatus;
   availability: Availability;
+  /** Driver navigation destination for this zone; both null until configured. */
+  navigationLat: number | null;
+  navigationLng: number | null;
 }
 
 export interface AdminZoneDetail extends AdminZone {
@@ -127,8 +133,13 @@ export interface AdminUser {
   id: string;
   name: string;
   email: string;
+  username: string | null;
+  phone: string | null;
   role: Role;
   status: UserStatus;
+  emailVerifiedAt: string | null;
+  /** Set when the driver uploaded a profile picture (served by /users/:id/avatar). */
+  avatarUpdatedAt: string | null;
   createdAt: string;
   _count: { vehicles: number; sessions: number };
 }
@@ -138,6 +149,9 @@ export interface AdminVehicle {
   plateNumber: string;
   normalizedPlate: string;
   vehicleType: VehicleType;
+  make: string | null;
+  model: string | null;
+  color: string | null;
   status: string;
   user: { id: string; name: string; email: string; role: Role };
 }

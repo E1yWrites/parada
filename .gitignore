@@ -40,3 +40,16 @@ services/vision/.pytest_cache/
 
 # Phase 14 evaluation dataset (regenerated with `python -m evaluation.dataset`; manifest is committed)
 services/vision/evaluation/dataset/images/
+
+# Agent tooling scratch (machine-local; was only in .git/info/exclude)
+.claude/worktrees/
+.impeccable/hook.cache.json
+.impeccable/hook.pending.json
+.impeccable/config.local.json
+**/.impeccable/hook.cache.json
+**/.impeccable/hook.pending.json
+**/.impeccable/config.local.json
+
+# Tool caches
+.pytest_cache/
+*.tsbuildinfo

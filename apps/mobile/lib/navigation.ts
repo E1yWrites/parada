@@ -34,6 +34,38 @@ export function resolveEstablishmentDestination(
   return { label: location.address, latitude: location.latitude, longitude: location.longitude };
 }
 
+/**
+ * Resolves the navigation destination for one parking zone from its
+ * admin-configured `navigationLat` / `navigationLng`. Returns null when the
+ * zone has no coordinates yet — the app never searches by name, falls back to
+ * the campus centre, or infers a point.
+ */
+export function resolveZoneDestination(
+  zone: { name: string; navigationLat: number | null; navigationLng: number | null } | null | undefined,
+): NavigationDestination | null {
+  if (!zone) {
+    return null;
+  }
+  const { navigationLat, navigationLng } = zone;
+  if (
+    typeof navigationLat !== "number" ||
+    typeof navigationLng !== "number" ||
+    !Number.isFinite(navigationLat) ||
+    !Number.isFinite(navigationLng) ||
+    navigationLat < -90 ||
+    navigationLat > 90 ||
+    navigationLng < -180 ||
+    navigationLng > 180
+  ) {
+    return null;
+  }
+  return { label: zone.name, latitude: navigationLat, longitude: navigationLng };
+}
+
+/** Shown under a disabled Directions action when the zone has no coordinates. */
+export const ZONE_NAVIGATION_UNCONFIGURED =
+  "Navigation coordinates for this zone haven't been configured yet.";
+
 export type PlatformName = "ios" | "android";
 
 /** Primary turn-by-turn navigation deep link for the given platform. */

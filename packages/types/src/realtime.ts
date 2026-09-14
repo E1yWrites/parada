@@ -55,6 +55,7 @@ export type RealtimeEventInput =
   | Envelope<"RESERVATION_CREATED", ReservationResponse>
   | Envelope<"RESERVATION_CANCELLED", ReservationResponse>
   | Envelope<"ASSIGNMENT_CREATED", ZoneAssignmentResponse>
+  | Envelope<"ASSIGNMENT_CANCELLED", ZoneAssignmentResponse>
   | Envelope<"VIOLATION_CREATED", ViolationResponse>
   | Envelope<"GUEST_ADMISSION_ISSUE", GuestAdmissionPayload>
   | Envelope<"NOTIFICATION_CREATED", NotificationCreatedPayload>;
@@ -78,6 +79,7 @@ const EVENT_TYPES: readonly RealtimeEventType[] = [
   "RESERVATION_CREATED",
   "RESERVATION_CANCELLED",
   "ASSIGNMENT_CREATED",
+  "ASSIGNMENT_CANCELLED",
   "VIOLATION_CREATED",
   "GUEST_ADMISSION_ISSUE",
   "NOTIFICATION_CREATED",

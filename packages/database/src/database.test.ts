@@ -1,6 +1,10 @@
 import { prisma } from "./client";
+import { seed } from "./seed/index";
+import { CAMERAS, ESTABLISHMENT_LOCATION, ZONES } from "./seed/lpuBatangas";
 
 const TABLES = [
+  "verification_tokens",
+  "user_avatars",
   "guest_sessions",
   "violation_appeals",
   "violations",
@@ -1142,5 +1146,86 @@ describe("PARADA database integrity", () => {
       const still = await prisma.parkingSlot.findUnique({ where: { id: slot.id } });
       expect(still).not.toBeNull();
     });
+  });
+
+  describe("LPU-Batangas Main Campus seed", () => {
+    it("seed data is internally consistent (zone codes unique, cameras map to zones)", () => {
+      const codes = ZONES.map((z) => z.code);
+      expect(new Set(codes).size).toBe(codes.length);
+      expect(new Set(ZONES.map((z) => z.name)).size).toBe(ZONES.length);
+      for (const z of ZONES) expect(z.capacity).toBeGreaterThan(0);
+      // every zone ships a Directions target inside the WGS84 campus envelope
+      for (const z of ZONES) {
+        expect(z.navigationLat).toBeGreaterThan(13.76);
+        expect(z.navigationLat).toBeLessThan(13.77);
+        expect(z.navigationLng).toBeGreaterThan(121.06);
+        expect(z.navigationLng).toBeLessThan(121.07);
+      }
+      const identifiers = CAMERAS.map((c) => c.identifier);
+      expect(new Set(identifiers).size).toBe(identifiers.length);
+      for (const c of CAMERAS) expect(codes).toContain(c.zoneCode);
+      // every zone has at least one gate camera; Zone A has both gates
+      for (const z of ZONES) expect(CAMERAS.some((c) => c.zoneCode === z.code)).toBe(true);
+      expect(CAMERAS.filter((c) => c.zoneCode === "A").map((c) => c.identifier).sort()).toEqual([
+        "cam-a-main-gate",
+        "cam-a-north-gate",
+      ]);
+      // navigation destination is a real WGS84 point at the LPU-Batangas Main Campus
+      expect(ESTABLISHMENT_LOCATION.latitude).toBeGreaterThan(13.762);
+      expect(ESTABLISHMENT_LOCATION.latitude).toBeLessThan(13.766);
+      expect(ESTABLISHMENT_LOCATION.longitude).toBeGreaterThan(121.064);
+      expect(ESTABLISHMENT_LOCATION.longitude).toBeLessThan(121.067);
+    });
+
+    it("seeds zones, slot inventory, gate cameras and the navigation destination; re-run is idempotent", async () => {
+      await cleanDatabase();
+      // A zone left by an earlier seed with a slot code outside the new layout:
+      // re-seeding must keep the zone row (same code) and retire the stale slot.
+      const stale = await prisma.parkingZone.create({
+        data: { name: "Zone C", code: "C", capacity: 10, occupiedCount: 0 },
+      });
+      await prisma.parkingSlot.create({
+        data: { zoneId: stale.id, slotCode: "C01", label: "C01", status: "ACTIVE" },
+      });
+      await seed();
+
+      const zonesInDb = await prisma.parkingZone.findMany({ orderBy: { code: "asc" } });
+      expect(zonesInDb.map((z) => [z.code, z.name, z.capacity, z.occupiedCount, z.status])).toEqual([
+        ["A", "Main Loop", 30, 0, "ACTIVE"],
+        ["B", "Back Parking", 30, 0, "ACTIVE"],
+        ["C", "Capitol Off-Campus Lot", 100, 0, "ACTIVE"],
+      ]);
+      for (const z of zonesInDb) {
+        const seedZone = ZONES.find((sz) => sz.code === z.code)!;
+        expect(z.navigationLat).toBe(seedZone.navigationLat);
+        expect(z.navigationLng).toBe(seedZone.navigationLng);
+        // active slots are inventory only and start equal to capacity (zoneConfig invariant)
+        expect(await prisma.parkingSlot.count({ where: { zoneId: z.id, status: "ACTIVE" } })).toBe(z.capacity);
+      }
+      const c100 = await prisma.parkingSlot.findFirst({ where: { slotCode: "C100" } });
+      expect(c100).not.toBeNull();
+      const staleSlot = await prisma.parkingSlot.findFirst({ where: { slotCode: "C01" } });
+      expect(staleSlot?.status).toBe("INACTIVE");
+      expect(zonesInDb.find((z) => z.code === "C")?.id).toBe(stale.id);
+
+      const camerasInDb = await prisma.camera.findMany({ include: { zone: true }, orderBy: { identifier: "asc" } });
+      expect(camerasInDb.map((c) => [c.identifier, c.zone.code, c.gateType, c.status])).toEqual([
+        ["cam-a-main-gate", "A", "BIDIRECTIONAL", "ONLINE"],
+        ["cam-a-north-gate", "A", "BIDIRECTIONAL", "ONLINE"],
+        ["cam-b-access-path", "B", "BIDIRECTIONAL", "ONLINE"],
+        ["cam-c-entrance", "C", "BIDIRECTIONAL", "ONLINE"],
+      ]);
+
+      const cfg = await prisma.establishmentConfig.findUnique({ where: { id: "singleton" } });
+      expect(cfg?.location).toEqual(ESTABLISHMENT_LOCATION);
+
+      // second run upserts in place: no duplicate zones/slots/cameras/config
+      await seed();
+      expect(await prisma.parkingZone.count()).toBe(ZONES.length);
+      expect(await prisma.camera.count()).toBe(CAMERAS.length);
+      expect(await prisma.parkingSlot.count({ where: { status: "ACTIVE" } })).toBe(ZONES.reduce((n, z) => n + z.capacity, 0));
+      expect(await prisma.establishmentConfig.count()).toBe(1);
+      expect(await prisma.user.count()).toBe(2);
+    }, 60_000); // two argon2id hashes + ~330 upserts, twice
   });
 });

@@ -8,7 +8,7 @@ function toResponse(a: {
   userId: string;
   vehicleId: string;
   zoneId: string;
-  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  status: ZoneAssignmentResponse["status"];
   assignedAt: Date;
   expiresAt: Date | null;
   createdAt: Date;
@@ -51,8 +51,9 @@ export class AssignmentService {
     this.config = config;
   }
 
+  /** Owned AND registered: an unregistered (INACTIVE) vehicle is not eligible for new parking activity. */
   private async requireOwnedVehicle(userId: string, vehicleId: string) {
-    const vehicle = await prisma.vehicle.findFirst({ where: { id: vehicleId, userId } });
+    const vehicle = await prisma.vehicle.findFirst({ where: { id: vehicleId, userId, status: "ACTIVE" } });
     if (!vehicle) {
       throw new NotFoundError("Vehicle not found.");
     }
@@ -136,6 +137,55 @@ export class AssignmentService {
       throw new NotFoundError("Assignment not found.");
     }
     return toResponse(row);
+  }
+
+  /**
+   * Driver-initiated release of an accepted recommendation. Allowed only
+   * while the assignment is ACTIVE, unexpired, owned by the caller, and the
+   * vehicle has not entered a zone (no ACTIVE parking session). The row is
+   * kept as history with status CANCELLED: nothing about occupancy,
+   * reservations or sessions is touched, and the vehicle may be assigned
+   * again immediately (the partial unique index only covers ACTIVE rows).
+   */
+  async cancel(userId: string, assignmentId: string): Promise<ZoneAssignmentResponse> {
+    const include = {
+      zone: { select: { id: true, name: true, code: true } },
+      vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
+    } as const;
+    const existing = await prisma.zoneAssignment.findFirst({
+      where: { id: assignmentId, userId },
+      include,
+    });
+    if (!existing) {
+      throw new NotFoundError("Assignment not found.");
+    }
+    if (existing.status !== "ACTIVE") {
+      throw new ConflictError("This assignment is no longer active and cannot be cancelled.");
+    }
+    if (existing.expiresAt && existing.expiresAt.getTime() <= Date.now()) {
+      await prisma.zoneAssignment.update({ where: { id: existing.id }, data: { status: "EXPIRED" } });
+      throw new ConflictError("This assignment has already expired.");
+    }
+    const parked = await prisma.parkingSession.findFirst({
+      where: { vehicleId: existing.vehicleId, status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (parked) {
+      throw new ConflictError(
+        "This vehicle has already entered the parking area; the assignment can no longer be cancelled."
+      );
+    }
+    // Guarded update: a concurrent cancel/expiry that flipped the status
+    // first wins, so the transition is applied exactly once.
+    const flipped = await prisma.zoneAssignment.updateMany({
+      where: { id: existing.id, userId, status: "ACTIVE" },
+      data: { status: "CANCELLED" },
+    });
+    if (flipped.count !== 1) {
+      throw new ConflictError("This assignment is no longer active and cannot be cancelled.");
+    }
+    const updated = await prisma.zoneAssignment.findUniqueOrThrow({ where: { id: existing.id }, include });
+    return toResponse(updated);
   }
 
   /**

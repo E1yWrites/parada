@@ -1,9 +1,11 @@
 import { __router } from "expo-router";
-import { fireEvent, renderWithProviders, screen } from "@/src/test/utils";
+import { fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
 import OnboardingScreen from "@/app/onboarding";
+import { isOnboardingCompleted, resetOnboarding } from "@/lib/onboarding";
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
+  await resetOnboarding();
 });
 
 describe("onboarding screen", () => {
@@ -27,19 +29,22 @@ describe("onboarding screen", () => {
     expect(screen.queryByTestId("onboarding-skip")).toBeNull();
   });
 
-  it("replaces to /login when Skip is pressed", () => {
+  it("records completion for this installation and replaces to /login when Skip is pressed", async () => {
     renderWithProviders(<OnboardingScreen />);
+    expect(await isOnboardingCompleted()).toBe(false);
 
     fireEvent.press(screen.getByTestId("onboarding-skip"));
-    expect(__router.replace).toHaveBeenCalledWith("/login");
+    await waitFor(() => expect(__router.replace).toHaveBeenCalledWith("/login"));
+    expect(await isOnboardingCompleted()).toBe(true);
   });
 
-  it("replaces to /login when Get started is pressed on the last slide", () => {
+  it("records completion and replaces to /login when Get started is pressed on the last slide", async () => {
     renderWithProviders(<OnboardingScreen />);
 
     fireEvent.press(screen.getByTestId("onboarding-next"));
     fireEvent.press(screen.getByTestId("onboarding-next"));
     fireEvent.press(screen.getByTestId("onboarding-next"));
-    expect(__router.replace).toHaveBeenCalledWith("/login");
+    await waitFor(() => expect(__router.replace).toHaveBeenCalledWith("/login"));
+    expect(await isOnboardingCompleted()).toBe(true);
   });
 });

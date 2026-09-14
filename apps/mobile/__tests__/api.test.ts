@@ -88,6 +88,8 @@ describe("api client: success envelopes", () => {
         availableCount: 5,
         status: "ACTIVE",
         availability: "LOW_AVAILABILITY",
+        navigationLat: null,
+        navigationLng: null,
       },
     });
     await expect(api.zoneOccupancy("z1")).resolves.toMatchObject({
@@ -99,6 +101,8 @@ describe("api client: success envelopes", () => {
       availableCount: 5,
       status: "ACTIVE",
       availability: "LOW_AVAILABILITY",
+      navigationLat: null,
+      navigationLng: null,
     });
   });
 
@@ -379,7 +383,7 @@ describe("api client: error codes and messages", () => {
       { error: { code: "UNPROCESSABLE", message: "You already have a vehicle with this plate number." } },
       422,
     );
-    const err = (await api.createVehicle("ABC123", "CAR").catch((e: unknown) => e)) as ApiError;
+    const err = (await api.createVehicle({ plateNumber: "ABC123", vehicleType: "CAR" }).catch((e: unknown) => e)) as ApiError;
     expect(err.code).toBe("UNPROCESSABLE");
     expect(err.message).toContain("already have a vehicle");
     expect(err.status).toBe(422);

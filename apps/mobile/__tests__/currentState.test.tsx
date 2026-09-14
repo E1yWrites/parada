@@ -55,6 +55,8 @@ const zones: PublicZone[] = [
     availableCount: 10,
     status: "ACTIVE",
     availability: "AVAILABLE",
+    navigationLat: null,
+    navigationLng: null,
   },
 ];
 
@@ -116,6 +118,9 @@ const vehicle: Vehicle = {
   plateNumber: "ABC-1234",
   normalizedPlate: "ABC1234",
   vehicleType: "CAR",
+  make: null,
+  model: null,
+  color: null,
   status: "ACTIVE",
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -130,7 +135,7 @@ function renderState(overrides: Overrides = {}) {
     session: null,
     assignment: null,
     reservation: null,
-    destination: null,
+    destinationFor: () => null,
     destinationReady: false,
     now: new Date(),
     activePending: false,
@@ -196,7 +201,7 @@ describe("current parking state: navigation over active session", () => {
   it("shows a usable navigate action when a destination exists", async () => {
     renderState({
       session,
-      destination,
+      destinationFor: (zoneId) => (zoneId === session.zoneId ? destination : null),
       destinationReady: true,
     });
     (LocationMock as LocationModule).__setPermission({ granted: true, canAskAgain: true });
@@ -214,15 +219,15 @@ describe("current parking state: navigation over active session", () => {
   });
 
   it("shows navigation as unavailable, not hidden, when no destination exists", () => {
-    renderState({ session, destination: null, destinationReady: true });
+    renderState({ session, destinationFor: () => null, destinationReady: true });
     expect(screen.getByTestId("current-state-navigate")).toBeDisabled();
     expect(screen.getByTestId("current-state-navigate-unavailable")).toHaveTextContent(
-      "Navigation isn't available right now.",
+      "Navigation coordinates for this zone haven't been configured yet.",
     );
   });
 
   it("hides navigation while the destination is still loading", () => {
-    renderState({ session, destination: null, destinationReady: false });
+    renderState({ session, destinationFor: () => null, destinationReady: false });
     expect(screen.queryByTestId("current-state-navigate")).not.toBeOnTheScreen();
   });
 });
@@ -399,11 +404,25 @@ describe("parking screen: Phase 9.6 integration", () => {
     await waitFor(() => expect(screen.getByTestId("parking-recommendation")).toBeOnTheScreen());
   });
 
-  it("shows the assignment current state and the navigation action on the parking screen", async () => {
+  it("shows the assignment current state and navigates to the assigned zone's own coordinates", async () => {
     (api.assignments as jest.Mock).mockResolvedValue([assignment]);
-    (api.establishment as jest.Mock).mockResolvedValue({
-      location: { address: "123 Test Ave", latitude: 14.5502, longitude: 121.0402 },
-    });
+    // The assignment targets z2; only z2's admin-configured coordinates may be used.
+    (api.zones as jest.Mock).mockResolvedValue([
+      ...zones,
+      {
+        id: "z2",
+        name: "Zone B",
+        code: "B",
+        description: null,
+        capacity: 10,
+        occupiedCount: 2,
+        availableCount: 8,
+        status: "ACTIVE",
+        availability: "AVAILABLE",
+        navigationLat: 14.5502,
+        navigationLng: 121.0402,
+      },
+    ]);
     renderWithProviders(<ParkingScreen />);
 
     await waitFor(() => expect(screen.getByTestId("assignment-current")).toBeOnTheScreen());

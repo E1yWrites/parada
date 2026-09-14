@@ -23,6 +23,8 @@ export class ZoneService {
         capacity: true,
         occupiedCount: true,
         status: true,
+        navigationLat: true,
+        navigationLng: true,
       },
     });
     return zones.map((z) => ({
@@ -35,6 +37,8 @@ export class ZoneService {
       availableCount: z.capacity - z.occupiedCount,
       status: z.status,
       availability: availabilityOf(z.occupiedCount, z.capacity, z.status),
+      navigationLat: z.navigationLat,
+      navigationLng: z.navigationLng,
     }));
   }
 
@@ -49,6 +53,8 @@ export class ZoneService {
         capacity: true,
         occupiedCount: true,
         status: true,
+        navigationLat: true,
+        navigationLng: true,
       },
     });
     if (!z) {
@@ -64,6 +70,8 @@ export class ZoneService {
       availableCount: z.capacity - z.occupiedCount,
       status: z.status,
       availability: availabilityOf(z.occupiedCount, z.capacity, z.status),
+      navigationLat: z.navigationLat,
+      navigationLng: z.navigationLng,
     };
   }
 
@@ -90,6 +98,8 @@ export class ZoneService {
         capacity: true,
         occupiedCount: true,
         status: true,
+        navigationLat: true,
+        navigationLng: true,
       },
     });
 
@@ -123,6 +133,8 @@ export class ZoneService {
         occupiedCount: best.occupiedCount,
         availableCount: best.capacity - best.occupiedCount,
         status: best.status,
+        navigationLat: best.navigationLat,
+        navigationLng: best.navigationLng,
       },
     };
   }

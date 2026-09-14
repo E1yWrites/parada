@@ -18,10 +18,13 @@ import * as argon2 from "argon2";
 import { prisma } from "@parada/database";
 import { createApp } from "./app";
 import { AuthService } from "./domain/auth";
+import { MemoryMailer } from "./mail/mailer";
 import { OccupancyService } from "./domain/occupancy";
 import { RealtimeHub, type RealtimeClient } from "./realtime/hub";
 
 const TABLES = [
+  "verification_tokens",
+  "user_avatars",
   "guest_sessions",
   "violation_appeals",
   "violations",
@@ -49,11 +52,15 @@ async function cleanDatabase() {
 }
 
 const CAMERA_API_KEY = "phase13-camera-key";
-const auth = new AuthService({
-  secret: "test-secret-key-for-testing-only-32chars",
-  issuer: "parada-api-test",
-  expiresIn: "1d",
-});
+const mailer = new MemoryMailer();
+const auth = new AuthService(
+  {
+    secret: "test-secret-key-for-testing-only-32chars",
+    issuer: "parada-api-test",
+    expiresIn: "1d",
+  },
+  { mailer }
+);
 
 /** A fake SSE subscriber that records every frame the hub writes to it. */
 function spy(userId: string, role: "ADMIN" | "USER"): { client: RealtimeClient; frames: string[] } {
@@ -75,6 +82,7 @@ async function seedAdmin(email: string) {
       name: "Ops Admin",
       email,
       passwordHash: await argon2.hash("AdminPass123!", { type: argon2.argon2id }),
+      emailVerifiedAt: new Date(),
       role: "ADMIN",
     },
   });
@@ -105,6 +113,18 @@ describe("Phase 13 — full system integration", () => {
       .expect(201);
     const driverId: string = registered.body.data.user.id;
     expect(registered.body.data.user.role).toBe("USER");
+    expect(registered.body.data.token).toBeUndefined();
+
+    // ---- Email verification (6-digit code from the mail transport) -------
+    await request(app)
+      .post("/auth/login")
+      .send({ email: "lifecycle@test.local", password: "DriverPass123!" })
+      .expect(403)
+      .expect((res) => expect(res.body.error.code).toBe("EMAIL_NOT_VERIFIED"));
+    const mail = mailer.lastTo("lifecycle@test.local");
+    const code = mail?.text.match(/\b(\d{6})\b/)?.[1];
+    expect(code).toBeDefined();
+    await request(app).post("/auth/verify-email").send({ email: "lifecycle@test.local", code }).expect(200);
 
     const login = await request(app)
       .post("/auth/login")
@@ -578,7 +598,7 @@ describe("Phase 13 — full system integration", () => {
     const zone = await prisma.parkingZone.create({ data: { name: "Auth Zone", code: "P13U", capacity: 5 } });
     await prisma.camera.create({ data: { zoneId: zone.id, name: "U Entry", identifier: "p13u-entry", gateType: "ENTRY", status: "ONLINE" } });
     const user = await prisma.user.create({
-      data: { name: "Auth", email: "auth@test.local", passwordHash: await argon2.hash("DriverPass123!", { type: argon2.argon2id }), role: "USER" },
+      data: { name: "Auth", email: "auth@test.local", passwordHash: await argon2.hash("DriverPass123!", { type: argon2.argon2id }), role: "USER", emailVerifiedAt: new Date() },
     });
 
     // Unauthenticated and role-restricted access.

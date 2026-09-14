@@ -1,9 +1,14 @@
 import type {
+  AuthUser,
+  LoginResponse,
   NotificationResponse,
   ParkingSessionResponse,
+  RegisterResponse,
   ReservationResponse,
   Vehicle,
-  VehicleType,
+  VehicleCreateInput,
+  VehicleUpdateInput,
+  VerificationChallenge,
   ViolationAppealResponse,
   ViolationResponse,
   ZoneAssignmentResponse,
@@ -25,6 +30,9 @@ export type PublicZone = {
   availableCount: number;
   status: "ACTIVE" | "INACTIVE";
   availability: ZoneAvailability;
+  /** Admin-configured turn-by-turn destination for this zone; null until set. */
+  navigationLat: number | null;
+  navigationLng: number | null;
 };
 
 /** GET /zones/:zoneId/occupancy payload (backend returns `zoneId`, not `id`). */
@@ -69,17 +77,18 @@ export type CreateReservationInput = {
 export type NotificationsPayload = { notifications: NotificationResponse[]; unreadCount: number };
 
 /** Account shape returned by /auth/me and embedded in auth responses. */
-export type UserDto = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: string;
-  createdAt: string;
-};
+export type UserDto = AuthUser;
 
-/** Auth response from /auth/login and /auth/register. */
-export type AuthResponse = { user: UserDto; token: string };
+/** Auth response from /auth/login and /auth/password. */
+export type AuthResponse = LoginResponse;
+
+/** Where the API serves a user's profile picture (authenticated; owner or admin). */
+export function avatarUrl(user: Pick<AuthUser, "id" | "avatarUpdatedAt"> | null | undefined): string | null {
+  if (!user || !user.avatarUpdatedAt) {
+    return null;
+  }
+  return `${API_ROOT}/users/${encodeURIComponent(user.id)}/avatar?v=${encodeURIComponent(user.avatarUpdatedAt)}`;
+}
 
 export class ApiError extends Error {
   readonly code: string;
@@ -98,6 +107,9 @@ export class ApiError extends Error {
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
+  /** Raw bytes (profile picture upload); sent with `contentType` instead of JSON. */
+  rawBody?: Blob;
+  contentType?: string;
   /** Skip Authorization header (public routes like /zones, /auth/login). */
   public?: boolean;
   /** Skip global 401 session invalidation (login/register handle their own). */
@@ -377,6 +389,8 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   };
   if (opts.body !== undefined) {
     headers["Content-Type"] = "application/json";
+  } else if (opts.rawBody !== undefined) {
+    headers["Content-Type"] = opts.contentType ?? "application/octet-stream";
   }
   if (!opts.public) {
     const token = await getToken();
@@ -390,7 +404,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     response = await fetchWithTimeout(path, {
       method,
       headers,
-      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+      body: opts.body === undefined ? opts.rawBody : JSON.stringify(opts.body),
     });
   } catch (err) {
     throw toApiError(err);
@@ -441,13 +455,62 @@ export const api = {
       invalidateOnUnauthorized: false,
     }),
   register: (name: string, email: string, password: string) =>
-    request<AuthResponse>("/auth/register", {
+    request<RegisterResponse>("/auth/register", {
       method: "POST",
       body: { name, email, password },
       public: true,
       invalidateOnUnauthorized: false,
     }),
+  verifyEmail: (email: string, code: string) =>
+    request<{ user: UserDto }>("/auth/verify-email", {
+      method: "POST",
+      body: { email, code },
+      public: true,
+      invalidateOnUnauthorized: false,
+    }),
+  resendVerification: (email: string) =>
+    request<{ verification: VerificationChallenge | null }>("/auth/resend-verification", {
+      method: "POST",
+      body: { email },
+      public: true,
+      invalidateOnUnauthorized: false,
+    }),
+  forgotPassword: (email: string) =>
+    request<{ message: string }>("/auth/forgot-password", {
+      method: "POST",
+      body: { email },
+      public: true,
+      invalidateOnUnauthorized: false,
+    }),
+  resetPassword: (token: string, newPassword: string) =>
+    request<{ user: UserDto }>("/auth/reset-password", {
+      method: "POST",
+      body: { token, newPassword },
+      public: true,
+      invalidateOnUnauthorized: false,
+    }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<AuthResponse>("/auth/password", {
+      method: "POST",
+      body: { currentPassword, newPassword, confirmPassword: newPassword },
+    }),
   logout: () => request<void>("/auth/logout", { method: "POST" }),
+
+  updateProfile: (input: { name?: string; username?: string | null }) =>
+    request<UserDto>("/auth/me", { method: "PATCH", body: input }),
+  requestEmailChange: (email: string) =>
+    request<{ verification: VerificationChallenge }>("/auth/me/email", { method: "POST", body: { email } }),
+  confirmEmailChange: (code: string) =>
+    request<UserDto>("/auth/me/email/confirm", { method: "POST", body: { code } }),
+  cancelEmailChange: () => request<UserDto>("/auth/me/email", { method: "DELETE" }),
+  requestPhoneChange: (phone: string) =>
+    request<{ verification: VerificationChallenge }>("/auth/me/phone", { method: "POST", body: { phone } }),
+  clearPhone: () => request<{ user: UserDto }>("/auth/me/phone", { method: "POST", body: { phone: null } }),
+  confirmPhoneChange: (code: string) =>
+    request<UserDto>("/auth/me/phone/confirm", { method: "POST", body: { code } }),
+  uploadAvatar: (image: Blob, contentType: string) =>
+    request<UserDto>("/auth/me/avatar", { method: "PUT", rawBody: image, contentType }),
+  removeAvatar: () => request<UserDto>("/auth/me/avatar", { method: "DELETE" }),
 
   zones: () => request<PublicZone[]>("/zones", { public: true }),
   zoneOccupancy: (zoneId: string) => request<ZoneOccupancy>(`/zones/${zoneId}/occupancy`, { public: true }),
@@ -481,6 +544,13 @@ export const api = {
       "INVALID_ASSIGNMENT_RESPONSE",
       "We couldn't confirm your zone assignment.",
     ),
+  cancelAssignment: async (assignmentId: string) =>
+    requireValidatedObject(
+      await request<ZoneAssignmentResponse>(`/assignments/${assignmentId}/cancel`, { method: "PATCH" }),
+      isAssignmentResponse,
+      "INVALID_ASSIGNMENT_RESPONSE",
+      "We couldn't cancel your zone assignment.",
+    ),
 
   reservations: async () =>
     requireValidatedList(
@@ -505,8 +575,12 @@ export const api = {
     ),
 
   vehicles: () => request<Vehicle[]>("/vehicles"),
-  createVehicle: (plateNumber: string, vehicleType: VehicleType) =>
-    request<Vehicle>("/vehicles", { method: "POST", body: { plateNumber, vehicleType } }),
+  createVehicle: (input: VehicleCreateInput) =>
+    request<Vehicle>("/vehicles", { method: "POST", body: input }),
+  updateVehicle: (vehicleId: string, input: VehicleUpdateInput) =>
+    request<Vehicle>(`/vehicles/${vehicleId}`, { method: "PATCH", body: input }),
+  unregisterVehicle: (vehicleId: string) =>
+    request<Vehicle>(`/vehicles/${vehicleId}`, { method: "DELETE" }),
 
   sessions: async () => {
     const sessions = await request<SessionDto[]>("/sessions");

@@ -628,14 +628,25 @@ export function adminRouter(deps: {
           id: true,
           name: true,
           email: true,
+          username: true,
+          phone: true,
           role: true,
           status: true,
+          emailVerifiedAt: true,
           createdAt: true,
+          avatar: { select: { updatedAt: true } },
           _count: { select: { vehicles: true, sessions: true } },
         },
         orderBy: { createdAt: "desc" },
       });
-      res.json(ok(users));
+      res.json(
+        ok(
+          users.map(({ avatar, ...user }) => ({
+            ...user,
+            avatarUpdatedAt: avatar ? avatar.updatedAt : null,
+          }))
+        )
+      );
     })
   );
 
@@ -649,6 +660,9 @@ export function adminRouter(deps: {
           plateNumber: true,
           normalizedPlate: true,
           vehicleType: true,
+          make: true,
+          model: true,
+          color: true,
           status: true,
           user: { select: { id: true, name: true, email: true, role: true } },
         },

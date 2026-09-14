@@ -43,6 +43,19 @@ export function assignmentsRouter(assignments: AssignmentService, realtimeHub?: 
     })
   );
 
+  router.patch(
+    "/assignments/:id/cancel",
+    asyncHandler(async (req, res) => {
+      const userId = currentUserId(res);
+      const assignment = await assignments.cancel(userId, req.params["id"]!);
+      realtimeHub?.publish(
+        { type: "ASSIGNMENT_CANCELLED", occurredAt: new Date().toISOString(), payload: assignment },
+        { audience: "USER", userId }
+      );
+      res.json(ok(assignment));
+    })
+  );
+
   router.get(
     "/assignments/:id",
     asyncHandler(async (req, res) => {
