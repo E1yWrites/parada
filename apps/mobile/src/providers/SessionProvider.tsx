@@ -115,6 +115,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
+/**
+ * Read-only access to the signed-in user for purely decorative UI (the
+ * greeting avatar). Returns null outside a SessionProvider instead of
+ * throwing, so presentational screens never depend on auth wiring.
+ */
+export function useSessionUser(): SessionContextValue["user"] | null {
+  return useContext(SessionContext)?.user ?? null;
+}
+
 export function useSession(): SessionContextValue {
   const ctx = useContext(SessionContext);
   if (!ctx) {

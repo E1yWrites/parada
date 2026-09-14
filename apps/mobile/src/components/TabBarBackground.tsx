@@ -7,7 +7,7 @@ import { usePrefersReducedTransparency } from "@/src/hooks/usePrefersReducedTran
  * Frosted background for the floating pill tab bar. Rendered via
  * `Tabs`' `tabBarBackground` option, behind the tab bar's icons/labels, with
  * `tabBarStyle.backgroundColor` set to `"transparent"` at the call site.
- * Falls back to the old solid charcoal fill under Reduce Transparency.
+ * Falls back to a solid white fill under Reduce Transparency.
  */
 export function TabBarBackground({ testID }: { testID?: string }) {
   const reducedTransparency = usePrefersReducedTransparency();
@@ -28,6 +28,7 @@ export function TabBarBackground({ testID }: { testID?: string }) {
         experimentalBlurMethod={blurMethod}
       />
       <View style={[StyleSheet.absoluteFill, { backgroundColor: preset.overlayColor }]} />
+      <View style={[StyleSheet.absoluteFill, styles.rounded, styles.edge, { borderColor: preset.borderColor }]} />
     </View>
   );
 }
@@ -36,5 +37,8 @@ const styles = StyleSheet.create({
   rounded: {
     borderRadius: layout.FLOATING_TAB_BAR_RADIUS,
     overflow: "hidden",
+  },
+  edge: {
+    borderWidth: 1,
   },
 });

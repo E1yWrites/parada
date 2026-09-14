@@ -10,6 +10,7 @@ jest.mock("@/lib/api/client", () => {
     api: {
       zones: jest.fn(),
       establishment: jest.fn(),
+      notifications: jest.fn().mockResolvedValue({ notifications: [], unreadCount: 0 }),
     },
   };
 });

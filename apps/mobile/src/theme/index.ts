@@ -1,6 +1,6 @@
-export { colors } from "./colors";
+export { colors, softColor, withAlpha } from "./colors";
 export type { ColorToken } from "./colors";
-export { fonts, fontAssets, fontSizes, lineHeights } from "./typography";
+export { fonts, fontAssets, fontSizes, lineHeights, letterSpacing } from "./typography";
 export type { FontToken } from "./typography";
 export { spacing, touchTarget } from "./spacing";
 export { radii } from "./radii";
@@ -9,3 +9,4 @@ export type { ShadowPreset } from "./shadows";
 export { glass, blurMethod } from "./glass";
 export type { GlassPreset } from "./glass";
 export { layout, tabClearance } from "./layout";
+export { motion } from "./motion";

@@ -3,8 +3,9 @@ import { Platform } from "react-native";
 export type ShadowPreset = "card" | "pill" | "none";
 
 /**
- * PARADA elevation model. Soft face-down shadows at low opacity; never
- * colored glows. Android uses `elevation` (material shadow on by default).
+ * PARADA elevation model. Soft, offset, low-opacity shadows tinted with the
+ * ink color so cards sit on the cool ground instead of floating grey.
+ * Android uses `elevation`.
  */
 export const shadows: Record<
   ShadowPreset,
@@ -17,18 +18,18 @@ export const shadows: Record<
   }
 > = {
   card: {
-    shadowColor: "#000000",
+    shadowColor: "#0F1B2D",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
+    shadowOpacity: 0.07,
+    shadowRadius: 20,
     elevation: 3,
   },
   pill: {
-    shadowColor: "#000000",
+    shadowColor: "#0F1B2D",
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.14,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowRadius: 28,
+    elevation: 10,
   },
   none: {
     shadowColor: "transparent",

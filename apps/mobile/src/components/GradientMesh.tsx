@@ -4,6 +4,7 @@ import { colors } from "@/src/theme";
 type Blob = {
   color: string;
   size: number;
+  opacity: number;
   top?: number;
   bottom?: number;
   left?: number;
@@ -11,14 +12,13 @@ type Blob = {
 };
 
 /**
- * Two off-screen-anchored blobs give the redesign's glass surfaces something
- * with color/depth to blur. Positioned so most of each circle falls outside
- * the visible frame — the visible slice reads as a soft ambient wash, not a
- * hard-edged shape.
+ * Two off-screen-anchored washes give the cool ground a subtle gradient and
+ * give frosted surfaces something to blur. Most of each circle falls outside
+ * the frame — the visible slice reads as ambient color, never a shape.
  */
 const BLOBS: Blob[] = [
-  { color: colors.primary, size: 420, top: -160, left: -140 },
-  { color: colors.success, size: 380, bottom: -140, right: -120 },
+  { color: colors.primary, size: 460, opacity: 0.09, top: -220, right: -160 },
+  { color: colors.success, size: 380, opacity: 0.06, bottom: -200, left: -150 },
 ];
 
 /**
@@ -40,6 +40,7 @@ export function GradientMesh({ testID }: { testID?: string }) {
               height: blob.size,
               borderRadius: blob.size / 2,
               backgroundColor: blob.color,
+              opacity: blob.opacity,
               top: blob.top,
               bottom: blob.bottom,
               left: blob.left,
@@ -66,11 +67,10 @@ const styles = StyleSheet.create({
     position: "absolute",
     alignItems: "center",
     justifyContent: "center",
-    opacity: 0.1,
   },
   core: {
     width: "60%",
     height: "60%",
-    opacity: 0.35,
+    opacity: 0.4,
   },
 });

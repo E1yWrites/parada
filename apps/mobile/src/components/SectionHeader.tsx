@@ -5,6 +5,7 @@ import { Text } from "./Text";
 
 type SectionHeaderProps = {
   title: string;
+  /** Short description under the title (a sentence, never a label above it). */
   caption?: string;
   right?: ReactNode;
   testID?: string;
@@ -34,6 +35,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.xl,
+    marginTop: spacing.md,
   },
   textGroup: {
     flex: 1,

@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionHeader } from "@/components/ui/Card";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import { Button } from "@/components/ui/Button";
-import { Pill } from "@/components/ui/Badge";
+import { Pill, PlateChip } from "@/components/ui/Badge";
 import type { SimulatorScenario } from "@/lib/api/types";
 
 const INVALIDATE_KEYS: string[][] = [
@@ -81,15 +81,14 @@ export default function SimulatorPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Tools · Load generation"
         title="Data Simulator"
-        description="Exercise the parking pipeline with deterministic scenarios (ADMIN only)."
+        description="Exercise the parking pipeline with deterministic camera-event scenarios."
       />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         {/* Controls */}
         <Card className="xl:col-span-1">
-          <SectionHeader eyebrow="Configuration" title="Run a Scenario" />
+          <SectionHeader title="Run a scenario" description="Events go through the same pipeline as real cameras" />
           <form
             className="space-y-4 p-5"
             onSubmit={(e) => {
@@ -103,7 +102,7 @@ export default function SimulatorPage() {
               </label>
               <select
                 id="sim-scenario"
-                className="input mt-1.5"
+                className="input"
                 value={scenario}
                 onChange={(e) => setScenario(e.target.value as SimulatorScenario)}
               >
@@ -121,7 +120,7 @@ export default function SimulatorPage() {
               </label>
               <select
                 id="sim-zone"
-                className="input mt-1.5"
+                className="input"
                 value={zoneId}
                 onChange={(e) => setZoneId(e.target.value)}
               >
@@ -143,7 +142,7 @@ export default function SimulatorPage() {
                   id="sim-fill"
                   type="number"
                   min={0}
-                  className="input mt-1.5"
+                  className="input"
                   placeholder="0 = fill to capacity"
                   value={fillTo || ""}
                   onChange={(e) => setFillTo(Number(e.target.value))}
@@ -158,7 +157,7 @@ export default function SimulatorPage() {
                 </label>
                 <input
                   id="sim-unknown"
-                  className="input mt-1.5 font-display font-bold"
+                  className="input font-mono uppercase"
                   placeholder="Default ZZZ-UNKNOWN-1"
                   value={unknownPlate}
                   onChange={(e) => setUnknownPlate(e.target.value)}
@@ -172,7 +171,7 @@ export default function SimulatorPage() {
               </p>
             ) : null}
 
-            <Button type="submit" className="w-full" disabled={run.isPending}>
+            <Button type="submit" variant="primary" className="w-full" disabled={run.isPending}>
               {run.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               ) : (
@@ -182,7 +181,7 @@ export default function SimulatorPage() {
             </Button>
 
             {run.isError ? (
-              <div className="flex items-start gap-2 rounded-panel border border-brand/25 bg-brand-soft p-3.5 text-sm font-semibold text-brand">
+              <div role="alert" className="alert-danger">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>
                   {run.error instanceof Error
@@ -199,7 +198,7 @@ export default function SimulatorPage() {
           {/* Runtime status */}
           <QueryBoundary status={status.status} error={status.error} isEmpty={!status.data} onRetry={() => status.refetch()}>
             <Card>
-              <SectionHeader eyebrow="Runtime" title="Simulator Status" />
+              <SectionHeader title="Simulator status" />
               {status.data ? (
                 <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-3">
                   <StatusMetric label="Runs" value={String(status.data.runs)} />
@@ -218,11 +217,9 @@ export default function SimulatorPage() {
           {/* Last result */}
           <Card>
             <SectionHeader
-              eyebrow="Output"
-              title="Scenario Result"
-              actions={
-                <Pill tone="neutral">{result ? result.scenario : "—"}</Pill>
-              }
+              title="Scenario result"
+              description="Events generated and any rejections from the last run"
+              actions={<Pill tone={result ? "info" : "neutral"}>{result ? result.scenario : "No run yet"}</Pill>}
             />
             <div className="p-5">
               {!result ? (
@@ -232,28 +229,28 @@ export default function SimulatorPage() {
               ) : (
                 <div className="space-y-4">
                   {result.zone ? (
-                    <div className="flex items-center justify-between rounded-panel border border-line/50 bg-white px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-panel bg-brand-soft" aria-hidden="true">
+                    <div className="surface-panel flex items-center justify-between gap-3 px-4 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-white" aria-hidden="true">
                           <History className="h-4 w-4 text-brand" />
                         </div>
-                        <div>
-                          <p className="label-tech">ZONE {result.zone.code}</p>
-                          <p className="text-sm font-bold text-charcoal">{result.zone.name}</p>
+                        <div className="min-w-0">
+                          <PlateChip>{result.zone.code}</PlateChip>
+                          <p className="mt-1 truncate text-sm font-bold text-charcoal">{result.zone.name}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-display text-sm font-black text-charcoal">
+                        <p className="font-display text-base font-black tabular-nums text-charcoal">
                           {result.occupancy?.occupiedCount}
                           <span className="text-muted"> / {result.zone.capacity}</span>
                         </p>
-                        <p className="text-[11px] uppercase tracking-wider text-muted">Occupied</p>
+                        <p className="text-[11px] font-semibold text-muted">Occupied</p>
                       </div>
                     </div>
                   ) : null}
 
                   <div>
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted">
+                    <p className="mb-2 text-xs font-bold text-charcoal">
                       Events ({result.events.length})
                     </p>
                     {result.events.length === 0 ? (
@@ -263,13 +260,13 @@ export default function SimulatorPage() {
                         {result.events.map((e, i) => (
                           <li
                             key={`${i}`}
-                            className="flex items-center gap-3 rounded-panel bg-graygreen/15 px-3.5 py-2"
+                            className="flex items-center gap-3 rounded-control bg-raised px-3.5 py-2"
                           >
-                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden="true" />
-                            <span className="font-display text-[11px] font-bold uppercase tracking-wide text-muted">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
+                            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
                               {String(e.kind).replace(/_/g, " ")}
                             </span>
-                            <span className="truncate font-display text-xs font-bold text-charcoal">
+                            <span className="truncate font-mono text-xs font-bold text-charcoal">
                               {String((e.event as { detectedPlate?: string })?.detectedPlate ?? "")}
                             </span>
                           </li>
@@ -279,7 +276,7 @@ export default function SimulatorPage() {
                   </div>
 
                   <div>
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted">
+                    <p className="mb-2 text-xs font-bold text-charcoal">
                       Rejections ({result.rejects.length})
                     </p>
                     {result.rejects.length === 0 ? (
@@ -289,12 +286,12 @@ export default function SimulatorPage() {
                         {result.rejects.map((r) => (
                           <li
                             key={r.sourceEventId}
-                            className="flex items-start gap-3 rounded-panel border border-brand/25 bg-brand-soft px-3.5 py-2"
+                            className="flex items-start gap-3 rounded-control border border-danger/20 bg-danger-soft px-3.5 py-2"
                           >
-                            <Ban className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" aria-hidden="true" />
-                            <div>
-                              <p className="font-display text-[11px] font-black text-brand">{r.sourceEventId}</p>
-                              <p className="text-xs font-semibold text-brand">{r.message}</p>
+                            <Ban className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger" aria-hidden="true" />
+                            <div className="min-w-0">
+                              <p className="font-mono text-[11px] font-bold text-danger">{r.sourceEventId}</p>
+                              <p className="text-xs font-semibold text-danger">{r.message}</p>
                             </div>
                           </li>
                         ))}
@@ -314,12 +311,12 @@ export default function SimulatorPage() {
 function StatusMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="surface-panel flex items-center gap-3 p-4">
-      <span className="flex h-10 w-10 items-center justify-center rounded-panel bg-brand-soft" aria-hidden="true">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-white" aria-hidden="true">
         <Activity className="h-4 w-4 text-brand" />
       </span>
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted">{label}</p>
-        <p className="font-display text-xl font-black text-charcoal">{value}</p>
+      <div className="min-w-0">
+        <p className="text-xs font-bold text-muted">{label}</p>
+        <p className="truncate font-display text-lg font-black tabular-nums text-charcoal">{value}</p>
       </div>
     </div>
   );

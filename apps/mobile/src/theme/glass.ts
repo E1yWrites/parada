@@ -4,9 +4,10 @@ import { colors } from "./colors";
 export type GlassPreset = "hero" | "chrome";
 
 /**
- * PARADA glass tokens — used only by chrome/hero surfaces (floating tab bar,
- * hero/summary cards). Every consumer must fall back to `fallbackColor` when
- * `usePrefersReducedTransparency()` is true.
+ * PARADA frosted tokens — used only by chrome/hero surfaces (floating tab
+ * bar, pass/hero cards). Both presets are light: the blur softens the blue
+ * washes behind them into a subtle gradient. Every consumer must fall back
+ * to `fallbackColor` when `usePrefersReducedTransparency()` is true.
  */
 export const glass: Record<
   GlassPreset,
@@ -18,21 +19,21 @@ export const glass: Record<
     fallbackColor: string;
   }
 > = {
-  /** Hero/summary cards on the light gradient-mesh background. */
+  /** Pass / hero cards: white frost over a blue wash. */
   hero: {
     tint: "light",
-    intensity: 40,
-    overlayColor: "rgba(255, 255, 255, 0.22)",
-    borderColor: "rgba(255, 255, 255, 0.5)",
+    intensity: 50,
+    overlayColor: "rgba(255, 255, 255, 0.72)",
+    borderColor: "rgba(255, 255, 255, 0.9)",
     fallbackColor: colors.surface,
   },
-  /** Floating tab bar — dark frosted glass, replacing the old solid fill. */
+  /** Floating tab bar — white frosted chrome. */
   chrome: {
-    tint: "dark",
-    intensity: 60,
-    overlayColor: "rgba(23, 30, 25, 0.35)",
-    borderColor: "rgba(255, 255, 255, 0.12)",
-    fallbackColor: colors.foreground,
+    tint: "light",
+    intensity: 70,
+    overlayColor: "rgba(255, 255, 255, 0.82)",
+    borderColor: "rgba(15, 27, 45, 0.06)",
+    fallbackColor: colors.surface,
   },
 };
 

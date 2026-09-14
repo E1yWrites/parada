@@ -1,8 +1,9 @@
 import { StyleSheet, View } from "react-native";
 import { Card } from "./Card";
+import { PlateChip } from "./PlateChip";
 import { SessionBadge } from "./StatusBadge";
 import { Text } from "./Text";
-import { colors, fonts, fontSizes, spacing } from "@/src/theme";
+import { colors, spacing } from "@/src/theme";
 import { formatCurrency, formatDateTime, formatDurationSeconds, formatElapsed } from "@/lib/format";
 import type { SessionDto } from "@/lib/api/client";
 
@@ -16,18 +17,16 @@ type SessionCardProps = {
 export function SessionCard({ session, now, testID }: SessionCardProps) {
   const active = session.status === "ACTIVE";
   return (
-    <Card accent={active ? colors.primary : colors.muted} style={styles.card} testID={testID}>
+    <Card style={styles.card} testID={testID}>
       <View style={styles.row}>
         <View style={styles.left}>
           <Text variant="plate" testID={testID ? `${testID}-plate` : undefined}>
             {session.vehicle?.plateNumber ?? "GUEST"}
           </Text>
           <View style={styles.zoneLine}>
+            <PlateChip value={session.zone.code} tone="soft" size="sm" />
             <Text variant="caption" numberOfLines={2} style={styles.zoneName}>
               Zone {session.zone.name}
-            </Text>
-            <Text variant="mono" style={styles.code}>
-              {session.zone.code}
             </Text>
           </View>
         </View>
@@ -35,6 +34,7 @@ export function SessionCard({ session, now, testID }: SessionCardProps) {
           <SessionBadge status={session.status} size="sm" testID={testID ? `${testID}-status` : undefined} />
         </View>
       </View>
+      <View style={styles.divider} />
       <View style={styles.times}>
         <View style={styles.timeGroup}>
           <Text variant="micro">ENTERED</Text>
@@ -59,22 +59,22 @@ export function SessionCard({ session, now, testID }: SessionCardProps) {
             </>
           )}
         </View>
+        {session.feeAmount != null ? (
+          <View style={styles.timeGroup}>
+            <Text variant="micro">PARKING FEE</Text>
+            <Text variant="monoBold" color={colors.highlight} testID={testID ? `${testID}-fee` : undefined}>
+              {formatCurrency(session.feeAmount)}
+            </Text>
+          </View>
+        ) : null}
       </View>
-      {session.feeAmount != null ? (
-        <View style={styles.feeRow}>
-          <Text variant="micro">PARKING FEE</Text>
-          <Text variant="monoBold" color={colors.highlight} testID={testID ? `${testID}-fee` : undefined}>
-            {formatCurrency(session.feeAmount)}
-          </Text>
-        </View>
-      ) : null}
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    gap: spacing.xl,
+    gap: spacing.lg,
   },
   row: {
     flexDirection: "row",
@@ -98,25 +98,17 @@ const styles = StyleSheet.create({
   zoneName: {
     flexShrink: 1,
   },
-  code: {
-    color: colors.muted,
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.caption,
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
   },
   times: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    gap: spacing.xl,
+    gap: spacing.xl2,
   },
   timeGroup: {
     gap: spacing.xs,
     flexShrink: 1,
-  },
-  feeRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "space-between",
-    gap: spacing.xl,
   },
 });

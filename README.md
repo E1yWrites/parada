@@ -131,10 +131,16 @@ persistent and is never reset by the development workflow.
 ### Running on a physical device
 
 `localhost` on a phone is the phone itself, so both of these must point at your machine's LAN
-address, in `apps/mobile/.env`:
+address. The API URL goes in `apps/mobile/.env`:
 
 ```
 EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:4100
+```
+
+and the packager hostname in `apps/mobile/.env.local` (Expo SDK 57 refuses to load this
+machine-personal variable from a non-`.local` env file; both files are gitignored):
+
+```
 REACT_NATIVE_PACKAGER_HOSTNAME=<your-LAN-IP>
 ```
 

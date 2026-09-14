@@ -3,17 +3,18 @@
 @tailwind utilities;
 
 :root {
-  --paper: #eeebe3;
+  --paper: #f4f6fb;
   --card: #ffffff;
-  --charcoal: #171e19;
-  --graygreen: #b7c6c2;
-  --muted: #64746e;
-  --brand: #ca0013;
-  --brand-dark: #9e0010;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ca0013;
-  --info: #3b82f6;
+  --raised: #eef2fa;
+  --charcoal: #0f1b2d;
+  --muted: #5b6b82;
+  --line: #e3e8f1;
+  --brand: #1e5eff;
+  --brand-dark: #1546c9;
+  --brand-soft: #e8efff;
+  --success: #0b7f4f;
+  --warning: #a35f04;
+  --danger: #d9342f;
   color-scheme: light;
 }
 
@@ -28,7 +29,7 @@
   }
 
   ::selection {
-    background: rgba(202, 0, 19, 0.18);
+    background: rgba(30, 94, 255, 0.18);
     color: var(--charcoal);
   }
 
@@ -36,10 +37,22 @@
   h2,
   h3 {
     @apply font-display;
+    text-wrap: balance;
+  }
+
+  input,
+  textarea {
+    caret-color: var(--brand);
+  }
+
+  /* Native date/time pickers inherit the brand tint */
+  input[type="datetime-local"],
+  input[type="number"] {
+    accent-color: var(--brand);
   }
 }
 
-/* ---- Warm atmospheric backdrop (light) ---- */
+/* ---- Ground: cool off-white with two soft blue/mint washes ---- */
 .parada-background {
   position: relative;
   min-height: 100vh;
@@ -53,92 +66,115 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(700px 360px at 88% -8%, rgba(202, 0, 19, 0.06), transparent 70%),
-    radial-gradient(560px 300px at 2% 12%, rgba(183, 198, 194, 0.35), transparent 72%),
-    radial-gradient(900px 600px at 50% 115%, rgba(183, 198, 194, 0.18), transparent 70%);
+    radial-gradient(720px 400px at 92% -10%, rgba(30, 94, 255, 0.1), transparent 70%),
+    radial-gradient(640px 360px at -6% 104%, rgba(30, 94, 255, 0.06), transparent 70%);
 }
 
 @layer components {
-  /* ---- Cards (40px = 2.5rem primary scale) ---- */
+  /* ---- Panels: the registry surface ---- */
   .card {
-    @apply rounded-card border bg-white/85 backdrop-blur-xl;
-    border-color: rgba(183, 198, 194, 0.3);
-    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.08);
+    @apply rounded-panel border border-line bg-card shadow-card;
   }
 
   .card-hover {
-    @apply transition-all duration-200 hover:shadow-card-hover;
+    @apply transition-shadow duration-200 hover:shadow-card-hover;
   }
 
-  /* Nested items (24px = 1.5rem secondary scale) */
+  /* Nested row surface inside a panel */
   .surface-panel {
-    @apply rounded-panel border bg-white/70;
-    border-color: rgba(183, 198, 194, 0.3);
+    @apply rounded-control border border-line bg-raised/60;
   }
 
-  /* ---- Buttons (24px nested scale; pill for small/secondary) ---- */
+  /* ---- Buttons ---- */
   .btn {
-    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-panel px-5 text-sm font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-control px-5 text-sm font-bold transition-all duration-150 focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
+  }
+
+  .btn-sm {
+    @apply min-h-[36px] px-3.5 text-xs;
   }
 
   .btn-primary {
-    @apply btn bg-brand text-white shadow-[0_10px_20px_-10px_rgba(202,0,19,0.55)] hover:bg-brand-dark hover:shadow-[0_14px_24px_-10px_rgba(202,0,19,0.55)];
+    @apply btn bg-brand text-white shadow-primary hover:bg-brand-dark;
   }
 
   .btn-secondary {
-    @apply btn border border-line bg-white text-charcoal shadow-[0_2px_6px_-2px_rgba(23,30,25,0.08)] hover:border-charcoal/30 hover:bg-paper;
+    @apply btn border border-line bg-white text-charcoal hover:border-charcoal/20 hover:bg-raised;
   }
 
   .btn-ghost {
-    @apply btn border border-transparent text-charcoal hover:bg-charcoal/[0.06] hover:text-charcoal;
+    @apply btn border border-transparent text-brand hover:bg-brand-soft;
   }
 
   .btn-success {
-    @apply btn bg-success text-white shadow-[0_10px_20px_-10px_rgba(16,185,129,0.6)] hover:bg-[#0DA271];
+    @apply btn border border-success/30 bg-success-soft text-success hover:bg-success hover:text-white;
   }
 
   .btn-danger {
-    @apply btn border border-brand/30 bg-brand-soft text-brand hover:border-brand/50 hover:bg-brand hover:text-white;
+    @apply btn border border-danger/30 bg-white text-danger hover:bg-danger-soft;
   }
 
   /* ---- Inputs ---- */
   .input {
-    @apply min-h-[44px] w-full rounded-panel border border-line bg-white px-4 py-2 text-sm text-charcoal placeholder:text-muted/70 transition-colors duration-200 focus-visible:outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/20;
+    @apply min-h-[44px] w-full rounded-control border-[1.5px] border-line bg-white px-4 py-2 text-[15px] font-medium text-charcoal placeholder:font-normal placeholder:text-muted/80 transition-[border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:border-brand focus-visible:shadow-focus disabled:bg-raised disabled:text-muted;
+  }
+
+  select.input {
+    @apply cursor-pointer appearance-none bg-no-repeat pr-10;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235b6b82' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+    background-position: right 0.9rem center;
   }
 
   select.input option {
     @apply bg-white text-charcoal;
   }
 
-  /* ---- Labels (10px / 700 / monospaced-kern uppercase) ---- */
+  textarea.input {
+    @apply min-h-32 py-3 leading-relaxed;
+  }
+
+  /* ---- Field labels (form labels, not kickers) ---- */
   .label {
-    @apply text-[10px] font-bold uppercase tracking-[0.1em] text-charcoal;
+    @apply mb-1.5 block text-[12px] font-bold text-charcoal;
   }
 
   .label-tech {
-    @apply text-[10px] font-bold uppercase tracking-[0.12em] text-muted;
+    @apply text-[11px] font-bold uppercase tracking-[0.08em] text-muted;
   }
 
-  /* ---- Status pill ---- */
+  .field-help {
+    @apply mt-1.5 text-xs text-muted;
+  }
+
+  /* ---- Status pill: tinted fill, icon + text ---- */
   .status-pill {
-    @apply inline-flex min-h-[26px] items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider;
+    @apply inline-flex min-h-[26px] items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold;
   }
 
-  /* ---- Tables ---- */
+  /* ---- Identifier plate chip (zone codes, plates, camera ids) ---- */
+  .plate-chip {
+    @apply inline-flex items-center rounded-chip bg-charcoal px-2 py-0.5 font-mono text-[12px] font-bold tracking-[0.08em] text-white;
+  }
+
+  .plate-chip-soft {
+    @apply inline-flex items-center rounded-chip bg-brand-soft px-2 py-0.5 font-mono text-[12px] font-bold tracking-[0.08em] text-brand-dark;
+  }
+
+  /* ---- Tables: dense registry rows with hairline seams ---- */
   .table-base {
     @apply w-full text-left text-sm;
   }
 
   .table-base thead tr {
-    @apply border-b border-line/50;
+    @apply border-b border-line;
   }
 
   .table-base thead th {
-    @apply px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-muted;
+    @apply sticky top-0 z-[1] bg-white px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted;
   }
 
   .table-base tbody tr {
-    @apply border-b border-line/30 transition-colors duration-100 hover:bg-graygreen/15;
+    @apply border-b border-line transition-colors duration-100 hover:bg-raised/60;
   }
 
   .table-base tbody tr:last-child {
@@ -146,18 +182,36 @@
   }
 
   .table-base tbody td {
-    @apply px-4 py-3 align-middle;
+    @apply whitespace-nowrap px-4 py-3 align-middle;
   }
 
-  /* ---- Occupancy bar ---- */
+  /* ---- Occupancy bar with a designed ghost track ---- */
   .occupancy-bar {
-    @apply relative h-2 w-full overflow-hidden rounded-full bg-graygreen/40;
+    @apply relative h-2 w-full overflow-hidden rounded-full border border-line bg-raised;
+  }
+
+  /* ---- Inline alert ---- */
+  .alert-danger {
+    @apply flex items-start gap-2 rounded-control border border-danger/25 bg-danger-soft px-3.5 py-2.5 text-sm font-semibold text-danger;
+  }
+
+  .alert-warning {
+    @apply flex items-start gap-2 rounded-control border border-warning/25 bg-warning-soft px-3.5 py-2.5 text-sm font-semibold text-warning;
+  }
+
+  /* ---- Segmented filter ---- */
+  .segmented {
+    @apply inline-flex items-center gap-1 rounded-control border border-line bg-white p-1;
+  }
+
+  .segmented-item {
+    @apply min-h-[34px] rounded-[0.6rem] px-3.5 text-xs font-bold text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus aria-pressed:bg-brand-soft aria-pressed:text-brand-dark;
   }
 
   /* ---- Scrollbar ---- */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #b7c6c2 transparent;
+    scrollbar-color: #c9d2e3 transparent;
   }
 
   ::-webkit-scrollbar {
@@ -166,7 +220,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #b7c6c2;
+    background: #c9d2e3;
     border-radius: 9999px;
   }
 

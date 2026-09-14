@@ -22,6 +22,7 @@ document -> STOP.
 | 11 | OCR / Computer Vision (real model) | DONE |
 | 11A | Administrative configuration (zones, capacity, physical-slot inventory, gate cameras) | DONE |
 | 11C | Physical camera provisioning + vision connectivity (USB / RTSP / video file) | DONE |
+| 11D | Mobile runtime migration to Expo SDK 57 (`expo@~57.0.22`, RN 0.86.3, React 19.2) | DONE |
 | 12 | Real-Time Integration (SSE) | DONE |
 | 13 | Full System Integration (end-to-end audit + integration-defect fixes + cross-layer regression) | DONE |
 | 14 | Testing + Accuracy Evaluation (synthetic OCR benchmark, condition study, E2E latency, USB probe, full regression — `docs/vision/phase14-evaluation.md`) | DONE |

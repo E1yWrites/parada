@@ -3,9 +3,10 @@ import { Link, useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button, Input, Screen, Text } from "@/src/components";
+import { BrandMark } from "@/src/components/BrandMark";
 import { useSession } from "@/src/providers/SessionProvider";
 import { ApiError } from "@/lib/api/client";
-import { colors, spacing } from "@/src/theme";
+import { colors, fonts, radii, spacing } from "@/src/theme";
 
 export default function RegisterScreen() {
   const { signUp } = useSession();
@@ -59,17 +60,23 @@ export default function RegisterScreen() {
   };
 
   return (
-    <Screen keyboard title="Create account" eyebrow="PARADA access" testID="register-screen">
-      <View style={styles.brandRow}>
-        <Ionicons name="car-sport" size={26} color={colors.primary} />
-        <Text variant="micro" color={colors.muted}>
-          ONE APP FOR YOUR PARKING
+    <Screen keyboard back testID="register-screen">
+      <View style={styles.brand}>
+        <BrandMark />
+      </View>
+      <View style={styles.heading}>
+        <Text variant="hero">Create your account</Text>
+        <Text variant="body" color={colors.muted}>
+          Register once, then add your plates — they are your gate pass.
         </Text>
       </View>
       {error ? (
-        <Text variant="caption" color={colors.danger} accessibilityRole="alert" testID="register-error">
-          {error}
-        </Text>
+        <View style={styles.alert}>
+          <Ionicons name="alert-circle" size={18} color={colors.danger} />
+          <Text variant="caption" color={colors.danger} style={styles.alertText} accessibilityRole="alert" testID="register-error">
+            {error}
+          </Text>
+        </View>
       ) : null}
       <Input
         testID="register-name"
@@ -134,10 +141,10 @@ export default function RegisterScreen() {
         onPress={() => void handleSubmit()}
         accessibilityLabel="Create account"
       />
-      <Text variant="caption" align="center" color={colors.muted}>
+      <Text variant="caption" align="center" style={styles.footer}>
         Already have an account?{" "}
         <Link href="/login" testID="register-goto-login">
-          <Text variant="caption" color={colors.primary}>
+          <Text variant="caption" color={colors.primary} style={styles.linkText}>
             Sign in
           </Text>
         </Link>
@@ -147,9 +154,27 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  brandRow: {
+  brand: {
+    paddingTop: spacing.md,
+  },
+  heading: {
+    gap: spacing.md,
+  },
+  alert: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+  },
+  alertText: {
+    flex: 1,
+  },
+  footer: {
+    marginTop: spacing.md,
+  },
+  linkText: {
+    fontFamily: fonts.bodyBold,
   },
 });

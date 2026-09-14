@@ -1,25 +1,41 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors, radii, shadows, spacing } from "@/src/theme";
+import { colors, motion, radii, shadows, spacing } from "@/src/theme";
 
 type CardProps = {
   children: ReactNode;
   onPress?: () => void;
+  /** Optional stamp mark in a status color, drawn above the content. */
   accent?: string;
   padding?: number;
+  /** `tinted` sits on the blue-tinted raised surface without a shadow (nested content). */
+  tone?: "surface" | "tinted";
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
 
 /**
- * Soft light surface card with an optional playful top accent capsule.
- * Optional press affordance for tappable rows/cards.
+ * Soft white surface card with an optional stamp mark. Optional press
+ * affordance for tappable rows/cards.
  */
-export function Card({ children, onPress, accent, padding = spacing.xl, style, testID }: CardProps) {
-  const containerStyle = [styles.base, { padding }, style];
+export function Card({
+  children,
+  onPress,
+  accent,
+  padding = spacing.xl,
+  tone = "surface",
+  style,
+  testID,
+}: CardProps) {
+  const containerStyle = [styles.base, tone === "tinted" ? styles.tinted : undefined, { padding }, style];
   const body = (
     <>
-      {accent ? <View testID={testID ? `${testID}-accent` : undefined} style={[styles.accent, { backgroundColor: accent }]} /> : null}
+      {accent ? (
+        <View
+          testID={testID ? `${testID}-accent` : undefined}
+          style={[styles.accent, { backgroundColor: accent }]}
+        />
+      ) : null}
       {children}
     </>
   );
@@ -49,14 +65,19 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     ...shadows.card,
   },
+  tinted: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: "transparent",
+    ...shadows.none,
+  },
   accent: {
-    width: 40,
+    width: 28,
     height: 4,
     borderRadius: 2,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   pressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.99 }],
+    opacity: 0.94,
+    transform: [{ scale: motion.pressScale }],
   },
 });

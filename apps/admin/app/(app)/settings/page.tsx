@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Save } from "lucide-react";
 import { api, ApiError } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
-import { Card, SectionHeader } from "@/components/ui/Card";
+import { Card, SavedNote, SectionHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import type { EstablishmentSettings } from "@/lib/api/types";
@@ -105,11 +105,14 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Management · Runtime policy" title="Establishment Settings" description="Configure fees, guest admission, reservation windows, and violation rules." />
+      <PageHeader
+        title="Establishment Settings"
+        description="Fees, guest admission, reservation windows, navigation destination and violation rules. One save applies everything."
+      />
       <QueryBoundary status={settings.status} error={settings.error} isEmpty={false} onRetry={() => settings.refetch()}>
         <form className="grid grid-cols-1 gap-5 xl:grid-cols-2" onSubmit={submit}>
           <Card>
-            <SectionHeader eyebrow="Parking fees" title="Rate policy" />
+            <SectionHeader title="Parking fees" description="Base fee covers the base duration; extra hours are charged on top" />
             <div className="space-y-4 p-5">
               <Field label="Base fee" value={form.parkingFee.baseFee} onChange={(value) => setForm({ ...form, parkingFee: { ...form.parkingFee, baseFee: value } })} />
               <Field label="Base duration (hours)" value={form.parkingFee.baseDurationHours} onChange={(value) => setForm({ ...form, parkingFee: { ...form.parkingFee, baseDurationHours: value } })} />
@@ -117,11 +120,11 @@ export default function SettingsPage() {
             </div>
           </Card>
           <Card>
-            <SectionHeader eyebrow="Guest policy" title="Admission rules" />
+            <SectionHeader title="Guest admission" description="How unknown plates are handled at the gate" />
             <div className="space-y-4 p-5">
               <div>
                 <label htmlFor="guest-policy" className="label">Policy</label>
-                <select id="guest-policy" className="input mt-1.5" value={form.guestPolicy.policy} onChange={(e) => setForm({ ...form, guestPolicy: { ...form.guestPolicy, policy: e.target.value as EstablishmentSettings["guestPolicy"]["policy"] } })}>
+                <select id="guest-policy" className="input" value={form.guestPolicy.policy} onChange={(e) => setForm({ ...form, guestPolicy: { ...form.guestPolicy, policy: e.target.value as EstablishmentSettings["guestPolicy"]["policy"] } })}>
                   <option value="PRIMARY_ZONE">Primary zone</option>
                   <option value="DENY_WHEN_FULL">Deny when full</option>
                   <option value="ALLOW_OVERFLOW">Allow overflow policy</option>
@@ -129,7 +132,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label htmlFor="guest-zone" className="label">Primary zone</label>
-                <select id="guest-zone" className="input mt-1.5" value={form.guestPolicy.primaryZoneId ?? ""} onChange={(e) => setForm({ ...form, guestPolicy: { ...form.guestPolicy, primaryZoneId: e.target.value || null } })}>
+                <select id="guest-zone" className="input" value={form.guestPolicy.primaryZoneId ?? ""} onChange={(e) => setForm({ ...form, guestPolicy: { ...form.guestPolicy, primaryZoneId: e.target.value || null } })}>
                   <option value="">None configured</option>
                   {zones.data?.map((zone) => (
                     <option key={zone.id} value={zone.id}>{zone.code} — {zone.name}</option>
@@ -139,25 +142,24 @@ export default function SettingsPage() {
             </div>
           </Card>
           <Card>
-            <SectionHeader eyebrow="Zone defaults" title="Operational thresholds" />
+            <SectionHeader title="Zone defaults" description="Applied to every zone unless overridden" />
             <div className="space-y-4 p-5">
               <Field label="Reservation window (minutes)" value={form.zoneDefaults.maxReservationDurationMinutes} onChange={(value) => setForm({ ...form, zoneDefaults: { ...form.zoneDefaults, maxReservationDurationMinutes: value } })} />
               <Field label="Low-availability threshold (0–1)" value={form.zoneDefaults.occupancyLowThreshold} step="0.01" onChange={(value) => setForm({ ...form, zoneDefaults: { ...form.zoneDefaults, occupancyLowThreshold: value } })} />
             </div>
           </Card>
           <Card>
-            <SectionHeader eyebrow="Navigation" title="Establishment location" />
+            <SectionHeader title="Navigation destination" description="Where the mobile app sends drivers" />
             <div className="space-y-4 p-5">
               <p className="text-xs text-muted">
-                The destination the mobile app navigates drivers to. Leave the address blank to clear it — the app never
-                invents a destination.
+                Leave the address blank to clear the destination — the app never invents one.
               </p>
               <div>
                 <label htmlFor="location-address" className="label">Address</label>
                 <input
                   id="location-address"
                   type="text"
-                  className="input mt-1.5"
+                  className="input"
                   placeholder="e.g. LPU Batangas, Capitol Site"
                   value={locationForm.address}
                   onChange={(e) => setLocationForm({ ...locationForm, address: e.target.value })}
@@ -172,7 +174,7 @@ export default function SettingsPage() {
                     step="any"
                     min="-90"
                     max="90"
-                    className="input mt-1.5"
+                    className="input font-mono"
                     value={locationForm.latitude}
                     onChange={(e) => setLocationForm({ ...locationForm, latitude: e.target.value })}
                   />
@@ -185,7 +187,7 @@ export default function SettingsPage() {
                     step="any"
                     min="-180"
                     max="180"
-                    className="input mt-1.5"
+                    className="input font-mono"
                     value={locationForm.longitude}
                     onChange={(e) => setLocationForm({ ...locationForm, longitude: e.target.value })}
                   />
@@ -194,27 +196,27 @@ export default function SettingsPage() {
             </div>
           </Card>
           <Card>
-            <SectionHeader eyebrow="Violations" title="Configured rules" />
+            <SectionHeader title="Violation rules" description="Each rule needs a type, fineAmount and description" />
             <div className="space-y-3 p-5">
               <label htmlFor="violation-rules" className="label">Rules JSON</label>
-              <textarea id="violation-rules" className="input min-h-32 font-display text-xs font-bold" value={violationsText} onChange={(event) => setViolationsText(event.target.value)} aria-describedby="violation-rules-help" />
-              <p id="violation-rules-help" className="text-xs text-muted">Each rule requires type, fineAmount, and description. The backend validates the values.</p>
+              <textarea id="violation-rules" className="input font-mono text-xs" value={violationsText} onChange={(event) => setViolationsText(event.target.value)} aria-describedby="violation-rules-help" spellCheck={false} />
+              <p id="violation-rules-help" className="field-help">JSON array. The backend validates every value before saving.</p>
             </div>
           </Card>
-          <div className="flex flex-wrap items-center gap-3 xl:col-span-2">
+          <div className="card sticky bottom-4 z-20 flex flex-wrap items-center gap-3 px-5 py-3 shadow-card-hover xl:col-span-2">
             <Button type="submit" variant="primary" disabled={save.isPending}>
               <Save className="h-4 w-4" aria-hidden="true" />
               {save.isPending ? "Saving…" : "Save settings"}
             </Button>
-            {saved ? <span className="text-sm font-semibold text-emerald-600">Settings saved.</span> : null}
+            {saved ? <SavedNote>Settings saved.</SavedNote> : null}
             {validationError ? (
-              <span role="alert" className="flex items-center gap-2 text-sm font-semibold text-brand">
+              <span role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
                 <AlertCircle className="h-4 w-4" aria-hidden="true" />
                 {validationError}
               </span>
             ) : null}
             {save.error ? (
-              <span role="alert" className="flex items-center gap-2 text-sm font-semibold text-brand">
+              <span role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
                 <AlertCircle className="h-4 w-4" aria-hidden="true" />
                 {save.error instanceof ApiError ? save.error.message : "Unable to save settings."}
               </span>
@@ -227,10 +229,11 @@ export default function SettingsPage() {
 }
 
 function Field({ label, value, step = "1", onChange }: { label: string; value: number; step?: string; onChange: (value: number) => void }) {
+  const id = `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   return (
     <div>
-      <label className="label">{label}</label>
-      <input type="number" min="0" step={step} className="input mt-1.5" value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <label htmlFor={id} className="label">{label}</label>
+      <input id={id} type="number" min="0" step={step} className="input font-mono" value={value} onChange={(e) => onChange(Number(e.target.value))} />
     </div>
   );
 }

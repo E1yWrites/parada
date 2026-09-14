@@ -36,6 +36,7 @@ jest.mock("@/lib/api/client", () => {
       createReservation: jest.fn(),
       cancelReservation: jest.fn(),
       establishment: jest.fn(),
+      notifications: jest.fn().mockResolvedValue({ notifications: [], unreadCount: 0 }),
     },
   };
 });

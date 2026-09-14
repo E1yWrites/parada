@@ -1,30 +1,35 @@
-import { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import type { ComponentProps } from "react";
-import { Button, Screen, Text } from "@/src/components";
-import { colors, radii, spacing } from "@/src/theme";
+import { Button, GlassCard, Illustration, Screen, Text } from "@/src/components";
+import { BrandMark } from "@/src/components/BrandMark";
+import type { IllustrationName } from "@/src/components/Illustration";
+import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
+import { colors, motion, radii, spacing } from "@/src/theme";
 
 type Slide = {
-  icon: ComponentProps<typeof Ionicons>["name"];
+  illustration: IllustrationName;
+  wash: string;
   title: string;
   body: string;
 };
 
 const SLIDES: Slide[] = [
   {
-    icon: "grid",
+    illustration: "zones",
+    wash: colors.primary,
     title: "See what's open before you drive in.",
     body: "Live zone-level availability from gate cameras — no guessing, no circling the lot.",
   },
   {
-    icon: "time",
+    illustration: "reserve",
+    wash: colors.success,
     title: "Hold your spot.",
     body: "Reserve a zone for your arrival window so it's still there when you pull up.",
   },
   {
-    icon: "shield-checkmark",
+    illustration: "shield",
+    wash: colors.warning,
     title: "Park in your assigned zone.",
     body: "Your plate is your ID. Park outside your zone and you'll get a warning before any fine.",
   },
@@ -32,9 +37,26 @@ const SLIDES: Slide[] = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const reducedMotion = usePrefersReducedMotion();
   const [index, setIndex] = useState(0);
+  const reveal = useRef(new Animated.Value(1)).current;
   const slide = SLIDES[index]!;
   const last = index === SLIDES.length - 1;
+
+  // One authored moment: the hero card fades/slides in when the slide changes.
+  useEffect(() => {
+    if (reducedMotion) {
+      reveal.setValue(1);
+      return;
+    }
+    reveal.setValue(0);
+    Animated.timing(reveal, {
+      toValue: 1,
+      duration: motion.duration.base,
+      easing: motion.easing.out,
+      useNativeDriver: true,
+    }).start();
+  }, [index, reducedMotion, reveal]);
 
   function next() {
     if (last) {
@@ -46,28 +68,44 @@ export default function OnboardingScreen() {
 
   return (
     <Screen scroll={false} testID="onboarding-screen">
-      {!last ? (
-        <Button
-          variant="ghost"
-          title="Skip"
-          onPress={() => router.replace("/login")}
-          accessibilityLabel="Skip onboarding"
-          testID="onboarding-skip"
-        />
-      ) : null}
-      <View style={styles.body}>
-        <View style={styles.iconWrap}>
-          <Ionicons name={slide.icon} size={44} color={colors.primary} />
-        </View>
-        <Text variant="hero" align="center" testID="onboarding-title">
-          {slide.title}
-        </Text>
-        <Text variant="body" align="center" color={colors.muted}>
-          {slide.body}
-        </Text>
+      <View style={styles.topRow}>
+        <BrandMark size={36} />
+        {!last ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            title="Skip"
+            onPress={() => router.replace("/login")}
+            accessibilityLabel="Skip onboarding"
+            testID="onboarding-skip"
+          />
+        ) : null}
       </View>
+
+      <View style={styles.body}>
+        <Animated.View
+          style={{
+            opacity: reveal,
+            transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+          }}>
+          <GlassCard wash={slide.wash} style={styles.hero} padding={spacing.xl3}>
+            <View style={styles.art}>
+              <Illustration name={slide.illustration} size={168} />
+            </View>
+            <View style={styles.copy}>
+              <Text variant="hero" testID="onboarding-title">
+                {slide.title}
+              </Text>
+              <Text variant="body" color={colors.muted}>
+                {slide.body}
+              </Text>
+            </View>
+          </GlassCard>
+        </Animated.View>
+      </View>
+
       <View style={styles.footer}>
-        <View style={styles.dots} testID="onboarding-dots">
+        <View style={styles.dots} testID="onboarding-dots" accessibilityLabel={`Step ${index + 1} of ${SLIDES.length}`}>
           {SLIDES.map((_, i) => (
             <View key={i} style={[styles.dot, i === index ? styles.dotActive : undefined]} />
           ))}
@@ -84,20 +122,25 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 44,
+  },
   body: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xl2,
-    paddingHorizontal: spacing.xl,
   },
-  iconWrap: {
-    width: 96,
-    height: 96,
-    borderRadius: radii.xl,
-    backgroundColor: colors.surfaceElevated,
+  hero: {
+    gap: spacing.xl3,
+  },
+  art: {
     alignItems: "center",
-    justifyContent: "center",
+    paddingVertical: spacing.xl,
+  },
+  copy: {
+    gap: spacing.lg,
   },
   footer: {
     gap: spacing.xl2,
@@ -106,16 +149,16 @@ const styles = StyleSheet.create({
   dots: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: colors.border,
+    width: 8,
+    height: 8,
+    borderRadius: radii.full,
+    backgroundColor: "rgba(15, 27, 45, 0.15)",
   },
   dotActive: {
-    width: 16,
+    width: 24,
     backgroundColor: colors.primary,
   },
 });

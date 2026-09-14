@@ -6,7 +6,7 @@ import { api, ApiError } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { Pill } from "@/components/ui/Badge";
+import { DotPill, PlateChip } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import type { AdminAppeal } from "@/lib/api/types";
 
@@ -25,7 +25,7 @@ export default function AppealsPage() {
       cell: (a) => (
         <div>
           <p className="text-sm font-semibold text-charcoal">{a.user?.name ?? "Unknown user"}</p>
-          <p className="max-w-xs break-words text-xs text-muted">{a.reason}</p>
+          <p className="max-w-xs whitespace-normal break-words text-xs text-muted">{a.reason}</p>
         </div>
       ),
     },
@@ -34,8 +34,8 @@ export default function AppealsPage() {
       header: "Violation",
       cell: (a) => (
         <div>
-          <p className="font-display text-sm font-black text-charcoal">{a.violation?.vehicle?.plateNumber ?? "—"}</p>
-          <p className="text-xs text-muted">{a.violation?.zone.code ?? "—"}</p>
+          <p className="font-mono text-sm font-bold text-charcoal">{a.violation?.vehicle?.plateNumber ?? "—"}</p>
+          <p className="mt-1">{a.violation?.zone.code ? <PlateChip soft>{a.violation.zone.code}</PlateChip> : <span className="text-xs text-muted">—</span>}</p>
         </div>
       ),
     },
@@ -43,17 +43,19 @@ export default function AppealsPage() {
       key: "status",
       header: "Status",
       cell: (a) => (
-        <div className="flex flex-wrap items-center gap-2">
-          <Pill tone={a.status === "PENDING" ? "warn" : a.status === "APPROVED" ? "success" : "danger"}>{a.status}</Pill>
+        <div className="flex flex-wrap items-center gap-3">
+          <DotPill tone={a.status === "PENDING" ? "warn" : a.status === "APPROVED" ? "success" : "danger"}>
+            {a.status === "PENDING" ? "Pending" : a.status === "APPROVED" ? "Approved" : "Rejected"}
+          </DotPill>
           {a.status === "PENDING" ? (
-            <>
-              <Button variant="secondary" className="min-h-[36px] px-4 text-xs" onClick={() => review.mutate({ id: a.id, status: "APPROVED" })} disabled={review.isPending}>
+            <span className="flex items-center gap-2">
+              <Button variant="success" size="sm" onClick={() => review.mutate({ id: a.id, status: "APPROVED" })} disabled={review.isPending}>
                 Approve
               </Button>
-              <Button variant="ghost" className="min-h-[36px] px-4 text-xs" onClick={() => review.mutate({ id: a.id, status: "REJECTED" })} disabled={review.isPending}>
+              <Button variant="danger" size="sm" onClick={() => review.mutate({ id: a.id, status: "REJECTED" })} disabled={review.isPending}>
                 Reject
               </Button>
-            </>
+            </span>
           ) : null}
         </div>
       ),
@@ -63,13 +65,12 @@ export default function AppealsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Management · Reviews"
         title="Appeals"
-        description="Review user appeals against establishment-defined parking violations."
+        description="Driver appeals against violations. Approving dismisses the fine; rejecting upholds it."
       />
       {review.error ? (
-        <p role="alert" className="mb-4 flex items-center gap-2 rounded-panel border border-brand/25 bg-brand-soft px-3.5 py-2.5 text-sm font-semibold text-brand">
-          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <p role="alert" className="alert-danger mb-4">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           {review.error instanceof ApiError ? review.error.message : "Unable to review appeal."}
         </p>
       ) : null}
@@ -81,7 +82,7 @@ export default function AppealsPage() {
         loadingRows={5}
         onRetry={() => query.refetch()}
       >
-        <DataTable columns={columns} rows={query.data ?? []} rowKey={(a) => a.id} />
+        <DataTable columns={columns} rows={query.data ?? []} rowKey={(a) => a.id} caption="Appeals" />
       </QueryBoundary>
     </div>
   );

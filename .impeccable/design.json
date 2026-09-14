@@ -1,0 +1,603 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-14T06:45:59.800Z",
+  "title": "Design System: PARADA",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "oklch(97.3% 0.007 268.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.007 268.5)",
+          "oklch(25.0% 0.007 268.5)",
+          "oklch(37.0% 0.007 268.5)",
+          "oklch(49.0% 0.007 268.5)",
+          "oklch(61.0% 0.007 268.5)",
+          "oklch(73.0% 0.007 268.5)",
+          "oklch(85.0% 0.007 268.5)",
+          "oklch(95.0% 0.007 268.5)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.000 89.9)",
+          "oklch(25.0% 0.000 89.9)",
+          "oklch(37.0% 0.000 89.9)",
+          "oklch(49.0% 0.000 89.9)",
+          "oklch(61.0% 0.000 89.9)",
+          "oklch(73.0% 0.000 89.9)",
+          "oklch(85.0% 0.000 89.9)",
+          "oklch(95.0% 0.000 89.9)"
+        ]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised",
+        "canonical": "oklch(96.0% 0.012 264.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.012 264.5)",
+          "oklch(25.0% 0.012 264.5)",
+          "oklch(37.0% 0.012 264.5)",
+          "oklch(49.0% 0.012 264.5)",
+          "oklch(61.0% 0.012 264.5)",
+          "oklch(73.0% 0.012 264.5)",
+          "oklch(85.0% 0.012 264.5)",
+          "oklch(95.0% 0.012 264.5)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(22.1% 0.039 258.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.039 258.3)",
+          "oklch(25.0% 0.039 258.3)",
+          "oklch(37.0% 0.039 258.3)",
+          "oklch(49.0% 0.039 258.3)",
+          "oklch(61.0% 0.039 258.3)",
+          "oklch(73.0% 0.039 258.3)",
+          "oklch(85.0% 0.039 258.3)",
+          "oklch(95.0% 0.039 258.3)"
+        ]
+      },
+      "slate": {
+        "role": "neutral",
+        "displayName": "Slate",
+        "canonical": "oklch(52.3% 0.041 257.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.041 257.4)",
+          "oklch(25.0% 0.041 257.4)",
+          "oklch(37.0% 0.041 257.4)",
+          "oklch(49.0% 0.041 257.4)",
+          "oklch(61.0% 0.041 257.4)",
+          "oklch(73.0% 0.041 257.4)",
+          "oklch(85.0% 0.041 257.4)",
+          "oklch(95.0% 0.041 257.4)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(93.0% 0.013 262.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.013 262.4)",
+          "oklch(25.0% 0.013 262.4)",
+          "oklch(37.0% 0.013 262.4)",
+          "oklch(49.0% 0.013 262.4)",
+          "oklch(61.0% 0.013 262.4)",
+          "oklch(73.0% 0.013 262.4)",
+          "oklch(85.0% 0.013 262.4)",
+          "oklch(95.0% 0.013 262.4)"
+        ]
+      },
+      "electric-blue": {
+        "role": "primary",
+        "displayName": "Electric Blue",
+        "canonical": "oklch(55.3% 0.247 263.6)",
+        "tonalRamp": [
+          "oklch(15.0% 0.165 263.6)",
+          "oklch(25.0% 0.246 263.6)",
+          "oklch(37.0% 0.247 263.6)",
+          "oklch(49.0% 0.247 263.6)",
+          "oklch(61.0% 0.247 263.6)",
+          "oklch(73.0% 0.247 263.6)",
+          "oklch(85.0% 0.165 263.6)",
+          "oklch(95.0% 0.070 263.6)"
+        ]
+      },
+      "electric-blue-deep": {
+        "role": "primary",
+        "displayName": "Electric Blue Deep",
+        "canonical": "oklch(45.8% 0.209 263.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.165 263.9)",
+          "oklch(25.0% 0.209 263.9)",
+          "oklch(37.0% 0.209 263.9)",
+          "oklch(49.0% 0.209 263.9)",
+          "oklch(61.0% 0.209 263.9)",
+          "oklch(73.0% 0.209 263.9)",
+          "oklch(85.0% 0.165 263.9)",
+          "oklch(95.0% 0.070 263.9)"
+        ]
+      },
+      "electric-blue-soft": {
+        "role": "primary",
+        "displayName": "Electric Blue Soft",
+        "canonical": "oklch(95.2% 0.023 266.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.023 266.9)",
+          "oklch(25.0% 0.023 266.9)",
+          "oklch(37.0% 0.023 266.9)",
+          "oklch(49.0% 0.023 266.9)",
+          "oklch(61.0% 0.023 266.9)",
+          "oklch(73.0% 0.023 266.9)",
+          "oklch(85.0% 0.023 266.9)",
+          "oklch(95.0% 0.023 266.9)"
+        ]
+      },
+      "coral": {
+        "role": "secondary",
+        "displayName": "Coral",
+        "canonical": "oklch(58.3% 0.202 27.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.165 27.4)",
+          "oklch(25.0% 0.202 27.4)",
+          "oklch(37.0% 0.202 27.4)",
+          "oklch(49.0% 0.202 27.4)",
+          "oklch(61.0% 0.202 27.4)",
+          "oklch(73.0% 0.202 27.4)",
+          "oklch(85.0% 0.165 27.4)",
+          "oklch(95.0% 0.070 27.4)"
+        ]
+      },
+      "coral-soft": {
+        "role": "secondary",
+        "displayName": "Coral Soft",
+        "canonical": "oklch(95.0% 0.022 21.0)",
+        "tonalRamp": [
+          "oklch(15.0% 0.022 21.0)",
+          "oklch(25.0% 0.022 21.0)",
+          "oklch(37.0% 0.022 21.0)",
+          "oklch(49.0% 0.022 21.0)",
+          "oklch(61.0% 0.022 21.0)",
+          "oklch(73.0% 0.022 21.0)",
+          "oklch(85.0% 0.022 21.0)",
+          "oklch(95.0% 0.022 21.0)"
+        ]
+      },
+      "mint": {
+        "role": "secondary",
+        "displayName": "Mint",
+        "canonical": "oklch(52.7% 0.120 157.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.120 157.9)",
+          "oklch(25.0% 0.120 157.9)",
+          "oklch(37.0% 0.120 157.9)",
+          "oklch(49.0% 0.120 157.9)",
+          "oklch(61.0% 0.120 157.9)",
+          "oklch(73.0% 0.120 157.9)",
+          "oklch(85.0% 0.120 157.9)",
+          "oklch(95.0% 0.070 157.9)"
+        ]
+      },
+      "mint-soft": {
+        "role": "secondary",
+        "displayName": "Mint Soft",
+        "canonical": "oklch(95.5% 0.026 165.7)",
+        "tonalRamp": [
+          "oklch(15.0% 0.026 165.7)",
+          "oklch(25.0% 0.026 165.7)",
+          "oklch(37.0% 0.026 165.7)",
+          "oklch(49.0% 0.026 165.7)",
+          "oklch(61.0% 0.026 165.7)",
+          "oklch(73.0% 0.026 165.7)",
+          "oklch(85.0% 0.026 165.7)",
+          "oklch(95.0% 0.026 165.7)"
+        ]
+      },
+      "mint-bright": {
+        "role": "secondary",
+        "displayName": "Mint Bright",
+        "canonical": "oklch(69.4% 0.156 158.8)",
+        "tonalRamp": [
+          "oklch(15.0% 0.156 158.8)",
+          "oklch(25.0% 0.156 158.8)",
+          "oklch(37.0% 0.156 158.8)",
+          "oklch(49.0% 0.156 158.8)",
+          "oklch(61.0% 0.156 158.8)",
+          "oklch(73.0% 0.156 158.8)",
+          "oklch(85.0% 0.156 158.8)",
+          "oklch(95.0% 0.070 158.8)"
+        ]
+      },
+      "amber": {
+        "role": "secondary",
+        "displayName": "Amber",
+        "canonical": "oklch(55.1% 0.124 63.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.124 63.5)",
+          "oklch(25.0% 0.124 63.5)",
+          "oklch(37.0% 0.124 63.5)",
+          "oklch(49.0% 0.124 63.5)",
+          "oklch(61.0% 0.124 63.5)",
+          "oklch(73.0% 0.124 63.5)",
+          "oklch(85.0% 0.124 63.5)",
+          "oklch(95.0% 0.070 63.5)"
+        ]
+      },
+      "amber-soft": {
+        "role": "secondary",
+        "displayName": "Amber Soft",
+        "canonical": "oklch(96.7% 0.034 84.6)",
+        "tonalRamp": [
+          "oklch(15.0% 0.034 84.6)",
+          "oklch(25.0% 0.034 84.6)",
+          "oklch(37.0% 0.034 84.6)",
+          "oklch(49.0% 0.034 84.6)",
+          "oklch(61.0% 0.034 84.6)",
+          "oklch(73.0% 0.034 84.6)",
+          "oklch(85.0% 0.034 84.6)",
+          "oklch(95.0% 0.034 84.6)"
+        ]
+      },
+      "amber-bright": {
+        "role": "secondary",
+        "displayName": "Amber Bright",
+        "canonical": "oklch(78.2% 0.158 72.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.158 72.3)",
+          "oklch(25.0% 0.158 72.3)",
+          "oklch(37.0% 0.158 72.3)",
+          "oklch(49.0% 0.158 72.3)",
+          "oklch(61.0% 0.158 72.3)",
+          "oklch(73.0% 0.158 72.3)",
+          "oklch(85.0% 0.158 72.3)",
+          "oklch(95.0% 0.070 72.3)"
+        ]
+      },
+      "on-accent": {
+        "role": "neutral",
+        "displayName": "On Accent",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.000 89.9)",
+          "oklch(25.0% 0.000 89.9)",
+          "oklch(37.0% 0.000 89.9)",
+          "oklch(49.0% 0.000 89.9)",
+          "oklch(61.0% 0.000 89.9)",
+          "oklch(73.0% 0.000 89.9)",
+          "oklch(85.0% 0.000 89.9)",
+          "oklch(95.0% 0.000 89.9)"
+        ]
+      },
+      "hairline-alpha": {
+        "role": "neutral",
+        "displayName": "Hairline (alpha, mobile)",
+        "canonical": "rgba(15, 27, 45, 0.08)",
+        "tonalRamp": [
+          "oklch(15.0% 0.013 262.4)",
+          "oklch(25.0% 0.013 262.4)",
+          "oklch(37.0% 0.013 262.4)",
+          "oklch(49.0% 0.013 262.4)",
+          "oklch(61.0% 0.013 262.4)",
+          "oklch(73.0% 0.013 262.4)",
+          "oklch(85.0% 0.013 262.4)",
+          "oklch(95.0% 0.013 262.4)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hero numbers only: elapsed clock, free-space count; admin facility-strip figure (900, 28px)."
+      },
+      "hero": {
+        "displayName": "Hero",
+        "purpose": "Mobile screen titles and the pass card's zone name; admin page titles (900, 28px/30px, -0.02em)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles: zone name on a lane card, vehicle, session."
+      },
+      "section": {
+        "displayName": "Section",
+        "purpose": "Mobile section headers; admin panel headers (900, 16px, tracking-tight)."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text; button labels use the 600 cut. Admin body is 14px."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Descriptions, hints, timestamps in prose; slate."
+      },
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "Uppercase field labels, data-value labels, table column headers, nav group labels. Above values, fields, columns; never above a heading."
+      },
+      "plate": {
+        "displayName": "Plate",
+        "purpose": "Plate numbers and mono plate inputs; JetBrains Mono 700, +1.5px, tabular."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Zone codes in plate chips, camera ids, occupancy figures, table timestamps; identifiers and machine values only."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card-mobile",
+        "value": "0 8px 20px rgba(15, 27, 45, 0.07)",
+        "purpose": "Every white card at rest on mobile (Android elevation 3)."
+      },
+      {
+        "name": "card-admin",
+        "value": "0 8px 24px -8px rgba(15, 27, 45, 0.08), 0 1px 2px rgba(15, 27, 45, 0.04)",
+        "purpose": "Registry panels at rest."
+      },
+      {
+        "name": "card-hover",
+        "value": "0 14px 32px -10px rgba(15, 27, 45, 0.14), 0 1px 2px rgba(15, 27, 45, 0.04)",
+        "purpose": "Tappable admin panels on hover, 200ms."
+      },
+      {
+        "name": "pill-chrome",
+        "value": "0 12px 28px rgba(15, 27, 45, 0.14)",
+        "purpose": "The floating mobile tab bar only (Android elevation 10)."
+      },
+      {
+        "name": "primary-glow-mobile",
+        "value": "0 8px 16px rgba(30, 94, 255, 0.28)",
+        "purpose": "The one filled primary button; the selected choice chip uses 0 6px 12px at 22%."
+      },
+      {
+        "name": "primary-glow-admin",
+        "value": "0 8px 18px -8px rgba(30, 94, 255, 0.55)",
+        "purpose": "The one filled primary button."
+      },
+      {
+        "name": "focus-ring",
+        "value": "0 0 0 3px rgba(30, 94, 255, 0.25)",
+        "purpose": "Admin keyboard focus on buttons, inputs, segmented items; mobile focused inputs use 0 0 6px blue at 18%."
+      }
+    ],
+    "motion": [
+      {
+        "name": "duration-fast",
+        "value": "120ms",
+        "purpose": "Press feedback, chip toggles (mobile); admin buttons and inputs transition at 150ms."
+      },
+      {
+        "name": "duration-base",
+        "value": "220ms",
+        "purpose": "Card reveals, stamp landing, admin fade-in."
+      },
+      {
+        "name": "duration-slow",
+        "value": "1200ms",
+        "purpose": "Mobile live pulse cycle."
+      },
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.33, 1, 0.68, 1)",
+        "purpose": "Mobile default (Easing.out(Easing.cubic))."
+      },
+      {
+        "name": "ease-admin",
+        "value": "cubic-bezier(0.2, 0.8, 0.2, 1)",
+        "purpose": "Admin fade-in (4px rise, 220ms)."
+      },
+      {
+        "name": "spring-stamp",
+        "value": "friction 6, tension 120, scale 0.92 -> 1",
+        "purpose": "Pass-card stamp landing; skipped under reduced motion."
+      },
+      {
+        "name": "press-scale",
+        "value": "0.98",
+        "purpose": "Pressed cards and buttons on both surfaces."
+      },
+      {
+        "name": "pulse-dot",
+        "value": "opacity 1 -> 0.35, 2s ease-in-out infinite",
+        "purpose": "Live indicator dot in admin pills and header."
+      },
+      {
+        "name": "saved-fade",
+        "value": "3.2s ease-out: slide -4px -> 0, hold, fade out",
+        "purpose": "Inline 'Saved' check beside a panel's action."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      },
+      {
+        "name": "admin-sidebar-rail",
+        "value": "1024px (lg): 240px fixed rail; below it a 288px drawer"
+      },
+      {
+        "name": "admin-main-max",
+        "value": "88rem"
+      },
+      {
+        "name": "mobile-first-viewport",
+        "value": "390x844; lane cards 2-up on wide phones, 1-up on narrow"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one filled electric-blue action per screen or form; blue glow, deep blue on hover/press, 0.98 press scale.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Navigate to zone</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:14px;font-family: Nunito, system-ui, sans-serif;font-size:14px;font-weight:700;border:1px solid transparent;cursor:pointer;transition:all .15s}.ds-btn:active{transform:scale(.98)}.ds-btn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(30,94,255,.25)}.ds-btn:disabled{opacity:.5;cursor:not-allowed}.ds-btn-primary{background:#1E5EFF;color:#fff;box-shadow:0 8px 18px -8px rgba(30,94,255,.55)}.ds-btn-primary:hover{background:#1546C9}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "White with a hairline border for every non-primary action; hover goes raised.",
+      "html": "<button class=\"ds-btn ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:14px;font-family: Nunito, system-ui, sans-serif;font-size:14px;font-weight:700;border:1px solid transparent;cursor:pointer;transition:all .15s}.ds-btn:active{transform:scale(.98)}.ds-btn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(30,94,255,.25)}.ds-btn:disabled{opacity:.5;cursor:not-allowed}.ds-btn-secondary{background:#fff;color:#0F1B2D;border-color:#E3E8F1}.ds-btn-secondary:hover{background:#EEF2FA;border-color:rgba(15,27,45,.2)}"
+    },
+    {
+      "name": "Danger Button (outlined)",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive actions are outlined coral on white, never filled, and sit apart from the primary action.",
+      "html": "<button class=\"ds-btn ds-btn-danger\">Deactivate zone</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:14px;font-family: Nunito, system-ui, sans-serif;font-size:14px;font-weight:700;border:1px solid transparent;cursor:pointer;transition:all .15s}.ds-btn:active{transform:scale(.98)}.ds-btn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(30,94,255,.25)}.ds-btn:disabled{opacity:.5;cursor:not-allowed}.ds-btn-danger{background:#fff;color:#D9342F;border-color:rgba(217,52,47,.3)}.ds-btn-danger:hover{background:#FDE9E8}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Transparent blue-text action for tertiary links inside panels; hover washes blue-soft.",
+      "html": "<button class=\"ds-btn ds-btn-ghost\">View history</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:14px;font-family: Nunito, system-ui, sans-serif;font-size:14px;font-weight:700;border:1px solid transparent;cursor:pointer;transition:all .15s}.ds-btn:active{transform:scale(.98)}.ds-btn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(30,94,255,.25)}.ds-btn:disabled{opacity:.5;cursor:not-allowed}.ds-btn-ghost{background:transparent;color:#1E5EFF}.ds-btn-ghost:hover{background:#E8EFFF}"
+    },
+    {
+      "name": "Input with field label",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Micro uppercase slate label above a white 1.5px-hairline field; focus turns the border blue with a 3px blue ring; caret is blue; mono variant for plates.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-label\">Plate number</span><input class=\"ds-input ds-input-mono\" placeholder=\"ABC 1234\" value=\"NBC 4821\"/><span class=\"ds-help\">As printed on the plate.</span></label>",
+      "css": ".ds-field{display:block;max-width:320px;font-family: Nunito, system-ui, sans-serif;}.ds-label{display:block;margin-bottom:6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#5B6B82}.ds-input{width:100%;min-height:44px;padding:8px 16px;border:1.5px solid #E3E8F1;border-radius:14px;background:#fff;color:#0F1B2D;font-size:15px;font-weight:500;caret-color:#1E5EFF;transition:border-color .15s,box-shadow .15s}.ds-input::placeholder{color:rgba(91,107,130,.8);font-weight:400}.ds-input:focus-visible{outline:none;border-color:#1E5EFF;box-shadow:0 0 0 3px rgba(30,94,255,.25)}.ds-input:disabled{background:#EEF2FA;color:#5B6B82}.ds-input-mono{font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;font-weight:700;letter-spacing:1.5px;font-variant-numeric:tabular-nums}.ds-help{display:block;margin-top:6px;font-size:12px;color:#5B6B82}"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "status-pill",
+      "description": "A stamp, never color alone: icon or dot plus label, family text on family soft fill; live states pulse the dot.",
+      "html": "<div style=\"display:flex;gap:8px;flex-wrap:wrap\"><span class=\"ds-pill ds-pill-available\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg>Available</span><span class=\"ds-pill ds-pill-low\"><i class=\"ds-dot\"></i>Low availability</span><span class=\"ds-pill ds-pill-full\"><i class=\"ds-dot\"></i>Full</span><span class=\"ds-pill ds-pill-active\"><i class=\"ds-dot ds-dot-live\"></i>Active</span><span class=\"ds-pill ds-pill-neutral\"><i class=\"ds-dot\"></i>Offline</span></div>",
+      "css": ".ds-pill{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:2px 10px;border-radius:999px;font-family: Nunito, system-ui, sans-serif;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}.ds-pill svg{width:14px;height:14px}.ds-dot{width:6px;height:6px;border-radius:999px;background:currentColor}.ds-pill-available{background:#E1F6EC;color:#0B7F4F}.ds-pill-low{background:#FFF3DB;color:#A35F04}.ds-pill-low .ds-dot{background:#F5A524}.ds-pill-full{background:#FDE9E8;color:#D9342F}.ds-pill-active{background:#E8EFFF;color:#1546C9}.ds-pill-active .ds-dot{background:#1E5EFF}.ds-pill-neutral{background:#EEF2FA;color:#5B6B82}.ds-dot-live{animation:ds-pulse 2s ease-in-out infinite}@keyframes ds-pulse{0%,100%{opacity:1}50%{opacity:.35}}@media(prefers-reduced-motion:reduce){.ds-dot-live{animation:none}}"
+    },
+    {
+      "name": "Plate Chip",
+      "kind": "chip",
+      "refersTo": "plate-chip",
+      "description": "Identifiers only (plates, zone codes, camera ids): ink fill, white JetBrains Mono, near-square corners; soft tone for secondary rows.",
+      "html": "<div style=\"display:flex;gap:8px;align-items:center\"><span class=\"ds-plate\">NBC 4821</span><span class=\"ds-plate ds-plate-soft\">ZN-A2</span></div>",
+      "css": ".ds-plate{display:inline-flex;align-items:center;padding:2px 8px;border-radius:8px;background:#0F1B2D;color:#fff;font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;font-size:12px;font-weight:700;letter-spacing:.08em;font-variant-numeric:tabular-nums}.ds-plate-soft{background:#E8EFFF;color:#1546C9}"
+    },
+    {
+      "name": "Registry Panel",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The bounded white panel: 20px corners, hairline border, ink-tinted panel-level shadow, header rule, seams inside, one filled action at the end.",
+      "html": "<section class=\"ds-panel\"><header class=\"ds-panel-head\"><h3>Zone A2 configuration</h3><p>Capacity, fees and camera mapping for this lane.</p></header><div class=\"ds-panel-row\"><span class=\"ds-panel-k\">Capacity</span><span class=\"ds-panel-v\">48</span></div><div class=\"ds-panel-row\"><span class=\"ds-panel-k\">Occupied</span><span class=\"ds-panel-v\">31</span></div><footer class=\"ds-panel-foot\"><button class=\"ds-btn ds-btn-primary\">Save changes</button></footer></section>",
+      "css": ".ds-panel{max-width:420px;border-radius:20px;border:1px solid #E3E8F1;background:#fff;box-shadow:0 8px 24px -8px rgba(15,27,45,.08),0 1px 2px rgba(15,27,45,.04);font-family: Nunito, system-ui, sans-serif;color:#0F1B2D;transition:box-shadow .2s}.ds-panel:hover{box-shadow:0 14px 32px -10px rgba(15,27,45,.14),0 1px 2px rgba(15,27,45,.04)}.ds-panel-head{padding:16px 20px;border-bottom:1px solid #E3E8F1}.ds-panel-head h3{margin:0;font-size:16px;font-weight:900;letter-spacing:-.02em}.ds-panel-head p{margin:4px 0 0;font-size:12px;color:#5B6B82}.ds-panel-row{display:flex;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #E3E8F1;font-size:14px}.ds-panel-k{color:#5B6B82;font-weight:600}.ds-panel-v{font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;font-weight:700;font-variant-numeric:tabular-nums}.ds-panel-foot{display:flex;justify-content:flex-end;padding:16px 20px}.ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:14px;font-family: Nunito, system-ui, sans-serif;font-size:14px;font-weight:700;border:1px solid transparent;cursor:pointer;transition:all .15s}.ds-btn:active{transform:scale(.98)}.ds-btn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(30,94,255,.25)}.ds-btn:disabled{opacity:.5;cursor:not-allowed}.ds-btn-primary{background:#1E5EFF;color:#fff;box-shadow:0 8px 18px -8px rgba(30,94,255,.55)}.ds-btn-primary:hover{background:#1546C9}"
+    },
+    {
+      "name": "Capacity Bar",
+      "kind": "custom",
+      "refersTo": "occupancy-bar",
+      "description": "Designed ghost track: 8px round raised track with a hairline border, status-colored fill, numbers in mono beside it.",
+      "html": "<div class=\"ds-cap\"><span class=\"ds-cap-label\">Occupancy</span><div class=\"ds-cap-track\"><div class=\"ds-cap-fill\" style=\"width:65%\"></div></div><span class=\"ds-cap-num\">31 of 48 &middot; 65%</span></div>",
+      "css": ".ds-cap{display:grid;gap:6px;max-width:320px;font-family: Nunito, system-ui, sans-serif;}.ds-cap-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#5B6B82}.ds-cap-track{position:relative;height:8px;width:100%;overflow:hidden;border-radius:999px;border:1px solid #E3E8F1;background:#EEF2FA}.ds-cap-fill{height:100%;border-radius:999px;background:#F5A524;transition:width .22s cubic-bezier(.2,.8,.2,1)}.ds-cap-num{font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;font-size:13px;font-weight:500;color:#0F1B2D;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "White rail item, slate 600 text, 14px corners; active is blue-soft with deep-blue text and a 6px blue dot. No shadow.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item\" href=\"#\">Dashboard</a><a class=\"ds-nav-item ds-nav-active\" href=\"#\" aria-current=\"page\">Zones<i class=\"ds-nav-dot\"></i></a><a class=\"ds-nav-item\" href=\"#\">Cameras</a></nav>",
+      "css": ".ds-nav{display:grid;gap:2px;width:240px;padding:8px;background:#fff;border-right:1px solid #E3E8F1;font-family: Nunito, system-ui, sans-serif;}.ds-nav-item{display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px;border-radius:14px;color:#5B6B82;font-size:14px;font-weight:600;text-decoration:none;transition:background .15s,color .15s}.ds-nav-item:hover{background:#EEF2FA;color:#0F1B2D}.ds-nav-item:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(30,94,255,.25)}.ds-nav-active,.ds-nav-active:hover{background:#E8EFFF;color:#1546C9}.ds-nav-dot{width:6px;height:6px;border-radius:999px;background:#1E5EFF}"
+    },
+    {
+      "name": "Segmented Filter",
+      "kind": "chip",
+      "refersTo": "segmented",
+      "description": "Pick-one filter: white hairline container with 4px padding; pressed item is blue-soft with deep-blue text.",
+      "html": "<div class=\"ds-seg\" role=\"group\"><button class=\"ds-seg-item\" aria-pressed=\"true\">All</button><button class=\"ds-seg-item\">Active</button><button class=\"ds-seg-item\">Completed</button></div>",
+      "css": ".ds-seg{display:inline-flex;align-items:center;gap:4px;padding:4px;border-radius:14px;border:1px solid #E3E8F1;background:#fff;font-family: Nunito, system-ui, sans-serif;}.ds-seg-item{min-height:34px;padding:0 14px;border:0;border-radius:9.6px;background:transparent;color:#5B6B82;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s,color .15s}.ds-seg-item:hover{background:#EEF2FA;color:#0F1B2D}.ds-seg-item:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(30,94,255,.25)}.ds-seg-item[aria-pressed=\"true\"]{background:#E8EFFF;color:#1546C9}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Campus Gate Pass",
+    "overview": "PARADA is a zone-based campus parking system with two surfaces in one world: a driver app (Expo/React Native) and an operations console (Next.js). The world is a laminated gate pass: a white card on a cool blue-grey ground, slate ink for everything that is read, one electric-blue action, and the driver's plate set in monospace like the literal thing painted on the gate. Parking state is never inferred from color alone; it is a stamp (icon + label + tinted band) that the backend confirms.\n\nThe driver surface leads with one large rounded pass card that states the current state (parked / assigned / reserved / none), and zones read as gate lanes with live counts. The admin surface is a registry, not a dashboard: every editable record is a bounded white panel with a header rule, hairline seams inside, and its save action alone at the end. Both refuse the category defaults (map-with-pins plus slot grid; wall of same-size metric cards; glassy marketing shell).\n\nThe build landed darker than the direction contract asked for. The contract named coral #F04E4E, mint #12A66A, amber #E59A0B and radii 12/16/24/32; the shipped status tokens are #D9342F, #0B7F4F, #A35F04, chosen so every status color reaches 4.5:1 as text on white; mobile radii follow the contract (12/16/24/32) while admin keeps 20px panels / 14px controls. This file records the build.",
+    "keyCharacteristics": [
+      "Slate ink (#0F1B2D) on cool off-white (#F4F6FB); pure white surfaces; blue-tinted raised surface for tracks and chips.",
+      "Electric blue is the single brand accent and the one filled action per screen or form.",
+      "Four status families (blue active, mint available, amber low/pending, coral full/danger), each a full-strength text color plus a soft fill, always paired with an icon or dot and a label.",
+      "Nunito 900/800 for headings and hero numbers, Nunito 400-700 for UI; JetBrains Mono strictly for plates, zone codes, camera ids and timestamps.",
+      "Soft ink-tinted offset shadows at panel level only; hairline seams inside panels; frosted chrome limited to the mobile tab bar and pass cards.",
+      "Tabular numerals everywhere; a designed ghost track under every capacity bar."
+    ],
+    "rules": [
+      {
+        "name": "The One Filled Button Rule",
+        "body": "Exactly one filled electric-blue button per screen (mobile) or per form/panel (admin). Every other action is outlined, ghost, or a tinted pill; a second filled blue button on the same surface is a defect.",
+        "section": "colors"
+      },
+      {
+        "name": "The Stamp Rule",
+        "body": "A status is never color alone. Every status pill, badge, and pass-card stamp carries an icon or a dot plus a label, in the family's full-strength hue on its soft fill. Bright variants (`mint-bright`, `amber-bright`) fill bars and dots only.",
+        "section": "colors"
+      },
+      {
+        "name": "The Isolated Destructive Rule",
+        "body": "Destructive actions (Deactivate, Revoke, Delete, Sign out) are outlined coral on white, never filled, and sit apart from the primary action rather than beside it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mono-Is-Data Rule",
+        "body": "JetBrains Mono appears only on identifiers and machine values: plates, zone codes, camera ids, timestamps, counts. Never on labels, headings, or prose.",
+        "section": "typography"
+      },
+      {
+        "name": "The No-Eyebrow Rule",
+        "body": "Headings carry their own weight. Nothing sits above a page title, section header, or panel header. A micro uppercase label may sit above a value, a field, or a column, and the pass card's stamp (icon + micro label in a status hue) may sit above the zone name because it is the card's state, not an introduction.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "Every number that can change sets in tabular numerals so counters tick in place and columns align.",
+        "section": "typography"
+      },
+      {
+        "name": "The Panel-Level Shadow Rule",
+        "body": "Only the outermost white surface casts a shadow. Inside it, depth is drawn with hairlines and the raised tint.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do put exactly one filled electric-blue button on a screen or form; make every other action outlined, ghost, or a pill.",
+      "Do set every plate, zone code, camera id, timestamp and count in JetBrains Mono with tabular numerals, and wrap identifiers in the plate chip.",
+      "Do pair every status with an icon or dot plus a label on the family's soft fill; use `mint-bright` and `amber-bright` for bar fills and dots only.",
+      "Do keep destructive actions outlined coral on white and spaced apart from the primary action.",
+      "Do draw the empty part of every capacity bar as a bordered raised track, and show the numbers next to it.",
+      "Do cast shadows at panel level only (card shadow at rest, hover lift on admin); separate rows inside a panel with 1px hairlines.",
+      "Do keep controls at 44pt or taller, and provide a flat white fallback for every frosted surface and a static fallback for every spring or pulse under reduced motion/transparency."
+    ],
+    "donts": [
+      "Don't place a kicker or eyebrow above any heading, page title, section header or panel header; micro uppercase labels belong above values, fields and columns only, and the pass card's stamp is the only sanctioned label above a hero line.",
+      "Don't fill a destructive button with coral, or place two filled buttons in one form.",
+      "Don't use Nunito for identifiers or JetBrains Mono for labels and prose.",
+      "Don't signal state with color alone, or use a status hue outside its family (blue means active/yours, mint available, amber low/pending, coral full/danger).",
+      "Don't lay out the dashboard as a grid of same-size metric cards, or the parking screen as a map with pins plus a slot grid.",
+      "Don't add shadows to rows, chips, pills or nested surfaces, or frost anything other than the tab bar and pass/hero cards.",
+      "Don't zebra-stripe tables or replace the sticky hairline header with a filled band."
+    ]
+  }
+}

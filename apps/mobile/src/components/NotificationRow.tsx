@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { IconTile } from "./IconTile";
 import { Text } from "./Text";
 import { notificationTypeMeta } from "./StatusBadge";
 import { formatRelativeTime } from "@/lib/format";
@@ -13,8 +13,8 @@ type NotificationRowProps = {
   testID?: string;
 };
 
-/** One row in the notification feed. Unread rows carry a tinted background
- *  and a colored accent bar — never color alone (icon + label also change). */
+/** One row in the notification feed. Unread rows carry a white raised
+ *  surface, bold title and an unread dot — never color alone. */
 export function NotificationRow({ notification, onPress, now, testID }: NotificationRowProps) {
   const meta = notificationTypeMeta(notification.type);
   const unread = !notification.read;
@@ -24,22 +24,25 @@ export function NotificationRow({ notification, onPress, now, testID }: Notifica
       accessibilityRole="button"
       accessibilityLabel={`${notification.message}${unread ? ". Unread." : ""}`}
       onPress={onPress}
-      style={[styles.row, unread ? styles.unread : undefined]}
+      style={({ pressed }) => [styles.row, unread ? styles.unread : undefined, pressed ? styles.pressed : undefined]}
       testID={testID}>
-      {unread ? <View style={[styles.accent, { backgroundColor: meta.color }]} testID={testID ? `${testID}-unread` : undefined} /> : null}
-      <View style={[styles.iconWrap, { backgroundColor: withAlpha(meta.color) }]}>
-        <Ionicons name={meta.icon} size={18} color={meta.color} />
-      </View>
+      <IconTile icon={meta.icon} color={meta.color} size={40} />
       <View style={styles.body}>
         <View style={styles.topRow}>
           <Text variant={unread ? "bodySemi" : "body"} style={styles.title} numberOfLines={1}>
             {notificationTitle(notification.type)}
           </Text>
-          <Text variant="caption" style={styles.time}>
-            {formatRelativeTime(notification.createdAt, now)}
-          </Text>
+          <View style={styles.meta}>
+            <Text variant="caption">{formatRelativeTime(notification.createdAt, now)}</Text>
+            {unread ? (
+              <View
+                style={[styles.unreadDot, { backgroundColor: meta.color }]}
+                testID={testID ? `${testID}-unread` : undefined}
+              />
+            ) : null}
+          </View>
         </View>
-        <Text variant="caption" color={colors.muted} numberOfLines={2}>
+        <Text variant="caption" color={unread ? colors.foreground : colors.muted} numberOfLines={2}>
           {notification.message}
         </Text>
       </View>
@@ -70,52 +73,46 @@ function notificationTitle(type: NotificationResponse["type"]): string {
   }
 }
 
-function withAlpha(hex: string): string {
-  return `${hex}24`;
-}
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
+    alignItems: "flex-start",
     gap: spacing.lg,
     padding: spacing.lg,
-    borderRadius: radii.md,
-    position: "relative",
+    borderRadius: radii.lg,
+    minHeight: 64,
   },
   unread: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  accent: {
-    position: "absolute",
-    left: 0,
-    top: spacing.md,
-    bottom: spacing.md,
-    width: 3,
-    borderRadius: 3,
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.full,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
+  pressed: {
+    opacity: 0.85,
   },
   body: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: spacing.xs,
   },
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "baseline",
+    alignItems: "center",
     gap: spacing.md,
   },
   title: {
     flexShrink: 1,
   },
-  time: {
+  meta: {
     flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });

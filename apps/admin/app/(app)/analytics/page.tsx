@@ -5,7 +5,8 @@ import { api } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionHeader } from "@/components/ui/Card";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { StatCard } from "@/components/ui/Badge";
+import { PlateChip, StatCard } from "@/components/ui/Badge";
+import { FacilityStrip } from "@/components/ui/MetricCard";
 
 export default function AnalyticsPage() {
   const analytics = useQuery({ queryKey: ["analytics"], queryFn: () => api.analytics(), refetchInterval: 60_000 });
@@ -13,60 +14,68 @@ export default function AnalyticsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Operations · Persisted metrics"
         title="Analytics"
-        description="Operational aggregates calculated from recorded parking events, sessions, fees, reservations, and violations."
+        description="Aggregates computed from recorded parking events, sessions, fees, reservations and violations."
       />
       <QueryBoundary status={analytics.status} error={analytics.error} isEmpty={!analytics.data} emptyTitle="No analytics data." loadingRows={5} onRetry={() => analytics.refetch()}>
         {analytics.data ? (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-5 xl:grid-cols-4">
+            <FacilityStrip label="Facility totals">
               <StatCard label="Current occupancy" value={`${analytics.data.current.occupied} / ${analytics.data.current.capacity}`} detail="All zones" />
-              <StatCard label="Sessions" value={analytics.data.sessions.total} detail={`${analytics.data.sessions.active} active`} />
-              <StatCard label="Revenue" value={`₱${analytics.data.revenue.total.toFixed(2)}`} detail={`${analytics.data.revenue.fees} fee records`} />
-              <StatCard label="Violations" value={analytics.data.violations} detail={`${analytics.data.reservations} reservations`} />
-            </div>
+              <StatCard label="Sessions" value={analytics.data.sessions.total} detail={`${analytics.data.sessions.active} active now`} tone="info" />
+              <StatCard label="Revenue" value={`₱${analytics.data.revenue.total.toFixed(2)}`} detail={`${analytics.data.revenue.fees} fee records`} tone="success" />
+              <StatCard label="Violations" value={analytics.data.violations} detail={`${analytics.data.reservations} reservations`} tone={analytics.data.violations > 0 ? "warn" : "neutral"} />
+            </FacilityStrip>
 
-            <Card>
-              <SectionHeader eyebrow="Per zone" title="Zone performance" />
-              <div className="grid gap-3 p-5 md:grid-cols-2">
-                {analytics.data.zones.map((zone) => {
-                  const pct = zone.capacity > 0 ? Math.round((zone.occupiedCount / zone.capacity) * 100) : 0;
-                  return (
-                    <div key={zone.id} className="surface-panel px-4 py-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-bold text-charcoal">Zone {zone.code}</p>
-                        <p className="font-display text-sm font-black text-charcoal">
-                          {zone.occupiedCount} / {zone.capacity}
-                        </p>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <div className="occupancy-bar flex-1">
-                          <div
-                            className={`h-full rounded-full ${pct >= 100 ? "bg-brand" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500"}`}
-                            style={{ width: `${Math.min(100, pct)}%` }}
-                          />
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.4fr_1fr]">
+              <Card>
+                <SectionHeader title="Zone occupancy" description="Current count against capacity, per zone" />
+                <ul className="divide-y divide-line">
+                  {analytics.data.zones.map((zone) => {
+                    const pct = zone.capacity > 0 ? Math.round((zone.occupiedCount / zone.capacity) * 100) : 0;
+                    const fill = pct >= 100 ? "bg-danger" : pct >= 80 ? "bg-warning-bright" : "bg-success-bright";
+                    return (
+                      <li key={zone.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-4 px-5 py-3">
+                        <PlateChip>{zone.code}</PlateChip>
+                        <div className="min-w-0">
+                          <div className="occupancy-bar" aria-hidden="true">
+                            <div className={`h-full rounded-full ${fill}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                          </div>
+                          <p className="mt-1.5 text-[11px] font-semibold text-muted">{zone.availableCount} open · {pct}%</p>
                         </div>
-                        <p className="ml-3 text-[11px] font-bold uppercase tracking-wider text-muted">{zone.availableCount} open</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
+                        <p className="font-display text-sm font-black tabular-nums text-charcoal">
+                          {zone.occupiedCount} <span className="font-bold text-muted">/ {zone.capacity}</span>
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Card>
 
-            <Card>
-              <SectionHeader eyebrow="Utilization" title="Session activity" />
-              <p className="p-5 text-sm text-muted">
-                Average duration: <span className="font-bold text-charcoal">{Math.round(analytics.data.sessions.averageDurationSeconds / 60)} minutes</span>.
-                {" "}
-                {analytics.data.peakEntryHour ? (
-                  <>Peak entry hour: <span className="font-bold text-charcoal">{String(analytics.data.peakEntryHour.hour).padStart(2, "0")}:00</span>.</>
-                ) : (
-                  "No peak hour recorded."
-                )}
-              </p>
-            </Card>
+              <Card>
+                <SectionHeader title="Session activity" description="From completed sessions" />
+                <dl className="divide-y divide-line px-5">
+                  <div className="flex items-center justify-between gap-4 py-3.5">
+                    <dt className="text-sm text-muted">Average duration</dt>
+                    <dd className="font-display text-base font-black tabular-nums text-charcoal">
+                      {Math.round(analytics.data.sessions.averageDurationSeconds / 60)} min
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 py-3.5">
+                    <dt className="text-sm text-muted">Peak entry hour</dt>
+                    <dd className="font-display text-base font-black tabular-nums text-charcoal">
+                      {analytics.data.peakEntryHour
+                        ? `${String(analytics.data.peakEntryHour.hour).padStart(2, "0")}:00`
+                        : "Not recorded"}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 py-3.5">
+                    <dt className="text-sm text-muted">Active sessions</dt>
+                    <dd className="font-display text-base font-black tabular-nums text-charcoal">{analytics.data.sessions.active}</dd>
+                  </div>
+                </dl>
+              </Card>
+            </div>
           </div>
         ) : null}
       </QueryBoundary>

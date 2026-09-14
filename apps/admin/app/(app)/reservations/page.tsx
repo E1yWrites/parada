@@ -5,19 +5,28 @@ import { api, ApiError } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { Pill } from "@/components/ui/Badge";
+import { DotPill, PlateChip } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { AlertCircle } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import type { AdminReservation } from "@/lib/api/types";
 
-const RESERVATION_TONE: Record<string, "info" | "danger" | "neutral" | "success"> = {
-  CONFIRMED: "info",
-  ACTIVE: "success",
-  PENDING: "neutral",
+const RESERVATION_TONE: Record<string, "info" | "danger" | "neutral" | "success" | "warn"> = {
+  CONFIRMED: "success",
+  ACTIVE: "info",
+  PENDING: "warn",
   COMPLETED: "neutral",
-  CANCELLED: "danger",
-  EXPIRED: "danger",
+  CANCELLED: "neutral",
+  EXPIRED: "neutral",
+};
+
+const RESERVATION_LABEL: Record<string, string> = {
+  CONFIRMED: "Confirmed",
+  ACTIVE: "Active",
+  PENDING: "Pending",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+  EXPIRED: "Expired",
 };
 
 export default function ReservationsPage() {
@@ -42,14 +51,14 @@ export default function ReservationsPage() {
     {
       key: "vehicle",
       header: "Vehicle",
-      cell: (r) => <span className="font-display text-sm font-black text-charcoal">{r.vehicle.plateNumber}</span>,
+      cell: (r) => <span className="font-mono text-sm font-bold text-charcoal">{r.vehicle.plateNumber}</span>,
     },
-    { key: "zone", header: "Zone", cell: (r) => <span className="text-sm font-semibold text-charcoal">{r.zone.code}</span> },
+    { key: "zone", header: "Zone", cell: (r) => <PlateChip>{r.zone.code}</PlateChip> },
     {
       key: "window",
       header: "Arrival window",
       cell: (r) => (
-        <div className="text-xs text-muted">
+        <div className="font-mono text-xs text-muted">
           <p className="font-semibold text-charcoal">{formatDateTime(r.startAt)}</p>
           <p>to {formatDateTime(r.endAt)}</p>
         </div>
@@ -58,14 +67,20 @@ export default function ReservationsPage() {
     {
       key: "status",
       header: "Status",
-      cell: (r) => <Pill tone={RESERVATION_TONE[r.status] ?? "neutral"}>{r.status}</Pill>,
+      cell: (r) => (
+        <DotPill tone={RESERVATION_TONE[r.status] ?? "neutral"} pulse={r.status === "ACTIVE"}>
+          {RESERVATION_LABEL[r.status] ?? r.status}
+        </DotPill>
+      ),
     },
     {
       key: "action",
       header: "Action",
+      headerClassName: "text-right",
+      className: "text-right",
       cell: (r) =>
         r.status === "PENDING" || r.status === "CONFIRMED" ? (
-          <Button variant="secondary" className="min-h-[36px] px-4 text-xs" onClick={() => cancel.mutate(r.id)} disabled={cancel.isPending}>
+          <Button variant="danger" size="sm" onClick={() => cancel.mutate(r.id)} disabled={cancel.isPending}>
             Cancel
           </Button>
         ) : (
@@ -77,13 +92,12 @@ export default function ReservationsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Management · Capacity protection"
         title="Reservations"
-        description="Monitor arrival windows, capacity protection, and reservation status."
+        description="Capacity holds with an arrival window. Cancelling releases the held space."
       />
       {cancel.error ? (
-        <p role="alert" className="mb-4 flex items-center gap-2 rounded-panel border border-brand/25 bg-brand-soft px-3.5 py-2.5 text-sm font-semibold text-brand">
-          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <p role="alert" className="alert-danger mb-4">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           {cancel.error instanceof ApiError ? cancel.error.message : "Unable to cancel reservation."}
         </p>
       ) : null}
@@ -95,7 +109,7 @@ export default function ReservationsPage() {
         loadingRows={5}
         onRetry={() => reservations.refetch()}
       >
-        <DataTable columns={columns} rows={reservations.data ?? []} rowKey={(r) => r.id} />
+        <DataTable columns={columns} rows={reservations.data ?? []} rowKey={(r) => r.id} caption="Reservations" />
       </QueryBoundary>
     </div>
   );

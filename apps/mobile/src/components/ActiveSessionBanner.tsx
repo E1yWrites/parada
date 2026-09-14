@@ -1,21 +1,31 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import type { ReactNode } from "react";
 import { GlassCard } from "./GlassCard";
+import { PlateChip } from "./PlateChip";
+import { Stamp } from "./Stamp";
 import { Text } from "./Text";
-import { StatusBadge } from "./StatusBadge";
 import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
-import { colors, radii, spacing } from "@/src/theme";
+import { colors, motion, radii, spacing } from "@/src/theme";
 import { formatElapsed } from "@/lib/format";
 import type { SessionDto } from "@/lib/api/client";
 
 type ActiveSessionBannerProps = {
   session: SessionDto;
   now?: Date;
+  /** Extra pass content (session facts, the primary Navigate action). */
+  children?: ReactNode;
   testID?: string;
 };
 
-/** Full-width "your vehicle is parked" banner with a live elapsed clock. */
-export function ActiveSessionBanner({ session, now, testID }: ActiveSessionBannerProps) {
+/**
+ * The parked pass: full-width hero card stating that the vehicle is inside,
+ * with the zone at hero size, the plate as a chip and a live elapsed clock.
+ * The stamp lands with a short spring when the card mounts; the live dot
+ * pulses. Both are skipped under Reduce Motion.
+ */
+export function ActiveSessionBanner({ session, now, children, testID }: ActiveSessionBannerProps) {
   const reducedMotion = usePrefersReducedMotion();
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -28,13 +38,13 @@ export function ActiveSessionBanner({ session, now, testID }: ActiveSessionBanne
       Animated.sequence([
         Animated.timing(pulse, {
           toValue: 1,
-          duration: 1200,
+          duration: motion.duration.slow,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(pulse, {
           toValue: 0,
-          duration: 1200,
+          duration: motion.duration.slow,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
@@ -45,37 +55,45 @@ export function ActiveSessionBanner({ session, now, testID }: ActiveSessionBanne
   }, [pulse, reducedMotion]);
 
   return (
-    <GlassCard accent={colors.primary} style={styles.card} testID={testID}>
+    <GlassCard style={styles.card} testID={testID}>
       <View style={styles.headerRow}>
-        <View style={styles.dotWrap}>
-          <Animated.View
-            testID={testID ? `${testID}-glow` : undefined}
-            style={[styles.glow, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.9] }) }]}
-          />
-          <View style={styles.dot} />
+        <View style={styles.liveRow}>
+          <View style={styles.dotWrap}>
+            <Animated.View
+              testID={testID ? `${testID}-glow` : undefined}
+              style={[
+                styles.glow,
+                { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.7] }) },
+              ]}
+            />
+            <View style={styles.dot} />
+          </View>
+          <Stamp label="Parked" icon="car" color={colors.primary} testID={testID ? `${testID}-badge` : undefined} />
         </View>
-        <StatusBadge
-          meta={{ label: "Parked", icon: "car", color: colors.primary }}
-          testID={testID ? `${testID}-badge` : undefined}
-        />
+        <PlateChip value={session.zone.code} tone="soft" size="sm" />
       </View>
+
       <View style={styles.content}>
-        <Text variant="micro">YOUR VEHICLE IS PARKED IN</Text>
         <Text variant="hero" numberOfLines={2} testID={testID ? `${testID}-zone` : undefined}>
           {session.zone.name}
         </Text>
         <Text variant="plate" numberOfLines={1} testID={testID ? `${testID}-plate` : undefined}>
           {session.vehicle?.plateNumber ?? "GUEST"}
         </Text>
-        <View style={styles.elapsedRow}>
-          <Text variant="caption" color={colors.muted}>
-            SESSION ELAPSED
-          </Text>
-          <Text variant="display" color={colors.highlight} testID={testID ? `${testID}-elapsed` : undefined}>
+      </View>
+
+      <View style={styles.elapsedRow}>
+        <View style={styles.elapsedIcon}>
+          <Ionicons name="time" size={18} color={colors.primary} />
+        </View>
+        <View style={styles.elapsedText}>
+          <Text variant="micro">SESSION ELAPSED</Text>
+          <Text variant="display" testID={testID ? `${testID}-elapsed` : undefined}>
             {formatElapsed(session.enteredAt, now)}
           </Text>
         </View>
       </View>
+      {children}
     </GlassCard>
   );
 }
@@ -83,13 +101,18 @@ export function ActiveSessionBanner({ session, now, testID }: ActiveSessionBanne
 const styles = StyleSheet.create({
   card: {
     gap: spacing.xl2,
-    borderRadius: radii.xl,
   },
   headerRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,
+  },
+  liveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    flexShrink: 1,
   },
   dotWrap: {
     width: 16,
@@ -99,22 +122,38 @@ const styles = StyleSheet.create({
   },
   glow: {
     position: "absolute",
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: colors.primary,
   },
   dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.primary,
   },
   content: {
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   elapsedRow: {
-    gap: spacing.sm,
-    marginTop: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+  },
+  elapsedIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.sm,
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  elapsedText: {
+    flex: 1,
+    gap: spacing.xs,
   },
 });

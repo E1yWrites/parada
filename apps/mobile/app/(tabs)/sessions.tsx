@@ -10,6 +10,7 @@ import {
   SessionCard,
   Text,
 } from "@/src/components";
+import { GradientMesh } from "@/src/components/GradientMesh";
 import { api, ApiError, type SessionDto } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { useNow } from "@/src/hooks/useNow";
@@ -32,6 +33,7 @@ export default function SessionsScreen() {
 
   return (
     <SafeAreaView edges={["top"]} style={styles.flex}>
+      <GradientMesh />
       <FlatList
         data={history}
         keyExtractor={(session) => session.id}
@@ -62,7 +64,7 @@ export default function SessionsScreen() {
             />
           ) : (
             <EmptyState
-              icon="hourglass-outline"
+              illustration="history"
               title="No parking sessions"
               description="Your parking history will appear here."
               testID="sessions-empty"
@@ -90,11 +92,13 @@ function Header({
 }) {
   return (
     <View style={styles.header}>
-      <Text variant="micro">PARKING ACCESS</Text>
-      <Text variant="hero">Sessions</Text>
+      <View style={styles.titleBlock}>
+        <Text variant="hero">Sessions</Text>
+        <Text variant="caption">Every gate entry and exit for your plates</Text>
+      </View>
       {active ? <ActiveSessionBanner session={active} now={now} testID="active-session" /> : null}
       {isError ? null : isLoading ? (
-        <Text variant="caption" color={colors.muted} testID="sessions-header-state">
+        <Text variant="caption" testID="sessions-header-state">
           Loading…
         </Text>
       ) : (
@@ -107,13 +111,17 @@ function Header({
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.background },
   listContent: {
-    padding: spacing.xl3,
+    paddingHorizontal: spacing.xl2,
+    paddingTop: spacing.xl,
     gap: spacing.lg,
     flexGrow: 1,
   },
   separator: { height: spacing.lg },
   header: {
-    gap: spacing.xl,
-    marginBottom: spacing.lg,
+    gap: spacing.xl2,
+    marginBottom: spacing.md,
+  },
+  titleBlock: {
+    gap: spacing.xs,
   },
 });

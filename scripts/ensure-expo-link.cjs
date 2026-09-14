@@ -1,12 +1,12 @@
 /**
  * npm-workspaces postinstall helper.
  *
- * The PARADA monorepo pins apps/admin to React 18 while the Expo SDK 53
+ * The PARADA monorepo pins apps/admin to React 18 while the Expo SDK 57
  * mobile app requires React 19. That version conflict makes npm keep the
  * Expo SDK tree inside apps/mobile/node_modules instead of hoisting it to
- * the repository root, and it nests a handful of SDK packages directly under
- * node_modules/expo/node_modules (expo-asset, expo-file-system,
- * expo-keep-awake).
+ * the repository root, and it can nest SDK packages directly under
+ * node_modules/expo/node_modules (seen with expo-asset, expo-file-system,
+ * expo-keep-awake on SDK 53 and expo-modules-core during the SDK 57 upgrade).
  *
  * That split breaks module resolution in different tooling depending on where
  * a package physically lives:

@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import {
+  Avatar,
   CurrentParkingState,
   EmptyState,
   ErrorState,
+  IconButton,
   LoadingState,
   ParkingRecommendation,
   ReservationPanel,
@@ -19,9 +22,12 @@ import { currentReservationFrom } from "@/lib/current";
 import { resolveEstablishmentDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
 import { useNow } from "@/src/hooks/useNow";
+import { useSessionUser } from "@/src/providers/SessionProvider";
 import { spacing } from "@/src/theme";
 
 export default function ParkingScreen() {
+  const router = useRouter();
+  const user = useSessionUser();
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const zones = useQuery({
     queryKey: queryKeys.zones,
@@ -47,6 +53,7 @@ export default function ParkingScreen() {
     queryKey: queryKeys.establishment,
     queryFn: api.establishment,
   });
+  const notifications = useQuery({ queryKey: queryKeys.notifications, queryFn: api.notifications });
 
   const activeSession = active.data ?? null;
   const now = useNow(30_000, activeSession !== null);
@@ -78,7 +85,17 @@ export default function ParkingScreen() {
   return (
     <Screen
       title="Parking"
-      eyebrow="Live availability"
+      subtitle="Live zone availability from the gate cameras"
+      leading={<Avatar name={user?.name} testID="parking-avatar" />}
+      right={
+        <IconButton
+          icon="notifications-outline"
+          accessibilityLabel="Notifications"
+          badge={notifications.data?.unreadCount}
+          onPress={() => router.push("/notifications")}
+          testID="parking-notifications"
+        />
+      }
       refreshing={refreshing}
       onRefresh={refresh}
       testID="parking-screen">
@@ -111,7 +128,7 @@ export default function ParkingScreen() {
         />
       ) : zones.data && zones.data.length === 0 ? (
         <EmptyState
-          icon="map-outline"
+          illustration="zones"
           title="No zones yet"
           description="There are no parking zones configured."
           testID="zones-empty"

@@ -5,7 +5,7 @@ import { api } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { AnomalyTypeBadge, ResolvedBadge, Pill } from "@/components/ui/Badge";
+import { AnomalyTypeBadge, ResolvedBadge, Pill, PlateChip } from "@/components/ui/Badge";
 import { formatDateTime } from "@/lib/format";
 import type { AdminAnomaly } from "@/lib/api/types";
 
@@ -23,7 +23,7 @@ export default function AnomaliesPage() {
       cell: (a) => (
         <div>
           <AnomalyTypeBadge type={a.anomalyType} />
-          {a.description ? <p className="mt-1 max-w-xs break-words text-[11px] text-muted">{a.description}</p> : null}
+          {a.description ? <p className="mt-1 max-w-xs whitespace-normal break-words text-[11px] text-muted">{a.description}</p> : null}
         </div>
       ),
     },
@@ -32,8 +32,8 @@ export default function AnomaliesPage() {
       header: "Where",
       cell: (a) => (
         <div>
-          <p className="text-sm font-semibold text-charcoal">{a.zoneCode ? `Zone ${a.zoneCode}` : "—"}</p>
-          {a.cameraIdentifier ? <p className="font-display text-[11px] font-bold text-muted">{a.cameraIdentifier}</p> : null}
+          <p className="text-sm font-semibold text-charcoal">{a.zoneCode ? <PlateChip>{a.zoneCode}</PlateChip> : "—"}</p>
+          {a.cameraIdentifier ? <p className="mt-1 font-mono text-[11px] font-semibold text-muted">{a.cameraIdentifier}</p> : null}
         </div>
       ),
     },
@@ -42,7 +42,7 @@ export default function AnomaliesPage() {
       header: "Plate",
       cell: (a) =>
         a.detectedPlate ? (
-          <span className="font-display text-sm font-black text-charcoal">{a.detectedPlate}</span>
+          <span className="font-mono text-sm font-bold text-charcoal">{a.detectedPlate}</span>
         ) : (
           <span className="text-sm text-muted">—</span>
         ),
@@ -50,7 +50,7 @@ export default function AnomaliesPage() {
     {
       key: "when",
       header: "When",
-      cell: (a) => <span className="font-display text-sm font-bold text-muted">{formatDateTime(a.createdAt)}</span>,
+      cell: (a) => <span className="font-mono text-xs font-semibold text-muted">{formatDateTime(a.createdAt)}</span>,
     },
     {
       key: "source",
@@ -66,11 +66,7 @@ export default function AnomaliesPage() {
 
   return (
     <div>
-      <PageHeader
-        eyebrow="Management · Exceptions"
-        title="Anomalies"
-        description="Operational exceptions that require review."
-      />
+      <PageHeader title="Anomalies" description="Exceptions the pipeline could not resolve on its own." />
 
       <QueryBoundary
         status={anomalies.status}
@@ -81,7 +77,7 @@ export default function AnomaliesPage() {
         loadingRows={5}
         onRetry={() => anomalies.refetch()}
       >
-        <DataTable columns={columns} rows={anomalies.data ?? []} rowKey={(a) => a.id} />
+        <DataTable columns={columns} rows={anomalies.data ?? []} rowKey={(a) => a.id} caption="Anomalies" />
       </QueryBoundary>
     </div>
   );

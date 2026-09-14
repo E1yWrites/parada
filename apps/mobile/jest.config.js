@@ -7,7 +7,7 @@ module.exports = {
   moduleDirectories: ["<rootDir>/node_modules", "node_modules"],
   testMatch: ["**/__tests__/**/*.test.ts?(x)"],
   transformIgnorePatterns: [
-    "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|@sentry/react-native|native-base|react-native-svg|@react-navigation/.*|react-navigation)",
+    "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|standard-navigation|@sentry/react-native|native-base|react-native-svg|@react-navigation/.*|react-navigation)",
   ],
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   moduleNameMapper: {

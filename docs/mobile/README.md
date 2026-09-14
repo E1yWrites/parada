@@ -1,6 +1,6 @@
 # PARADA Mobile Application
 
-User-facing driver app (Phase 8). React Native + **Expo SDK 53** + TypeScript,
+User-facing driver app (Phase 8). React Native + **Expo SDK 57** + TypeScript,
 with **Expo Router** (file-based navigation) and **TanStack Query** for data
 caching. Talks to the `services/api` backend over HTTPS/HTTP.
 
@@ -8,9 +8,9 @@ caching. Talks to the `services/api` backend over HTTPS/HTTP.
 
 | Concern | Choice |
 |---------|--------|
-| Framework | Expo SDK 53 (`expo@~53.0.27`) |
-| React / React Native | `react@19.0.0` / `react-native@0.79.6` |
-| Navigation | `expo-router@~5.1.11` (typed, file-based tabs) |
+| Framework | Expo SDK 57 (`expo@~57.0.22`; Phase 11D) |
+| React / React Native | `react@19.2.3` / `react-native@0.86.3` |
+| Navigation | `expo-router@~57.0.21` (typed, file-based tabs) |
 | Data layer | `@tanstack/react-query@^5` on the `lib/api/client.ts` fetch wrapper |
 | Auth storage | `expo-secure-store` (JWT in Keychain/Keystore) |
 | Fonts | `@expo-google-fonts/*` (Inter, Space Grotesk, JetBrains Mono) |
@@ -46,6 +46,7 @@ apps/mobile
 ├── index.js                 # custom entry (explicit require.context("./app"))
 ├── app/                     # expo-router routes
 │   ├── _layout.tsx          # root providers + fonts + ThemeProvider + SessionProvider
+│   ├── index.tsx            # "/" → Redirect to /(tabs)/parking (auth gate lives in (tabs)/_layout)
 │   ├── login.tsx / register.tsx
 │   └── (tabs)/              # parking · sessions · vehicles · account
 ├── src/
@@ -71,6 +72,7 @@ apps/mobile
 
 | Route | Purpose |
 |-------|---------|
+| `/` | `app/index.tsx` — redirects to `/(tabs)/parking`. Required: without a root `index`, Expo Router resolves `/` (what Expo Go launches with) to the generated `+not-found` "Unmatched Route" |
 | `/login`, `/register` | Auth flows; store JWT in secure-store |
 | `/(tabs)/parking` | Live zones (public `GET /zones` with availability badges) + active-session banner + recommended-zone card (`GET /zones/recommendation` with an explicit "Accept Recommendation" → `POST /assignments` flow when no session is active) + manual zone assignment: select a zone on the grid → pick a registered vehicle → `POST /assignments`, confirmed only from the backend response, full/offline zones and already-assigned vehicles blocked, refresh of zone/recommendation/assignment data on success + zone reservations: select a zone → pick a registered vehicle → explicit "Reserve" → `POST /reservations` (backend-held zone capacity, arrival window from config), backend-confirmed display only, `GET /reservations` list with status badges and timestamps, two-tap explicit cancel via `PATCH /reservations/:id/cancel`, full-zone/network/conflict errors mapped to friendly messages + actual navigation (Phase 9.5): the confirmed-assignment card shows a "Navigate to assigned zone" action that reads the device GPS (foreground `expo-location` permission + one-shot position, no background tracking/persistence), resolves the establishment destination from public `GET /zones/establishment`, and launches the platform maps app (Apple Maps `maps://`, Google navigation `google.navigation:`, `geo:` fallback); missing permission, unavailable location, no configured destination, or no maps app all degrade to friendly in-app messages |
 | `/(tabs)/parking` current state (Phase 9.6) | Single authoritative "current parking" section on top, ordered by backend semantics: active session (`GET /sessions/active`, strongest state) → active assignment (`GET /assignments`, ACTIVE + not past `expiresAt`) → valid reservation (`GET /reservations`, PENDING/CONFIRMED/ACTIVE) → explicit empty state when nothing is current. Assignment and reservation are always rendered as distinct cards, never merged/reconciled; an active session suppresses suggestion flows and shows its assignment only as a context line. The confirmed-assignment card was moved out of `ZoneAssignmentPanel` (which now shows a lightweight hint and hides the assign form) to eliminate the previous duplicate rendering, and the recommendation card is hidden whenever any current state exists or is still loading. Session, assignment and reservation cards each offer GPS navigation (Phase 9.5 `NavigateButton`, hidden while the establishment is loading, disabled without a destination), friendly error states keep `active-session-error`, and partial failures show what is known plus a pull-to-refresh note |
@@ -128,7 +130,7 @@ All gates are wired into Turborepo (`npx turbo typecheck lint test`).
 
 ## Monorepo notes (why the bits are the way they are)
 
-- **Dual npm tree.** `apps/admin` pins React 18 while Expo SDK 53 needs React 19,
+- **Dual npm tree.** `apps/admin` pins React 18 while Expo SDK 57 needs React 19,
   so npm keeps the SDK tree inside `apps/mobile/node_modules` and nests a few
   packages under `node_modules/expo/node_modules/`. The root `postinstall`
   (`scripts/ensure-expo-link.cjs`) bridges the gaps with idempotent symlinks:
@@ -136,7 +138,9 @@ All gates are wired into Turborepo (`npx turbo typecheck lint test`).
   nested SDK packages lifted into `apps/mobile/node_modules`. After any
   `npm install`/`ci`/`dedupe`, re-run it (`node scripts/ensure-expo-link.cjs`);
   avoid `npm dedupe` (it has deleted these links).
-- **Custom entry** (`index.js`). The default `expo-router/entry` resolves routes
+- **Custom entry** (`index.js`). It imports `@expo/metro-runtime` first, exactly like
+  `expo-router/entry`, because that runtime installs the `window.location` polyfill
+  expo-router's dev views (Sitemap / Unmatched Route) read. The default `expo-router/entry` resolves routes
   via the virtual `expo-router/_ctx` module driven by
   `process.env.EXPO_ROUTER_APP_ROOT`; in this workspace that env value never
   reaches Metro's transform, breaking bundling. The custom entry uses an

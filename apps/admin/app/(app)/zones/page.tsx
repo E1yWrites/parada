@@ -3,30 +3,28 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPinned, ArrowRight, DoorOpen, DoorClosed, Plus, Power, Play, Save, AlertCircle } from "lucide-react";
+import { ArrowRight, DoorOpen, DoorClosed, Plus, Power, Play, Save, AlertCircle, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { AvailabilityBadge } from "@/components/ui/Badge";
+import { AvailabilityBadge, PlateChip, AVAILABILITY_BAR } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Card, SectionHeader } from "@/components/ui/Card";
 import { formatPct } from "@/lib/format";
 import type { AdminZoneCreateInput, AdminZoneDetail } from "@/lib/api/types";
 
-function OccupancyBar({ pct }: { pct: number }) {
-  const color =
-    pct >= 100 ? "bg-brand" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
+function OccupancyBar({ pct, availability }: { pct: number; availability: AdminZoneDetail["availability"] }) {
   return (
-    <div className="occupancy-bar">
+    <div className="occupancy-bar" aria-hidden="true">
       <div
-        className={`h-full rounded-full ${color} transition-all duration-300`}
+        className={`h-full rounded-full ${AVAILABILITY_BAR[availability]} transition-[width] duration-500 ease-out`}
         style={{ width: `${Math.min(100, pct)}%` }}
       />
     </div>
   );
 }
 
-function CreateZoneForm({ onCreated }: { onCreated: () => void }) {
+function CreateZoneForm({ onCreated, onClose }: { onCreated: () => void; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<AdminZoneCreateInput>({
     name: "",
@@ -57,16 +55,25 @@ function CreateZoneForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <Card className="mb-6">
-      <div className="border-b border-line/50 px-5 py-4">
-        <p className="label-tech mb-1">Parking · Facility layout</p>
-        <h2 className="font-display text-lg font-black tracking-tight text-charcoal">New zone</h2>
-      </div>
+    <Card className="mb-6 animate-fade-in">
+      <SectionHeader
+        title="New zone"
+        description="Capacity is the authoritative availability number for this zone."
+        actions={
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={create.isPending}>
+            <X className="h-4 w-4" aria-hidden="true" />
+            Close
+          </Button>
+        }
+      />
       <form className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2" onSubmit={submit}>
         <div>
-          <label className="label">Name</label>
+          <label htmlFor="zone-name" className="label">
+            Name
+          </label>
           <input
-            className="input mt-1.5"
+            id="zone-name"
+            className="input"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="Zone A"
@@ -74,47 +81,58 @@ function CreateZoneForm({ onCreated }: { onCreated: () => void }) {
           />
         </div>
         <div>
-          <label className="label">Code</label>
+          <label htmlFor="zone-code" className="label">
+            Code
+          </label>
           <input
-            className="input mt-1.5"
+            id="zone-code"
+            className="input font-mono uppercase"
             value={form.code}
             onChange={(e) => setForm({ ...form, code: e.target.value })}
             placeholder="A"
             required
           />
+          <p className="field-help">Short identifier drivers see on the gate and in the app.</p>
         </div>
         <div className="sm:col-span-2">
-          <label className="label">Description</label>
+          <label htmlFor="zone-description" className="label">
+            Description
+          </label>
           <input
-            className="input mt-1.5"
+            id="zone-description"
+            className="input"
             value={form.description ?? ""}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="North parking area"
           />
+          <p className="field-help">Shown to drivers as wayfinding help on the zone screen.</p>
         </div>
         <div>
-          <label className="label">Capacity</label>
+          <label htmlFor="zone-capacity" className="label">
+            Capacity
+          </label>
           <input
+            id="zone-capacity"
             type="number"
             min="1"
-            className="input mt-1.5"
+            className="input"
             value={form.capacity}
             onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
             required
           />
         </div>
-        <div className="flex items-end">
+        <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4 sm:col-span-2">
           <Button type="submit" variant="primary" disabled={create.isPending}>
             <Save className="h-4 w-4" aria-hidden="true" />
             {create.isPending ? "Creating zone…" : "Create zone"}
           </Button>
+          {error ? (
+            <p role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
+              <AlertCircle className="h-4 w-4" aria-hidden="true" />
+              {error}
+            </p>
+          ) : null}
         </div>
-        {error ? (
-          <p role="alert" className="flex items-center gap-2 text-sm font-semibold text-brand sm:col-span-2">
-            <AlertCircle className="h-4 w-4" aria-hidden="true" />
-            {error}
-          </p>
-        ) : null}
       </form>
     </Card>
   );
@@ -148,15 +166,16 @@ function ZoneStatusToggle({ zone }: { zone: AdminZoneDetail }) {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {error ? (
-        <span role="alert" className="flex items-center gap-1.5 text-xs font-semibold text-brand">
+        <span role="alert" className="flex items-center gap-1.5 text-xs font-semibold text-danger">
           <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
           {error}
         </span>
       ) : null}
       <Button
-        variant={zone.status === "ACTIVE" ? "secondary" : "success"}
+        variant={zone.status === "ACTIVE" ? "danger" : "success"}
+        size="sm"
         title={zone.status === "ACTIVE" ? "Deactivate zone" : "Activate zone"}
         onClick={handleToggle}
         disabled={toggle.isPending}
@@ -188,18 +207,19 @@ export default function ZonesPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Parking · Zone inventory"
         title="Zones"
-        description="Configure the parking facility: zones define the authoritative capacity; physical spaces are inventory/layout only."
+        description="Zones define the authoritative capacity. Physical spaces are layout only and never drive occupancy."
         actions={
-          <Button variant="primary" onClick={() => setCreating((v) => !v)}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            {creating ? "Close" : "New zone"}
-          </Button>
+          creating ? null : (
+            <Button variant="primary" onClick={() => setCreating(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              New zone
+            </Button>
+          )
         }
       />
 
-      {creating ? <CreateZoneForm onCreated={() => setCreating(false)} /> : null}
+      {creating ? <CreateZoneForm onCreated={() => setCreating(false)} onClose={() => setCreating(false)} /> : null}
 
       <QueryBoundary
         status={zones.status}
@@ -210,60 +230,57 @@ export default function ZonesPage() {
         loadingRows={4}
         onRetry={() => zones.refetch()}
       >
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
           {zones.data?.map((z) => (
-            <div key={z.id} className="card block p-5">
-              <Link href={`/zones/${z.id}`} aria-label={`View zone ${z.name}`} className="block">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-panel bg-brand-soft">
-                      <MapPinned className="h-5 w-5 text-brand" aria-hidden="true" />
-                    </div>
-                    <div>
-                      <p className="label-tech">ZONE {z.code}</p>
-                      <p className="mt-0.5 font-display text-base font-black text-charcoal">{z.name}</p>
-                    </div>
+            <Card key={z.id} className="flex flex-col">
+              <Link
+                href={`/zones/${z.id}`}
+                aria-label={`View zone ${z.name}`}
+                className="card-hover block rounded-t-panel p-5 focus-visible:outline-none focus-visible:shadow-focus"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <PlateChip>{z.code}</PlateChip>
+                    <p className="truncate font-display text-base font-black text-charcoal">{z.name}</p>
                   </div>
                   <AvailabilityBadge value={z.availability} />
                 </div>
 
-                <div className="mt-5">
-                  <div className="flex items-baseline justify-between">
-                    <p className="font-display text-3xl font-black leading-none text-charcoal">
-                      {z.occupiedCount}
-                      <span className="text-base font-bold text-muted"> / {z.capacity}</span>
-                    </p>
-                    <p className="text-xs font-bold text-muted">
-                      {z.availableCount} available · {formatPct(z.occupancyPct)}
-                    </p>
-                  </div>
-                  <div className="mt-2.5">
-                    <OccupancyBar pct={z.occupancyPct} />
-                  </div>
+                <div className="mt-5 flex items-end justify-between gap-3">
+                  <p className="font-display text-3xl font-black leading-none tabular-nums text-charcoal">
+                    <span>{z.occupiedCount}</span>
+                    <span className="text-base font-bold text-muted"> / {z.capacity}</span>
+                  </p>
+                  <p className="text-xs font-semibold text-muted">
+                    {z.availableCount} available · {formatPct(z.occupancyPct)}
+                  </p>
+                </div>
+                <div className="mt-2.5">
+                  <OccupancyBar pct={z.occupancyPct} availability={z.availability} />
                 </div>
 
-                <div className="mt-5 flex items-center justify-between border-t border-line/50 pt-4">
-                  <div className="flex items-center gap-4 text-xs font-semibold text-muted">
+                <div className="mt-4 flex items-center justify-between gap-3 text-xs font-semibold text-muted">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
                     <span className="flex items-center gap-1.5">
                       <DoorClosed className="h-4 w-4 text-charcoal" aria-hidden="true" />
-                      {z.entryCamera ? z.entryCamera.identifier : "No entry cam"}
+                      {z.entryCamera ? <span className="font-mono">{z.entryCamera.identifier}</span> : "No entry cam"}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <DoorOpen className="h-4 w-4 text-charcoal" aria-hidden="true" />
-                      {z.exitCamera ? z.exitCamera.identifier : "No exit cam"}
+                      {z.exitCamera ? <span className="font-mono">{z.exitCamera.identifier}</span> : "No exit cam"}
                     </span>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted" aria-hidden="true" />
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
                 </div>
               </Link>
 
-              <div className="mt-4 flex items-center justify-between border-t border-line/50 pt-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+              <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
+                <p className="text-xs font-semibold text-muted">
                   {z.physicalInventory.active} of {z.physicalInventory.total} physical spaces active
                 </p>
                 <ZoneStatusToggle zone={z} />
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       </QueryBoundary>

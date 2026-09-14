@@ -9,18 +9,25 @@ export interface Column<T> {
   headerClassName?: string;
 }
 
+/**
+ * Dense registry table inside a panel. Header cells stay visible while the
+ * body scrolls; wide tables scroll horizontally inside the panel, never the page.
+ */
 export function DataTable<T>({
   columns,
   rows,
   emptyTitle,
   emptyMessage,
   rowKey,
+  caption,
 }: {
   columns: Column<T>[];
   rows: T[];
   emptyTitle?: string;
   emptyMessage?: string;
   rowKey?: (row: T) => string;
+  /** Screen-reader table caption. */
+  caption?: string;
 }) {
   if (rows.length === 0) {
     return <EmptyState title={emptyTitle ?? "No records."} message={emptyMessage} />;
@@ -29,10 +36,11 @@ export function DataTable<T>({
   return (
     <div className="card overflow-x-auto">
       <table className="table-base">
+        {caption ? <caption className="sr-only">{caption}</caption> : null}
         <thead>
           <tr>
             {columns.map((c) => (
-              <th key={c.key} className={c.headerClassName}>
+              <th key={c.key} scope="col" className={c.headerClassName}>
                 {c.header}
               </th>
             ))}

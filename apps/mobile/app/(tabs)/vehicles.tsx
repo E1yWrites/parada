@@ -1,35 +1,32 @@
 import { useState } from "react";
-import {
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  View,
-} from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ionicons } from "@expo/vector-icons";
 import type { VehicleType } from "@parada/types";
 import {
   Button,
   Card,
+  ChoiceChip,
   EmptyState,
   ErrorState,
+  IconButton,
   Input,
   LoadingState,
   SectionHeader,
   Text,
   VehicleCard,
 } from "@/src/components";
+import { GradientMesh } from "@/src/components/GradientMesh";
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
-import { normalizePlateInput } from "@/lib/format";
-import { colors, radii, spacing, tabClearance, touchTarget } from "@/src/theme";
+import { formatVehicleType, normalizePlateInput } from "@/lib/format";
+import { colors, spacing, tabClearance } from "@/src/theme";
 
 const VEHICLE_TYPES: VehicleType[] = ["CAR", "MOTORCYCLE", "VAN", "TRUCK", "OTHER"];
 
 export default function VehiclesScreen() {
   const insets = useSafeAreaInsets();
+  const [open, setOpen] = useState(false);
   const vehicles = useQuery({ queryKey: queryKeys.vehicles, queryFn: api.vehicles });
 
   const refresh = () => void vehicles.refetch();
@@ -37,18 +34,26 @@ export default function VehiclesScreen() {
 
   return (
     <SafeAreaView edges={["top"]} style={styles.flex}>
+      <GradientMesh />
       <FlatList
         data={vehicles.data ?? []}
         keyExtractor={(vehicle) => vehicle.id}
         renderItem={({ item }) => <VehicleCard vehicle={item} testID={`vehicle-${item.plateNumber}`} />}
         contentContainerStyle={[styles.listContent, { paddingBottom: tabClearance(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />
         }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListHeaderComponent={
-          <ListHeader isLoading={vehicles.isPending} count={(vehicles.data ?? []).length} />
+          <ListHeader
+            isLoading={vehicles.isPending}
+            count={(vehicles.data ?? []).length}
+            open={open}
+            onOpen={() => setOpen(true)}
+            onClose={() => setOpen(false)}
+          />
         }
         ListEmptyComponent={
           vehicles.isPending ? (
@@ -61,11 +66,14 @@ export default function VehiclesScreen() {
             />
           ) : (
             <EmptyState
-              icon="car-outline"
+              illustration="vehicle"
               title="No vehicles registered"
               description="Add your first vehicle to use PARADA parking."
-              testID="vehicles-empty"
-            />
+              testID="vehicles-empty">
+              {open ? null : (
+                <Button title="Add Vehicle" onPress={() => setOpen(true)} testID="vehicles-empty-add" />
+              )}
+            </EmptyState>
           )
         }
         testID="vehicles-list"
@@ -74,31 +82,47 @@ export default function VehiclesScreen() {
   );
 }
 
-function ListHeader({ isLoading, count }: { isLoading: boolean; count: number }) {
+function ListHeader({
+  isLoading,
+  count,
+  open,
+  onOpen,
+  onClose,
+}: {
+  isLoading: boolean;
+  count: number;
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+}) {
   return (
     <View style={styles.header}>
-      <Text variant="micro">PARKING ACCESS</Text>
       <View style={styles.titleRow}>
-        <Text variant="hero">Vehicles</Text>
-        {!isLoading ? (
-          <AddVehicleButton />
-        ) : (
+        <View style={styles.titleText}>
+          <Text variant="hero">Vehicles</Text>
+          <Text variant="caption">Registered plates are your gate pass</Text>
+        </View>
+        {isLoading ? (
           <Text testID="vehicles-header-state" variant="caption">
             Loading…
           </Text>
+        ) : open ? null : (
+          <IconButton
+            icon="add"
+            size={24}
+            accessibilityLabel="Add Vehicle"
+            onPress={onOpen}
+            testID="vehicles-add-button"
+          />
         )}
       </View>
-      <SectionHeader
-        title="Your vehicles"
-        caption={`${count} registered`}
-        testID="vehicles-section"
-      />
+      {open ? <AddVehicleForm onClose={onClose} /> : null}
+      <SectionHeader title="Your vehicles" caption={`${count} registered`} testID="vehicles-section" />
     </View>
   );
 }
 
-function AddVehicleButton() {
-  const [open, setOpen] = useState(false);
+function AddVehicleForm({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const [plate, setPlate] = useState("");
   const [type, setType] = useState<VehicleType>("CAR");
@@ -112,7 +136,7 @@ function AddVehicleButton() {
       setPlate("");
       setType("CAR");
       setError(null);
-      setOpen(false);
+      onClose();
     },
     onError: (err) => {
       setError(err instanceof ApiError ? err.message : "Could not add vehicle.");
@@ -128,74 +152,54 @@ function AddVehicleButton() {
     mutation.mutate({ plateNumber: cleaned, vehicleType: type });
   };
 
-  if (!open) {
-    return (
-      <Button
-        testID="vehicles-add-button"
-        title="Add Vehicle"
-        variant="secondary"
-        icon={<Ionicons name="add" size={18} color={colors.primary} />}
-        onPress={() => setOpen(true)}
-      />
-    );
-  }
-
   return (
     <Card style={styles.form} testID="vehicles-add-form">
       <View style={styles.formHeader}>
-        <Text variant="title">Register vehicle</Text>
-        <Pressable
-          testID="vehicles-add-cancel"
-          accessibilityRole="button"
+        <View style={styles.formHeading}>
+          <Text variant="title">Register a vehicle</Text>
+          <Text variant="caption">The camera reads this plate at the gate.</Text>
+        </View>
+        <IconButton
+          icon="close"
           accessibilityLabel="Cancel adding vehicle"
           onPress={() => {
-            setOpen(false);
+            onClose();
             setError(null);
             setPlate("");
           }}
-          hitSlop={8}>
-          <Ionicons name="close" size={22} color={colors.muted} />
-        </Pressable>
+          testID="vehicles-add-cancel"
+        />
       </View>
       <Input
         testID="vehicle-plate"
         label="Plate number"
         value={plate}
         onChangeText={setPlate}
-        placeholder="e.g. ABC-1234"
+        placeholder="ABC-1234"
         variant="mono"
         autoCapitalize="characters"
         error={error}
         onSubmit={submit}
         returnKeyType="done"
       />
-      <View>
+      <View style={styles.typeBlock}>
         <Text variant="micro">VEHICLE TYPE</Text>
         <View style={styles.typeRow}>
-          {VEHICLE_TYPES.map((t) => {
-            const selected = t === type;
-            return (
-              <Pressable
-                key={t}
-                testID={`vehicle-type-${t}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => setType(t)}
-                style={[styles.typeChip, selected ? styles.typeChipSelected : undefined]}>
-                <Text
-                  variant="micro"
-                  color={selected ? colors.onAccent : colors.muted}
-                  style={styles.typeLabel}>
-                  {t}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {VEHICLE_TYPES.map((t) => (
+            <ChoiceChip
+              key={t}
+              label={formatVehicleType(t)}
+              selected={t === type}
+              accessibilityRole="button"
+              onPress={() => setType(t)}
+              testID={`vehicle-type-${t}`}
+            />
+          ))}
         </View>
       </View>
       <Button
         testID="vehicle-submit"
-        title={mutation.isPending ? "Registering…" : "Register"}
+        title={mutation.isPending ? "Registering…" : "Register vehicle"}
         loading={mutation.isPending}
         onPress={submit}
       />
@@ -206,14 +210,15 @@ function AddVehicleButton() {
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.background },
   listContent: {
-    padding: spacing.xl3,
+    paddingHorizontal: spacing.xl2,
+    paddingTop: spacing.xl,
     gap: spacing.lg,
     flexGrow: 1,
   },
   separator: { height: spacing.lg },
   header: {
-    gap: spacing.xl,
-    marginBottom: spacing.lg,
+    gap: spacing.xl2,
+    marginBottom: spacing.md,
   },
   titleRow: {
     flexDirection: "row",
@@ -221,35 +226,31 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: spacing.xl,
   },
+  titleText: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xs,
+  },
   form: {
     gap: spacing.xl,
   },
   formHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  formHeading: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xs,
+  },
+  typeBlock: {
+    gap: spacing.md,
   },
   typeRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
-  },
-  typeChip: {
-    minHeight: touchTarget,
-    minWidth: 84,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceElevated,
-    paddingHorizontal: spacing.lg,
-  },
-  typeChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  typeLabel: {
-    letterSpacing: 0.6,
   },
 });

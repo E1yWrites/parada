@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import Constants from "expo-constants";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import { Button, Card, ErrorState, LoadingState, Screen, Text } from "@/src/components";
+import { Avatar, Button, Card, ErrorState, IconTile, LoadingState, Screen, Text } from "@/src/components";
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { useSession } from "@/src/providers/SessionProvider";
@@ -33,7 +33,7 @@ export default function AccountScreen() {
   }
 
   return (
-    <Screen title="Account" eyebrow="PARADA profile" testID="account-screen">
+    <Screen title="Account" subtitle="Your profile, alerts and app details" testID="account-screen">
       {account.isPending ? (
         <LoadingState label="Loading your profile…" testID="account-loading" />
       ) : account.isError && !profile ? (
@@ -46,7 +46,8 @@ export default function AccountScreen() {
         <>
           {account.isError ? (
             <View style={styles.degraded} testID="account-cache-note">
-              <Text variant="caption" color={colors.muted} style={styles.degradedText}>
+              <Ionicons name="cloud-offline-outline" size={18} color={colors.warning} />
+              <Text variant="caption" color={colors.warning} style={styles.degradedText}>
                 Couldn't refresh your profile. Showing your saved details.
               </Text>
               <Pressable
@@ -56,32 +57,31 @@ export default function AccountScreen() {
                 hitSlop={10}
                 style={styles.degradedRetry}
                 testID="account-cache-retry">
-                <Text variant="caption" color={colors.primary} align="center">
-                  RETRY
+                <Text variant="bodySemi" color={colors.primary} align="center">
+                  Retry
                 </Text>
               </Pressable>
             </View>
           ) : null}
+
           <Card style={styles.profileCard} testID="account-profile">
-            <View style={styles.avatar} accessibilityLabel="Account avatar">
-              <Ionicons name="person" size={22} color={colors.onAccent} />
-            </View>
+            <Avatar name={profile.name} size={52} testID="account-avatar" />
             <View style={styles.profileText}>
-              <Text variant="title" testID="account-name">
+              <Text variant="title" numberOfLines={2} testID="account-name">
                 {profile.name}
               </Text>
-              <Text variant="caption" color={colors.muted} testID="account-email">
+              <Text variant="caption" numberOfLines={1} testID="account-email">
                 {profile.email}
               </Text>
             </View>
-            <View style={styles.pillSlot}>
-              <RolePill role={profile.role} />
-            </View>
+            <RolePill role={profile.role} />
           </Card>
+
           <Card style={styles.linksCard} padding={0}>
             <AccountLink
               icon="notifications-outline"
               label="Notifications"
+              caption="Zone alerts, reservations, violations"
               badge={notifications.data?.unreadCount}
               onPress={() => router.push("/notifications")}
               testID="account-notifications"
@@ -90,32 +90,36 @@ export default function AccountScreen() {
             <AccountLink
               icon="alert-circle-outline"
               label="Violations"
+              caption="Wrong-zone entries, fines and appeals"
               onPress={() => router.push("/violations")}
               testID="account-violations"
             />
           </Card>
-          <Card style={styles.infoCard}>
+
+          <Card style={styles.infoCard} padding={0}>
             <InfoRow label="Status" value="Active driver account" />
+            <View style={styles.linkDivider} />
             <InfoRow label="App version" value={version} testID="account-version" />
-            <InfoRow
-              label="Data stays on your device"
-              value="Session token stored in Secure Store"
-              testID="account-security"
-            />
+            <View style={styles.linkDivider} />
+            <InfoRow label="Data stays on your device" value="Session token stored in Secure Store" testID="account-security" />
           </Card>
-          <Text variant="caption" color={colors.muted} style={styles.about}>
+
+          <Text variant="caption" style={styles.about}>
             PARADA lets you check zone capacity and track your parking sessions in real time. Camera gate
             signs in select zones accept your registered plates automatically.
           </Text>
-          <Button
-            testID="logout-button"
-            title={signingOut ? "Signing out…" : "Sign Out"}
-            variant="danger"
-            loading={signingOut}
-            icon={<Ionicons name="log-out-outline" size={18} color={colors.danger} />}
-            onPress={() => void handleSignOut()}
-            accessibilityLabel="Sign out"
-          />
+
+          <View style={styles.signOut}>
+            <Button
+              testID="logout-button"
+              title={signingOut ? "Signing out…" : "Sign Out"}
+              variant="danger"
+              loading={signingOut}
+              icon={<Ionicons name="log-out-outline" size={18} color={colors.danger} />}
+              onPress={() => void handleSignOut()}
+              accessibilityLabel="Sign out"
+            />
+          </View>
         </>
       ) : null}
     </Screen>
@@ -126,7 +130,7 @@ function RolePill({ role }: { role: string }) {
   const label = role === "ADMIN" ? "ADMIN" : "DRIVER";
   return (
     <View style={styles.pill} testID="account-role">
-      <Text variant="micro" color={colors.primary}>
+      <Text variant="micro" color={colors.primaryDeep}>
         {label}
       </Text>
     </View>
@@ -136,12 +140,14 @@ function RolePill({ role }: { role: string }) {
 function AccountLink({
   icon,
   label,
+  caption,
   badge,
   onPress,
   testID,
 }: {
   icon: ComponentProps<typeof Ionicons>["name"];
   label: string;
+  caption: string;
   badge?: number;
   onPress: () => void;
   testID?: string;
@@ -151,15 +157,18 @@ function AccountLink({
       accessibilityRole="button"
       accessibilityLabel={badge ? `${label}, ${badge} unread` : label}
       onPress={onPress}
-      style={styles.linkRow}
+      style={({ pressed }) => [styles.linkRow, pressed ? styles.linkPressed : undefined]}
       testID={testID}>
-      <Ionicons name={icon} size={20} color={colors.foreground} />
-      <Text variant="body" style={styles.linkLabel}>
-        {label}
-      </Text>
+      <IconTile icon={icon} size={40} />
+      <View style={styles.linkText}>
+        <Text variant="bodySemi">{label}</Text>
+        <Text variant="caption" numberOfLines={1}>
+          {caption}
+        </Text>
+      </View>
       {badge ? (
         <View style={styles.linkBadge} testID={testID ? `${testID}-badge` : undefined}>
-          <Text variant="micro" color={colors.onAccent}>
+          <Text variant="micro" color={colors.onAccent} style={styles.linkBadgeText}>
             {badge > 9 ? "9+" : String(badge)}
           </Text>
         </View>
@@ -172,7 +181,9 @@ function AccountLink({
 function InfoRow({ label, value, testID }: { label: string; value: string; testID?: string }) {
   return (
     <View style={styles.infoRow}>
-      <Text variant="caption">{label}</Text>
+      <Text variant="caption" style={styles.infoLabel}>
+        {label}
+      </Text>
       <Text variant="mono" style={styles.infoValue} testID={testID}>
         {value}
       </Text>
@@ -184,47 +195,40 @@ const styles = StyleSheet.create({
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xl,
+    gap: spacing.lg,
     flexWrap: "nowrap",
   },
   degraded: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.xl,
+    gap: spacing.md,
+    backgroundColor: colors.warningSoft,
+    borderRadius: radii.md,
+    paddingLeft: spacing.lg,
+    paddingRight: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   degradedText: {
     flex: 1,
   },
   degradedRetry: {
     minHeight: touchTarget,
-    minWidth: 88,
+    minWidth: 72,
     alignItems: "center",
     justifyContent: "center",
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
+    paddingHorizontal: spacing.md,
   },
   profileText: {
     flex: 1,
     minWidth: 0,
     gap: spacing.xs,
   },
-  pillSlot: {
-    flexShrink: 0,
-  },
   pill: {
-    borderWidth: 1,
-    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
     borderRadius: radii.full,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+    flexShrink: 0,
   },
   linksCard: {
     overflow: "hidden",
@@ -238,36 +242,57 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.lg,
-    minHeight: touchTarget,
+    minHeight: touchTarget + 16,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
   },
-  linkLabel: {
+  linkPressed: {
+    backgroundColor: colors.surfaceElevated,
+  },
+  linkText: {
     flex: 1,
+    minWidth: 0,
+    gap: spacing.xs,
   },
   linkBadge: {
-    minWidth: 20,
-    height: 20,
+    minWidth: 22,
+    height: 22,
     borderRadius: radii.full,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.danger,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.sm + 2,
+  },
+  linkBadgeText: {
+    letterSpacing: 0,
   },
   infoCard: {
-    gap: spacing.xl,
+    overflow: "hidden",
   },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     gap: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    minHeight: touchTarget,
+  },
+  infoLabel: {
+    flexShrink: 1,
   },
   infoValue: {
     textAlign: "right",
     flexShrink: 1,
+    color: colors.foreground,
   },
   about: {
-    lineHeight: 18,
+    paddingHorizontal: spacing.sm,
+  },
+  signOut: {
+    marginTop: spacing.xl,
+    paddingTop: spacing.xl2,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
 });

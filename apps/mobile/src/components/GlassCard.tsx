@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { BlurView } from "expo-blur";
-import { blurMethod, colors, glass, radii, shadows, spacing } from "@/src/theme";
+import { blurMethod, colors, glass, motion, radii, shadows, spacing } from "@/src/theme";
 import { usePrefersReducedTransparency } from "@/src/hooks/usePrefersReducedTransparency";
 
 type GlassCardProps = {
@@ -9,17 +9,27 @@ type GlassCardProps = {
   onPress?: () => void;
   accent?: string;
   padding?: number;
+  /** Wash color painted behind the frost (defaults to brand blue). */
+  wash?: string;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
 
 /**
- * Frosted-glass hero surface — the same shape/contract as `Card`, but with a
- * blurred translucent background instead of a solid one. Reserved for hero
- * banners and summary cards; regular content keeps using `Card`. Falls back
- * to a solid surface under the OS Reduce Transparency setting.
+ * The pass / hero surface: a white frost over a soft color wash, so the card
+ * reads as a subtle gradient rather than flat white. Same shape/contract as
+ * `Card`; reserved for the current-state pass, summaries and hero banners.
+ * Falls back to a solid surface under the OS Reduce Transparency setting.
  */
-export function GlassCard({ children, onPress, accent, padding = spacing.xl, style, testID }: GlassCardProps) {
+export function GlassCard({
+  children,
+  onPress,
+  accent,
+  padding = spacing.xl2,
+  wash = colors.primary,
+  style,
+  testID,
+}: GlassCardProps) {
   const reducedTransparency = usePrefersReducedTransparency();
   const preset = glass.hero;
 
@@ -27,6 +37,9 @@ export function GlassCard({ children, onPress, accent, padding = spacing.xl, sty
     <View style={[StyleSheet.absoluteFill, { backgroundColor: preset.fallbackColor }]} />
   ) : (
     <>
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />
+      <View style={[styles.wash, styles.washTop, { backgroundColor: wash }]} />
+      <View style={[styles.wash, styles.washBottom, { backgroundColor: wash }]} />
       <BlurView
         testID={testID ? `${testID}-blur` : undefined}
         style={StyleSheet.absoluteFill}
@@ -41,10 +54,7 @@ export function GlassCard({ children, onPress, accent, padding = spacing.xl, sty
   const content = (
     // `style` lands here (not on `outer`) because this is the node that
     // actually holds `{accent}{children}` — layout props like `gap` from a
-    // caller's style need to apply where the children are. Note: a
-    // caller-supplied `borderRadius` in `style` won't resize `outer`/`clip`
-    // below, which stay fixed at `radii.lg` — an accepted limitation of this
-    // two-layer (shadow-outer + clipped-inner) structure.
+    // caller's style need to apply where the children are.
     <View testID={testID ? `${testID}-content` : undefined} style={[{ padding }, style]}>
       {accent ? (
         <View testID={testID ? `${testID}-accent` : undefined} style={[styles.accent, { backgroundColor: accent }]} />
@@ -54,9 +64,7 @@ export function GlassCard({ children, onPress, accent, padding = spacing.xl, sty
   );
 
   // Shadow lives on the outer, un-clipped view; the inner view clips the
-  // blur/border to the rounded corners (overflow:hidden would also clip an
-  // iOS shadow if applied on the same node).
-  const outerStyle = styles.outer;
+  // wash/blur/border to the rounded corners.
   const clipStyle = [
     styles.clip,
     { borderColor: reducedTransparency ? colors.border : preset.borderColor },
@@ -68,7 +76,7 @@ export function GlassCard({ children, onPress, accent, padding = spacing.xl, sty
         testID={testID}
         accessibilityRole="button"
         onPress={onPress}
-        style={({ pressed }) => [outerStyle, pressed ? styles.pressed : undefined]}>
+        style={({ pressed }) => [styles.outer, pressed ? styles.pressed : undefined]}>
         <View style={clipStyle}>
           {background}
           {content}
@@ -77,7 +85,7 @@ export function GlassCard({ children, onPress, accent, padding = spacing.xl, sty
     );
   }
   return (
-    <View testID={testID} style={outerStyle}>
+    <View testID={testID} style={styles.outer}>
       <View style={clipStyle}>
         {background}
         {content}
@@ -88,22 +96,38 @@ export function GlassCard({ children, onPress, accent, padding = spacing.xl, sty
 
 const styles = StyleSheet.create({
   outer: {
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     ...shadows.card,
   },
   clip: {
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     borderWidth: 1,
     overflow: "hidden",
   },
+  wash: {
+    position: "absolute",
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    opacity: 0.16,
+  },
+  washTop: {
+    top: -140,
+    right: -80,
+  },
+  washBottom: {
+    bottom: -180,
+    left: -60,
+    opacity: 0.08,
+  },
   accent: {
-    width: 40,
+    width: 28,
     height: 4,
     borderRadius: 2,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   pressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.99 }],
+    opacity: 0.94,
+    transform: [{ scale: motion.pressScale }],
   },
 });

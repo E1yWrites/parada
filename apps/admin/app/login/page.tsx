@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, AlertCircle, LockKeyhole, Mail } from "lucide-react";
+import { AlertCircle, CarFront, LockKeyhole, Mail } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { ApiError } from "@/lib/api/client";
 import { Button } from "@/components/ui/Button";
@@ -39,22 +39,20 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-[1.75rem] bg-brand shadow-[0_16px_30px_-12px_rgba(202,0,19,0.6)]">
-            <Activity className="h-9 w-9 text-white" aria-hidden="true" />
+        <div className="mb-8 flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand shadow-primary">
+            <CarFront className="h-6 w-6 text-white" aria-hidden="true" />
           </div>
-          <h1 className="mt-4 font-display text-4xl font-black tracking-[-0.02em] text-charcoal">PARADA</h1>
-          <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
-            Smart Parking · Operations Console
-          </p>
+          <div className="leading-none">
+            <p className="font-display text-xl font-black tracking-[0.12em] text-charcoal">PARADA</p>
+            <p className="mt-1 text-xs font-semibold text-muted">Operations console</p>
+          </div>
         </div>
 
         <Card className="p-6 sm:p-8">
           <div className="mb-6">
-            <h2 className="font-display text-xl font-black tracking-tight text-charcoal">Administrator sign in</h2>
-            <p className="mt-1 text-sm text-muted">
-              Access restricted to authorized operations staff.
-            </p>
+            <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">Sign in</h1>
+            <p className="mt-1.5 text-sm text-muted">Administrator accounts only.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
@@ -62,7 +60,7 @@ export default function LoginPage() {
               <label htmlFor="email" className="label">
                 Email
               </label>
-              <div className="relative mt-2">
+              <div className="relative">
                 <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
                 <input
                   id="email"
@@ -81,7 +79,7 @@ export default function LoginPage() {
               <label htmlFor="password" className="label">
                 Password
               </label>
-              <div className="relative mt-2">
+              <div className="relative">
                 <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
                 <input
                   id="password"
@@ -97,11 +95,8 @@ export default function LoginPage() {
             </div>
 
             {error ? (
-              <div
-                role="alert"
-                className="flex items-center gap-2 rounded-panel border border-brand/25 bg-brand-soft px-3.5 py-2.5 text-sm font-semibold text-brand"
-              >
-                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <div role="alert" className="alert-danger">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 {error}
               </div>
             ) : null}
@@ -113,7 +108,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="mt-6 text-center text-xs font-semibold text-muted">
-          Protected by authentication · HttpOnly session · Administrator role required
+          Sessions are kept in an HttpOnly cookie and end when you sign out.
         </p>
       </div>
     </div>

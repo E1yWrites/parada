@@ -1,17 +1,19 @@
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   AvailabilityBadge,
   Button,
-  Card,
   CapacityBar,
   ErrorState,
+  GlassCard,
   LoadingState,
   Metric,
   NavigateButton,
+  PlateChip,
   Screen,
   Text,
+  parkingStatusMeta,
 } from "@/src/components";
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
@@ -27,6 +29,8 @@ export default function ZoneDetailScreen() {
   const zones = useQuery({ queryKey: queryKeys.zones, queryFn: api.zones, refetchInterval: 30_000 });
   const establishment = useQuery({ queryKey: queryKeys.establishment, queryFn: api.establishment });
   const zoneData = zones.data?.find((z) => z.id === id) ?? null;
+  const status = zoneData ? parkingStatusMeta(zoneData.availability) : null;
+  const isFull = zoneData ? zoneData.availableCount <= 0 : false;
 
   return (
     <Screen
@@ -43,37 +47,47 @@ export default function ZoneDetailScreen() {
           onRetry={() => void zones.refetch()}
           testID="zone-detail-error"
         />
-      ) : zoneData ? (
+      ) : zoneData && status ? (
         <>
-          <Text variant="mono" color={colors.muted}>
-            {zoneData.code}
-          </Text>
-          <Card testID="zone-detail-card">
-            <AvailabilityBadge status={zoneData.availability} testID="zone-detail-availability" />
+          <GlassCard wash={status.color} style={styles.hero} testID="zone-detail-card">
+            <View style={styles.headerRow}>
+              <PlateChip value={zoneData.code} />
+              <AvailabilityBadge status={zoneData.availability} testID="zone-detail-availability" />
+            </View>
+            <View style={styles.countRow}>
+              <Metric
+                label="Free"
+                value={String(zoneData.availableCount)}
+                accent={isFull ? colors.danger : status.color === colors.muted ? colors.foreground : status.color}
+                size="lg"
+              />
+              <View style={styles.sideMetrics}>
+                <Metric label="Capacity" value={String(zoneData.capacity)} />
+                <Metric label="Occupied" value={String(zoneData.occupiedCount)} />
+              </View>
+            </View>
             <CapacityBar
               occupied={zoneData.occupiedCount}
               capacity={zoneData.capacity}
-              color={colors.warning}
+              color={status.color}
               testID="zone-detail-occupancy"
             />
-            <View style={{ flexDirection: "row", justifyContent: "space-between", gap: spacing.md }}>
-              <Metric label="Free" value={String(zoneData.availableCount)} accent={colors.warning} icon="car-outline" />
-              <Metric label="Capacity" value={String(zoneData.capacity)} accent={colors.muted} icon="grid-outline" />
-              <Metric label="Occupied" value={String(zoneData.occupiedCount)} accent={colors.muted} icon="lock-closed-outline" />
-            </View>
-          </Card>
+            <NavigateButton
+              destination={resolveEstablishmentDestination(establishment.data)}
+              label="Navigate to parking"
+              primary
+              testID="zone-detail-navigate"
+            />
+          </GlassCard>
 
           {zoneData.description ? (
-            <Text variant="caption" color={colors.foreground} testID="zone-detail-description">
-              {zoneData.description}
-            </Text>
+            <View style={styles.description}>
+              <Text variant="section">Finding the zone</Text>
+              <Text variant="body" color={colors.muted} testID="zone-detail-description">
+                {zoneData.description}
+              </Text>
+            </View>
           ) : null}
-
-          <NavigateButton
-            destination={resolveEstablishmentDestination(establishment.data)}
-            label="Navigate to parking"
-            testID="zone-detail-navigate"
-          />
 
           <Button
             variant="secondary"
@@ -81,8 +95,37 @@ export default function ZoneDetailScreen() {
             onPress={() => router.push("/(tabs)/parking")}
             testID="zone-detail-reserve"
           />
+          <Text variant="caption" align="center">
+            Counts update every 30 seconds from the gate cameras.
+          </Text>
         </>
       ) : null}
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  hero: {
+    gap: spacing.xl2,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  countRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: spacing.xl,
+  },
+  sideMetrics: {
+    flexDirection: "row",
+    gap: spacing.xl2,
+    paddingBottom: spacing.sm,
+  },
+  description: {
+    gap: spacing.md,
+  },
+});

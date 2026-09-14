@@ -1,5 +1,7 @@
 import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Card } from "./Card";
+import { IconTile } from "./IconTile";
 import { Text } from "./Text";
 import { ViolationBadge, violationStatusMeta } from "./StatusBadge";
 import { formatCurrency, formatDateTime } from "@/lib/format";
@@ -14,53 +16,62 @@ type ViolationCardProps = {
 
 /** Summary card for the violations list. Tap to open the full detail/appeal screen. */
 export function ViolationCard({ violation, onPress, testID }: ViolationCardProps) {
+  const meta = violationStatusMeta(violation.status);
   return (
-    <Card
-      onPress={onPress}
-      accent={violationStatusMeta(violation.status).color}
-      testID={testID}>
-      <View style={styles.row}>
-        <View style={styles.heading}>
-          <Text variant="title" numberOfLines={2}>
+    <Card onPress={onPress} style={styles.card} testID={testID}>
+      <IconTile icon="alert-circle" color={meta.color} size={44} />
+      <View style={styles.body}>
+        <View style={styles.row}>
+          <Text variant="title" numberOfLines={2} style={styles.title}>
             {violation.zone.name}
           </Text>
-          <Text variant="mono">{violation.vehicle?.plateNumber ?? "Unknown vehicle"}</Text>
+          <ViolationBadge status={violation.status} size="sm" testID={testID ? `${testID}-status` : undefined} />
         </View>
-        <View style={styles.badgeSlot}>
-          <ViolationBadge status={violation.status} testID={testID ? `${testID}-status` : undefined} />
+        <Text variant="mono" color={colors.muted}>
+          {violation.vehicle?.plateNumber ?? "Unknown vehicle"}
+        </Text>
+        <View style={styles.footRow}>
+          <Text variant="caption">Issued {formatDateTime(violation.issuedAt)}</Text>
+          <Text variant="monoBold" color={colors.warning} style={styles.fine}>
+            {formatCurrency(violation.fineAmount)}
+          </Text>
         </View>
       </View>
-      <View style={styles.footRow}>
-        <Text variant="caption" color={colors.muted}>
-          Issued {formatDateTime(violation.issuedAt)}
-        </Text>
-        <Text variant="monoBold" color={colors.warning}>
-          {formatCurrency(violation.fineAmount)}
-        </Text>
-      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.muted} />
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.sm,
+  },
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: spacing.md,
   },
-  heading: {
+  title: {
     flex: 1,
     minWidth: 0,
-    gap: spacing.xs,
-  },
-  badgeSlot: {
-    flexShrink: 0,
   },
   footRow: {
-    marginTop: spacing.md,
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  fine: {
+    fontSize: 15,
   },
 });

@@ -14,6 +14,7 @@ export default function ViolationsScreen() {
     <Screen
       back
       title="Violations"
+      subtitle="Wrong-zone entries, fines and appeals for your plates"
       refreshing={violations.isFetching}
       onRefresh={() => void violations.refetch()}
       testID="violations-screen">
@@ -29,7 +30,7 @@ export default function ViolationsScreen() {
         />
       ) : violations.data && violations.data.length === 0 ? (
         <EmptyState
-          icon="shield-checkmark-outline"
+          illustration="shield"
           title="No violations"
           description="Wrong-zone entries and their fines will show up here."
           testID="violations-empty"

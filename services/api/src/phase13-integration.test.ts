@@ -268,7 +268,13 @@ describe("Phase 13 — full system integration", () => {
     expect(noActive.body.data).toBeNull();
     const history = await asDriver(request(app).get("/sessions")).expect(200);
     expect(history.body.data).toEqual([expect.objectContaining({ id: session.id, status: "COMPLETED", feeAmount: 30, durationSeconds: completed.durationSeconds })]);
-    const analytics = await asAdmin(request(app).get("/admin/analytics")).expect(200);
+    // Explicit window: the default `from` is local midnight, which excludes a
+    // session entered 3h ago whenever the suite runs between 00:00 and 03:00.
+    const analytics = await asAdmin(
+      request(app)
+        .get("/admin/analytics")
+        .query({ from: new Date(enteredAtMs - 60_000).toISOString(), to: new Date(Date.now() + 60_000).toISOString() }),
+    ).expect(200);
     expect(analytics.body.data.revenue).toMatchObject({ total: 30, fees: 1 });
     expect(analytics.body.data.sessions).toMatchObject({ completed: 1, active: 0 });
     const zoneHistory = await asAdmin(request(app).get(`/admin/zones/${zoneId}/history`)).expect(200);

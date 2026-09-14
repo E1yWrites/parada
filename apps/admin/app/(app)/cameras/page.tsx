@@ -7,8 +7,8 @@ import { api, ApiError } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { OnlineBadge, Pill } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
+import { OnlineBadge, Pill, PlateChip } from "@/components/ui/Badge";
+import { Card, SectionHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { formatDateTime } from "@/lib/format";
 import type { AdminCamera, AdminCameraEvent } from "@/lib/api/types";
@@ -99,38 +99,36 @@ function CameraForm({
   const identifierDisabled = !!editing;
 
   return (
-    <Card className="mb-6">
-      <div className="flex items-center justify-between border-b border-line/50 px-5 py-4">
-        <div>
-          <p className="label-tech mb-1">Parking · Gate infrastructure</p>
-          <h2 className="font-display text-lg font-black tracking-tight text-charcoal">
-            {editing ? `Edit ${editing.identifier}` : "Register camera"}
-          </h2>
-        </div>
-        <Button variant="ghost" onClick={onDone} disabled={save.isPending}>
-          <X className="h-4 w-4" aria-hidden="true" />
-          Close
-        </Button>
-      </div>
+    <Card className="mb-6 animate-fade-in">
+      <SectionHeader
+        title={editing ? `Edit ${editing.identifier}` : "Register camera"}
+        description="Direction and operational status are backend-authoritative."
+        actions={
+          <Button variant="ghost" size="sm" onClick={onDone} disabled={save.isPending}>
+            <X className="h-4 w-4" aria-hidden="true" />
+            Close
+          </Button>
+        }
+      />
       <form className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2" onSubmit={submit}>
         <div className="sm:col-span-2">
-          <label className="label">Camera identifier</label>
+          <label htmlFor="camera-identifier" className="label">Camera identifier</label>
           <input
-            className="input mt-1.5"
+            id="camera-identifier"
+            className="input font-mono uppercase"
             value={form.identifier}
             onChange={(e) => setForm({ ...form, identifier: e.target.value })}
             placeholder="CAM-A01"
             disabled={identifierDisabled}
             required
           />
-          <p className="mt-1.5 text-xs text-muted">
-            Stable, unique id fed to the vision pipeline. Cannot be changed after creation.
-          </p>
+          <p className="field-help">Stable, unique id fed to the vision pipeline. Cannot be changed after creation.</p>
         </div>
         <div>
-          <label className="label">Associated zone</label>
+          <label htmlFor="camera-zone" className="label">Associated zone</label>
           <select
-            className="input mt-1.5"
+            id="camera-zone"
+            className="input"
             value={form.zoneId}
             onChange={(e) => setForm({ ...form, zoneId: e.target.value })}
             required
@@ -144,53 +142,57 @@ function CameraForm({
           </select>
         </div>
         <div>
-          <label className="label">Gate direction</label>
+          <label htmlFor="camera-gate" className="label">Gate direction</label>
           <select
-            className="input mt-1.5"
+            id="camera-gate"
+            className="input"
             value={form.gateType}
             onChange={(e) => setForm({ ...form, gateType: e.target.value as FormState["gateType"] })}
           >
-            <option value="ENTRY">ENTRY</option>
-            <option value="EXIT">EXIT</option>
-            <option value="BIDIRECTIONAL">BIDIRECTIONAL</option>
+            <option value="ENTRY">Entry gate</option>
+            <option value="EXIT">Exit gate</option>
+            <option value="BIDIRECTIONAL">Bidirectional gate</option>
           </select>
         </div>
         <div>
-          <label className="label">Status</label>
+          <label htmlFor="camera-status" className="label">Status</label>
           <select
-            className="input mt-1.5"
+            id="camera-status"
+            className="input"
             value={form.status}
             onChange={(e) => setForm({ ...form, status: e.target.value as FormState["status"] })}
           >
-            <option value="ONLINE">ONLINE (operational)</option>
-            <option value="OFFLINE">OFFLINE (disabled)</option>
+            <option value="ONLINE">Online (operational)</option>
+            <option value="OFFLINE">Offline (disabled)</option>
           </select>
         </div>
         <div>
-          <label className="label">Display name</label>
+          <label htmlFor="camera-name" className="label">Display name</label>
           <input
-            className="input mt-1.5"
+            id="camera-name"
+            className="input"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="Zone A Entry gate"
           />
         </div>
         <div className="sm:col-span-2">
-          <label className="label">Location</label>
+          <label htmlFor="camera-location" className="label">Location</label>
           <input
-            className="input mt-1.5"
+            id="camera-location"
+            className="input"
             value={form.location}
             onChange={(e) => setForm({ ...form, location: e.target.value })}
             placeholder="North gate"
           />
         </div>
-        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+        <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4 sm:col-span-2">
           <Button type="submit" variant="primary" disabled={save.isPending}>
             <Save className="h-4 w-4" aria-hidden="true" />
             {save.isPending ? (editing ? "Saving camera…" : "Registering camera…") : editing ? "Save camera" : "Register camera"}
           </Button>
           {error ? (
-            <span role="alert" className="flex items-center gap-2 text-sm font-semibold text-brand">
+            <span role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
               <AlertCircle className="h-4 w-4" aria-hidden="true" />
               {error}
             </span>
@@ -228,13 +230,11 @@ function ToggleStatus({ camera }: { camera: AdminCamera }) {
 
   return (
     <div className="flex flex-col items-start gap-1">
-      <button
-        type="button"
+      <Button
+        size="sm"
+        variant={camera.status === "ONLINE" ? "danger" : "success"}
         onClick={handleToggle}
         disabled={toggle.isPending}
-        className={`inline-flex items-center gap-1.5 text-xs font-bold ${
-          camera.status === "ONLINE" ? "text-muted hover:text-brand" : "text-emerald-600"
-        } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40`}
       >
         {camera.status === "ONLINE" ? (
           <>
@@ -247,9 +247,9 @@ function ToggleStatus({ camera }: { camera: AdminCamera }) {
             {toggle.isPending ? "Enabling…" : "Enable"}
           </>
         )}
-      </button>
+      </Button>
       {error ? (
-        <span role="alert" className="flex items-center gap-1 text-[11px] font-semibold text-brand">
+        <span role="alert" className="flex items-center gap-1 text-[11px] font-semibold text-danger">
           <AlertCircle className="h-3 w-3" aria-hidden="true" />
           {error}
         </span>
@@ -291,12 +291,12 @@ export default function CamerasPage() {
       header: "Camera",
       cell: (c) => (
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-panel bg-brand-soft">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-brand-soft">
             <Camera className="h-4 w-4 text-brand" aria-hidden="true" />
           </div>
-          <div>
-            <p className="text-sm font-bold text-charcoal">{c.identifier}</p>
-            <p className="text-[11px] font-semibold text-muted">{c.name}</p>
+          <div className="min-w-0">
+            <p className="font-mono text-sm font-bold text-charcoal">{c.identifier}</p>
+            <p className="truncate text-[11px] font-semibold text-muted">{c.name}</p>
           </div>
         </div>
       ),
@@ -304,18 +304,14 @@ export default function CamerasPage() {
     {
       key: "zone",
       header: "Zone",
-      cell: (c) => <span className="text-sm font-semibold text-charcoal">{c.zone.code}</span>,
+      cell: (c) => <PlateChip>{c.zone.code}</PlateChip>,
     },
     {
       key: "gate",
       header: "Gate",
       cell: (c) => {
         const meta = GATE_META[c.gateType] ?? GATE_META.BIDIRECTIONAL;
-        return (
-          <Pill tone={meta.tone} className="gap-1.5">
-            {meta.label}
-          </Pill>
-        );
+        return <Pill tone={meta.tone}>{meta.label}</Pill>;
       },
     },
     {
@@ -330,7 +326,7 @@ export default function CamerasPage() {
         const last = (c.recentEvents as AdminCameraEvent[] | undefined)?.[0];
         return last ? (
           <div>
-            <p className="text-xs font-bold text-charcoal">{last.detectedPlate ?? "Unknown"}</p>
+            <p className="font-mono text-xs font-bold text-charcoal">{last.detectedPlate ?? "Unknown"}</p>
             <p className="text-[11px] font-semibold text-muted">
               {last.eventType} · {formatDateTime(last.detectedAt)}
             </p>
@@ -343,16 +339,14 @@ export default function CamerasPage() {
     {
       key: "actions",
       header: "Actions",
+      headerClassName: "text-right",
+      className: "text-right",
       cell: (c) => (
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => openEdit(c)}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-muted hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
-          >
+        <div className="flex items-center justify-end gap-2">
+          <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
             <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
             Edit
-          </button>
+          </Button>
           <ToggleStatus camera={c} />
         </div>
       ),
@@ -362,14 +356,15 @@ export default function CamerasPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Parking · Infrastructure"
         title="Cameras"
-        description="Register and configure zone-gate cameras. Direction and operational status are backend-authoritative."
+        description="Register and configure the zone-gate cameras that count entries and exits."
         actions={
-          <Button variant="primary" onClick={openCreate}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            {creating ? "New camera" : "Register camera"}
-          </Button>
+          creating ? null : (
+            <Button variant="primary" onClick={openCreate}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Register camera
+            </Button>
+          )
         }
       />
 
@@ -386,7 +381,7 @@ export default function CamerasPage() {
         loadingRows={4}
         onRetry={() => cameras.refetch()}
       >
-        <DataTable columns={columns} rows={cameras.data ?? []} rowKey={(c) => c.id} />
+        <DataTable columns={columns} rows={cameras.data ?? []} rowKey={(c) => c.id} caption="Registered cameras" />
       </QueryBoundary>
     </div>
   );

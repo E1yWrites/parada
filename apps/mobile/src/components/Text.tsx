@@ -6,7 +6,7 @@ import {
   type StyleProp,
   type TextStyle,
 } from "react-native";
-import { fonts, fontSizes, lineHeights, colors } from "@/src/theme";
+import { fonts, fontSizes, letterSpacing, lineHeights, colors } from "@/src/theme";
 
 export type TextVariant =
   | "display"
@@ -30,7 +30,7 @@ type TextProps = {
   accessibilityLabel?: string;
   accessibilityRole?: AccessibilityRole;
   /** Cap font scaling so fixed layouts (plates, badges, heros) never blow out.
-   *  Defaults to 1.3. Pass a larger value (e.g. 2) on screens that must scale
+   *  Defaults to 1.8. Pass a larger value (e.g. 2) on screens that must scale
    *  further for accessibility. */
   maxFontSizeMultiplier?: number;
   style?: StyleProp<TextStyle>;
@@ -42,22 +42,26 @@ const variantStyles: Record<TextVariant, TextStyle> = {
     fontFamily: fonts.heading,
     fontSize: fontSizes.display,
     lineHeight: lineHeights.display,
+    letterSpacing: letterSpacing.display,
     color: colors.foreground,
+    fontVariant: ["tabular-nums"],
   },
   hero: {
     fontFamily: fonts.heading,
     fontSize: fontSizes.hero,
     lineHeight: lineHeights.hero,
+    letterSpacing: letterSpacing.hero,
     color: colors.foreground,
   },
   title: {
     fontFamily: fonts.headingMedium,
     fontSize: fontSizes.title,
     lineHeight: lineHeights.title,
+    letterSpacing: letterSpacing.title,
     color: colors.foreground,
   },
   section: {
-    fontFamily: fonts.heading500,
+    fontFamily: fonts.headingMedium,
     fontSize: fontSizes.section,
     lineHeight: lineHeights.section,
     color: colors.foreground,
@@ -75,36 +79,39 @@ const variantStyles: Record<TextVariant, TextStyle> = {
     color: colors.foreground,
   },
   caption: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.bodyMedium,
     fontSize: fontSizes.caption,
     lineHeight: lineHeights.caption,
     color: colors.muted,
   },
   micro: {
-    fontFamily: fonts.bodySemi,
+    fontFamily: fonts.bodyBold,
     fontSize: fontSizes.micro,
     lineHeight: lineHeights.micro,
     color: colors.muted,
-    letterSpacing: 1,
+    letterSpacing: letterSpacing.micro,
   },
   mono: {
     fontFamily: fonts.mono,
     fontSize: fontSizes.caption,
     lineHeight: lineHeights.caption,
     color: colors.foreground,
+    fontVariant: ["tabular-nums"],
   },
   monoBold: {
     fontFamily: fonts.monoBold,
     fontSize: fontSizes.monoValue,
     lineHeight: lineHeights.monoValue,
     color: colors.foreground,
+    fontVariant: ["tabular-nums"],
   },
   plate: {
     fontFamily: fonts.monoBold,
     fontSize: fontSizes.monoValue,
     lineHeight: lineHeights.monoValue,
     letterSpacing: 1.5,
-    color: colors.primary,
+    color: colors.foreground,
+    fontVariant: ["tabular-nums"],
   },
 };
 

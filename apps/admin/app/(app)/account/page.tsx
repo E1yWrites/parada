@@ -11,16 +11,12 @@ export default function AccountPage() {
 
   return (
     <div>
-      <PageHeader
-        eyebrow="Account · Session"
-        title="Account Details"
-        description="Your operator profile and access level."
-      />
+      <PageHeader title="Account" description="Your operator profile and this console session." />
 
       <div className="grid max-w-3xl grid-cols-1 gap-5">
         <Card>
-          <SectionHeader eyebrow="Identity" title="Profile" />
-          <dl className="divide-y divide-line/30 p-5">
+          <SectionHeader title="Profile" />
+          <dl className="divide-y divide-line px-5">
             <Row label="Name" value={user?.name ?? "—"} />
             <Row label="Email" value={user?.email ?? "—"} />
             <Row
@@ -38,13 +34,12 @@ export default function AccountPage() {
         </Card>
 
         <Card>
-          <SectionHeader eyebrow="Tools" title="Session" />
-          <div className="p-5">
-            <p className="mb-4 text-sm text-muted">
-              You are signed in as <span className="font-bold text-charcoal">{user?.email ?? "…"}</span>. Signing out ends this
-              admin session on the server.
+          <SectionHeader title="Session" description="Signing out ends this admin session on the server." />
+          <div className="flex flex-wrap items-center justify-between gap-4 p-5">
+            <p className="text-sm text-muted">
+              Signed in as <span className="font-bold text-charcoal">{user?.email ?? "…"}</span>
             </p>
-            <button type="button" className="btn-secondary" onClick={() => signOut()}>
+            <button type="button" className="btn-danger" onClick={() => signOut()}>
               Sign out
             </button>
           </div>
@@ -56,7 +51,7 @@ export default function AccountPage() {
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3">
+    <div className="flex items-center justify-between gap-4 py-3.5">
       <dt className="text-sm text-muted">{label}</dt>
       <dd className="text-right text-sm font-semibold text-charcoal">{value}</dd>
     </div>

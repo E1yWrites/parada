@@ -1,10 +1,13 @@
 import { StyleSheet, View } from "react-native";
 import type { Vehicle } from "@parada/types";
 import { Card } from "./Card";
+import { IconTile } from "./IconTile";
 import { Text } from "./Text";
 import { StatusBadge } from "./StatusBadge";
 import { colors, spacing } from "@/src/theme";
 import { formatVehicleType } from "@/lib/format";
+import type { ComponentProps } from "react";
+import type { Ionicons } from "@expo/vector-icons";
 
 type VehicleCardProps = {
   vehicle: Vehicle;
@@ -17,49 +20,45 @@ const vehicleStatusMeta: Record<Vehicle["status"], { label: string; icon: "check
   INACTIVE: { label: "Inactive", icon: "power", color: colors.muted },
 };
 
+const vehicleIcon: Record<Vehicle["vehicleType"], ComponentProps<typeof Ionicons>["name"]> = {
+  CAR: "car-sport",
+  MOTORCYCLE: "bicycle",
+  VAN: "bus",
+  TRUCK: "cube",
+  OTHER: "car",
+};
+
 export function VehicleCard({ vehicle, onPress, testID }: VehicleCardProps) {
+  const active = vehicle.status === "ACTIVE";
   return (
-    <Card onPress={onPress} accent={colors.highlight} style={styles.card} testID={testID}>
-      <View style={styles.row}>
-        <View style={styles.plateGroup}>
-          <Text variant="micro">PLATE</Text>
-          <Text variant="plate" testID={testID ? `${testID}-plate` : undefined}>
-            {vehicle.plateNumber}
-          </Text>
-        </View>
-        <View style={styles.metaGroup}>
-          <Text variant="caption" numberOfLines={2} style={styles.metaType} testID={testID ? `${testID}-type` : undefined}>
-            {formatVehicleType(vehicle.vehicleType)}
-          </Text>
-          <StatusBadge meta={vehicleStatusMeta[vehicle.status]} size="sm" testID={testID ? `${testID}-status` : undefined} />
-        </View>
+    <Card onPress={onPress} style={styles.card} testID={testID}>
+      <IconTile
+        icon={vehicleIcon[vehicle.vehicleType] ?? "car"}
+        color={active ? colors.primary : colors.muted}
+        size={48}
+      />
+      <View style={styles.plateGroup}>
+        <Text variant="plate" testID={testID ? `${testID}-plate` : undefined}>
+          {vehicle.plateNumber}
+        </Text>
+        <Text variant="caption" numberOfLines={2} testID={testID ? `${testID}-type` : undefined}>
+          {formatVehicleType(vehicle.vehicleType)}
+        </Text>
       </View>
+      <StatusBadge meta={vehicleStatusMeta[vehicle.status]} size="sm" testID={testID ? `${testID}-status` : undefined} />
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    gap: spacing.xl,
-  },
-  row: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.xl,
+    gap: spacing.lg,
   },
   plateGroup: {
-    gap: spacing.sm,
+    gap: spacing.xs,
     flex: 1,
     minWidth: 0,
-  },
-  metaGroup: {
-    alignItems: "flex-end",
-    gap: spacing.sm,
-    flexShrink: 0,
-    maxWidth: "60%",
-  },
-  metaType: {
-    textAlign: "right",
   },
 });

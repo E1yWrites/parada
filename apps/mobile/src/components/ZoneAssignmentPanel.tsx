@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./Button";
 import { Card } from "./Card";
+import { ChoiceChip } from "./ChoiceChip";
+import { PlateChip } from "./PlateChip";
 import { ErrorState, LoadingState } from "./StateComponents";
 import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
@@ -11,7 +13,7 @@ import { api, ApiError, type CreateAssignmentInput, type PublicZone } from "@/li
 import { activeAssignmentFrom, isActiveVehicle, upsertAssignment } from "@/lib/assignment";
 import type { ZoneAssignmentResponse } from "@parada/types";
 import { queryKeys } from "@/lib/query";
-import { colors, radii, spacing, touchTarget } from "@/src/theme";
+import { colors, spacing } from "@/src/theme";
 
 type ZoneAssignmentPanelProps = {
   /** Zone the user picked in the zones grid (live data from the zones query). */
@@ -130,17 +132,14 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
               This zone is now full. Please choose another zone.
             </Text>
           ) : (
-            <Card testID="assignment-summary">
-              <Text variant="micro" color={colors.highlight}>
-                SELECTED ZONE
-              </Text>
-              <Text variant="title">{selectedZone.name}</Text>
-              <Text variant="mono" color={colors.muted}>
-                {selectedZone.code}
-              </Text>
-              <Text variant="caption" color={colors.muted}>
-                {selectedZone.availableCount} spaces available
-              </Text>
+            <Card tone="tinted" testID="assignment-summary" style={styles.summary}>
+              <PlateChip value={selectedZone.code} />
+              <View style={styles.summaryText}>
+                <Text variant="title" numberOfLines={2}>
+                  {selectedZone.name}
+                </Text>
+                <Text variant="caption">{selectedZone.availableCount} spaces available</Text>
+              </View>
             </Card>
           )}
 
@@ -169,32 +168,22 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
             <View style={styles.vehicleBlock} testID="assignment-vehicles">
               {activeVehicles.length > 1 ? (
                 <>
-                  <Text variant="micro" style={styles.vehicleLabel}>
-                    CHOOSE VEHICLE
-                  </Text>
+                  <Text variant="micro">CHOOSE VEHICLE</Text>
                   <View style={styles.vehicleRow}>
-                    {activeVehicles.map((vehicle) => {
-                      const chosen = vehicle.id === selectedVehicleId;
-                      return (
-                        <Pressable
-                          key={vehicle.id}
-                          accessibilityRole="radio"
-                          accessibilityLabel={`Use vehicle ${vehicle.plateNumber}`}
-                          accessibilityState={{ selected: chosen }}
-                          onPress={() => setSelectedVehicleId(vehicle.id)}
-                          style={[styles.vehicleChip, chosen && styles.vehicleChipSelected]}
-                          testID={`assignment-vehicle-${vehicle.id}`}>
-                          <Text
-                            variant="mono"
-                            color={chosen ? colors.onAccent : colors.foreground}>
-                            {vehicle.plateNumber}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
+                    {activeVehicles.map((vehicle) => (
+                      <ChoiceChip
+                        key={vehicle.id}
+                        label={vehicle.plateNumber}
+                        mono
+                        selected={vehicle.id === selectedVehicleId}
+                        accessibilityLabel={`Use vehicle ${vehicle.plateNumber}`}
+                        onPress={() => setSelectedVehicleId(vehicle.id)}
+                        testID={`assignment-vehicle-${vehicle.id}`}
+                      />
+                    ))}
                   </View>
                   {needsVehicleChoice ? (
-                    <Text variant="caption" color={colors.muted} testID="assignment-vehicle-hint">
+                    <Text variant="caption" testID="assignment-vehicle-hint">
                       Choose a vehicle to assign.
                     </Text>
                   ) : null}
@@ -230,33 +219,25 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
 }
 
 const styles = StyleSheet.create({
+  summary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+  },
+  summaryText: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xs,
+  },
   noVehicle: {
     gap: spacing.md,
   },
   vehicleBlock: {
-    gap: spacing.sm,
-  },
-  vehicleLabel: {
-    letterSpacing: 0.8,
+    gap: spacing.md,
   },
   vehicleRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
-  },
-  vehicleChip: {
-    minHeight: touchTarget,
-    minWidth: 88,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceElevated,
-  },
-  vehicleChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
 });

@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Button } from "./Button";
 import { Card } from "./Card";
+import { PlateChip } from "./PlateChip";
 import { ReservationBadge } from "./StatusBadge";
 import { Text } from "./Text";
 import { formatDateTime } from "@/lib/format";
 import type { ReservationResponse } from "@parada/types";
-import { colors, spacing } from "@/src/theme";
+import { colors, radii, spacing } from "@/src/theme";
 
 type ReservationCardProps = {
   reservation: ReservationResponse;
@@ -21,7 +23,8 @@ type ReservationCardProps = {
  * Presentational reservation card. Displays the backend-confirmed fields
  * (zone, vehicle/plate, status, start/end). Cancellation is explicit: the user
  * taps "Cancel reservation" and then confirms in a second tap before the
- * `onCancel` callback fires — no optimistic state mutation.
+ * `onCancel` callback fires — no optimistic state mutation. The destructive
+ * control sits alone under a seam, away from the content.
  */
 export function ReservationCard({
   reservation,
@@ -38,30 +41,33 @@ export function ReservationCard({
       reservation.status === "ACTIVE");
 
   return (
-    <Card accent={colors.primary} testID={testID}>
+    <Card style={styles.card} testID={testID}>
       <View style={styles.row}>
         <View style={styles.heading}>
+          <PlateChip value={reservation.zone.code} tone="soft" size="sm" />
           <Text variant="title" numberOfLines={2}>
             {reservation.zone.name}
           </Text>
-          <Text variant="mono">{reservation.zone.code}</Text>
         </View>
         <View style={styles.badgeSlot}>
           <ReservationBadge status={reservation.status} testID={testID ? `${testID}-status` : undefined} />
         </View>
       </View>
 
-      <Text variant="plate" style={styles.plate}>
-        {reservation.vehicle.plateNumber}
-      </Text>
+      <Text variant="plate">{reservation.vehicle.plateNumber}</Text>
 
-      <View style={styles.times}>
-        <Text variant="caption">
-          Start {formatDateTime(reservation.startAt)}
-        </Text>
-        <Text variant="caption">
-          End {formatDateTime(reservation.endAt)}
-        </Text>
+      <View style={styles.window}>
+        <View style={styles.windowIcon}>
+          <Ionicons name="time-outline" size={16} color={colors.primary} />
+        </View>
+        <View style={styles.windowText}>
+          <Text variant="caption" color={colors.foreground}>
+            Start {formatDateTime(reservation.startAt)}
+          </Text>
+          <Text variant="caption" color={colors.foreground}>
+            End {formatDateTime(reservation.endAt)}
+          </Text>
+        </View>
       </View>
 
       {cancellable ? (
@@ -73,6 +79,7 @@ export function ReservationCard({
               </Text>
               <Button
                 variant="danger"
+                size="sm"
                 title="Confirm"
                 loading={cancelling}
                 onPress={onCancel}
@@ -82,6 +89,7 @@ export function ReservationCard({
           ) : (
             <Button
               variant="danger"
+              size="sm"
               title="Cancel reservation"
               onPress={() => setConfirming(true)}
               testID={testID ? `${testID}-cancel` : undefined}
@@ -94,6 +102,9 @@ export function ReservationCard({
 }
 
 const styles = StyleSheet.create({
+  card: {
+    gap: spacing.lg,
+  },
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -103,22 +114,40 @@ const styles = StyleSheet.create({
   heading: {
     flex: 1,
     minWidth: 0,
-    gap: spacing.xs,
+    gap: spacing.md,
   },
   badgeSlot: {
     flexShrink: 0,
   },
-  plate: {
-    marginTop: spacing.sm,
+  window: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radii.sm,
+    padding: spacing.lg,
   },
-  times: {
-    marginTop: spacing.md,
+  windowIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  windowText: {
+    flex: 1,
     gap: spacing.xs,
   },
   cancel: {
-    marginTop: spacing.lg,
+    marginTop: spacing.sm,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    alignItems: "flex-start",
   },
   confirmRow: {
+    alignSelf: "stretch",
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",

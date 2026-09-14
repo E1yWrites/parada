@@ -23,7 +23,7 @@ export default function UsersPage() {
       header: "User",
       cell: (u) => (
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-panel bg-brand-soft">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-brand-soft">
             <Users className="h-4 w-4 text-brand" aria-hidden="true" />
           </div>
           <div>
@@ -38,9 +38,7 @@ export default function UsersPage() {
       header: "Role",
       cell: (u) =>
         u.role === "ADMIN" ? (
-          <Pill tone="info" className="gap-1.5">
-            Administrator
-          </Pill>
+          <Pill tone="info">Administrator</Pill>
         ) : (
           <Pill tone="neutral">User</Pill>
         ),
@@ -53,27 +51,23 @@ export default function UsersPage() {
     {
       key: "vehicles",
       header: "Vehicles",
-      cell: (u) => <span className="font-display text-sm font-black text-charcoal">{u._count.vehicles}</span>,
+      cell: (u) => <span className="font-display text-sm font-black tabular-nums text-charcoal">{u._count.vehicles}</span>,
     },
     {
       key: "sessions",
       header: "Sessions",
-      cell: (u) => <span className="font-display text-sm font-black text-charcoal">{u._count.sessions}</span>,
+      cell: (u) => <span className="font-display text-sm font-black tabular-nums text-charcoal">{u._count.sessions}</span>,
     },
     {
       key: "created",
       header: "Joined",
-      cell: (u) => <span className="font-display text-sm font-bold text-muted">{formatDate(u.createdAt)}</span>,
+      cell: (u) => <span className="font-mono text-xs font-semibold text-muted">{formatDate(u.createdAt)}</span>,
     },
   ];
 
   return (
     <div>
-      <PageHeader
-        eyebrow="Management · Accounts"
-        title="Users"
-        description="Registered accounts and their operational footprint."
-      />
+      <PageHeader title="Users" description="Registered driver and administrator accounts." />
 
       <QueryBoundary
         status={users.status}
@@ -83,7 +77,7 @@ export default function UsersPage() {
         loadingRows={5}
         onRetry={() => users.refetch()}
       >
-        <DataTable columns={columns} rows={users.data ?? []} rowKey={(u) => u.id} />
+        <DataTable columns={columns} rows={users.data ?? []} rowKey={(u) => u.id} caption="Users" />
       </QueryBoundary>
     </div>
   );

@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, MapPinned, DoorClosed, DoorOpen, Clock3, Save, Plus, Trash2, RefreshCw, AlertCircle } from "lucide-react";
+import { ArrowLeft, DoorClosed, DoorOpen, Clock3, Save, Plus, Trash2, RefreshCw, AlertCircle } from "lucide-react";
 import { api, ApiError } from "@/lib/api/client";
-import { Card, SectionHeader } from "@/components/ui/Card";
-import { MetricCard } from "@/components/ui/MetricCard";
+import { Card, SavedNote, SectionHeader } from "@/components/ui/Card";
+import { FacilityStrip, MetricCard } from "@/components/ui/MetricCard";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { AvailabilityBadge, OnlineBadge, Pill } from "@/components/ui/Badge";
+import { AvailabilityBadge, OnlineBadge, Pill, PlateChip, AVAILABILITY_BAR } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatDateTime, formatPct } from "@/lib/format";
 import type { AdminZoneDetail, AdminSlot } from "@/lib/api/types";
@@ -64,7 +64,7 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
 
   return (
     <Card>
-      <SectionHeader eyebrow="Configuration" title="Edit zone" />
+      <SectionHeader title="Zone configuration" description="Name, code, capacity and status" />
       <form
         className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2"
         onSubmit={(event) => {
@@ -75,49 +75,52 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
         }}
       >
         <div>
-          <label className="label">Name</label>
+          <label htmlFor="edit-zone-name" className="label">Name</label>
           <input
-            className="input mt-1.5"
+            id="edit-zone-name"
+            className="input"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
           />
         </div>
         <div>
-          <label className="label">Code</label>
+          <label htmlFor="edit-zone-code" className="label">Code</label>
           <input
-            className="input mt-1.5"
+            id="edit-zone-code"
+            className="input font-mono uppercase"
             value={form.code}
             onChange={(e) => setForm({ ...form, code: e.target.value })}
             required
           />
         </div>
         <div className="sm:col-span-2">
-          <label className="label">Description</label>
+          <label htmlFor="edit-zone-description" className="label">Description</label>
           <input
-            className="input mt-1.5"
+            id="edit-zone-description"
+            className="input"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
         </div>
         <div>
-          <label className="label">Capacity</label>
+          <label htmlFor="edit-zone-capacity" className="label">Capacity</label>
           <input
+            id="edit-zone-capacity"
             type="number"
             min="1"
-            className="input mt-1.5"
+            className="input"
             value={form.capacity}
             onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
             required
           />
-          <p className="mt-1.5 text-xs text-muted">
-            Capacity cannot drop below the current occupancy or reserved spaces.
-          </p>
+          <p className="field-help">Cannot drop below the current occupancy or reserved spaces.</p>
         </div>
         <div>
-          <label className="label">Status</label>
+          <label htmlFor="edit-zone-status" className="label">Status</label>
           <select
-            className="input mt-1.5"
+            id="edit-zone-status"
+            className="input"
             value={form.status}
             onChange={(e) => setForm({ ...form, status: e.target.value as "ACTIVE" | "INACTIVE" })}
           >
@@ -125,14 +128,14 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
             <option value="INACTIVE">Inactive</option>
           </select>
         </div>
-        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+        <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4 sm:col-span-2">
           <Button type="submit" variant="primary" disabled={save.isPending}>
             <Save className="h-4 w-4" aria-hidden="true" />
             {save.isPending ? "Saving zone…" : "Save zone"}
           </Button>
-          {saved ? <span className="text-sm font-semibold text-emerald-600">Zone saved.</span> : null}
+          {saved ? <SavedNote>Zone saved.</SavedNote> : null}
           {error ? (
-            <span role="alert" className="flex items-center gap-2 text-sm font-semibold text-brand">
+            <span role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
               <AlertCircle className="h-4 w-4" aria-hidden="true" />
               {error}
             </span>
@@ -189,25 +192,19 @@ function PhysicalInventory({ zoneId, zoneCode, capacity }: { zoneId: string; zon
   return (
     <Card>
       <SectionHeader
-        eyebrow="Layout · inventory only"
-        title="Physical Spaces"
+        title="Physical spaces"
+        description="Layout inventory only — never drives occupancy, reservations or camera counting."
         actions={
-          <Button variant="secondary" onClick={() => resetToCapacity.mutate()} disabled={busy}>
+          <Button variant="secondary" size="sm" onClick={() => resetToCapacity.mutate()} disabled={busy}>
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
             {resetToCapacity.isPending ? "Syncing…" : "Reset to capacity"}
           </Button>
         }
       />
       <div className="p-5">
-        <p className="text-xs text-muted">
-          Physical spaces are inventory/layout only. They never drive occupancy,
-          reservations, assignments, or camera detection — zone capacity remains
-          the authoritative availability metric.
-        </p>
-
-        <div className="mt-4 flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <input
-            className="input flex-1"
+            className="input flex-1 font-mono"
             value={newSlot}
             onChange={(e) => setNewSlot(e.target.value)}
             placeholder={`New space code (e.g. ${zoneCode}04)`}
@@ -227,9 +224,9 @@ function PhysicalInventory({ zoneId, zoneCode, capacity }: { zoneId: string; zon
           </Button>
         </div>
 
-        {saved ? <p className="mt-3 text-sm font-semibold text-emerald-600">Physical inventory updated.</p> : null}
+        {saved ? <p className="mt-3"><SavedNote>Physical inventory updated.</SavedNote></p> : null}
         {error ? (
-          <p role="alert" className="mt-3 flex items-center gap-2 text-sm font-semibold text-brand">
+          <p role="alert" className="mt-3 flex items-center gap-2 text-sm font-semibold text-danger">
             <AlertCircle className="h-4 w-4" aria-hidden="true" />
             {error}
           </p>
@@ -248,15 +245,13 @@ function PhysicalInventory({ zoneId, zoneCode, capacity }: { zoneId: string; zon
               {slots.data?.map((slot) => (
                 <li
                   key={slot.id}
-                  className={`flex items-center justify-between rounded-panel border px-3 py-2 ${
-                    slot.status === "ACTIVE"
-                      ? "border-line/60 bg-white"
-                      : "border-line/40 bg-graygreen/20 opacity-60"
+                  className={`flex items-center justify-between gap-2 rounded-control border px-3 py-2 ${
+                    slot.status === "ACTIVE" ? "border-line bg-white" : "border-transparent bg-raised opacity-70"
                   }`}
                 >
-                  <div>
-                    <p className="font-display text-sm font-black text-charcoal">{slot.slotCode}</p>
-                    <Pill tone={slot.status === "ACTIVE" ? "success" : "neutral"}>
+                  <div className="min-w-0">
+                    <p className="font-mono text-sm font-bold text-charcoal">{slot.slotCode}</p>
+                    <Pill tone={slot.status === "ACTIVE" ? "success" : "neutral"} className="mt-1 min-h-[22px] text-[10.5px]">
                       {slot.status === "ACTIVE" ? "Active" : "Unavailable"}
                     </Pill>
                   </div>
@@ -269,7 +264,7 @@ function PhysicalInventory({ zoneId, zoneCode, capacity }: { zoneId: string; zon
                         removeSlot.mutate(slot.slotCode);
                       }}
                       disabled={busy}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-brand-soft hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:shadow-focus"
                       aria-label={`Remove ${slot.slotCode}`}
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -305,7 +300,7 @@ export default function ZoneDetailPage() {
 
   return (
     <div>
-      <Link href="/zones" className="btn-ghost mb-5 -ml-1 text-xs">
+      <Link href="/zones" className="btn-ghost btn-sm mb-5 -ml-2">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to zones
       </Link>
@@ -313,23 +308,19 @@ export default function ZoneDetailPage() {
       <QueryBoundary status={zones.status} error={zones.error} isEmpty={!zone} loadingRows={3}>
         {zone ? (
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 items-center justify-center rounded-panel bg-brand-soft">
-                  <MapPinned className="h-6 w-6 text-brand" aria-hidden="true" />
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-3">
+                  <PlateChip>{zone.code}</PlateChip>
+                  <h1 className="font-display text-[1.75rem] font-black leading-tight tracking-tight text-charcoal">{zone.name}</h1>
                 </div>
-                <div>
-                  <p className="label-tech">ZONE {zone.code}</p>
-                  <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">{zone.name}</h1>
-                  {zone.description ? <p className="mt-0.5 text-sm text-muted">{zone.description}</p> : null}
-                </div>
+                {zone.description ? <p className="mt-1.5 text-sm text-muted">{zone.description}</p> : null}
               </div>
               <AvailabilityBadge value={zone.availability} />
             </div>
 
-            {/* Metrics */}
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="Capacity" value={zone.capacity} detail="Total spaces" />
+            <FacilityStrip label="Zone occupancy">
+              <MetricCard label="Capacity" value={zone.capacity} detail="Authoritative total" />
               <MetricCard
                 label="Occupied"
                 value={zone.occupiedCount}
@@ -342,43 +333,38 @@ export default function ZoneDetailPage() {
                 detail="Open spaces"
                 accent={zone.availableCount === 0 ? "red" : "green"}
               />
-              <MetricCard
-                label="Occupancy"
-                value={formatPct(zone.occupancyPct)}
-                detail="Of capacity"
-                accent="info"
-              />
+              <MetricCard label="Occupancy" value={formatPct(zone.occupancyPct)} detail="Of capacity" accent="info" />
+            </FacilityStrip>
+
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+              <EditZoneForm zone={zone} />
+              <PhysicalInventory zoneId={zone.id} zoneCode={zone.code} capacity={zone.capacity} />
             </div>
 
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-              {/* Cameras */}
               <Card>
-                <SectionHeader eyebrow="Infrastructure" title="Gate Cameras" />
-                <div className="divide-y divide-line/30">
+                <SectionHeader title="Gate cameras" description="Entry and exit counting for this zone" />
+                <div className="divide-y divide-line">
                   {[zone.entryCamera, zone.exitCamera].filter(Boolean).map((cam) => {
                     const isEntry = zone.entryCamera?.id === cam!.id;
+                    const camStatus = zone.cameras.find((c) => c.id === cam!.id)?.status;
                     return (
-                      <div key={cam!.id} className="flex items-center justify-between px-5 py-4">
-                        <div className="flex items-center gap-3">
+                      <div key={cam!.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
+                        <div className="flex min-w-0 items-center gap-3">
                           <span
-                            className={`flex h-9 w-9 items-center justify-center rounded-panel ${
-                              isEntry ? "bg-emerald-50 text-emerald-600" : "bg-sky-50 text-sky-600"
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control ${
+                              isEntry ? "bg-success-soft text-success" : "bg-brand-soft text-brand"
                             }`}
                             aria-hidden="true"
                           >
                             {isEntry ? <DoorClosed className="h-4 w-4" /> : <DoorOpen className="h-4 w-4" />}
                           </span>
-                          <div>
-                            <p className="font-display text-sm font-black text-charcoal">{cam!.identifier}</p>
-                            <p className="text-[11px] uppercase tracking-wider text-muted">
-                              {isEntry ? "Entry" : "Exit"} gate
-                            </p>
+                          <div className="min-w-0">
+                            <p className="font-mono text-sm font-bold text-charcoal">{cam!.identifier}</p>
+                            <p className="text-[11px] font-semibold text-muted">{isEntry ? "Entry" : "Exit"} gate</p>
                           </div>
                         </div>
-                        {(() => {
-                          const camStatus = zone.cameras.find((c) => c.id === cam!.id)?.status;
-                          return <OnlineBadge online={camStatus === "ONLINE"} />;
-                        })()}
+                        <OnlineBadge online={camStatus === "ONLINE"} />
                       </div>
                     );
                   })}
@@ -390,69 +376,48 @@ export default function ZoneDetailPage() {
                 </div>
               </Card>
 
-              {/* Recent history snapshot */}
               <Card>
                 <SectionHeader
-                  eyebrow="Over time"
-                  title="Occupancy History"
+                  title="Occupancy history"
+                  description="Latest recorded counts"
                   actions={
-                    <Link href="/history" className="btn-ghost text-xs">
-                      View history <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+                    <Link href={`/history?zone=${zone.id}`} className="btn-ghost btn-sm">
+                      Full history <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
                     </Link>
                   }
                 />
-                <div className="p-5">
-                  <QueryBoundary status={history.status} error={history.error} isEmpty={!history.data}>
-                    {history.data && history.data.entries.length > 0 ? (
-                      <ul className="space-y-1.5">
-                        {history.data.entries.slice(-8).map((e) => (
-                          <li
-                            key={e.id}
-                            className="flex items-center justify-between rounded-panel bg-graygreen/15 px-3.5 py-2 text-sm"
-                          >
-                            <span className="font-display text-xs font-bold text-muted">{formatDateTime(e.occurredAt)}</span>
-                            <span className="font-display text-sm font-black text-charcoal">{e.occupiedCount}</span>
+                <QueryBoundary status={history.status} error={history.error} isEmpty={!history.data}>
+                  {history.data && history.data.entries.length > 0 ? (
+                    <div className="p-5">
+                      <div className="flex h-24 items-end gap-0.5" aria-label="Occupancy trend">
+                        {history.data.entries.slice(-40).map((e) => {
+                          const cap = history.data!.zone.capacity;
+                          const h = cap > 0 ? (e.occupiedCount / cap) * 100 : 0;
+                          return (
+                            <div
+                              key={e.id}
+                              title={`${formatDateTime(e.occurredAt)} · ${e.occupiedCount} / ${cap}`}
+                              className={`flex-1 rounded-sm transition-colors duration-150 hover:bg-brand-dark ${AVAILABILITY_BAR[zone.availability]} opacity-80`}
+                              style={{ height: `${Math.max(4, h)}%` }}
+                            />
+                          );
+                        })}
+                      </div>
+                      <ul className="mt-4 divide-y divide-line border-t border-line">
+                        {history.data.entries.slice(-6).map((e) => (
+                          <li key={e.id} className="flex items-center justify-between py-2 text-sm">
+                            <span className="font-mono text-xs font-semibold text-muted">{formatDateTime(e.occurredAt)}</span>
+                            <span className="font-display text-sm font-black tabular-nums text-charcoal">{e.occupiedCount}</span>
                           </li>
                         ))}
                       </ul>
-                    ) : (
-                      <p className="text-sm text-muted">No occupancy history recorded for this zone yet.</p>
-                    )}
-                  </QueryBoundary>
-                </div>
+                    </div>
+                  ) : (
+                    <p className="p-5 text-sm text-muted">No occupancy history recorded for this zone yet.</p>
+                  )}
+                </QueryBoundary>
               </Card>
             </div>
-
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-              <EditZoneForm zone={zone} />
-              <PhysicalInventory
-                zoneId={zone.id}
-                zoneCode={zone.code}
-                capacity={zone.capacity}
-              />
-            </div>
-
-            {/* Occupancy timeline bar */}
-            {history.data && history.data.entries.length > 0 ? (
-              <Card>
-                <SectionHeader eyebrow="Trend" title="Occupancy Over Time" />
-                <div className="p-5">
-                  <div className="flex h-24 items-end gap-0.5">
-                    {history.data.entries.slice(-40).map((e) => {
-                      const h = history.data!.zone.capacity > 0 ? (e.occupiedCount / history.data!.zone.capacity) * 100 : 0;
-                      return (
-                        <div
-                          key={e.id}
-                          title={`${e.occupiedCount} / ${history.data!.zone.capacity}`}
-                          className="flex-1 rounded-sm bg-brand/70 transition-colors duration-200 hover:bg-brand"
-                          style={{ height: `${Math.max(4, h)}%` }}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              </Card>
-            ) : null}
           </div>
         ) : null}
       </QueryBoundary>

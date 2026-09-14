@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./Button";
-import { GlassCard } from "./GlassCard";
+import { Card } from "./Card";
+import { ChoiceChip } from "./ChoiceChip";
+import { PlateChip } from "./PlateChip";
 import { EmptyState, ErrorState, LoadingState } from "./StateComponents";
 import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
@@ -13,7 +15,7 @@ import { isActiveVehicle } from "@/lib/assignment";
 import { upsertReservation } from "@/lib/current";
 import type { ReservationResponse } from "@parada/types";
 import { queryKeys } from "@/lib/query";
-import { colors, radii, spacing, touchTarget } from "@/src/theme";
+import { colors, spacing } from "@/src/theme";
 
 type ReservationPanelProps = {
   /** Zone the user picked on the grid (live data from the zones query). */
@@ -134,18 +136,15 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
           This zone is now full. Please choose another zone.
         </Text>
       ) : (
-        <GlassCard testID="reservation-summary">
-          <Text variant="micro" color={colors.highlight}>
-            RESERVING
-          </Text>
-          <Text variant="title">{selectedZone.name}</Text>
-          <Text variant="mono" color={colors.muted}>
-            {selectedZone.code}
-          </Text>
-          <Text variant="caption" color={colors.muted}>
-            {selectedZone.availableCount} spaces available
-          </Text>
-        </GlassCard>
+        <Card tone="tinted" testID="reservation-summary" style={styles.summary}>
+          <PlateChip value={selectedZone.code} />
+          <View style={styles.summaryText}>
+            <Text variant="title" numberOfLines={2}>
+              {selectedZone.name}
+            </Text>
+            <Text variant="caption">{selectedZone.availableCount} spaces available</Text>
+          </View>
+        </Card>
       )}
 
       {vehicles.isPending ? (
@@ -173,30 +172,22 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
         <View style={styles.vehicleBlock} testID="reservation-vehicles">
           {activeVehicles.length > 1 ? (
             <>
-              <Text variant="micro" style={styles.vehicleLabel}>
-                CHOOSE VEHICLE
-              </Text>
+              <Text variant="micro">CHOOSE VEHICLE</Text>
               <View style={styles.vehicleRow}>
-                {activeVehicles.map((vehicle) => {
-                  const chosen = vehicle.id === selectedVehicleId;
-                  return (
-                    <Pressable
-                      key={vehicle.id}
-                      accessibilityRole="radio"
-                      accessibilityLabel={`Use vehicle ${vehicle.plateNumber}`}
-                      accessibilityState={{ selected: chosen }}
-                      onPress={() => setSelectedVehicleId(vehicle.id)}
-                      style={[styles.vehicleChip, chosen && styles.vehicleChipSelected]}
-                      testID={`reservation-vehicle-${vehicle.id}`}>
-                      <Text variant="mono" color={chosen ? colors.onAccent : colors.foreground}>
-                        {vehicle.plateNumber}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+                {activeVehicles.map((vehicle) => (
+                  <ChoiceChip
+                    key={vehicle.id}
+                    label={vehicle.plateNumber}
+                    mono
+                    selected={vehicle.id === selectedVehicleId}
+                    accessibilityLabel={`Use vehicle ${vehicle.plateNumber}`}
+                    onPress={() => setSelectedVehicleId(vehicle.id)}
+                    testID={`reservation-vehicle-${vehicle.id}`}
+                  />
+                ))}
               </View>
               {needsVehicleChoice ? (
-                <Text variant="caption" color={colors.muted} testID="reservation-vehicle-hint">
+                <Text variant="caption" testID="reservation-vehicle-hint">
                   Choose a vehicle to reserve with.
                 </Text>
               ) : null}
@@ -244,7 +235,7 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
         />
       ) : reservations.data && reservations.data.length === 0 ? (
         <EmptyState
-          icon="calendar-outline"
+          illustration="reserve"
           title="No reservations yet"
           description="Reserve a spot above to hold capacity for your arrival."
           testID="reservations-empty"
@@ -270,37 +261,29 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
 }
 
 const styles = StyleSheet.create({
+  summary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+  },
+  summaryText: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xs,
+  },
   noVehicle: {
     gap: spacing.md,
   },
   vehicleBlock: {
-    gap: spacing.sm,
-  },
-  vehicleLabel: {
-    letterSpacing: 0.8,
+    gap: spacing.md,
   },
   vehicleRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
   },
-  vehicleChip: {
-    minHeight: touchTarget,
-    minWidth: 88,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceElevated,
-  },
-  vehicleChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
   listHeader: {
-    marginTop: spacing.xl2,
+    marginTop: spacing.xl,
   },
   list: {
     gap: spacing.xl,

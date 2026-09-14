@@ -1,40 +1,36 @@
 import { Redirect, Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, View } from "react-native";
+import { type ColorValue, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "@/src/providers/SessionProvider";
 import { FullScreenLoading } from "@/src/components/FullScreenLoading";
 import { TabBarBackground } from "@/src/components/TabBarBackground";
-import { colors, fonts, fontSizes, layout, shadows } from "@/src/theme";
+import { colors, fonts, fontSizes, layout, radii, shadows } from "@/src/theme";
 
-type IconProps = { color: string; size: number; focused: boolean };
+type IconProps = { color: ColorValue; size: number; focused: boolean };
 
-const FloatingDot = ({ show }: { show: boolean }) =>
-  show ? <View style={styles.dot} /> : null;
-
-const ParkingIcon = ({ color, size, focused }: IconProps) => (
-  <View style={styles.iconWrap}>
-    <Ionicons name={focused ? "grid" : "grid-outline"} size={size} color={color} />
-    <FloatingDot show={focused} />
+/**
+ * Active tab: the icon sits in a soft blue tile so the current section reads
+ * from across the room; inactive tabs are quiet outline glyphs.
+ */
+const TabIcon = ({
+  color,
+  size,
+  focused,
+  name,
+}: IconProps & { name: keyof typeof Ionicons.glyphMap }) => (
+  <View style={[styles.iconWrap, focused ? styles.iconWrapActive : undefined]}>
+    <Ionicons name={name} size={size} color={color} />
   </View>
 );
-const VehiclesIcon = ({ color, size, focused }: IconProps) => (
-  <View style={styles.iconWrap}>
-    <Ionicons name={focused ? "car-sport" : "car-sport-outline"} size={size} color={color} />
-    <FloatingDot show={focused} />
-  </View>
+
+const ParkingIcon = (props: IconProps) => <TabIcon {...props} name={props.focused ? "grid" : "grid-outline"} />;
+const VehiclesIcon = (props: IconProps) => (
+  <TabIcon {...props} name={props.focused ? "car-sport" : "car-sport-outline"} />
 );
-const SessionsIcon = ({ color, size, focused }: IconProps) => (
-  <View style={styles.iconWrap}>
-    <Ionicons name={focused ? "time" : "time-outline"} size={size} color={color} />
-    <FloatingDot show={focused} />
-  </View>
-);
-const AccountIcon = ({ color, size, focused }: IconProps) => (
-  <View style={styles.iconWrap}>
-    <Ionicons name={focused ? "person" : "person-outline"} size={size} color={color} />
-    <FloatingDot show={focused} />
-  </View>
+const SessionsIcon = (props: IconProps) => <TabIcon {...props} name={props.focused ? "time" : "time-outline"} />;
+const AccountIcon = (props: IconProps) => (
+  <TabIcon {...props} name={props.focused ? "person" : "person-outline"} />
 );
 
 export default function TabsLayout() {
@@ -53,8 +49,8 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
-        tabBarActiveTintColor: "#FFFFFF",
-        tabBarInactiveTintColor: "rgba(183, 198, 194, 0.9)",
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
           position: "absolute",
           bottom: insets.bottom + layout.FLOATING_TAB_BAR_MARGIN,
@@ -64,14 +60,14 @@ export default function TabsLayout() {
           borderRadius: layout.FLOATING_TAB_BAR_RADIUS,
           backgroundColor: "transparent",
           borderTopWidth: 0,
-          paddingTop: 6,
+          paddingTop: 4,
           ...shadows.pill,
         },
         tabBarBackground: () => <TabBarBackground testID="tab-bar-background" />,
         tabBarLabelStyle: {
-          fontFamily: fonts.headingRegular,
-          fontSize: fontSizes.micro + 1,
-          fontWeight: "600",
+          fontFamily: fonts.bodyBold,
+          fontSize: fontSizes.micro,
+          marginTop: 2,
         },
         sceneStyle: { backgroundColor: colors.background },
       }}>
@@ -97,14 +93,13 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   iconWrap: {
+    width: 40,
+    height: 28,
+    borderRadius: radii.sm,
     alignItems: "center",
     justifyContent: "center",
-    gap: 1,
   },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
+  iconWrapActive: {
+    backgroundColor: colors.primarySoft,
   },
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,13 +14,17 @@ import {
   TriangleAlert,
   History,
   UserRoundCheck,
-  Activity,
+  BarChart3,
+  FlaskConical,
+  Scale,
   Settings2,
   UserCircle2,
   LogOut,
   Menu,
   X,
   ChevronDown,
+  CarFront as BrandGlyph,
+  ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "./providers/auth-provider";
 import { FullPageSpinner } from "./ui/State";
@@ -59,7 +63,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/users", label: "Users", icon: Users },
       { href: "/violations", label: "Violations", icon: TriangleAlert },
-      { href: "/appeals", label: "Appeals", icon: Bell },
+      { href: "/appeals", label: "Appeals", icon: Scale },
       { href: "/guest-admit", label: "Guest Admission", icon: UserRoundCheck },
     ],
   },
@@ -67,7 +71,7 @@ const GROUPS: NavGroup[] = [
     label: "Analytics",
     collapsible: true,
     items: [
-      { href: "/analytics", label: "Analytics", icon: Activity },
+      { href: "/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/history", label: "History", icon: History },
     ],
   },
@@ -82,7 +86,7 @@ const GROUPS: NavGroup[] = [
   {
     label: "Tools",
     items: [
-      { href: "/simulator", label: "Simulator", icon: Activity },
+      { href: "/simulator", label: "Simulator", icon: FlaskConical },
       { href: "/settings", label: "Settings", icon: Settings2 },
     ],
   },
@@ -103,15 +107,13 @@ function isActive(href: string, exact: boolean | undefined, pathname: string): b
 
 function Brand() {
   return (
-    <Link href="/" className="flex items-center gap-3">
-      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand shadow-[0_10px_18px_-8px_rgba(202,0,19,0.6)]">
-        <Activity className="h-5 w-5 text-white" aria-hidden="true" />
+    <Link href="/" className="flex items-center gap-3 rounded-control focus-visible:outline-none focus-visible:shadow-focus">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand shadow-primary">
+        <BrandGlyph className="h-5 w-5 text-white" aria-hidden="true" />
       </div>
       <div className="leading-none">
-        <span className="font-display text-xl font-black tracking-[-0.02em] text-charcoal">PARADA</span>
-        <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
-          Smart Parking
-        </span>
+        <span className="font-display text-lg font-black tracking-[0.12em] text-charcoal">PARADA</span>
+        <span className="mt-1 block text-[11px] font-semibold text-muted">Operations console</span>
       </div>
     </Link>
   );
@@ -126,17 +128,14 @@ function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: stri
         href={item.href}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
-        className={`flex min-h-[44px] items-center gap-3 rounded-2xl border px-3 text-sm font-semibold transition-colors duration-200 ${
-          active
-            ? "border-line/60 bg-white text-charcoal shadow-[0_1px_2px_rgba(23,30,25,0.06)]"
-            : "border-transparent text-muted hover:bg-white hover:text-charcoal"
+        data-active={active ? "true" : undefined}
+        className={`relative z-[1] flex min-h-[40px] items-center gap-3 rounded-control px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:shadow-focus ${
+          active ? "text-brand-dark" : "text-muted hover:bg-raised hover:text-charcoal"
         }`}
       >
-        <Icon
-          className={`h-5 w-5 shrink-0 ${active ? "text-brand" : "text-muted"}`}
-          aria-hidden="true"
-        />
+        <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-brand" : "text-muted"}`} aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate">{item.label}</span>
+        {active ? <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" /> : null}
       </Link>
     </li>
   );
@@ -147,6 +146,27 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const [open, setOpen] = useState<Set<string>>(
     () => new Set(GROUPS.filter((g) => !g.collapsible).map((g) => g.label))
   );
+  const navRef = useRef<HTMLElement>(null);
+  const [pill, setPill] = useState<{ top: number; height: number } | null>(null);
+
+  // One active pill that slides between links instead of each link painting
+  // its own background. Measured from the nav's scroll box; hidden when the
+  // active link is inside a collapsed group.
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    const link = nav?.querySelector<HTMLElement>('a[data-active="true"]');
+    if (!nav || !link) {
+      setPill(null);
+      return;
+    }
+    const navRect = nav.getBoundingClientRect();
+    const rect = link.getBoundingClientRect();
+    if (rect.height === 0) {
+      setPill(null);
+      return;
+    }
+    setPill({ top: rect.top - navRect.top + nav.scrollTop, height: rect.height });
+  }, [pathname, open]);
 
   function toggle(label: string) {
     setOpen((prev) => {
@@ -158,19 +178,26 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   }
 
   return (
-    <nav className="flex-1 overflow-y-auto px-5 py-4" aria-label="Primary">
+    <nav ref={navRef} className="relative flex-1 overflow-y-auto px-4 py-3" aria-label="Primary">
+      {pill ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-4 right-4 rounded-control bg-brand-soft motion-safe:transition-[transform,height] motion-safe:duration-200 motion-safe:ease-out"
+          style={{ top: 0, height: pill.height, transform: `translateY(${pill.top}px)` }}
+        />
+      ) : null}
       {GROUPS.map((group) => {
         const id = groupId(group.label);
         const expanded = open.has(group.label);
         return (
-          <div key={group.label} className="mb-6">
+          <div key={group.label} className="mb-4">
             {group.collapsible ? (
               <button
                 type="button"
                 onClick={() => toggle(group.label)}
                 aria-expanded={expanded}
                 aria-controls={id}
-                className="flex min-h-[34px] w-full items-center gap-2 rounded-xl px-3 font-display text-[11px] font-black uppercase tracking-[0.14em] text-muted transition-colors duration-200 hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+                className="flex min-h-[34px] w-full items-center gap-2 rounded-control px-3 text-[11px] font-bold uppercase tracking-[0.08em] text-muted transition-colors duration-150 hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <span>{group.label}</span>
                 <ChevronDown
@@ -179,7 +206,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                 />
               </button>
             ) : (
-              <p className="px-3 pb-1.5 font-display text-[11px] font-black uppercase tracking-[0.14em] text-muted">
+              <p className="px-3 pb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
                 {group.label}
               </p>
             )}
@@ -187,7 +214,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
             {expanded ? (
               <ul
                 id={id}
-                className="mt-2 space-y-1 border-l border-line/50 pl-3"
+                className="mt-1 space-y-0.5"
                 aria-label={`${group.label} navigation`}
               >
                 {group.items.map((item) => (
@@ -202,28 +229,26 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarFooter({ onLogout }: { onLogout: () => void }) {
+function SidebarFooter({ name, onLogout }: { name?: string; onLogout: () => void }) {
   return (
-    <div className="border-t border-line/50 p-4">
-      <div className="flex items-center gap-3 rounded-2xl px-3 py-2.5">
+    <div className="border-t border-line p-3">
+      <div className="flex items-center gap-3 rounded-control px-3 py-2">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-soft" aria-hidden="true">
           <UserCircle2 className="h-5 w-5 text-brand" />
         </div>
         <div className="min-w-0 leading-tight">
-          <p className="truncate text-sm font-bold text-charcoal">Account</p>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Administrator</p>
+          <p className="truncate text-sm font-bold text-charcoal">{name ?? "Account"}</p>
+          <p className="text-[11px] font-semibold text-muted">Administrator</p>
         </div>
       </div>
-      <div className="mt-1">
-        <button
-          type="button"
-          onClick={onLogout}
-          className="flex min-h-[44px] w-full items-center gap-3 rounded-2xl px-3 text-sm font-semibold text-muted transition-colors duration-200 hover:bg-white hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
-        >
-          <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
-          Logout
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onLogout}
+        className="mt-1 flex min-h-[40px] w-full items-center gap-3 rounded-control px-3 text-sm font-semibold text-muted transition-colors duration-150 hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:shadow-focus"
+      >
+        <LogOut className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+        Logout
+      </button>
     </div>
   );
 }
@@ -237,8 +262,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!user) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand shadow-[0_12px_24px_-10px_rgba(202,0,19,0.6)]">
-          <Activity className="h-7 w-7 text-white" aria-hidden="true" />
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand shadow-primary">
+          <BrandGlyph className="h-7 w-7 text-white" aria-hidden="true" />
         </div>
         <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">Admin access required</h1>
         <p className="max-w-sm text-sm text-muted">
@@ -254,8 +279,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (user.role !== "ADMIN") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft" aria-hidden="true">
-          <TriangleAlert className="h-7 w-7 text-brand" />
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-danger-soft" aria-hidden="true">
+          <ShieldAlert className="h-7 w-7 text-danger" />
         </div>
         <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">Forbidden</h1>
         <p className="max-w-sm text-sm text-muted">
@@ -271,12 +296,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line/40 bg-paper lg:flex">
-        <div className="px-5 pb-2 pt-5">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-white lg:flex">
+        <div className="px-5 pb-3 pt-5">
           <Brand />
         </div>
         <NavList />
-        <SidebarFooter onLogout={() => signOut()} />
+        <SidebarFooter name={user.name} onLogout={() => signOut()} />
       </aside>
 
       {/* Mobile drawer */}
@@ -287,65 +312,66 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
-          <aside className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-line/40 bg-paper">
-            <div className="flex items-center justify-between border-b border-line/40 px-4 py-4">
+          <aside className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-line bg-white shadow-card-hover">
+            <div className="flex items-center justify-between border-b border-line px-4 py-4">
               <Brand />
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
-                className="flex h-11 w-11 items-center justify-center rounded-2xl text-muted transition-colors duration-200 hover:bg-white hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+                className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus"
                 aria-label="Close menu"
               >
                 <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
             <NavList onNavigate={() => setMobileOpen(false)} />
-            <SidebarFooter onLogout={() => signOut()} />
+            <SidebarFooter name={user.name} onLogout={() => signOut()} />
           </aside>
         </div>
       ) : null}
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-line/50 bg-white/75 px-4 backdrop-blur-xl sm:px-6">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-line bg-white/85 px-4 backdrop-blur-md sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="-ml-1 flex h-11 w-11 items-center justify-center rounded-panel text-muted hover:bg-charcoal/[0.05] hover:text-charcoal lg:hidden"
+              className="-ml-1 flex h-11 w-11 items-center justify-center rounded-control text-muted hover:bg-raised hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus lg:hidden"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
-            <div>
-              <p className="hidden text-[10px] font-bold uppercase tracking-[0.18em] text-muted sm:block">
-                Smart Parking · Control Center
-              </p>
-              <p className="font-display text-base font-black tracking-tight text-charcoal">Operations</p>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-success-bright opacity-60 animate-pulse-dot" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
+              </span>
+              <p className="truncate text-sm font-semibold text-muted">Live facility state</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <Link
               href="/notifications"
-              className="flex h-11 w-11 items-center justify-center rounded-panel text-muted transition-colors duration-200 hover:bg-charcoal/[0.05] hover:text-brand"
+              className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-raised hover:text-brand focus-visible:outline-none focus-visible:shadow-focus"
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5" aria-hidden="true" />
             </Link>
-            <div className="flex items-center gap-2.5 rounded-panel border border-line/50 bg-white px-3 py-1.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft" aria-hidden="true">
+            <div className="flex items-center gap-2.5 rounded-control border border-line bg-white py-1.5 pl-1.5 pr-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft" aria-hidden="true">
                 <UserCircle2 className="h-5 w-5 text-brand" />
               </div>
               <div className="hidden min-w-0 leading-tight sm:block">
                 <p className="max-w-[12rem] truncate text-sm font-bold text-charcoal">{user.name}</p>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted">{user.role}</p>
+                <p className="text-[11px] font-semibold text-muted">Administrator</p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => signOut()}
-              className="flex h-11 w-11 items-center justify-center rounded-panel text-muted transition-colors duration-200 hover:bg-charcoal/[0.05] hover:text-brand"
+              className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:shadow-focus"
               aria-label="Logout"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
@@ -353,7 +379,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 sm:py-10">{children}</main>
+        <main className="mx-auto w-full max-w-[88rem] flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
       </div>
     </div>
   );

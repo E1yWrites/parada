@@ -10,6 +10,7 @@ import {
   GlassCard,
   Input,
   LoadingState,
+  PlateChip,
   Screen,
   Text,
   ViolationBadge,
@@ -18,7 +19,7 @@ import {
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { colors, spacing } from "@/src/theme";
+import { colors, radii, spacing } from "@/src/theme";
 
 const REASON_MAX = 500;
 
@@ -68,45 +69,54 @@ export default function ViolationDetailScreen() {
         />
       ) : !violation ? (
         <EmptyState
-          icon="shield-checkmark-outline"
+          illustration="shield"
           title="Violation not found"
           description="This violation may have been removed."
           testID="violation-detail-missing"
         />
       ) : (
         <>
-          <GlassCard accent={violationStatusMeta(violation.status).color} testID="violation-summary">
-            <ViolationBadge status={violation.status} testID="violation-summary-status" />
-            <Text variant="monoBold" color={violationStatusMeta(violation.status).color} style={styles.fine}>
+          <GlassCard wash={violationStatusMeta(violation.status).color} style={styles.summary} testID="violation-summary">
+            <View style={styles.summaryRow}>
+              <Text variant="micro">FINE</Text>
+              <ViolationBadge status={violation.status} testID="violation-summary-status" />
+            </View>
+            <Text variant="display" color={violationStatusMeta(violation.status).color}>
               {formatCurrency(violation.fineAmount)}
             </Text>
-            <Text variant="caption" color={colors.muted}>
+            <Text variant="body" color={colors.muted}>
               {violation.violationType === "WRONG_ZONE" ? "Fine for a wrong-zone entry." : "Establishment violation fine."}
             </Text>
           </GlassCard>
 
-          <Card testID="violation-details-card">
-            <Text variant="micro">PLATE</Text>
-            <Text variant="plate">{violation.vehicle?.plateNumber ?? "Unknown vehicle"}</Text>
-            <View style={styles.zoneRow}>
+          <Card testID="violation-details-card" style={styles.details}>
+            <View style={styles.detailRow}>
+              <Text variant="micro">PLATE</Text>
+              <Text variant="plate">{violation.vehicle?.plateNumber ?? "Unknown vehicle"}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.detailRow}>
               <Text variant="micro">ZONE</Text>
-              <Text variant="bodySemi">
-                {violation.zone.name} ({violation.zone.code})
-              </Text>
+              <View style={styles.zoneRow}>
+                <PlateChip value={violation.zone.code} tone="soft" size="sm" />
+                <Text variant="bodySemi" style={styles.zoneName}>
+                  {violation.zone.name}
+                </Text>
+              </View>
             </View>
             {violation.description ? (
-              <Text variant="caption" color={colors.muted}>
-                {violation.description}
-              </Text>
+              <>
+                <View style={styles.divider} />
+                <Text variant="body" color={colors.muted}>
+                  {violation.description}
+                </Text>
+              </>
             ) : null}
-            <Text variant="caption" color={colors.muted}>
-              Issued {formatDateTime(violation.issuedAt)}
-            </Text>
+            <View style={styles.divider} />
+            <Text variant="caption">Issued {formatDateTime(violation.issuedAt)}</Text>
           </Card>
 
-          <Text variant="section" style={styles.historyTitle}>
-            History
-          </Text>
+          <Text variant="section">History</Text>
           <Card style={styles.timeline} testID="violation-timeline">
             <TimelineItem label="Violation issued" detail={formatDateTime(violation.issuedAt)} color={colors.warning} />
             {violation.appeal ? (
@@ -127,8 +137,8 @@ export default function ViolationDetailScreen() {
           </Card>
 
           {violation.status === "PENDING" && !violation.appeal ? (
-            <View style={styles.appealBox} testID="violation-appeal-form">
-              <Text variant="bodySemi">Appeal this violation</Text>
+            <Card style={styles.appealBox} testID="violation-appeal-form">
+              <Text variant="title">Appeal this violation</Text>
               <Text variant="caption" color={colors.muted}>
                 You can appeal once. If you believe this was a mistake, explain what happened — our team will
                 review within 2 business days.
@@ -157,10 +167,10 @@ export default function ViolationDetailScreen() {
                 onPress={handleSubmitAppeal}
                 testID="violation-appeal-submit"
               />
-            </View>
+            </Card>
           ) : violation.appeal && violation.appeal.status === "PENDING" ? (
-            <Card style={styles.appealBox} testID="violation-appeal-pending">
-              <Text variant="bodySemi">Appeal under review</Text>
+            <Card tone="tinted" style={styles.appealBox} testID="violation-appeal-pending">
+              <Text variant="title">Appeal under review</Text>
               <Text variant="caption" color={colors.muted}>
                 We'll notify you once this is resolved. You can't submit another appeal for this violation.
               </Text>
@@ -205,16 +215,32 @@ function TimelineItem({
 }
 
 const styles = StyleSheet.create({
-  fine: {
-    fontSize: 30,
-    lineHeight: 36,
+  summary: {
+    gap: spacing.md,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  details: {
+    gap: spacing.lg,
+  },
+  detailRow: {
+    gap: spacing.sm,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
   },
   zoneRow: {
-    gap: spacing.xs,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
   },
-  historyTitle: {
-    fontSize: 16,
-    lineHeight: 22,
+  zoneName: {
+    flexShrink: 1,
   },
   timeline: {
     gap: 0,
@@ -248,15 +274,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   appealBox: {
-    gap: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 16,
-    padding: spacing.xl,
+    gap: spacing.lg,
   },
   quote: {
     fontStyle: "italic",
-    borderLeftWidth: 3,
+    borderLeftWidth: 1,
     borderLeftColor: colors.border,
     paddingLeft: spacing.lg,
+    borderRadius: radii.sm,
   },
 });

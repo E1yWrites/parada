@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./Button";
 import { CapacityBar } from "./CapacityBar";
+import { ChoiceChip } from "./ChoiceChip";
 import { GlassCard } from "./GlassCard";
 import { Metric } from "./Metric";
 import { NavigateButton } from "./NavigateButton";
+import { PlateChip } from "./PlateChip";
 import { SectionHeader } from "./SectionHeader";
+import { Stamp } from "./Stamp";
 import { EmptyState, ErrorState, LoadingState } from "./StateComponents";
 import { Text } from "./Text";
 import { api, ApiError, type CreateAssignmentInput } from "@/lib/api/client";
@@ -14,7 +17,7 @@ import { activeAssignmentFrom, isActiveVehicle, upsertAssignment } from "@/lib/a
 import type { ZoneAssignmentResponse } from "@parada/types";
 import { resolveEstablishmentDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
-import { colors, radii, spacing, touchTarget } from "@/src/theme";
+import { colors, spacing } from "@/src/theme";
 
 /**
  * Recommended-zone + accept-recommendation flow (Phase 9.2).
@@ -113,23 +116,22 @@ export function ParkingRecommendation() {
       />
 
       {confirmedAssignment ? (
-        <GlassCard accent={colors.highlight} testID="assignment-confirmed">
-          <Text variant="micro" color={colors.highlight}>
-            ZONE ASSIGNED
-          </Text>
-          <Text variant="title" testID="assignment-zone-name">
+        <GlassCard style={styles.card} testID="assignment-confirmed">
+          <Stamp label="ZONE ASSIGNED" icon="location" color={colors.primary} />
+          <Text variant="hero" numberOfLines={2} testID="assignment-zone-name">
             {confirmedAssignment.zone.name}
           </Text>
-          <Text variant="mono" color={colors.muted} testID="assignment-zone-code">
-            {confirmedAssignment.zone.code}
-          </Text>
-          <Text variant="caption" color={colors.muted} testID="assignment-vehicle">
-            Vehicle {confirmedAssignment.vehicle.plateNumber}
-          </Text>
+          <View style={styles.plateRow}>
+            <PlateChip value={confirmedAssignment.zone.code} tone="soft" size="sm" testID="assignment-zone-code" />
+            <Text variant="plate" testID="assignment-vehicle">
+              {confirmedAssignment.vehicle.plateNumber}
+            </Text>
+          </View>
           {establishment.isPending ? null : (
             <NavigateButton
               destination={navigationDestination}
               label="Navigate to assigned zone"
+              primary
               testID="assignment-navigate"
             />
           )}
@@ -138,12 +140,12 @@ export function ParkingRecommendation() {
         <LoadingState label="Finding the best zone…" testID="recommendation-loading" />
       ) : isUnavailable ? (
         <EmptyState
-          icon="car-outline"
+          illustration="zones"
           title="No zones available"
           description="No suitable parking zone is currently available."
           testID="recommendation-empty">
           <Button
-            variant="ghost"
+            variant="secondary"
             title="Retry"
             accessibilityLabel="Retry loading parking recommendation."
             onPress={retryRecommendation}
@@ -162,12 +164,12 @@ export function ParkingRecommendation() {
         />
       ) : recommended === null ? (
         <EmptyState
-          icon="car-outline"
+          illustration="zones"
           title="No zones available"
           description="No suitable parking zone is currently available."
           testID="recommendation-empty">
           <Button
-            variant="ghost"
+            variant="secondary"
             title="Retry"
             accessibilityLabel="Retry loading parking recommendation."
             onPress={retryRecommendation}
@@ -175,48 +177,34 @@ export function ParkingRecommendation() {
           />
         </EmptyState>
       ) : (
-        <GlassCard accent={colors.highlight} testID="recommendation-card">
-          <View accessible accessibilityLabel={summary} testID="recommendation-zone">
+        <GlassCard style={styles.card} wash={colors.success} testID="recommendation-card">
+          <View accessible accessibilityLabel={summary} testID="recommendation-zone" style={styles.zoneBlock}>
+            <Stamp label="Recommended" icon="sparkles" color={colors.success} />
             <View style={styles.zoneRow}>
               <View style={styles.zoneText}>
-                <Text variant="title" numberOfLines={2}>
+                <Text variant="hero" numberOfLines={2}>
                   {recommended.name}
                 </Text>
-                <Text variant="mono" color={colors.muted}>
-                  {recommended.code}
-                </Text>
+                <PlateChip value={recommended.code} tone="soft" size="sm" />
               </View>
-              <View style={styles.percentBadge}>
-                <Text variant="monoBold" color={colors.highlight}>
-                  {percent}%
-                </Text>
-                <Text variant="micro" color={colors.muted}>
-                  OCCUPIED
-                </Text>
-              </View>
+              <Metric
+                label="Free"
+                value={String(recommended.availableCount)}
+                accent={colors.success}
+                size="lg"
+                testID="recommendation-available"
+              />
             </View>
           </View>
           <CapacityBar
             occupied={recommended.occupiedCount}
             capacity={recommended.capacity}
-            color={colors.highlight}
+            color={colors.success}
             testID="recommendation-occupancy"
           />
           <View style={styles.metrics}>
-            <Metric
-              label="Free"
-              value={String(recommended.availableCount)}
-              accent={colors.highlight}
-              icon="car-outline"
-              testID="recommendation-available"
-            />
-            <Metric
-              label="Capacity"
-              value={String(recommended.capacity)}
-              accent={colors.muted}
-              icon="grid-outline"
-              testID="recommendation-capacity"
-            />
+            <Metric label="Capacity" value={String(recommended.capacity)} testID="recommendation-capacity" />
+            <Metric label="Occupied" value={`${percent}%`} />
           </View>
 
           {activeVehicles.length === 0 ? (
@@ -225,30 +213,22 @@ export function ParkingRecommendation() {
             </Text>
           ) : activeVehicles.length > 1 ? (
             <View style={styles.vehicleBlock}>
-              <Text variant="micro" style={styles.vehicleLabel}>
-                ASSIGN VEHICLE
-              </Text>
+              <Text variant="micro">ASSIGN VEHICLE</Text>
               <View style={styles.vehicleRow}>
-                {activeVehicles.map((vehicle) => {
-                  const chosen = vehicle.id === selectedVehicleId;
-                  return (
-                    <Pressable
-                      key={vehicle.id}
-                      accessibilityRole="radio"
-                      accessibilityLabel={`Use vehicle ${vehicle.plateNumber}`}
-                      accessibilityState={{ selected: chosen }}
-                      onPress={() => setSelectedVehicleId(vehicle.id)}
-                      style={[styles.vehicleChip, chosen && styles.vehicleChipSelected]}
-                      testID={`vehicle-choice-${vehicle.id}`}>
-                      <Text variant="mono" color={chosen ? colors.onAccent : colors.foreground}>
-                        {vehicle.plateNumber}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+                {activeVehicles.map((vehicle) => (
+                  <ChoiceChip
+                    key={vehicle.id}
+                    label={vehicle.plateNumber}
+                    mono
+                    selected={vehicle.id === selectedVehicleId}
+                    accessibilityLabel={`Use vehicle ${vehicle.plateNumber}`}
+                    onPress={() => setSelectedVehicleId(vehicle.id)}
+                    testID={`vehicle-choice-${vehicle.id}`}
+                  />
+                ))}
               </View>
               {needsVehicleChoice ? (
-                <Text variant="caption" color={colors.muted} testID="recommendation-vehicle-hint">
+                <Text variant="caption" testID="recommendation-vehicle-hint">
                   Choose a vehicle to accept.
                 </Text>
               ) : null}
@@ -284,49 +264,39 @@ export function ParkingRecommendation() {
 }
 
 const styles = StyleSheet.create({
+  card: {
+    gap: spacing.xl,
+  },
+  zoneBlock: {
+    gap: spacing.md,
+  },
   zoneRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "space-between",
     gap: spacing.xl,
   },
   zoneText: {
     flex: 1,
-    gap: spacing.xs,
+    minWidth: 0,
+    gap: spacing.md,
   },
-  percentBadge: {
-    alignItems: "flex-end",
-    gap: spacing.xs,
+  plateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
   },
   metrics: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.xl2,
+    gap: spacing.xl3,
   },
   vehicleBlock: {
-    gap: spacing.sm,
-  },
-  vehicleLabel: {
-    letterSpacing: 0.8,
+    gap: spacing.md,
   },
   vehicleRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
-  },
-  vehicleChip: {
-    minHeight: touchTarget,
-    minWidth: 88,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceElevated,
-  },
-  vehicleChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
 });

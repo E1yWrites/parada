@@ -14,7 +14,7 @@ import {
 
 /**
  * PARADA type ramp — Nunito (display + UI, friendly rounded grotesque)
- * and JetBrains Mono (plates/time/technical data).
+ * and JetBrains Mono strictly for data: plates, zone codes, timestamps.
  *
  * The google-fonts constants are the actual `.ttf` assets (needed by
  * `useFonts`); `fontFamily` uses the registered human-readable names, which
@@ -47,34 +47,46 @@ export const fontAssets = {
   JetBrainsMono_700Bold,
 } as const;
 
+/**
+ * Size ramp. Steps are deliberately far apart so hierarchy reads at a glance
+ * (and from across a room during a demo): 40 / 30 / 20 / 17 / 15 / 13 / 11.
+ */
 export const fontSizes = {
-  /** Hero banner numbers (elapsed). */
-  display: 34,
-  /** Screen titles. */
-  hero: 32,
+  /** Hero numbers (elapsed clock, free-space count). */
+  display: 40,
+  /** Screen titles and the pass card's zone name. */
+  hero: 30,
   /** Card titles. */
-  title: 19,
+  title: 20,
   /** Section headers. */
-  section: 20,
+  section: 17,
   /** Primary content. */
   body: 15,
   /** Labels/hints/table data. */
-  caption: 12,
-  /** Badge / tech labels. */
-  micro: 10,
+  caption: 13,
+  /** Badge / field labels. */
+  micro: 11,
   /** Plate numbers / data values. */
   monoValue: 18,
 } as const;
 
 export const lineHeights = {
-  display: 40,
-  hero: 40,
+  display: 44,
+  hero: 36,
   title: 26,
-  section: 26,
+  section: 24,
   body: 22,
-  caption: 16,
-  micro: 12,
+  caption: 18,
+  micro: 14,
   monoValue: 24,
+} as const;
+
+/** Negative tracking for display sizes; positive tracking for tiny caps. */
+export const letterSpacing = {
+  display: -0.8,
+  hero: -0.6,
+  title: -0.3,
+  micro: 0.8,
 } as const;
 
 export type FontToken = keyof typeof fonts;

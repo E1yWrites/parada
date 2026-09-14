@@ -1,5 +1,10 @@
 import type { Config } from "tailwindcss";
 
+/**
+ * PARADA admin design tokens — the same "gate pass" world as the mobile app:
+ * slate ink on a cool off-white ground, electric blue as the single brand
+ * accent, one tinted family per status. Text colors reach ≥4.5:1 on white.
+ */
 const config: Config = {
   content: [
     "./app/**/*.{ts,tsx}",
@@ -9,43 +14,55 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        paper: "#EEEBE3",
+        /** Cool off-white page ground. */
+        paper: "#F4F6FB",
+        /** White panel surface. */
         card: "#FFFFFF",
-        charcoal: "#171E19",
-        graygreen: "#B7C6C2",
-        /**
-         * Muted secondary text. The palette's Gray-Green (#B7C6C2) is retained
-         * for borders, dividers and decorative elements; on solid white it fails
-         * color-contrast for body copy, so muted *text* uses a darker
-         * gray-green derivative to stay WCAG-compliant.
-         */
-        muted: "#64746E",
-        brand: {
-          DEFAULT: "#CA0013",
-          dark: "#9E0010",
-          soft: "#FDEAEC",
-        },
-        success: "#10B981",
-        warning: "#F59E0B",
-        info: "#3B82F6",
         surface: "#FFFFFF",
-        void: "#171E19",
-        line: "#B7C6C2",
+        /** Blue-tinted raised surface for tracks, chips, tiles. */
+        raised: "#EEF2FA",
+        /** Slate ink. */
+        charcoal: "#0F1B2D",
+        /** Muted slate text (5.5:1 on white). */
+        muted: "#5B6B82",
+        /** Hairline. */
+        line: "#E3E8F1",
+        brand: {
+          DEFAULT: "#1E5EFF",
+          dark: "#1546C9",
+          soft: "#E8EFFF",
+        },
+        success: {
+          DEFAULT: "#0B7F4F",
+          soft: "#E1F6EC",
+          bright: "#17B978",
+        },
+        warning: {
+          DEFAULT: "#A35F04",
+          soft: "#FFF3DB",
+          bright: "#F5A524",
+        },
+        danger: {
+          DEFAULT: "#D9342F",
+          soft: "#FDE9E8",
+        },
+        info: "#1E5EFF",
       },
       fontFamily: {
         display: ["var(--font-nunito)", "sans-serif"],
         sans: ["var(--font-nunito)", "system-ui", "sans-serif"],
-        mono: ["var(--font-nunito)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       boxShadow: {
-        card: "0 20px 50px -12px rgba(0,0,0,0.08)",
-        "card-hover": "0 24px 60px -12px rgba(0,0,0,0.14)",
-        "nav-active": "0 10px 15px -3px rgba(202,0,19,0.4)",
-        "nav-hover": "0 6px 14px -6px rgba(23,30,25,0.25)",
+        card: "0 8px 24px -8px rgba(15, 27, 45, 0.08), 0 1px 2px rgba(15, 27, 45, 0.04)",
+        "card-hover": "0 14px 32px -10px rgba(15, 27, 45, 0.14), 0 1px 2px rgba(15, 27, 45, 0.04)",
+        primary: "0 8px 18px -8px rgba(30, 94, 255, 0.55)",
+        focus: "0 0 0 3px rgba(30, 94, 255, 0.25)",
       },
       borderRadius: {
-        card: "2.5rem",
-        panel: "1.5rem",
+        panel: "1.25rem",
+        control: "0.875rem",
+        chip: "0.5rem",
       },
       keyframes: {
         "fade-in": {
@@ -56,10 +73,17 @@ const config: Config = {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.35" },
         },
+        "saved-fade": {
+          "0%": { opacity: "0", transform: "translateX(-4px)" },
+          "15%": { opacity: "1", transform: "translateX(0)" },
+          "80%": { opacity: "1" },
+          "100%": { opacity: "0" },
+        },
       },
       animation: {
-        "fade-in": "fade-in 0.25s ease-in-out both",
+        "fade-in": "fade-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both",
         "pulse-dot": "pulse-dot 2s ease-in-out infinite",
+        "saved-fade": "saved-fade 3.2s ease-out both",
       },
     },
   },

@@ -1,15 +1,18 @@
 import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { ActiveSessionBanner } from "./ActiveSessionBanner";
-import { Card } from "./Card";
+import { GlassCard } from "./GlassCard";
+import { PlateChip } from "./PlateChip";
+import { Stamp } from "./Stamp";
 import { AssignmentBadge, ReservationBadge } from "./StatusBadge";
-import { EmptyState, ErrorState, LoadingState } from "./StateComponents";
+import { ErrorState, LoadingState } from "./StateComponents";
 import { NavigateButton } from "./NavigateButton";
 import { Text } from "./Text";
 import type { SessionDto } from "@/lib/api/client";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { type NavigationDestination } from "@/lib/navigation";
 import type { ReservationResponse, ZoneAssignmentResponse } from "@parada/types";
-import { colors, spacing } from "@/src/theme";
+import { colors, radii, spacing } from "@/src/theme";
 
 type CurrentParkingStateProps = {
   /** Backend-derived current parking session (GET /sessions/active). */
@@ -115,12 +118,15 @@ export function CurrentParkingState({
 
   if (currentAssignment === null && currentReservation === null) {
     return (
-      <EmptyState
-        icon="car-outline"
-        title="No active parking"
-        description="You're not parked right now. Assign a zone, make a reservation, or check the recommendation below."
-        testID="current-state-empty"
-      />
+      <GlassCard wash={colors.muted} style={styles.pass} testID="current-state-empty">
+        <Stamp label="Not parked" icon="car-outline" color={colors.muted} />
+        <View style={styles.passBody}>
+          <Text variant="title">No active parking</Text>
+          <Text variant="body" color={colors.muted}>
+            You're not parked right now. Assign a zone, make a reservation, or check the recommendation below.
+          </Text>
+        </View>
+      </GlassCard>
     );
   }
 
@@ -183,48 +189,49 @@ function SessionState({
 
   return (
     <View testID="current-state">
-      <ActiveSessionBanner session={session} now={now} testID="active-banner" />
-      <Card testID="session-context">
-        <View accessible accessibilityLabel={summary} testID="session-summary">
-          <View style={styles.factRow}>
-            <View style={styles.fact}>
-              <Text variant="micro" color={colors.muted}>
-                SESSION STARTED
-              </Text>
-              <Text variant="body" testID="session-started">
-                {formatDateTime(session.enteredAt)}
-              </Text>
-            </View>
-            {session.feeAmount != null ? (
+      <ActiveSessionBanner session={session} now={now} testID="active-banner">
+        <View testID="session-context" style={styles.contextBlock}>
+          <View accessible accessibilityLabel={summary} testID="session-summary" style={styles.facts}>
+            <View style={styles.factRow}>
               <View style={styles.fact}>
-                <Text variant="micro" color={colors.muted}>
-                  SESSION FEE
+                <Text variant="micro">SESSION STARTED</Text>
+                <Text variant="bodySemi" testID="session-started">
+                  {formatDateTime(session.enteredAt)}
                 </Text>
-                <Text variant="body" color={colors.highlight} testID="session-fee">
-                  {formatCurrency(session.feeAmount)}
+              </View>
+              {session.feeAmount != null ? (
+                <View style={styles.fact}>
+                  <Text variant="micro">SESSION FEE</Text>
+                  <Text variant="monoBold" color={colors.highlight} testID="session-fee">
+                    {formatCurrency(session.feeAmount)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            {assignment ? (
+              <View style={styles.inlineRow}>
+                <Ionicons name="location" size={14} color={colors.primary} />
+                <Text variant="caption" testID="session-assignment" style={styles.inlineText}>
+                  Assigned zone: {assignment.zone.name} ({assignment.zone.code})
                 </Text>
               </View>
             ) : null}
+            {assignmentError && !assignment ? (
+              <Text variant="caption" testID="session-assignment-note">
+                Couldn't load your assignment info.
+              </Text>
+            ) : null}
           </View>
-          {assignment ? (
-            <Text variant="caption" color={colors.muted} testID="session-assignment">
-              Assigned zone: {assignment.zone.name} ({assignment.zone.code})
-            </Text>
-          ) : null}
-          {assignmentError && !assignment ? (
-            <Text variant="caption" color={colors.muted} testID="session-assignment-note">
-              Couldn't load your assignment info.
-            </Text>
+          {destinationReady ? (
+            <NavigateButton
+              destination={destination}
+              label="Navigate to parking"
+              primary
+              testID="current-state-navigate"
+            />
           ) : null}
         </View>
-        {destinationReady ? (
-          <NavigateButton
-            destination={destination}
-            label="Navigate to parking"
-            testID="current-state-navigate"
-          />
-        ) : null}
-      </Card>
+      </ActiveSessionBanner>
     </View>
   );
 }
@@ -245,37 +252,39 @@ function AssignmentState({ assignment, destination, destinationReady }: Assignme
     .join(" ");
 
   return (
-    <Card accent={colors.highlight} testID="assignment-current">
+    <GlassCard style={styles.pass} testID="assignment-current">
       <View style={styles.headerRow}>
-        <Text variant="micro" color={colors.highlight}>
-          ZONE ASSIGNED
-        </Text>
+        <Stamp label="ZONE ASSIGNED" icon="location" color={colors.primary} />
         <AssignmentBadge status={assignment.status} testID="assignment-current-badge" />
       </View>
-      <View accessible accessibilityLabel={summary} testID="assignment-summary">
-        <Text variant="title" testID="assignment-current-zone">
+      <View accessible accessibilityLabel={summary} testID="assignment-summary" style={styles.passBody}>
+        <Text variant="hero" numberOfLines={2} testID="assignment-current-zone">
           {assignment.zone.name}
         </Text>
-        <Text variant="mono" color={colors.muted}>
-          {assignment.zone.code}
-        </Text>
-        <Text variant="caption" color={colors.muted} testID="assignment-current-vehicle">
-          Vehicle {assignment.vehicle.plateNumber}
-        </Text>
-        {assignment.expiresAt ? (
-          <Text variant="caption" color={colors.muted} testID="assignment-current-validity">
-            Valid until {formatDateTime(assignment.expiresAt)}
+        <View style={styles.plateRow}>
+          <PlateChip value={assignment.zone.code} tone="soft" size="sm" />
+          <Text variant="plate" testID="assignment-current-vehicle">
+            {assignment.vehicle.plateNumber}
           </Text>
+        </View>
+        {assignment.expiresAt ? (
+          <View style={styles.inlineRow}>
+            <Ionicons name="time-outline" size={14} color={colors.muted} />
+            <Text variant="caption" testID="assignment-current-validity">
+              Valid until {formatDateTime(assignment.expiresAt)}
+            </Text>
+          </View>
         ) : null}
       </View>
       {destinationReady ? (
         <NavigateButton
           destination={destination}
           label="Navigate to assigned zone"
+          primary
           testID="assignment-navigate"
         />
       ) : null}
-    </Card>
+    </GlassCard>
   );
 }
 
@@ -293,43 +302,81 @@ function ReservationState({ reservation, destination, destinationReady }: Reserv
   ].join(" ");
 
   return (
-    <Card accent={colors.primary} testID="reservation-current">
+    <GlassCard style={styles.pass} wash={colors.success} testID="reservation-current">
       <View style={styles.headerRow}>
-        <Text variant="micro" color={colors.primary}>
-          RESERVED
-        </Text>
+        <Stamp label="RESERVED" icon="calendar" color={colors.success} />
         <ReservationBadge status={reservation.status} testID="reservation-current-badge" />
       </View>
-      <View accessible accessibilityLabel={summary} testID="reservation-summary">
-        <Text variant="title" testID="reservation-current-zone">
+      <View accessible accessibilityLabel={summary} testID="reservation-summary" style={styles.passBody}>
+        <Text variant="hero" numberOfLines={2} testID="reservation-current-zone">
           {reservation.zone.name}
         </Text>
-        <Text variant="mono" color={colors.muted}>
-          {reservation.zone.code}
-        </Text>
-        <Text variant="caption" color={colors.muted} testID="reservation-current-vehicle">
-          Vehicle {reservation.vehicle.plateNumber}
-        </Text>
-        <Text variant="caption" testID="reservation-current-window">
-          Start {formatDateTime(reservation.startAt)} · End {formatDateTime(reservation.endAt)}
-        </Text>
+        <View style={styles.plateRow}>
+          <PlateChip value={reservation.zone.code} tone="soft" size="sm" />
+          <Text variant="plate" testID="reservation-current-vehicle">
+            {reservation.vehicle.plateNumber}
+          </Text>
+        </View>
+        <View style={styles.windowBox}>
+          <Ionicons name="time-outline" size={14} color={colors.success} />
+          <Text variant="caption" color={colors.foreground} style={styles.inlineText} testID="reservation-current-window">
+            Start {formatDateTime(reservation.startAt)} · End {formatDateTime(reservation.endAt)}
+          </Text>
+        </View>
       </View>
       {destinationReady ? (
         <NavigateButton
           destination={destination}
           label="Navigate to parking"
+          primary
           testID="reservation-navigate"
         />
       ) : null}
-    </Card>
+    </GlassCard>
   );
 }
 
 const styles = StyleSheet.create({
+  pass: {
+    gap: spacing.xl2,
+  },
+  passBody: {
+    gap: spacing.lg,
+  },
   headerRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  plateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+  },
+  inlineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  inlineText: {
+    flexShrink: 1,
+  },
+  windowBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    borderRadius: radii.sm,
+    padding: spacing.lg,
+  },
+  contextBlock: {
+    gap: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(15, 27, 45, 0.08)",
+  },
+  facts: {
     gap: spacing.md,
   },
   factRow: {

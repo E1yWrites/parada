@@ -1,39 +1,45 @@
 import type { ReactNode } from "react";
 
+/**
+ * Facility strip: several figures on one panel, separated by seams instead of
+ * a grid of same-size cards. Pass `StatCard`s (or any figure) as children.
+ */
+export function FacilityStrip({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="card grid grid-cols-2 divide-y divide-line sm:divide-y-0 sm:divide-x lg:grid-cols-4"
+    >
+      {children}
+    </div>
+  );
+}
+
 export interface MetricCardProps {
   label: string;
   value: ReactNode;
-  valueClass?: string;
   detail?: ReactNode;
-  monotone?: boolean;
   accent?: "none" | "red" | "green" | "amber" | "info";
 }
 
 const ACCENTS: Record<NonNullable<MetricCardProps["accent"]>, string> = {
   none: "text-charcoal",
-  red: "text-brand",
-  green: "text-emerald-600",
-  amber: "text-amber-600",
-  info: "text-sky-600",
+  red: "text-danger",
+  green: "text-success",
+  amber: "text-warning",
+  info: "text-brand",
 };
 
-export function MetricCard({
-  label,
-  value,
-  valueClass = "",
-  detail,
-  monotone = false,
-  accent = "none",
-}: MetricCardProps) {
+/** One figure inside a `FacilityStrip`. */
+export function MetricCard({ label, value, detail, accent = "none" }: MetricCardProps) {
   return (
-    <div className="card relative overflow-hidden p-5">
-      <p className="label-tech">{label}</p>
-      <p className={`mt-2 font-display text-[2.1rem] font-black leading-none tracking-[0.01em] ${ACCENTS[accent]} ${valueClass}`}>
+    <div className="min-w-0 px-5 py-4">
+      <p className="text-xs font-bold text-muted">{label}</p>
+      <p className={`mt-1 font-display text-[1.75rem] font-black leading-none tracking-tight ${ACCENTS[accent]}`}>
         {value}
       </p>
-      {detail ? (
-        <p className="mt-2 text-[11px] font-semibold uppercase tracking-wider text-muted">{detail}</p>
-      ) : null}
+      {detail ? <p className="mt-1.5 truncate text-xs font-semibold text-muted">{detail}</p> : null}
     </div>
   );
 }

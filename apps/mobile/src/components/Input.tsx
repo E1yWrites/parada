@@ -21,6 +21,8 @@ type InputProps = {
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   autoCorrect?: boolean;
   error?: string | null;
+  /** Helper text shown under the field when there is no error. */
+  hint?: string;
   editable?: boolean;
   variant?: "default" | "mono";
   onBlur?: () => void;
@@ -43,6 +45,7 @@ export function Input({
   autoCapitalize = "none",
   autoCorrect = false,
   error,
+  hint,
   editable = true,
   variant = "default",
   onBlur,
@@ -57,8 +60,16 @@ export function Input({
   const [focused, setFocused] = useState(false);
   return (
     <View style={styles.container} testID={testID ? `${testID}-wrap` : undefined}>
-      <Text variant="micro">{label.toUpperCase()}</Text>
-      <View style={[styles.control, multiline ? styles.controlMultiline : undefined, error ? styles.controlError : focused ? styles.controlFocused : undefined]}>
+      <Text variant="micro" color={error ? colors.danger : focused ? colors.primary : colors.muted}>
+        {label.toUpperCase()}
+      </Text>
+      <View
+        style={[
+          styles.control,
+          multiline ? styles.controlMultiline : undefined,
+          !editable ? styles.controlDisabled : undefined,
+          error ? styles.controlError : focused ? styles.controlFocused : undefined,
+        ]}>
         <TextInput
           testID={testID}
           value={value}
@@ -82,9 +93,14 @@ export function Input({
           returnKeyType={returnKeyType}
           textContentType={textContentType}
           selectionColor={colors.primary}
+          cursorColor={colors.primary}
           accessibilityLabel={label}
           accessibilityState={{ disabled: !editable }}
-          style={[styles.input, multiline ? styles.multilineInput : undefined, variant === "mono" ? styles.monoInput : undefined]}
+          style={[
+            styles.input,
+            multiline ? styles.multilineInput : undefined,
+            variant === "mono" ? styles.monoInput : undefined,
+          ]}
         />
         {secureTextEntry ? (
           <View style={styles.eyeSlot}>
@@ -97,12 +113,20 @@ export function Input({
         ) : null}
       </View>
       {error ? (
-        <Text
-          testID={testID ? `${testID}-error` : undefined}
-          variant="caption"
-          color={colors.danger}
-          accessibilityRole="alert">
-          {error}
+        <View style={styles.messageRow}>
+          <Ionicons name="alert-circle" size={14} color={colors.danger} />
+          <Text
+            testID={testID ? `${testID}-error` : undefined}
+            variant="caption"
+            color={colors.danger}
+            accessibilityRole="alert"
+            style={styles.message}>
+            {error}
+          </Text>
+        </View>
+      ) : hint ? (
+        <Text variant="caption" testID={testID ? `${testID}-hint` : undefined}>
+          {hint}
         </Text>
       ) : null}
     </View>
@@ -130,31 +154,38 @@ const styles = StyleSheet.create({
   control: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: touchTarget,
+    minHeight: touchTarget + 8,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radii.md,
     paddingHorizontal: spacing.xl,
   },
   controlMultiline: {
     alignItems: "flex-start",
-    minHeight: 96,
+    minHeight: 112,
     paddingVertical: spacing.md,
+  },
+  controlDisabled: {
+    backgroundColor: colors.surfaceElevated,
   },
   controlError: {
     borderColor: colors.danger,
   },
   controlFocused: {
     borderColor: colors.primary,
-    borderWidth: 1.5,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 1,
   },
   input: {
     flex: 1,
     minHeight: touchTarget,
     color: colors.foreground,
-    fontFamily: fonts.body,
-    fontSize: fontSizes.body,
+    fontFamily: fonts.bodyMedium,
+    fontSize: fontSizes.body + 1,
     paddingVertical: spacing.lg,
   },
   monoInput: {
@@ -163,8 +194,16 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   multilineInput: {
-    minHeight: 80,
+    minHeight: 96,
     paddingVertical: 0,
+  },
+  messageRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  message: {
+    flex: 1,
   },
   eyeSlot: {
     marginLeft: spacing.md,

@@ -1,3 +1,8 @@
+// `@expo/metro-runtime` MUST be the first import (same contract as
+// `expo-router/entry`): it installs the `window.location` polyfill that
+// expo-router's dev views (Sitemap / Unmatched Route) read, plus Fast Refresh
+// and promise-rejection tracking in development.
+import "@expo/metro-runtime";
 import { registerRootComponent } from "expo";
 import { ExpoRoot } from "expo-router";
 

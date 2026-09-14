@@ -11,6 +11,8 @@ type NavigateButtonProps = {
   destination: NavigationDestination | null;
   /** Meaningful, screen-reader-friendly action name (e.g. "Navigate to assigned zone"). */
   label: string;
+  /** Render as the screen's one filled action (on the pass card). */
+  primary?: boolean;
   testID?: string;
 };
 
@@ -27,7 +29,7 @@ type NavigateState =
  * navigation app to the destination. Outgoing state mirrors the friendly
  * message set from the phase spec. Never loops on denied permission.
  */
-export function NavigateButton({ destination, label, testID }: NavigateButtonProps) {
+export function NavigateButton({ destination, label, primary = false, testID }: NavigateButtonProps) {
   const [state, setState] = useState<NavigateState>({ kind: "idle" });
   const busyRef = useRef(false);
 
@@ -80,7 +82,7 @@ export function NavigateButton({ destination, label, testID }: NavigateButtonPro
   return (
     <View style={styles.block} testID={testID ? `${testID}-block` : undefined}>
       <Button
-        variant="secondary"
+        variant={primary ? "primary" : "secondary"}
         title={busy ? "Getting your location…" : label}
         accessibilityLabel={label}
         loading={busy}
@@ -97,6 +99,7 @@ export function NavigateButton({ destination, label, testID }: NavigateButtonPro
           {state.canAskAgain ? null : (
             <Button
               variant="ghost"
+              size="sm"
               title="Open settings"
               onPress={handleOpenSettings}
               accessibilityLabel="Open Settings to enable location access."
@@ -123,7 +126,7 @@ export function NavigateButton({ destination, label, testID }: NavigateButtonPro
 
 const styles = StyleSheet.create({
   block: {
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   status: {
     gap: spacing.sm,

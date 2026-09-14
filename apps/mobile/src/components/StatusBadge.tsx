@@ -1,7 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import { colors, radii, spacing } from "@/src/theme";
+import { colors, fonts, radii, softColor, spacing } from "@/src/theme";
 import { Text } from "./Text";
 import type { NotificationType, ViolationStatus } from "@parada/types";
 
@@ -59,7 +59,7 @@ export function reservationStatusMeta(status: ReservationStatus): StatusMeta {
 export function assignmentStatusMeta(status: ZoneAssignmentStatus): StatusMeta {
   switch (status) {
     case "ACTIVE":
-      return { label: "Assigned", icon: "location", color: colors.highlight };
+      return { label: "Assigned", icon: "location", color: colors.primary };
     case "EXPIRED":
       return { label: "Expired", icon: "hourglass", color: colors.muted };
     case "REVOKED":
@@ -103,7 +103,7 @@ export function notificationTypeMeta(type: NotificationType): { icon: StatusMeta
     case "VIOLATION_APPEAL_SUBMITTED":
       return { icon: "hourglass", color: colors.muted };
     case "VIOLATION_APPEAL_RESULT":
-      return { icon: "chatbubble-ellipses", color: colors.highlight };
+      return { icon: "chatbubble-ellipses", color: colors.primary };
   }
 }
 
@@ -120,13 +120,9 @@ export function StatusBadge({ meta, size = "md", testID }: StatusBadgeProps) {
     <View
       testID={testID}
       accessibilityLabel={meta.label}
-      style={[
-        styles.badge,
-        { borderColor: meta.color, backgroundColor: withAlpha(meta.color, 0.12) },
-        compact ? styles.badgeSm : undefined,
-      ]}>
+      style={[styles.badge, { backgroundColor: softColor(meta.color) }, compact ? styles.badgeSm : undefined]}>
       <Ionicons name={meta.icon} size={compact ? 12 : 14} color={meta.color} />
-      <Text variant={compact ? "micro" : "caption"} color={meta.color} style={styles.label}>
+      <Text variant={compact ? "micro" : "caption"} color={meta.color} style={compact ? styles.labelSm : styles.label}>
         {meta.label}
       </Text>
     </View>
@@ -185,29 +181,24 @@ export function AssignmentBadge({
   return <StatusBadge meta={assignmentStatusMeta(status)} size={size} testID={testID} />;
 }
 
-function withAlpha(hex: string, alpha: number): string {
-  const a = Math.round(alpha * 255)
-    .toString(16)
-    .padStart(2, "0");
-  return `${hex}${a}`;
-}
-
 const styles = StyleSheet.create({
   badge: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 1,
     borderRadius: radii.full,
-    borderWidth: 1,
     alignSelf: "flex-start",
   },
   badgeSm: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 2,
+    paddingHorizontal: spacing.md + 2,
+    paddingVertical: 3,
   },
   label: {
+    fontFamily: fonts.bodyBold,
+  },
+  labelSm: {
     letterSpacing: 0.3,
   },
 });

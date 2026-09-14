@@ -53,29 +53,28 @@ export default function GuestAdmissionPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Management · Controlled admission"
         title="Guest Admission"
-        description="Use the authoritative camera pipeline to admit an unknown plate under an audited ADMIN override."
+        description="Admit an unknown plate through the camera pipeline under an audited administrator override."
       />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,28rem)_1fr]">
         <Card>
-          <SectionHeader eyebrow="ADMIN override" title="Admit a guest" />
+          <SectionHeader title="Admit a guest" description="Recorded with your administrator identity" />
           <form className="space-y-4 p-5" onSubmit={submit} noValidate>
-            <div className="flex items-start gap-3 rounded-panel border border-amber-500/30 bg-amber-50 p-3.5 text-sm font-semibold text-amber-700">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+            <div className="alert-warning">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span>This action is recorded with the authenticated admin identity.</span>
             </div>
             <div>
               <label htmlFor="guest-zone" className="label">Zone</label>
-              <select id="guest-zone" className="input mt-1.5" value={zoneId} onChange={(e) => { setZoneId(e.target.value); setCameraIdentifier(""); }}>
+              <select id="guest-zone" className="input" value={zoneId} onChange={(e) => { setZoneId(e.target.value); setCameraIdentifier(""); }}>
                 <option value="">Select a zone…</option>
                 {zones.data?.map((zone) => <option key={zone.id} value={zone.id}>{zone.code} — {zone.name}</option>)}
               </select>
             </div>
             <div>
               <label htmlFor="guest-camera" className="label">Entry camera</label>
-              <select id="guest-camera" className="input mt-1.5" value={cameraIdentifier} onChange={(e) => setCameraIdentifier(e.target.value)}>
+              <select id="guest-camera" className="input" value={cameraIdentifier} onChange={(e) => setCameraIdentifier(e.target.value)}>
                 <option value="">Select a camera…</option>
                 {selectedCameras.filter((camera) => camera.gateType === "ENTRY" || camera.gateType === "BIDIRECTIONAL").map((camera) => (
                   <option key={camera.id} value={camera.identifier}>{camera.identifier} — {camera.gateType}</option>
@@ -84,20 +83,20 @@ export default function GuestAdmissionPage() {
             </div>
             <div>
               <label htmlFor="guest-plate" className="label">Detected plate</label>
-              <input id="guest-plate" className="input mt-1.5 font-display font-bold uppercase tracking-wide" value={detectedPlate} onChange={(e) => setDetectedPlate(e.target.value)} placeholder="ABC-1234" />
+              <input id="guest-plate" className="input font-mono uppercase" value={detectedPlate} onChange={(e) => setDetectedPlate(e.target.value)} placeholder="ABC-1234" />
             </div>
             <div>
               <label htmlFor="guest-source" className="label">Source event ID</label>
-              <input id="guest-source" className="input mt-1.5 font-display font-bold" value={sourceEventId} onChange={(e) => setSourceEventId(e.target.value)} placeholder="camera-event-2026-001" />
+              <input id="guest-source" className="input font-mono" value={sourceEventId} onChange={(e) => setSourceEventId(e.target.value)} placeholder="camera-event-2026-001" />
             </div>
             {validationError ? (
-              <p role="alert" className="flex items-center gap-2 text-sm font-semibold text-brand">
+              <p role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
                 <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {validationError}
               </p>
             ) : null}
             {admit.error ? (
-              <p role="alert" className="flex items-center gap-2 text-sm font-semibold text-brand">
+              <p role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
                 <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {admit.error instanceof ApiError ? admit.error.message : "Guest admission failed."}
               </p>
@@ -110,24 +109,24 @@ export default function GuestAdmissionPage() {
 
         <QueryBoundary status={zones.status} error={zones.error} isEmpty={false} onRetry={() => zones.refetch()}>
           <Card className="min-h-[18rem]">
-            <SectionHeader eyebrow="Decision" title="Admission result" />
+            <SectionHeader title="Admission result" description="The backend decision for the last submission" />
             <div className="p-5">
               {result ? (
                 result.admitted ? (
-                  <div className="space-y-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-panel bg-emerald-50" aria-hidden="true">
-                      <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                  <div className="space-y-3 animate-fade-in">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-control bg-success-soft" aria-hidden="true">
+                      <CheckCircle2 className="h-6 w-6 text-success" />
                     </div>
                     <h2 className="font-display text-lg font-black tracking-tight text-charcoal">Guest admitted</h2>
                     <p className="text-sm text-muted">
                       Occupancy is now <span className="font-bold text-charcoal">{result.newOccupied}</span>. Guest session:{" "}
-                      <span className="font-display font-black text-charcoal">{result.guestSessionId ?? "created"}</span>
+                      <span className="font-mono font-bold text-charcoal">{result.guestSessionId ?? "created"}</span>
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-panel bg-amber-50" aria-hidden="true">
-                      <AlertCircle className="h-6 w-6 text-amber-600" />
+                  <div className="space-y-3 animate-fade-in">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-control bg-warning-soft" aria-hidden="true">
+                      <AlertCircle className="h-6 w-6 text-warning" />
                     </div>
                     <h2 className="font-display text-lg font-black tracking-tight text-charcoal">Guest not admitted</h2>
                     <p className="text-sm text-muted">{result.deniedReason ?? "The guest policy denied this entry."}</p>
@@ -135,7 +134,12 @@ export default function GuestAdmissionPage() {
                   </div>
                 )
               ) : (
-                <p className="text-sm text-muted">Submit a controlled admission to see the backend decision.</p>
+                <div className="flex items-center gap-3 text-sm text-muted">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-control bg-raised" aria-hidden="true">
+                    <ShieldCheck className="h-4 w-4 text-muted" />
+                  </span>
+                  Submit a controlled admission to see the backend decision.
+                </div>
               )}
             </div>
           </Card>

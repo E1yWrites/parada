@@ -1,5 +1,6 @@
 export { Text } from "./Text";
 export { Button } from "./Button";
+export { IconButton } from "./IconButton";
 export { Card } from "./Card";
 export { GlassCard } from "./GlassCard";
 export { Input } from "./Input";
@@ -16,6 +17,12 @@ export {
   notificationTypeMeta,
 } from "./StatusBadge";
 export { Metric } from "./Metric";
+export { PlateChip } from "./PlateChip";
+export { ChoiceChip } from "./ChoiceChip";
+export { IconTile } from "./IconTile";
+export { Stamp } from "./Stamp";
+export { Avatar, initialsOf } from "./Avatar";
+export { Illustration } from "./Illustration";
 export { LoadingState, ErrorState, EmptyState } from "./StateComponents";
 export { FullScreenLoading } from "./FullScreenLoading";
 export { CapacityBar } from "./CapacityBar";

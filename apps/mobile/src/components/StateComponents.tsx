@@ -2,14 +2,22 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps, ReactNode } from "react";
 import { Card } from "./Card";
+import { Illustration, type IllustrationName } from "./Illustration";
 import { Text } from "./Text";
-import { colors, radii, spacing } from "@/src/theme";
+import { colors, radii, spacing, touchTarget } from "@/src/theme";
 
+/** Quiet inline loader: spinner beside a short label, on the tinted surface. */
 export function LoadingState({ label = "Loading", testID }: { label?: string; testID?: string }) {
   return (
-    <Card style={styles.card} testID={testID}>
-      <ActivityIndicator testID={testID ? `${testID}-spinner` : undefined} color={colors.primary} size="large" />
-      <Text variant="caption">{label}</Text>
+    <Card tone="tinted" style={styles.loading} testID={testID}>
+      <ActivityIndicator testID={testID ? `${testID}-spinner` : undefined} color={colors.primary} />
+      <Text variant="caption" style={styles.loadingLabel}>
+        {label}
+      </Text>
+      <View style={styles.skeleton} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <View style={[styles.bone, styles.boneWide]} />
+        <View style={[styles.bone, styles.boneNarrow]} />
+      </View>
     </Card>
   );
 }
@@ -25,22 +33,26 @@ export function ErrorState({
 }) {
   return (
     <Card style={styles.card} testID={testID}>
-      <View style={styles.iconContainer}>
-        <Ionicons name="cloud-offline-outline" size={32} color={colors.danger} />
+      <Illustration name="offline" size={96} />
+      <View style={styles.textBlock}>
+        <Text variant="title" align="center">
+          Something went wrong
+        </Text>
+        <Text variant="body" align="center" color={colors.muted}>
+          {message}
+        </Text>
       </View>
-      <Text variant="bodySemi" color={colors.danger} align="center">
-        {message}
-      </Text>
       {onRetry ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Retry"
           onPress={onRetry}
           hitSlop={10}
-          style={styles.retry}
+          style={({ pressed }) => [styles.retry, pressed ? styles.retryPressed : undefined]}
           testID={testID ? `${testID}-retry` : undefined}>
-          <Text variant="caption" color={colors.primary} align="center">
-            {"RETRY"}
+          <Ionicons name="refresh" size={16} color={colors.primary} />
+          <Text variant="bodySemi" color={colors.primary} align="center">
+            Try again
           </Text>
         </Pressable>
       ) : null}
@@ -50,12 +62,15 @@ export function ErrorState({
 
 export function EmptyState({
   icon,
+  illustration,
   title,
   description,
   children,
   testID,
 }: {
-  icon: ComponentProps<typeof Ionicons>["name"];
+  /** Legacy single-icon fallback; prefer `illustration`. */
+  icon?: ComponentProps<typeof Ionicons>["name"];
+  illustration?: IllustrationName;
   title: string;
   description: string;
   children?: ReactNode;
@@ -63,41 +78,86 @@ export function EmptyState({
 }) {
   return (
     <Card style={styles.card} testID={testID}>
-      <View style={styles.iconContainer}>
-        <Ionicons name={icon} size={36} color={colors.muted} />
+      {illustration ? (
+        <Illustration name={illustration} size={112} />
+      ) : (
+        <View style={styles.iconContainer}>
+          <Ionicons name={icon ?? "ellipse-outline"} size={32} color={colors.primary} />
+        </View>
+      )}
+      <View style={styles.textBlock}>
+        <Text variant="title" align="center">
+          {title}
+        </Text>
+        <Text variant="body" align="center" color={colors.muted}>
+          {description}
+        </Text>
       </View>
-      <Text variant="title" align="center">
-        {title}
-      </Text>
-      <Text variant="body" align="center" color={colors.muted}>
-        {description}
-      </Text>
       {children ? <View style={styles.action}>{children}</View> : null}
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
+  loading: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: spacing.lg,
+    padding: spacing.xl,
+  },
+  loadingLabel: {
+    flexShrink: 1,
+  },
+  skeleton: {
+    width: "100%",
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  bone: {
+    height: 10,
+    borderRadius: radii.full,
+    backgroundColor: "rgba(15, 27, 45, 0.06)",
+  },
+  boneWide: {
+    width: "70%",
+  },
+  boneNarrow: {
+    width: "45%",
+  },
   card: {
     alignItems: "center",
-    gap: spacing.xl,
-    marginVertical: spacing.xl,
+    gap: spacing.xl2,
+    paddingVertical: spacing.xl4,
+  },
+  textBlock: {
+    gap: spacing.md,
+    alignSelf: "stretch",
+    paddingHorizontal: spacing.md,
   },
   iconContainer: {
-    width: 64,
-    height: 64,
+    width: 72,
+    height: 72,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radii.lg,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.primarySoft,
   },
   action: {
     alignSelf: "stretch",
   },
   retry: {
-    minHeight: 44,
-    minWidth: 120,
+    minHeight: touchTarget,
+    minWidth: 140,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl2,
+    borderRadius: radii.md,
+    backgroundColor: colors.primarySoft,
+  },
+  retryPressed: {
+    opacity: 0.85,
   },
 });

@@ -52,7 +52,7 @@ export default function NotificationsScreen() {
         />
       ) : today.length === 0 && earlier.length === 0 ? (
         <EmptyState
-          icon="notifications-outline"
+          illustration="bell"
           title="No notifications yet"
           description="Session, reservation and violation updates will show up here."
           testID="notifications-empty"
@@ -99,9 +99,10 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   group: {
-    gap: spacing.xs,
+    gap: spacing.md,
   },
   groupLabel: {
     marginBottom: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
 });

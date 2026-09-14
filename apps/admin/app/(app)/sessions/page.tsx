@@ -7,7 +7,7 @@ import { api } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { SessionStatusBadge } from "@/components/ui/Badge";
+import { PlateChip, SessionStatusBadge } from "@/components/ui/Badge";
 import { formatDuration } from "@/lib/format";
 import type { AdminSession, ParkingSessionStatus } from "@/lib/api/types";
 
@@ -40,10 +40,8 @@ export default function SessionsPage() {
       header: "License Plate",
       cell: (s) => (
         <div>
-          <p className="font-display text-base font-black tracking-tight text-charcoal">
-            {s.vehicle?.plateNumber ?? "GUEST"}
-          </p>
-          <p className="text-[11px] uppercase tracking-wider text-muted">{s.vehicle?.vehicleType ?? "ACCOUNT-LESS"}</p>
+          <p className="font-mono text-sm font-bold text-charcoal">{s.vehicle?.plateNumber ?? "GUEST"}</p>
+          <p className="text-[11px] font-semibold text-muted">{s.vehicle?.vehicleType ?? "ACCOUNT-LESS"}</p>
         </div>
       ),
     },
@@ -57,12 +55,12 @@ export default function SessionsPage() {
         </div>
       ),
     },
-    { key: "zone", header: "Zone", cell: (s) => <span className="text-sm font-semibold text-charcoal">{s.zone.code}</span> },
+    { key: "zone", header: "Zone", cell: (s) => <PlateChip>{s.zone.code}</PlateChip> },
     {
       key: "entry",
       header: "Entry",
       cell: (s) => (
-        <span className="font-display text-sm font-bold text-charcoal">{new Date(s.enteredAt).toLocaleTimeString()}</span>
+        <span className="font-mono text-xs font-semibold text-charcoal">{new Date(s.enteredAt).toLocaleTimeString()}</span>
       ),
     },
     {
@@ -70,7 +68,7 @@ export default function SessionsPage() {
       header: "Exit",
       cell: (s) =>
         s.exitedAt ? (
-          <span className="font-display text-sm font-bold text-charcoal">{new Date(s.exitedAt).toLocaleTimeString()}</span>
+          <span className="font-mono text-xs font-semibold text-charcoal">{new Date(s.exitedAt).toLocaleTimeString()}</span>
         ) : (
           <span className="text-sm text-muted">—</span>
         ),
@@ -78,7 +76,7 @@ export default function SessionsPage() {
     {
       key: "duration",
       header: "Duration",
-      cell: (s) => <span className="font-display text-sm font-bold text-charcoal">{formatDuration(s.durationSeconds)}</span>,
+      cell: (s) => <span className="font-mono text-xs font-semibold text-charcoal">{formatDuration(s.durationSeconds)}</span>,
     },
     {
       key: "status",
@@ -90,37 +88,35 @@ export default function SessionsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Parking · Activity"
         title="Parking Sessions"
-        description="Registered vehicles and their parking sessions."
+        description="Every camera-recorded entry and exit, for registered vehicles and guests."
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div className="relative">
+        <div className="relative w-full sm:w-72">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
           <input
-            className="input w-64 pl-11"
+            className="input pl-11"
             placeholder="Search plate, owner, zone…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search sessions"
           />
         </div>
-        <div className="flex items-center gap-1 rounded-panel border border-line/40 bg-white p-1">
+        <div className="segmented" role="group" aria-label="Filter sessions by status">
           {(["ALL", "ACTIVE", "COMPLETED"] as Filter[]).map((f) => (
             <button
               key={f}
               type="button"
               onClick={() => setFilter(f)}
-              className={`min-h-[36px] rounded-panel px-4 text-xs font-bold uppercase tracking-wider transition-colors duration-200 ${
-                filter === f ? "bg-brand-soft text-brand" : "text-muted hover:bg-graygreen/20 hover:text-charcoal"
-              }`}
+              className="segmented-item"
               aria-pressed={filter === f}
             >
               {f === "ALL" ? "All" : f[0] + f.slice(1).toLowerCase()}
             </button>
           ))}
         </div>
+        <p className="text-xs font-semibold text-muted">{rows.length} shown</p>
       </div>
 
       <QueryBoundary
@@ -132,9 +128,9 @@ export default function SessionsPage() {
         onRetry={() => sessions.refetch()}
       >
         {rows.length === 0 ? (
-          <p className="p-6 text-sm text-muted">No sessions match your search.</p>
+          <p className="card p-6 text-sm text-muted">No sessions match your search.</p>
         ) : (
-          <DataTable columns={columns} rows={rows} rowKey={(s) => s.id} />
+          <DataTable columns={columns} rows={rows} rowKey={(s) => s.id} caption="Parking sessions" />
         )}
       </QueryBoundary>
     </div>
