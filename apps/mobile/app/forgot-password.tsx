@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Link, useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { Button, Input, Screen, Text } from "@/src/components";
+import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import { api, ApiError } from "@/lib/api/client";
-import { colors, radii, spacing } from "@/src/theme";
+import { colors, spacing } from "@/src/theme";
 
 /**
  * Forgot password, step 1. The API answers the same way whether or not the
@@ -49,21 +48,10 @@ export default function ForgotPasswordScreen() {
         </Text>
       </View>
       {sent ? (
-        <View style={styles.notice} testID="forgot-password-sent">
-          <Ionicons name="mail-outline" size={18} color={colors.success} />
-          <Text variant="caption" color={colors.success} style={styles.alertText}>
-            If an account exists for {email.trim()}, a reset link has been sent. Open it on this phone, or paste the code
-            from the email on the next screen.
-          </Text>
-        </View>
+        <FormAlert tone="notice" message={`If an account exists for ${email.trim()}, a reset link has been sent. Open it on this phone, or paste the code from the email on the next screen.`} icon="mail-outline" testID="forgot-password-sent" />
       ) : null}
       {error ? (
-        <View style={styles.alert}>
-          <Ionicons name="alert-circle" size={18} color={colors.danger} />
-          <Text variant="caption" color={colors.danger} style={styles.alertText} accessibilityRole="alert" testID="forgot-password-error">
-            {error}
-          </Text>
-        </View>
+        <FormAlert tone="error" message={error} testID="forgot-password-error" />
       ) : null}
       <View style={styles.form}>
         <Input
@@ -118,22 +106,5 @@ const styles = StyleSheet.create({
   brand: { paddingTop: spacing.md },
   heading: { gap: spacing.md },
   form: { gap: spacing.xl, marginTop: spacing.md },
-  alert: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.dangerSoft,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-  },
-  notice: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.successSoft,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-  },
-  alertText: { flex: 1 },
   footer: { marginTop: spacing.md },
 });

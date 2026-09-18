@@ -174,3 +174,51 @@ describe("exiting an already-exited session is a conflict, not a server error", 
     expect(fees).toBe(1);
   });
 });
+
+/**
+ * Phase 15 remediation. Camera identifier immutability was enforced only by an
+ * allow-list in the domain layer and a disabled input in the admin UI, with no
+ * test pinning it. Widening the update DTO or switching to a spread would have
+ * regressed it silently — and deployed vision hosts POST that exact string, so
+ * a rename stops ingestion until every host is reconfigured.
+ */
+describe("a camera identifier cannot be changed after registration", () => {
+  it("rejects a PATCH carrying an identifier and keeps the registered one", async () => {
+    const app = createApp({ auth });
+    const admin = await prisma.user.create({
+      data: { name: "Cam Admin", email: `cam-admin-${RUN}@test.local`, passwordHash: "x", role: "ADMIN" },
+    });
+    const zone = await prisma.parkingZone.create({
+      data: { name: `Cam Zone ${RUN}`, code: `CMZ${RUN}`, capacity: 5 },
+    });
+    const original = `CAM-IMMUTABLE-${RUN}`;
+    const camera = await prisma.camera.create({
+      data: { zoneId: zone.id, name: "Gate", identifier: original, gateType: "ENTRY", status: "ONLINE" },
+    });
+    const { token } = auth["tokens"].sign({ id: admin.id, role: "ADMIN" });
+
+    const res = await request(app)
+      .patch(`/admin/cameras/${camera.id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Renamed Gate", identifier: `CAM-HIJACK-${RUN}` })
+      .expect(400);
+
+    // Refused explicitly — a silently dropped field would leave an operator
+    // believing the rename took. Nothing in the request applied, not even the
+    // otherwise-editable name.
+    expect(res.body.error.code).toBe("BAD_REQUEST");
+    expect(res.body.error.message).toContain("identifier");
+    const persisted = await prisma.camera.findUniqueOrThrow({ where: { id: camera.id } });
+    expect(persisted.identifier).toBe(original);
+    expect(persisted.name).toBe("Gate");
+
+    // Editing without touching the identifier still works.
+    const ok = await request(app)
+      .patch(`/admin/cameras/${camera.id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Renamed Gate" })
+      .expect(200);
+    expect(ok.body.data.name).toBe("Renamed Gate");
+    expect(ok.body.data.identifier).toBe(original);
+  });
+});

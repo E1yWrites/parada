@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { Button, Input, Screen, Text } from "@/src/components";
+import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import { api, ApiError } from "@/lib/api/client";
-import { colors, radii, spacing } from "@/src/theme";
+import { colors, spacing } from "@/src/theme";
 
 /** Seconds until `iso`; 0 when it is in the past or unparsable. */
 function secondsUntil(iso: string | null, now = Date.now()): number {
@@ -109,20 +108,10 @@ export default function VerifyEmailScreen() {
         </Text>
       </View>
       {notice && !error ? (
-        <View style={styles.notice} testID="verify-email-notice">
-          <Ionicons name="mail-outline" size={18} color={colors.success} />
-          <Text variant="caption" color={colors.success} style={styles.alertText}>
-            {notice}
-          </Text>
-        </View>
+        <FormAlert tone="notice" message={notice} icon="mail-outline" testID="verify-email-notice" />
       ) : null}
       {error ? (
-        <View style={styles.alert}>
-          <Ionicons name="alert-circle" size={18} color={colors.danger} />
-          <Text variant="caption" color={colors.danger} style={styles.alertText} accessibilityRole="alert" testID="verify-email-error">
-            {error}
-          </Text>
-        </View>
+        <FormAlert tone="error" message={error} testID="verify-email-error" />
       ) : null}
       <View style={styles.form}>
         <Input
@@ -138,6 +127,8 @@ export default function VerifyEmailScreen() {
           placeholder="123456"
           variant="mono"
           keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          autoComplete="one-time-code"
           maxLength={6}
           returnKeyType="go"
           onSubmit={() => void handleVerify()}
@@ -183,25 +174,6 @@ const styles = StyleSheet.create({
   form: {
     gap: spacing.xl,
     marginTop: spacing.md,
-  },
-  alert: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.dangerSoft,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-  },
-  notice: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.successSoft,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-  },
-  alertText: {
-    flex: 1,
   },
   footer: {
     marginTop: spacing.md,

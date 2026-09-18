@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Link, useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { Button, Input, Screen, Text } from "@/src/components";
+import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import { useSession } from "@/src/providers/SessionProvider";
 import { ApiError } from "@/lib/api/client";
-import { colors, fonts, radii, spacing } from "@/src/theme";
+import { colors, fonts, spacing } from "@/src/theme";
 
 export default function RegisterScreen() {
   const { signUp } = useSession();
@@ -73,12 +72,7 @@ export default function RegisterScreen() {
         </Text>
       </View>
       {error ? (
-        <View style={styles.alert}>
-          <Ionicons name="alert-circle" size={18} color={colors.danger} />
-          <Text variant="caption" color={colors.danger} style={styles.alertText} accessibilityRole="alert" testID="register-error">
-            {error}
-          </Text>
-        </View>
+        <FormAlert tone="error" message={error} testID="register-error" />
       ) : null}
       <Input
         testID="register-name"
@@ -104,7 +98,9 @@ export default function RegisterScreen() {
         placeholder="you@example.com"
         keyboardType="email-address"
         autoCapitalize="none"
+        autoCorrect={false}
         textContentType="emailAddress"
+        autoComplete="email"
         error={fieldErrors.email}
       />
       <Input
@@ -118,7 +114,8 @@ export default function RegisterScreen() {
         placeholder="At least 8 characters"
         secureTextEntry
         autoCapitalize="none"
-        textContentType="newPassword"
+        textContentType="password"
+        autoComplete="new-password"
         error={fieldErrors.password}
       />
       <Input
@@ -132,6 +129,8 @@ export default function RegisterScreen() {
         placeholder="Repeat password"
         secureTextEntry
         autoCapitalize="none"
+        textContentType="password"
+        autoComplete="new-password"
         returnKeyType="go"
         onSubmit={() => void handleSubmit()}
         error={fieldErrors.confirm}
@@ -161,17 +160,6 @@ const styles = StyleSheet.create({
   },
   heading: {
     gap: spacing.md,
-  },
-  alert: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.dangerSoft,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-  },
-  alertText: {
-    flex: 1,
   },
   footer: {
     marginTop: spacing.md,

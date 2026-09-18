@@ -4,6 +4,7 @@ export { IconButton } from "./IconButton";
 export { Card } from "./Card";
 export { GlassCard } from "./GlassCard";
 export { Input } from "./Input";
+export { FormAlert } from "./FormAlert";
 export { Screen } from "./Screen";
 export { SectionHeader } from "./SectionHeader";
 export {

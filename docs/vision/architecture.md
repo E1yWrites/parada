@@ -368,17 +368,25 @@ all three — no per-source OCR/business code.
   5s): the same camera + same normalized plate + same direction within the
   window is one observation, not N parking events. The API's
   `(cameraId, sourceEventId)` unique constraint **remains the final authority**
-  — the runtime's deterministic `sourceEventId` (SHA-256 of the encoded frame)
-  makes retries idempotent, and a duplicate `409` is logged and never re-sent.
+  — `sourceEventId` is derived by the one shared helper in
+  `app/event_identity.py` (SHA-256 of the encoded frame + `cameraIdentifier`),
+  so the `/detect` endpoint and the runtime loop produce the same id for the
+  same observation, and a duplicate `409` is logged and never re-sent.
 - Failure isolation: a dead frame retries with backoff (`CAMERA_RECONNECT_DELAY`
   + `MAX_CAMERA_RECONNECTS`); a source that cannot open after the bound logs an
   error and stops that camera without crashing the service.
-- `429` from the API is a throttle: bounded backoff, **not** treated as an auth
-  failure (no credential rotation, no new token). `409` is a business answer
-  (duplicate/full/offline/direction) and is not retried. `5xx`/transport is
-  also bounded: an unreachable API (connection refused, DNS, timeout) is
-  counted and logged, the runtime backs off, and the frame loop keeps running
-  (Phase 13 regression: it previously crashed the camera loop).
+- `429` from the API is a throttle, **not** an auth failure (no credential
+  rotation, no new token). `409` is a business answer
+  (duplicate/full/offline/direction) and is never retried. `429`, `5xx` and
+  transport failures (connection refused, DNS, timeout) re-send the **same**
+  event — same `sourceEventId` — up to `MAX_FORWARD_ATTEMPTS` (default 3) with
+  `CAMERA_RECONNECT_DELAY_SECONDS` between attempts, then give up; the frame
+  loop keeps running either way. Re-sending the identical id is what makes the
+  retry safe: if the API had already committed the first attempt and only the
+  response was lost, it answers `409` and the car is counted once. The debounce
+  timestamp is deliberately recorded *before* the forward, so the retry is the
+  only path that can recover a lost event without minting a new id per frame.
+  Other `4xx` (auth/validation) are deterministic and final on the first answer.
 - Clean shutdown: `close()` stops the loop within ~100ms and releases OpenCV
   captures (no zombie handles).
 

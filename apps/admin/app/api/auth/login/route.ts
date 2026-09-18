@@ -61,7 +61,7 @@ export async function POST(req: Request) {
       );
     }
 
-    setSessionToken(token);
+    await setSessionToken(token);
     return NextResponse.json({ data: { user: data.data.user } });
   } catch {
     return NextResponse.json(

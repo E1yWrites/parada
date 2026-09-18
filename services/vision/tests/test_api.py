@@ -4,6 +4,7 @@ import socket
 from fastapi.testclient import TestClient
 
 from app import config
+from app.event_identity import make_source_event_id
 from app.main import app
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures", "images")
@@ -54,6 +55,21 @@ def test_detect_source_event_id_is_deterministic_for_same_frame_and_camera():
             data={"cameraIdentifier": "CAM-1", "eventType": "ENTRY"},
         )
     assert r1.json()["sourceEventId"] == r2.json()["sourceEventId"]
+
+
+def test_detect_and_runtime_agree_on_the_same_observation():
+    # Both ingress paths share one identity namespace, so the same frame from
+    # the same camera must hash to one id. If they diverged, the API's
+    # (cameraId, sourceEventId) constraint could not absorb the duplicate and
+    # occupancy would be counted twice.
+    image = _image_bytes("clear_plate.png")
+    with TestClient(app) as client:
+        response = client.post(
+            "/detect",
+            files={"image": ("clear_plate.png", image, "image/png")},
+            data={"cameraIdentifier": "CAM-1", "eventType": "ENTRY"},
+        )
+    assert response.json()["sourceEventId"] == make_source_event_id(image, "CAM-1")
 
 
 def test_detect_rejects_missing_camera_identifier():

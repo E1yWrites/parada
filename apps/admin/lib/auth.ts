@@ -2,12 +2,12 @@ import { cookies } from "next/headers";
 
 export const AUTH_COOKIE = "parada_admin_token";
 
-export function getSessionToken(): string | null {
-  return cookies().get(AUTH_COOKIE)?.value ?? null;
+export async function getSessionToken(): Promise<string | null> {
+  return (await cookies()).get(AUTH_COOKIE)?.value ?? null;
 }
 
-export function setSessionToken(token: string): void {
-  cookies().set(AUTH_COOKIE, token, {
+export async function setSessionToken(token: string): Promise<void> {
+  (await cookies()).set(AUTH_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
@@ -15,12 +15,12 @@ export function setSessionToken(token: string): void {
   });
 }
 
-export function clearSessionToken(): void {
-  cookies().delete(AUTH_COOKIE);
+export async function clearSessionToken(): Promise<void> {
+  (await cookies()).delete(AUTH_COOKIE);
 }
 
-export function authCookieHeader(): Record<string, string> | null {
-  const token = getSessionToken();
+export async function authCookieHeader(): Promise<Record<string, string> | null> {
+  const token = await getSessionToken();
   if (!token) return null;
   return { Authorization: `Bearer ${token}` };
 }

@@ -1,4 +1,3 @@
-import hashlib
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -8,6 +7,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
 from . import api_client, config
+from .event_identity import make_source_event_id
 from .pipeline.ocr import get_ocr_engine
 from .pipeline.service import process_image
 from .schemas import ForwardResult, HealthResponse, VisionEventResponse
@@ -40,15 +40,6 @@ def health() -> HealthResponse:
     if not _model_state["loaded"]:
         return HealthResponse(status="unhealthy", modelLoaded=False, detail=_model_state["error"])
     return HealthResponse(status="ok", modelLoaded=True)
-
-
-def _make_source_event_id(image_bytes: bytes, camera_identifier: str) -> str:
-    # Deterministic per physical observation: same frame + same camera always
-    # hashes to the same id, so a client retry after a network blip re-sends
-    # the identical sourceEventId and the API's unique constraint on
-    # (cameraId, sourceEventId) absorbs the duplicate instead of double-counting.
-    digest = hashlib.sha256(image_bytes + camera_identifier.encode("utf-8")).hexdigest()
-    return f"vision-{digest[:24]}"
 
 
 @app.post("/detect", response_model=VisionEventResponse)
@@ -92,7 +83,7 @@ async def detect(
     else:
         detected_at = datetime.now(timezone.utc).isoformat()
 
-    source_event_id = _make_source_event_id(image_bytes, cameraIdentifier)
+    source_event_id = make_source_event_id(image_bytes, cameraIdentifier)
 
     # Diagnostics only — never the raw image bytes/pixels or full plate value
     # in a way that would leak into shared logs unnecessarily.

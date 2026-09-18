@@ -4,7 +4,7 @@ import { apiBaseUrl, clearSessionToken, getSessionToken } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  const token = getSessionToken();
+  const token = await getSessionToken();
   if (token) {
     try {
       await fetch(`${apiBaseUrl()}/auth/logout`, {
@@ -15,6 +15,6 @@ export async function POST() {
       // best-effort: still clear the cookie locally
     }
   }
-  clearSessionToken();
+  await clearSessionToken();
   return NextResponse.json({ data: { ok: true } });
 }

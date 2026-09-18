@@ -26,8 +26,8 @@ async function checkSession(token: string): Promise<SessionCheck> {
   }
 }
 
-async function proxy(req: Request, params: { path: string[] }) {
-  const token = getSessionToken();
+async function proxy(req: Request, params: Promise<{ path: string[] }>) {
+  const token = await getSessionToken();
   if (!token) {
     return NextResponse.json(
       { error: { code: "UNAUTHORIZED", message: "Not authenticated." } },
@@ -41,7 +41,7 @@ async function proxy(req: Request, params: { path: string[] }) {
   const session = await checkSession(token);
   if (session === "UNAUTHENTICATED") {
     // Only an explicit backend 401 invalidates the console session.
-    clearSessionToken();
+    await clearSessionToken();
     return NextResponse.json(
       { error: { code: "UNAUTHORIZED", message: "Your session has expired. Sign in again." } },
       { status: 401 }
@@ -60,7 +60,7 @@ async function proxy(req: Request, params: { path: string[] }) {
     );
   }
 
-  const path = params.path.join("/");
+  const path = (await params).path.join("/");
   const url = new URL(req.url);
   const search = url.search;
   const target = `${apiBaseUrl()}/${path}${search}`;
@@ -110,18 +110,18 @@ async function proxy(req: Request, params: { path: string[] }) {
   }
 }
 
-export async function GET(req: Request, { params }: { params: { path: string[] } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(req, params);
 }
-export async function POST(req: Request, { params }: { params: { path: string[] } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(req, params);
 }
-export async function PATCH(req: Request, { params }: { params: { path: string[] } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(req, params);
 }
-export async function PUT(req: Request, { params }: { params: { path: string[] } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(req, params);
 }
-export async function DELETE(req: Request, { params }: { params: { path: string[] } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(req, params);
 }

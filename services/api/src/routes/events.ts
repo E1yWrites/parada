@@ -10,6 +10,19 @@ import { publishOccupancyOutcome, withoutNotifications } from "../realtime/occup
 import type { RealtimeHub } from "../realtime/hub";
 import type { OccupancyEventType } from "@parada/database";
 
+const MAX_EVENT_IDENTIFIER_LENGTH = 128;
+const MAX_PLATE_LENGTH = 64;
+
+function requireBoundedString(value: unknown, field: string, maxLength: number): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new BadRequestError(`'${field}' (string) is required.`);
+  }
+  if (value.length > maxLength) {
+    throw new BadRequestError(`'${field}' must be at most ${maxLength} characters.`);
+  }
+  return value;
+}
+
 export interface EventsRouterOptions {
   /** Shared service API key. If set, POST /zones/:id/events requires it. */
   cameraApiKey?: string | null;
@@ -82,17 +95,16 @@ export function eventsRouter(occupancy: OccupancyService, options: EventsRouterO
       const ocrConfidence = body["ocrConfidence"];
       const detectedAt = body["detectedAt"];
 
-      if (typeof cameraIdentifier !== "string" || cameraIdentifier.length === 0) {
-        throw new BadRequestError("'cameraIdentifier' (string) is required.");
-      }
-      if (typeof sourceEventId !== "string" || sourceEventId.length === 0) {
-        throw new BadRequestError("'sourceEventId' (string) is required.");
-      }
+      const boundedCameraIdentifier = requireBoundedString(cameraIdentifier, "cameraIdentifier", MAX_EVENT_IDENTIFIER_LENGTH);
+      const boundedSourceEventId = requireBoundedString(sourceEventId, "sourceEventId", MAX_EVENT_IDENTIFIER_LENGTH);
       if (eventType !== "ENTRY" && eventType !== "EXIT") {
         throw new BadRequestError("'eventType' must be 'ENTRY' or 'EXIT'.");
       }
       if (detectedPlate !== undefined && detectedPlate !== null && typeof detectedPlate !== "string") {
         throw new BadRequestError("'detectedPlate' must be a string when present.");
+      }
+      if (typeof detectedPlate === "string" && detectedPlate.length > MAX_PLATE_LENGTH) {
+        throw new BadRequestError(`'detectedPlate' must be at most ${MAX_PLATE_LENGTH} characters.`);
       }
       if (
         ocrConfidence !== undefined &&
@@ -109,8 +121,8 @@ export function eventsRouter(occupancy: OccupancyService, options: EventsRouterO
 
       const result = await occupancy.processEvent({
         zoneId,
-        cameraIdentifier,
-        sourceEventId,
+        cameraIdentifier: boundedCameraIdentifier,
+        sourceEventId: boundedSourceEventId,
         eventType: eventType as OccupancyEventType,
         detectedPlate: typeof detectedPlate === "string" ? detectedPlate : null,
         ocrConfidence: typeof ocrConfidence === "number" ? ocrConfidence : null,

@@ -4,7 +4,7 @@ import { apiBaseUrl, getSessionToken } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const token = getSessionToken();
+  const token = await getSessionToken();
   if (!token) {
     return NextResponse.json(
       { error: { code: "UNAUTHORIZED", message: "Not authenticated." } },

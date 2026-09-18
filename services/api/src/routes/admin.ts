@@ -159,7 +159,10 @@ export function adminRouter(deps: {
             createdAt: notification.createdAt.toISOString(),
           },
         },
-        { audience: "USER", userId: notification.userId! }
+        // The appeal's owner is the recipient. ViolationAppeal.userId is
+        // non-null in the schema, unlike Notification.userId (nullable for
+        // ADMIN-targeted rows), so this needs no assertion.
+        { audience: "USER", userId: appeal.userId }
       );
       res.json(ok(appeal));
     })

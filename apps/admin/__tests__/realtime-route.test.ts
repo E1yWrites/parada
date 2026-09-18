@@ -21,6 +21,7 @@ describe("GET /api/realtime", () => {
     getSessionToken.mockReturnValue(null);
     const res = await GET(new Request("http://admin.test/api/realtime"));
     expect(res.status).toBe(401);
+    expect(clearSessionToken).not.toHaveBeenCalled();
   });
 
   it("relays an expired/revoked token as 401 and clears the cookie (an EventSource never retries a 401, so the console must re-login)", async () => {
@@ -43,6 +44,18 @@ describe("GET /api/realtime", () => {
     }) as unknown as typeof fetch;
     const res = await GET(new Request("http://admin.test/api/realtime"));
     expect(res.status).toBe(403);
+    // A valid credential that simply lacks the role must survive: signing the
+    // operator out here would make a permissions problem look like an expiry.
+    expect(clearSessionToken).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when the backend is unreachable and keeps the session", async () => {
+    getSessionToken.mockReturnValue("admin-token");
+    global.fetch = jest.fn().mockRejectedValue(new Error("ECONNREFUSED")) as unknown as typeof fetch;
+    const res = await GET(new Request("http://admin.test/api/realtime"));
+    expect(res.status).toBe(503);
+    // An outage is not an authentication failure.
+    expect(clearSessionToken).not.toHaveBeenCalled();
   });
 
   it("streams the backend's SSE body through when the token is an admin", async () => {

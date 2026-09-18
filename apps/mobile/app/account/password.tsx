@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import { StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { Button, Card, Input, Screen, Text } from "@/src/components";
+import { StyleSheet } from "react-native";
+import { Button, Card, FormAlert, Input, Screen } from "@/src/components";
 import { ApiError } from "@/lib/api/client";
 import { useSession } from "@/src/providers/SessionProvider";
-import { colors, radii, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
 
 /**
  * Authenticated password change. The server verifies the current password,
@@ -62,20 +61,10 @@ export default function ChangePasswordScreen() {
   return (
     <Screen back keyboard title="Change password" subtitle="Other devices are signed out afterwards" testID="password-screen">
       {done ? (
-        <View style={styles.notice} testID="password-done">
-          <Ionicons name="checkmark-circle" size={18} color={colors.success} />
-          <Text variant="caption" color={colors.success} style={styles.alertText}>
-            Your password was changed. You stay signed in here.
-          </Text>
-        </View>
+        <FormAlert tone="notice" message={"Your password was changed. You stay signed in here."} testID="password-done" />
       ) : null}
       {error ? (
-        <View style={styles.alert}>
-          <Ionicons name="alert-circle" size={18} color={colors.danger} />
-          <Text variant="caption" color={colors.danger} style={styles.alertText} accessibilityRole="alert" testID="password-error">
-            {error}
-          </Text>
-        </View>
+        <FormAlert tone="error" message={error} testID="password-error" />
       ) : null}
       <Card style={styles.form}>
         <Input
@@ -87,6 +76,7 @@ export default function ChangePasswordScreen() {
           secureTextEntry
           autoCapitalize="none"
           textContentType="password"
+          autoComplete="password"
           error={fieldErrors.current}
         />
         <Input
@@ -97,7 +87,8 @@ export default function ChangePasswordScreen() {
           placeholder="At least 8 characters"
           secureTextEntry
           autoCapitalize="none"
-          textContentType="newPassword"
+          textContentType="password"
+          autoComplete="new-password"
           error={fieldErrors.next}
         />
         <Input
@@ -129,21 +120,4 @@ export default function ChangePasswordScreen() {
 
 const styles = StyleSheet.create({
   form: { gap: spacing.lg },
-  alert: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.dangerSoft,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-  },
-  notice: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.successSoft,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-  },
-  alertText: { flex: 1 },
 });

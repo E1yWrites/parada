@@ -209,6 +209,15 @@ export class OccupancyService {
   ) {
     const { zoneId, cameraIdentifier, sourceEventId, eventType } = input;
 
+    // Every ingress already rejects an empty id, but this is the single write
+    // point, so the invariant is enforced here too: the unique constraint on
+    // (cameraId, sourceEventId) is the whole idempotency guarantee, and Postgres
+    // treats NULL as distinct, so an empty id stored as NULL would slip past
+    // every duplicate check. Reject it instead of coalescing it away.
+    if (typeof sourceEventId !== "string" || sourceEventId.length === 0) {
+      throw new BadRequestError("'sourceEventId' (non-empty string) is required.");
+    }
+
     const { zone, camera } = await this.validateCamera(zoneId, cameraIdentifier);
     // Sink for every Notification row this event creates; only ever read after
     // the transaction commits (a rolled-back event publishes nothing).
@@ -450,7 +459,7 @@ export class OccupancyService {
         newOccupied,
         availableCount,
         source,
-        sourceEventId: sourceEventId || null,
+        sourceEventId,
         vehicleId,
         detectedPlate: match.detectedPlate,
         normalizedPlate: match.normalizedPlate,
@@ -482,7 +491,7 @@ export class OccupancyService {
         where: { id: vehicleId },
         include: { user: true },
       });
-      await tx.parkingSession.create({
+      const session = await tx.parkingSession.create({
         data: {
           zoneId: zone.id,
           userId: vehicle.userId,
@@ -500,6 +509,10 @@ export class OccupancyService {
           userId: vehicle.userId,
           vehicleId,
           zoneId: zone.id,
+          // The entry this violation is about, so an admin reviewing an appeal
+          // can reach the session that caused it. Committed in this same
+          // transaction, so the link can never dangle.
+          sessionId: session.id,
           assignedZoneCode: assignedZoneCode ?? "unknown",
         });
         if (escalated) {
@@ -617,7 +630,7 @@ export class OccupancyService {
           newOccupied,
           availableCount,
           source,
-          sourceEventId: sourceEventId || null,
+          sourceEventId,
           vehicleId: null,
           detectedPlate: match.detectedPlate,
           normalizedPlate: match.normalizedPlate,
@@ -697,7 +710,7 @@ export class OccupancyService {
             newOccupied,
             availableCount,
             source,
-            sourceEventId: sourceEventId || null,
+            sourceEventId,
             vehicleId: null,
             detectedPlate: match.detectedPlate,
             normalizedPlate: match.normalizedPlate,
@@ -768,7 +781,7 @@ export class OccupancyService {
           newOccupied: unchanged.occupiedCount,
           availableCount: unchanged.availableCount,
           source,
-          sourceEventId: sourceEventId || null,
+          sourceEventId,
           vehicleId: null,
           detectedPlate: match.detectedPlate,
           normalizedPlate: match.normalizedPlate,
@@ -816,6 +829,29 @@ export class OccupancyService {
     let deniedReason: string | null = decision.deniedReason;
     let counts: { previousOccupied: number; newOccupied: number; availableCount: number };
 
+    // A guest already inside must not be admitted again. A registered vehicle
+    // is protected here by parking_sessions_one_active_per_vehicle, but a guest
+    // session carries vehicleId NULL and Postgres treats NULLs as distinct, so
+    // that index does not apply. sourceEventId cannot cover it either: a camera
+    // re-reading a car that lingers past the vision debounce window produces a
+    // genuinely new frame and a new id. Without this, one car counted twice and
+    // the zone stayed permanently over-occupied, because EXIT closes exactly
+    // one session. Keyed on the normalized plate, matching the EXIT lookup; an
+    // unreadable plate is not deduplicated, since two unknown cars are two cars.
+    if (admitted && match.normalizedPlate) {
+      const alreadyInside = await tx.guestSession.findFirst({
+        where: {
+          detectedPlate: match.normalizedPlate,
+          session: { status: "ACTIVE" },
+        },
+        select: { id: true },
+      });
+      if (alreadyInside) {
+        admitted = false;
+        deniedReason = "GUEST_ALREADY_INSIDE";
+      }
+    }
+
     // A guest must never take a space someone has reserved.
     if (admitted && (await this.reservedOut(tx, zone))) {
       admitted = false;
@@ -848,7 +884,7 @@ export class OccupancyService {
         newOccupied,
         availableCount,
         source,
-        sourceEventId: sourceEventId || null,
+        sourceEventId,
         vehicleId: null,
         detectedPlate: match.detectedPlate,
         normalizedPlate: match.normalizedPlate,

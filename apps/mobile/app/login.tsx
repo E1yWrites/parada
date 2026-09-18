@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { Button, Input, Screen, Text } from "@/src/components";
+import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import { useSession } from "@/src/providers/SessionProvider";
 import { ApiError } from "@/lib/api/client";
-import { colors, fonts, radii, spacing } from "@/src/theme";
+import { colors, fonts, spacing } from "@/src/theme";
 
 export default function LoginScreen() {
   const { signIn } = useSession();
@@ -64,20 +63,10 @@ export default function LoginScreen() {
         </Text>
       </View>
       {notice && !error ? (
-        <View style={styles.notice} testID="login-notice">
-          <Ionicons name="checkmark-circle" size={18} color={colors.success} />
-          <Text variant="caption" color={colors.success} style={styles.alertText}>
-            {notice}
-          </Text>
-        </View>
+        <FormAlert tone="notice" message={notice} testID="login-notice" />
       ) : null}
       {error ? (
-        <View style={styles.alert}>
-          <Ionicons name="alert-circle" size={18} color={colors.danger} />
-          <Text variant="caption" color={colors.danger} style={styles.alertText} accessibilityRole="alert" testID="login-error">
-            {error}
-          </Text>
-        </View>
+        <FormAlert tone="error" message={error} testID="login-error" />
       ) : null}
       <View style={styles.form}>
         <Input
@@ -91,6 +80,7 @@ export default function LoginScreen() {
           autoCorrect={false}
           returnKeyType="next"
           textContentType="emailAddress"
+          autoComplete="email"
         />
         <Input
           testID="login-password"
@@ -103,6 +93,7 @@ export default function LoginScreen() {
           returnKeyType="go"
           onSubmit={handleSubmit}
           textContentType="password"
+          autoComplete="password"
         />
         <Button
           testID="login-submit"
@@ -151,25 +142,6 @@ const styles = StyleSheet.create({
   form: {
     gap: spacing.xl,
     marginTop: spacing.md,
-  },
-  alert: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.dangerSoft,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-  },
-  notice: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.successSoft,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-  },
-  alertText: {
-    flex: 1,
   },
   links: {
     gap: spacing.lg,

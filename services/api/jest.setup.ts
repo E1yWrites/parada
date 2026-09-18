@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { prisma } from "@parada/database";
 
 const url = process.env["DATABASE_URL"] ?? "";
 if (!url.includes("parada_test_api")) {
@@ -37,3 +38,30 @@ for (const key of [
 // Verification / recovery mail never leaves the test process: the in-memory
 // transport captures messages so suites can read the code they carry.
 process.env["MAIL_TRANSPORT"] = "memory";
+
+beforeAll(async () => {
+  await prisma.$executeRawUnsafe(`
+    TRUNCATE TABLE
+      "user_avatars",
+      "verification_tokens",
+      "vehicles",
+      "parking_slots",
+      "cameras",
+      "occupancy_events",
+      "occupancy_anomalies",
+      "occupancy_history",
+      "parking_sessions",
+      "notifications",
+      "establishment_config",
+      "reservations",
+      "zone_assignments",
+      "violations",
+      "violation_appeals",
+      "parking_fees",
+      "guest_sessions",
+      "revoked_tokens",
+      "parking_zones",
+      "users"
+    RESTART IDENTITY CASCADE
+  `);
+});

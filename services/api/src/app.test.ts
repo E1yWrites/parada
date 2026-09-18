@@ -1805,6 +1805,18 @@ describe("Phase 3 — Session entry & exit (user-initiated)", () => {
       .expect(409);
     expect(res.body.error.code).toBe("CONFLICT");
     expect(await prisma.parkingSession.count()).toBe(0);
+
+    // Manual entry PREVENTS the wrong-zone park; it does not punish it. The
+    // camera path is deliberately different: a car past the barrier is a fact
+    // the system can only admit and flag. Escalating here would fine a driver
+    // for an entry that never happened, and would spend the per-vehicle warning
+    // allowance that protects a genuine first camera offence.
+    expect(await prisma.violation.count({ where: { vehicleId: vehicle.body.data.id } })).toBe(0);
+    expect(
+      await prisma.occupancyAnomaly.count({
+        where: { vehicleId: vehicle.body.data.id, anomalyType: "WRONG_ZONE_WARNING" },
+      })
+    ).toBe(0);
   });
 
   it("completes an exit, decrements occupancy, and persists the fee", async () => {

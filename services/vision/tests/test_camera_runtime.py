@@ -12,6 +12,7 @@ import pytest
 
 from app.camera.base import CameraSourceError, FrameReadError
 from app.camera.runtime import CameraRuntime
+from app.event_identity import make_source_event_id
 from app.pipeline.service import DetectionStatus
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures", "videos")
@@ -167,10 +168,10 @@ def test_api_409_is_not_treated_as_failure_and_not_retried(mock_forward, fake):
 @patch("app.camera.runtime.api_client.forward_event", return_value=(500, {"error": {"message": "boom"}}))
 def test_api_5xx_is_bounded(mock_forward, fake):
     fake.n_frames = 10
-    rt = _runtime(fake, cooldown_seconds=0.0, reconnect_delay=0.0)
+    rt = _runtime(fake, cooldown_seconds=0.0, reconnect_delay=0.0, max_forward_attempts=1)
     rt.run()
     # Every non-duplicate event attempt fails with 500; debounce is disabled so
-    # each distinct processed frame attempts forwarding. Bounded by n_frames.
+    # each distinct processed frame attempts forwarding once. Bounded by n_frames.
     assert rt.stats.api_error == fake.n_frames
 
 
@@ -180,11 +181,125 @@ def test_api_transport_failure_is_isolated_and_the_camera_keeps_running(mock_for
     is counted, the runtime backs off, and it keeps reading frames until the
     source ends — then shuts the source down cleanly."""
     fake.n_frames = 4
-    rt = _runtime(fake, cooldown_seconds=0.0, reconnect_delay=0.0)
+    rt = _runtime(fake, cooldown_seconds=0.0, reconnect_delay=0.0, max_forward_attempts=1)
     rt.run()  # must not raise
     assert rt.stats.api_error == fake.n_frames
     assert rt.stats.frames_read == fake.n_frames
     assert fake.closes >= 1
+
+
+# ---------------------------------------------------------------- retry
+#
+# The debounce timestamp is written before the forward is attempted, so a lost
+# event makes the car invisible for the whole cooldown and it is never counted.
+# The safe recovery re-sends the SAME event object (same sourceEventId), so a
+# commit whose response was lost is answered 409 by the API's unique
+# constraint instead of being counted twice. Re-sending via the next frame
+# cannot do that: a live camera yields new bytes, hence a new id, every frame.
+
+
+def _one_detection_runtime(fake, **kw):
+    kw.setdefault("cooldown_seconds", 60.0)  # exactly one forward per plate
+    kw.setdefault("reconnect_delay", 0.0)
+    return _runtime(fake, **kw)
+
+
+@patch("app.camera.runtime.api_client.forward_event")
+def test_transport_failure_retries_the_same_event_and_recovers(mock_forward, fake):
+    fake.n_frames = 6
+    seen = []
+
+    def flaky(_zone, event):
+        seen.append(event["sourceEventId"])
+        if len(seen) == 1:
+            raise httpx.ConnectError("connection refused")
+        return (201, {"data": {}})
+
+    mock_forward.side_effect = flaky
+    rt = _one_detection_runtime(fake, max_forward_attempts=3)
+    rt.run()
+
+    # The first attempt failed; the retry carried the identical id and landed.
+    assert len(seen) == 2
+    assert seen[0] == seen[1]
+    assert rt.stats.api_ok == 1
+    assert rt.stats.api_error == 1
+    assert rt.stats.api_retries == 1
+    assert rt.stats.last_event is not None and rt.stats.last_event["outcome"] == "ok"
+
+
+@patch("app.camera.runtime.api_client.forward_event")
+def test_commit_then_lost_response_is_absorbed_as_a_conflict_not_a_double_count(mock_forward, fake):
+    """The API committed attempt 1 but the response timed out. Attempt 2 re-sends
+    the same sourceEventId, so the API answers 409 duplicate — the car is
+    counted exactly once and the runtime records a conflict, not an error."""
+    fake.n_frames = 6
+    seen = []
+
+    def committed_then_timeout(_zone, event):
+        seen.append(event["sourceEventId"])
+        if len(seen) == 1:
+            raise httpx.ReadTimeout("response lost after commit")
+        return (409, {"error": {"message": f"Duplicate camera event for sourceEventId '{event['sourceEventId']}'."}})
+
+    mock_forward.side_effect = committed_then_timeout
+    rt = _one_detection_runtime(fake, max_forward_attempts=3)
+    rt.run()
+
+    assert seen[0] == seen[1]
+    assert rt.stats.api_conflict == 1
+    assert rt.stats.api_retries == 1
+    assert rt.stats.last_event["outcome"].startswith("conflict:")
+
+
+@patch("app.camera.runtime.api_client.forward_event", side_effect=httpx.ConnectError("down"))
+def test_retries_are_bounded_when_the_api_stays_down(mock_forward, fake):
+    fake.n_frames = 6
+    rt = _one_detection_runtime(fake, max_forward_attempts=3)
+    rt.run()
+    # Exactly max_forward_attempts calls for the one observation, then give up.
+    assert mock_forward.call_count == 3
+    assert rt.stats.api_error == 3
+    assert rt.stats.api_retries == 2
+    assert rt.stats.last_event["outcome"] == "error:transport"
+
+
+@patch("app.camera.runtime.api_client.forward_event")
+def test_5xx_and_429_are_retried_but_other_4xx_are_final(mock_forward, fake):
+    fake.n_frames = 6
+
+    for status, expected_calls in ((503, 3), (429, 3), (400, 1), (401, 1)):
+        mock_forward.reset_mock()
+        mock_forward.side_effect = None
+        mock_forward.return_value = (status, {"error": {"message": "x"}})
+        rt = _one_detection_runtime(FakeSource(6), max_forward_attempts=3)
+        rt.run()
+        assert mock_forward.call_count == expected_calls, f"status {status}"
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(409, {"error": {"message": "duplicate"}}))
+def test_409_is_never_retried_even_with_retries_enabled(mock_forward, fake):
+    fake.n_frames = 6
+    rt = _one_detection_runtime(fake, max_forward_attempts=3)
+    rt.run()
+    assert mock_forward.call_count == 1
+    assert rt.stats.api_retries == 0
+
+
+@patch("app.camera.runtime.api_client.forward_event", side_effect=httpx.ConnectError("down"))
+def test_close_interrupts_a_retry_backoff(mock_forward, fake):
+    """A stop request during the between-attempt wait must end the retry loop
+    promptly rather than spending the remaining attempts."""
+    import threading
+
+    fake.n_frames = 6
+    rt = _one_detection_runtime(fake, max_forward_attempts=5, reconnect_delay=5.0)
+    threading.Timer(0.3, rt.close).start()
+    started = time.monotonic()
+    rt.run()
+    elapsed = time.monotonic() - started
+    assert elapsed < 4.0
+    assert mock_forward.call_count < 5
 
 
 def test_runtime_requires_a_zone_id():
@@ -229,15 +344,18 @@ def test_open_failure_isolates_and_does_not_crash_process(fake):
 
 
 def test_runtime_source_event_id_is_deterministic():
-    rt = _runtime(FakeSource(1))
     b1 = b"frame-one-bytes"
     b2 = b"frame-one-bytes"
-    assert rt._source_event_id(b1) == rt._source_event_id(b2)
-    assert rt._source_event_id(b1) != rt._source_event_id(b"frame-two-bytes")
-    assert rt._source_event_id(b1).startswith("vision-edge-")
+    assert make_source_event_id(b1, "CAM-A01") == make_source_event_id(b2, "CAM-A01")
+    assert make_source_event_id(b1, "CAM-A01") != make_source_event_id(b"frame-two", "CAM-A01")
+    assert make_source_event_id(b1, "CAM-A01").startswith("vision-")
 
 
 def test_runtime_source_event_id_deterministic_across_instances():
-    rt1 = _runtime(FakeSource(1))
-    rt2 = _runtime(FakeSource(1))
-    assert rt1._source_event_id(b"x") == rt2._source_event_id(b"x")
+    # A restarted process must derive the same id for the same frame, so the
+    # API's (cameraId, sourceEventId) constraint can absorb the replay.
+    assert make_source_event_id(b"x", "CAM-A01") == make_source_event_id(b"x", "CAM-A01")
+
+
+def test_source_event_id_distinguishes_cameras():
+    assert make_source_event_id(b"x", "CAM-A01") != make_source_event_id(b"x", "CAM-B02")

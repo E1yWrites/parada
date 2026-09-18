@@ -30,13 +30,13 @@ async function checkSession(token: string): Promise<SessionCheck> {
  * straight through. The JWT never reaches browser JS.
  */
 export async function GET(req: Request) {
-  const token = getSessionToken();
+  const token = await getSessionToken();
   if (!token) {
     return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Not authenticated." } }, { status: 401 });
   }
   const session = await checkSession(token);
   if (session === "UNAUTHENTICATED") {
-    clearSessionToken();
+    await clearSessionToken();
     return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Your session has expired. Sign in again." } }, { status: 401 });
   }
   if (session === "UNAVAILABLE") {

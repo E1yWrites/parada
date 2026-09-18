@@ -121,4 +121,4 @@ def test_runtime_forwards_events_via_existing_api_contract(fixture_video):
     # Contract matches POST /zones/:zoneId/events exactly.
     assert zone_id == "zone-1"
     assert set(event) >= {"cameraIdentifier", "sourceEventId", "eventType", "detectedPlate", "ocrConfidence", "detectedAt"}
-    assert event["sourceEventId"].startswith("vision-edge-")
+    assert event["sourceEventId"].startswith("vision-")

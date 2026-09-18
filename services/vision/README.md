@@ -96,7 +96,9 @@ Response:
 `sourceEventId` is a SHA-256 hash of the image bytes + `cameraIdentifier` —
 identical retries of the same physical observation produce the same id, so
 the API's `(cameraId, sourceEventId)` unique constraint absorbs duplicates
-instead of double-counting.
+instead of double-counting. Both ingress paths (`/detect` and the camera
+runtime loop) derive it from the same helper, `app/event_identity.py`, so one
+observation has one id no matter which path reports it.
 
 The first 6 fields exactly match `NormalizedVisionEvent`
 (`services/api/src/domain/occupancy.ts`) — that's what gets forwarded when
@@ -177,6 +179,7 @@ and never enter the database, an API response, or a log.
 | `VISION_PROCESS_FPS` | `2` | processing ceiling — frames above this are not OCR'd |
 | `OBSERVATION_COOLDOWN_SECONDS` | `5` | same camera + same plate + same direction within this window = one observation |
 | `CAMERA_RECONNECT_DELAY_SECONDS` | `2` | backoff between reconnect attempts |
+| `MAX_FORWARD_ATTEMPTS` | `3` | total HTTP attempts per event on `429`/`5xx`/transport failure, re-sending the same `sourceEventId`; `1` disables retries |
 | `MAX_CAMERA_RECONNECTS` | `100` | reconnect ceiling; beyond this the camera stops (no crash) |
 
 The API connection uses the existing `PARADA_API_URL` (default

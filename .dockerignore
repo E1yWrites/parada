@@ -1,0 +1,25 @@
+# Agent scratch checkouts — full duplicate repos, ~GBs, never part of a build.
+.claude/worktrees/
+.opencode/
+
+# Reinstalled inside the image.
+node_modules/
+**/node_modules/
+services/vision/.venv/
+
+# Build outputs and caches.
+.turbo/
+**/.next/
+**/dist/
+**/.expo/
+packages/database/.embedded-pg/
+
+# Local secrets and environment.
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+.git/

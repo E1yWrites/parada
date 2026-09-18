@@ -90,5 +90,14 @@ describe("OccupancyService.processEvent surfaces the escalated violation", () =>
     if (!("violation" in result)) throw new Error("expected registered-vehicle result shape");
     expect(result.violation).not.toBeNull();
     expect(result.violation?.violationType).toBe("WRONG_ZONE");
+
+    // The violation points at the entry that caused it, not at nothing: an
+    // admin adjudicating an appeal has to be able to reach that session. The
+    // first session was completed above, so this is the second entry's.
+    const activeSession = await prisma.parkingSession.findFirstOrThrow({
+      where: { vehicleId: vehicle.id, status: "ACTIVE" },
+    });
+    expect(result.violation?.sessionId).toBe(activeSession.id);
+    expect(activeSession.zoneId).toBe(zoneB.id);
   });
 });

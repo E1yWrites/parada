@@ -55,7 +55,12 @@ export function createApp(options: AppOptions = {}): Express {
   const env = loadEnv();
 
   const config = options.config ?? new ConfigService();
-  const realtimeHub = options.realtimeHub ?? new RealtimeHub();
+  const realtimeHub =
+    options.realtimeHub ??
+    new RealtimeHub({
+      maxConnectionsPerUser: env.realtimeMaxConnectionsPerUser,
+      replayBufferSize: env.realtimeReplayBufferSize,
+    });
   const assignmentService = options.assignments ?? new AssignmentService(config);
 
   const reservationService = new ReservationService(config);
@@ -109,8 +114,12 @@ export function createApp(options: AppOptions = {}): Express {
   );
 
   const zones = zonesRouter(occupancy, new ZoneService(), config, authMiddleware);
+  const cameraApiKey = options.cameraApiKey !== undefined ? options.cameraApiKey : env.cameraApiKey;
+  if (env.nodeEnv === "production" && !cameraApiKey) {
+    throw new Error("CAMERA_API_KEY is required in production.");
+  }
   const events = eventsRouter(occupancy, {
-    cameraApiKey: options.cameraApiKey !== undefined ? options.cameraApiKey : env.cameraApiKey,
+    cameraApiKey,
     rateLimit: options.cameraEventRateLimit ?? {
       limit: env.cameraEventRateLimitPerMinute,
       windowMs: 60_000,

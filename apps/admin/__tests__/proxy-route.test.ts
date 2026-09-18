@@ -42,7 +42,7 @@ describe("GET /api/proxy/[...path] — session mapping", () => {
 
   it("returns 401 with no session cookie", async () => {
     getSessionToken.mockReturnValue(null);
-    const res = await GET(new Request("http://admin.test/api/proxy/admin/zones"), { params: { path: ["admin", "zones"] } });
+    const res = await GET(new Request("http://admin.test/api/proxy/admin/zones"), { params: Promise.resolve({ path: ["admin", "zones"] }) });
     expect(res.status).toBe(401);
     expect(clearSessionToken).not.toHaveBeenCalled();
   });
@@ -51,7 +51,7 @@ describe("GET /api/proxy/[...path] — session mapping", () => {
     getSessionToken.mockReturnValue("expired-token");
     global.fetch = jest.fn().mockResolvedValue(backend(401, { error: { code: "UNAUTHORIZED", message: "Token has been revoked." } })) as unknown as typeof fetch;
 
-    const res = await GET(new Request("http://admin.test/api/proxy/admin/zones"), { params: { path: ["admin", "zones"] } });
+    const res = await GET(new Request("http://admin.test/api/proxy/admin/zones"), { params: Promise.resolve({ path: ["admin", "zones"] }) });
 
     expect(res.status).toBe(401);
     expect((await res.json()).error.code).toBe("UNAUTHORIZED");
@@ -64,7 +64,7 @@ describe("GET /api/proxy/[...path] — session mapping", () => {
     getSessionToken.mockReturnValue("user-token");
     global.fetch = jest.fn().mockResolvedValue(backend(200, { data: { role: "USER" } })) as unknown as typeof fetch;
 
-    const res = await GET(new Request("http://admin.test/api/proxy/admin/zones"), { params: { path: ["admin", "zones"] } });
+    const res = await GET(new Request("http://admin.test/api/proxy/admin/zones"), { params: Promise.resolve({ path: ["admin", "zones"] }) });
 
     expect(res.status).toBe(403);
     expect(clearSessionToken).not.toHaveBeenCalled();
@@ -74,7 +74,7 @@ describe("GET /api/proxy/[...path] — session mapping", () => {
     getSessionToken.mockReturnValue("admin-token");
     global.fetch = jest.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
 
-    const res = await GET(new Request("http://admin.test/api/proxy/admin/zones"), { params: { path: ["admin", "zones"] } });
+    const res = await GET(new Request("http://admin.test/api/proxy/admin/zones"), { params: Promise.resolve({ path: ["admin", "zones"] }) });
 
     expect(res.status).toBe(503);
     expect(clearSessionToken).not.toHaveBeenCalled();
@@ -87,7 +87,7 @@ describe("GET /api/proxy/[...path] — session mapping", () => {
       .mockResolvedValueOnce(backend(200, { data: { role: "ADMIN" } }))
       .mockResolvedValueOnce(backend(200, { data: [{ id: "z1" }] })) as unknown as typeof fetch;
 
-    const res = await GET(new Request("http://admin.test/api/proxy/admin/zones?limit=5"), { params: { path: ["admin", "zones"] } });
+    const res = await GET(new Request("http://admin.test/api/proxy/admin/zones?limit=5"), { params: Promise.resolve({ path: ["admin", "zones"] }) });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ data: [{ id: "z1" }] });
@@ -104,7 +104,7 @@ describe("GET /api/proxy/[...path] — session mapping", () => {
       .mockResolvedValueOnce(backend(200, { data: { role: "ADMIN" } }))
       .mockResolvedValueOnce(binaryBackend(200, png, "image/png")) as unknown as typeof fetch;
 
-    const res = await GET(new Request("http://admin.test/api/proxy/users/u1/avatar?v=1"), { params: { path: ["users", "u1", "avatar"] } });
+    const res = await GET(new Request("http://admin.test/api/proxy/users/u1/avatar?v=1"), { params: Promise.resolve({ path: ["users", "u1", "avatar"] }) });
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");

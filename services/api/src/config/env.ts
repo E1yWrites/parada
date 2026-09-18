@@ -18,6 +18,8 @@ export interface Env {
   cameraEventRateLimitPerMinute: number;
   /** Admin mutation requests per fixed 60s window, per authenticated admin. */
   adminRateLimitPerMinute: number;
+  realtimeMaxConnectionsPerUser: number;
+  realtimeReplayBufferSize: number;
   /** Outbound mail transport for verification / recovery flows. */
   mail: MailEnv;
   /**
@@ -102,6 +104,11 @@ export function loadEnv(): Env {
     authRateLimitPerMinute: optionalInt("AUTH_RATE_LIMIT", 10),
     cameraEventRateLimitPerMinute: optionalInt("CAMERA_EVENT_RATE_LIMIT", 300),
     adminRateLimitPerMinute: optionalInt("ADMIN_RATE_LIMIT", 120),
+    // Realtime (SSE) hub caps. Like the rate limits these are per-process:
+    // PARADA is a single-instance deployment (see docs/api/README.md, "Scope
+    // limit"), so these bound one process and nothing coordinates across two.
+    realtimeMaxConnectionsPerUser: optionalInt("REALTIME_MAX_CONNECTIONS_PER_USER", 5),
+    realtimeReplayBufferSize: optionalInt("REALTIME_REPLAY_BUFFER_SIZE", 500),
     mail: { transport: "console", smtp: null },
     appName: process.env["APP_NAME"]?.trim() || "PARADA",
     mobileScheme: process.env["MOBILE_APP_SCHEME"]?.trim() || "parada",

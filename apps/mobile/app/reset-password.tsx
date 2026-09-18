@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { Button, Input, Screen, Text } from "@/src/components";
+import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import { api, ApiError } from "@/lib/api/client";
-import { colors, radii, spacing } from "@/src/theme";
+import { colors, spacing } from "@/src/theme";
 
 const TOKEN_RE = /^[a-f0-9]{64}$/i;
 
@@ -67,12 +66,7 @@ export default function ResetPasswordScreen() {
         </Text>
       </View>
       {error ? (
-        <View style={styles.alert}>
-          <Ionicons name="alert-circle" size={18} color={colors.danger} />
-          <Text variant="caption" color={colors.danger} style={styles.alertText} accessibilityRole="alert" testID="reset-password-error">
-            {error}
-          </Text>
-        </View>
+        <FormAlert tone="error" message={error} testID="reset-password-error" />
       ) : null}
       <Input
         testID="reset-password-token"
@@ -98,7 +92,8 @@ export default function ResetPasswordScreen() {
         placeholder="At least 8 characters"
         secureTextEntry
         autoCapitalize="none"
-        textContentType="newPassword"
+        textContentType="password"
+        autoComplete="new-password"
         error={fieldErrors.password}
       />
       <Input
@@ -135,14 +130,5 @@ export default function ResetPasswordScreen() {
 const styles = StyleSheet.create({
   brand: { paddingTop: spacing.md },
   heading: { gap: spacing.md },
-  alert: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.dangerSoft,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-  },
-  alertText: { flex: 1 },
   footer: { marginTop: spacing.md },
 });

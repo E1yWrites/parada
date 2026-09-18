@@ -270,6 +270,45 @@ describe("Phase 5 — Vision/OCR integration foundation", () => {
       expect(guest!.detectedPlate).toBe("ZZZ0100");
     });
 
+    it("never admits the same guest plate twice while it is still inside", async () => {
+      // A registered vehicle is protected here by the one-ACTIVE-session-per-
+      // vehicle index, but a guest session has vehicleId NULL and Postgres
+      // treats NULLs as distinct, so nothing stopped a second ENTRY. A camera
+      // re-reads a car that lingers past the vision debounce window with a
+      // different sourceEventId, so idempotency cannot catch it either — the
+      // zone would count one car twice and stay permanently over-occupied,
+      // because EXIT closes only one session.
+      const g = await seedZone(5, "gdup");
+      const gApp = createApp({ config: await seedGuestPrimaryZone(g.zoneId) });
+
+      await request(gApp)
+        .post(`/zones/${g.zoneId}/events`)
+        .send({ cameraIdentifier: g.entryCamId, sourceEventId: "gdup-1", eventType: "ENTRY", detectedPlate: "DUP-7700", ocrConfidence: 0.9 })
+        .expect(201);
+
+      const second = await request(gApp)
+        .post(`/zones/${g.zoneId}/events`)
+        .send({ cameraIdentifier: g.entryCamId, sourceEventId: "gdup-2", eventType: "ENTRY", detectedPlate: "DUP-7700", ocrConfidence: 0.9 })
+        .expect(201);
+
+      expect(second.body.data.admitted).toBe(false);
+      expect(second.body.data.deniedReason).toBe("GUEST_ALREADY_INSIDE");
+
+      const zone = await prisma.parkingZone.findUniqueOrThrow({ where: { id: g.zoneId } });
+      expect(zone.occupiedCount).toBe(1);
+      expect(
+        await prisma.parkingSession.count({ where: { zoneId: g.zoneId, status: "ACTIVE" } })
+      ).toBe(1);
+
+      // And the one car still leaves cleanly, returning the zone to empty.
+      await request(gApp)
+        .post(`/zones/${g.zoneId}/events`)
+        .send({ cameraIdentifier: g.exitCamId, sourceEventId: "gdup-out", eventType: "EXIT", detectedPlate: "DUP-7700", ocrConfidence: 0.9 })
+        .expect(201);
+      const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: g.zoneId } });
+      expect(after.occupiedCount).toBe(0);
+    });
+
     it("closes a guest only in its admitted zone and ignores duplicate exits", async () => {
       const g = await seedZone(5, "gx");
       const other = await seedZone(5, "gy");

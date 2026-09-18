@@ -24,6 +24,7 @@ import httpx
 import numpy as np
 
 from .. import api_client, config
+from ..event_identity import make_source_event_id
 from ..pipeline.service import DetectionStatus, process_image
 from .base import CameraSource, CameraSourceError, FrameReadError
 
@@ -40,6 +41,7 @@ class RuntimeStats:
     api_conflict: int = 0
     api_throttled: int = 0
     api_error: int = 0
+    api_retries: int = 0
     read_failures: int = 0
     reconnects: int = 0
     consecutive_read_failures: int = 0
@@ -58,6 +60,7 @@ class CameraRuntime:
     reconnect_delay: float = field(default_factory=lambda: config.CAMERA_RECONNECT_DELAY_SECONDS)
     max_consecutive_failures: int = field(default_factory=lambda: config.MAX_CONSECUTIVE_READ_FAILURES)
     max_reconnects: int = field(default_factory=lambda: config.MAX_CAMERA_RECONNECTS)
+    max_forward_attempts: int = field(default_factory=lambda: config.MAX_FORWARD_ATTEMPTS)
     event_type: str = "ENTRY"  # fixed for a single-camera runtime; the API enforces direction
 
     def __post_init__(self) -> None:
@@ -75,7 +78,7 @@ class CameraRuntime:
             self.process_fps = 1.0
         self._stop_flag = False
         self.stats = RuntimeStats()
-        self._last_observations: dict[tuple[str, str], float] = {}
+        self._last_observations: dict[tuple[str, str, str], float] = {}
 
     def _source_name(self) -> str:
         """Source type as a plain string; sources may expose enum or str."""
@@ -89,55 +92,80 @@ class CameraRuntime:
     def _forward(self, event: dict) -> str:
         """Send one normalized event to the API. Returns a short outcome label.
 
-        Bounded, idempotent:
-        - A deterministic sourceEventId is derived from the processed frame, so
-          any retry re-sends the identical id and the API's unique constraint
-          absorbs the duplicate instead of double-counting.
-        - 409 is a BUSINESS answer (duplicate/full/direction/offline) — logged
-          and NOT retried; the camera keeps going.
-        - 429 is a throttle — a bounded backoff then normal continuation; it is
-          never treated as an auth failure (no credential change, no new token).
-        - 5xx/transport: bounded retries with backoff, capped so we never
-          hammer the API forever. A transport failure (API down, DNS, timeout)
-          is isolated here: it is counted, logged without the payload, and the
-          loop backs off and keeps reading frames — it never crashes the camera.
+        The debounce timestamp for this plate is already recorded by the time
+        this runs, so if the event is lost here the car is invisible for the
+        whole cooldown window and is simply never counted. The only recovery
+        that is also safe is to re-send THIS event object: its sourceEventId is
+        unchanged, so if the API committed the first attempt and only the
+        response was lost, the unique constraint on (cameraId, sourceEventId)
+        answers 409 and nothing is counted twice. Re-sending via the next frame
+        would not have that property — a live camera yields new bytes and a new
+        id every frame — which is why the cooldown is not moved instead.
+
+        - 201: accepted.
+        - 409: a BUSINESS answer (duplicate/full/direction/offline). Final —
+          never retried; the camera keeps going.
+        - 429 / 5xx / transport (down, DNS, timeout): retried up to
+          max_forward_attempts in total, backing off reconnect_delay between
+          attempts. One event in flight at a time, no queue, so the cost is
+          bounded and there is no storm against a struggling API.
+        - Other 4xx (auth/validation): deterministic, so retrying is waste.
+          Final on the first answer. 429 is never treated as an auth failure
+          (no credential change, no new token).
         """
+        attempts = max(1, self.max_forward_attempts)
+        outcome = "error:unknown"
+        for attempt in range(1, attempts + 1):
+            outcome, retryable = self._forward_once(event, attempt)
+            if not retryable:
+                return outcome
+            # Back off after every retryable failure, including the last one, so
+            # a sustained outage never has the loop hammering at frame rate.
+            if self._wait_interruptible(self.reconnect_delay):
+                return outcome
+            if attempt < attempts:
+                self.stats.api_retries += 1
+        return outcome
+
+    def _forward_once(self, event: dict, attempt: int) -> tuple[str, bool]:
+        """One HTTP attempt. Returns (outcome label, retryable)."""
         try:
             status_code, body = api_client.forward_event(self.zone_id, event)
         except (httpx.HTTPError, OSError) as exc:
             self.stats.api_error += 1
             logger.warning(
-                "api unreachable (%s); backing off %.1fs camera=%s",
+                "api unreachable (%s) attempt=%d camera=%s",
                 type(exc).__name__,
-                self.reconnect_delay,
+                attempt,
                 self.camera_identifier,
             )
-            self._wait_interruptible(self.reconnect_delay)
-            return "error:transport"
+            return "error:transport", True
         if status_code == 201:
             self.stats.api_ok += 1
-            return "ok"
+            return "ok", False
         if status_code == 409:
             # Duplicate sourceEventId, full zone, offline camera, or wrong
             # direction — a clean domain rejection, not a vision failure.
             self.stats.api_conflict += 1
             reason = self._reason_from_body(body)
             logger.info("api rejected event status=409 reason=%s camera=%s", reason, self.camera_identifier)
-            return f"conflict:{reason}"
+            return f"conflict:{reason}", False
         if status_code == 429:
             self.stats.api_throttled += 1
-            logger.warning("api throttled event (429); backing off camera=%s", self.camera_identifier)
-            time.sleep(self.reconnect_delay)
-            return "throttled"
-        # 4xx (auth/validation) and 5xx: 4xx is not going to succeed on retry,
-        # but 5xx/transport may. Bounded retries.
+            logger.warning(
+                "api throttled event (429) attempt=%d camera=%s", attempt, self.camera_identifier
+            )
+            return "throttled", True
         self.stats.api_error += 1
+        retryable = status_code >= 500
         logger.warning(
-            "api event error status=%s camera=%s (not retried on 4xx, bounded on 5xx)",
+            "api event error status=%s attempt=%d camera=%s (%s)",
             status_code,
+            attempt,
             self.camera_identifier,
+            "will retry" if retryable else "final",
         )
-        return f"error:{status_code}"
+        return f"error:{status_code}", retryable
 
     @staticmethod
     def _reason_from_body(body: dict) -> str:
@@ -273,7 +301,7 @@ class CameraRuntime:
 
         event = {
             "cameraIdentifier": self.camera_identifier,
-            "sourceEventId": self._source_event_id(image_bytes),
+            "sourceEventId": make_source_event_id(image_bytes, self.camera_identifier),
             "eventType": direction,
             "detectedPlate": result.detected_plate,
             "ocrConfidence": result.ocr_confidence,
@@ -299,13 +327,6 @@ class CameraRuntime:
             outcome,
             processing_ms,
         )
-
-    @staticmethod
-    def _source_event_id(image_bytes: bytes) -> str:
-        import hashlib
-
-        digest = hashlib.sha256(image_bytes).hexdigest()
-        return f"vision-edge-{digest[:24]}"
 
     def _reconnect(self) -> None:
         if self.stats.reconnects >= self.max_reconnects:

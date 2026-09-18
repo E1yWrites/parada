@@ -306,6 +306,16 @@ export class ZoneConfigService {
   }
 
   async updateCamera(cameraId: string, input: AdminCameraUpdateInput) {
+    // The identifier is the string every deployed vision host is configured
+    // with and POSTs on every event, and it names the camera in every past
+    // event and anomaly. Renaming it would silently stop ingestion until each
+    // host is reconfigured and relabel history. Refuse loudly rather than
+    // dropping the field, so an operator is never left believing it changed.
+    if ("identifier" in (input as Record<string, unknown>)) {
+      throw new BadRequestError(
+        "'identifier' cannot be changed after registration; register a new camera instead."
+      );
+    }
     const data: Prisma.CameraUpdateInput = {};
     if (input.name !== undefined) data.name = requiredLabel("name", input.name);
     if (input.location !== undefined) data.location = normalizeDescription(input.location);

@@ -76,6 +76,11 @@ OBSERVATION_COOLDOWN_SECONDS = float(os.environ.get("OBSERVATION_COOLDOWN_SECOND
 # Reconnect / retry policy when a source or the API is temporarily unavailable.
 CAMERA_RECONNECT_DELAY_SECONDS = float(os.environ.get("CAMERA_RECONNECT_DELAY_SECONDS", "2"))
 MAX_CONSECUTIVE_READ_FAILURES = int(os.environ.get("MAX_CONSECUTIVE_READ_FAILURES", "10"))
+# Total HTTP attempts per event for retryable answers (429/5xx/transport),
+# re-sending the SAME sourceEventId so the API's unique constraint absorbs a
+# commit whose response was lost. One event in flight at a time; 1 disables
+# retries. Kept small on purpose: the frame loop blocks while it retries.
+MAX_FORWARD_ATTEMPTS = max(1, int(os.environ.get("MAX_FORWARD_ATTEMPTS", "3")))
 # Upper bound on reconnect attempts before the camera is marked unrecoverable
 # and the runtime stops (failure isolation — it never crashes the process).
 MAX_CAMERA_RECONNECTS = int(os.environ.get("MAX_CAMERA_RECONNECTS", "100"))
