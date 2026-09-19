@@ -1,7 +1,6 @@
 import { Platform } from "react-native";
 import { Linking } from "react-native";
 import type { LocationCoordinates } from "./location";
-import type { EstablishmentInfo } from "@/lib/api/client";
 
 /**
  * Navigation launch (Phase 9.5). Builds platform-appropriate map/navigation
@@ -9,6 +8,10 @@ import type { EstablishmentInfo } from "@/lib/api/client";
  * from application data, then opens them through the OS. Nothing is rendered
  * in-app and no route is computed locally — the platform's navigation app does
  * the work. Failures surface as a friendly error, never raw details.
+ *
+ * Destinations resolve per zone from the admin-configured coordinates. An
+ * establishment-level destination was the earlier model and is gone: zones now
+ * carry their own coordinates, so there is nothing to fall back to.
  */
 
 export type NavigationDestination = {
@@ -17,22 +20,6 @@ export type NavigationDestination = {
   latitude: number;
   longitude: number;
 };
-
-/**
- * Resolves the navigation destination from the establishment endpoint. Zones
- * have no coordinates, so the parking establishment is the target. Returns null
- * when the backend has not configured a destination yet — the app never invents
- * one.
- */
-export function resolveEstablishmentDestination(
-  info: EstablishmentInfo | null | undefined,
-): NavigationDestination | null {
-  const location = info?.location;
-  if (!location) {
-    return null;
-  }
-  return { label: location.address, latitude: location.latitude, longitude: location.longitude };
-}
 
 /**
  * Resolves the navigation destination for one parking zone from its

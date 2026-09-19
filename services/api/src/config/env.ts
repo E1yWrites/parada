@@ -27,6 +27,8 @@ export interface Env {
    * deep-link scheme embedded in password-reset mail.
    */
   appName: string;
+  /** Establishment named in outbound mail footers. */
+  mailOrganization: string;
   mobileScheme: string;
 }
 
@@ -111,6 +113,7 @@ export function loadEnv(): Env {
     realtimeReplayBufferSize: optionalInt("REALTIME_REPLAY_BUFFER_SIZE", 500),
     mail: { transport: "console", smtp: null },
     appName: process.env["APP_NAME"]?.trim() || "PARADA",
+    mailOrganization: process.env["MAIL_ORGANIZATION"]?.trim() || "LPU-Batangas Main Campus",
     mobileScheme: process.env["MOBILE_APP_SCHEME"]?.trim() || "parada",
   };
 

@@ -23,7 +23,6 @@ jest.mock("@/lib/api/client", () => {
       reservations: jest.fn(),
       createReservation: jest.fn(),
       cancelReservation: jest.fn(),
-      establishment: jest.fn(),
       notifications: jest.fn().mockResolvedValue({ notifications: [], unreadCount: 0 }),
     },
   };
@@ -129,7 +128,6 @@ beforeEach(() => {
   (api.reservations as jest.Mock).mockResolvedValue([]);
   (api.createReservation as jest.Mock).mockResolvedValue({});
   (api.cancelReservation as jest.Mock).mockResolvedValue({});
-  (api.establishment as jest.Mock).mockResolvedValue({ location: null });
 });
 
 describe("parking screen: zone availability", () => {
@@ -294,6 +292,7 @@ describe("parking screen: reservations (phase 9.4)", () => {
     renderWithProviders(<ParkingScreen />);
 
     fireEvent.press(await screen.findByTestId("zone-A"));
+    fireEvent.press(await screen.findByTestId("parking-action-reserve"));
     const create = await screen.findByTestId("reservation-create");
     expect(create).toHaveTextContent("Reserve ABC-1234 in Zone A");
 

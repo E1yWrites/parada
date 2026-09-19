@@ -151,10 +151,13 @@ export class RealtimeHub {
    * refetch from REST instead of pretending continuity.
    */
   replay(client: RealtimeClient, afterSeq: number): RealtimeEvent[] | null {
-    if (afterSeq >= this.seq) return [];
+    if (afterSeq === this.seq) return [];
     // A cursor from a previous process lifetime (or one the buffer has already
     // dropped) cannot be served: seq restarts at 0 on restart, so a client
     // presenting a high cursor against a low head has missed everything.
+    // Returning [] here instead would tell the client it is up to date, and its
+    // own seq gate would then discard every event this process publishes.
+    if (afterSeq > this.seq) return null;
     if (afterSeq < 0) return null;
     const oldest = this.buffer[0];
     if (!oldest || oldest.event.seq > afterSeq + 1) return null;

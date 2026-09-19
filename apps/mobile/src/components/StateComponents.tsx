@@ -66,6 +66,9 @@ export function EmptyState({
   title,
   description,
   children,
+  /** Smaller illustration and tighter padding for a lower-priority empty state
+   *  (e.g. a list nested under its own create action, not a whole-screen state). */
+  compact = false,
   testID,
 }: {
   /** Legacy single-icon fallback; prefer `illustration`. */
@@ -74,22 +77,23 @@ export function EmptyState({
   title: string;
   description: string;
   children?: ReactNode;
+  compact?: boolean;
   testID?: string;
 }) {
   return (
-    <Card style={styles.card} testID={testID}>
+    <Card style={[styles.card, compact ? styles.cardCompact : undefined]} testID={testID}>
       {illustration ? (
-        <Illustration name={illustration} size={112} />
+        <Illustration name={illustration} size={compact ? 52 : 112} />
       ) : (
-        <View style={styles.iconContainer}>
-          <Ionicons name={icon ?? "ellipse-outline"} size={32} color={colors.primary} />
+        <View style={[styles.iconContainer, compact ? styles.iconContainerCompact : undefined]}>
+          <Ionicons name={icon ?? "ellipse-outline"} size={compact ? 24 : 32} color={colors.primary} />
         </View>
       )}
       <View style={styles.textBlock}>
-        <Text variant="title" align="center">
+        <Text variant={compact ? "bodySemi" : "title"} align="center">
           {title}
         </Text>
-        <Text variant="body" align="center" color={colors.muted}>
+        <Text variant={compact ? "caption" : "body"} align="center" color={colors.muted}>
           {description}
         </Text>
       </View>
@@ -130,6 +134,10 @@ const styles = StyleSheet.create({
     gap: spacing.xl2,
     paddingVertical: spacing.xl4,
   },
+  cardCompact: {
+    gap: spacing.md,
+    paddingVertical: spacing.lg,
+  },
   textBlock: {
     gap: spacing.md,
     alignSelf: "stretch",
@@ -142,6 +150,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: radii.lg,
     backgroundColor: colors.primarySoft,
+  },
+  iconContainerCompact: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.md,
   },
   action: {
     alignSelf: "stretch",

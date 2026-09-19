@@ -237,7 +237,8 @@ Returns `201` with the created `occupancy_event`.
 | `CAMERA_API_KEY` | *(unset)* | Shared key the vision service sends via `X-API-Key`. Unset = open (dev only). |
 | `OCR_PLATE_CONFIDENCE_THRESHOLD` | `0.5` | Minimum OCR confidence to trust a plate as vehicle identity. |
 | `MAIL_TRANSPORT` | `smtp` when `SMTP_HOST` is set, else `console` | `smtp` = any SMTP-compatible provider via `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASS`/`MAIL_FROM` (**required in production**; startup fails otherwise). `console` prints mail to stdout (development only). `memory` is the test transport (never valid in production). |
-| `APP_NAME` | `PARADA` | Name used in verification / reset mail. |
+| `APP_NAME` | `PARADA` | Product name used in verification / reset mail. |
+| `MAIL_ORGANIZATION` | `LPU-Batangas Main Campus` | Establishment named in mail headers/footers. Templates live in `services/api/src/mail/templates.ts` (plain text + branded HTML). |
 | `MOBILE_APP_SCHEME` | `parada` | Deep-link scheme in the password-reset mail (must match `apps/mobile/app.json` `scheme`). |
 | `AUTH_RATE_LIMIT` | `10` | Credential endpoints per minute per IP (register, login, verify, resend, forgot, reset share one bucket). Raise for shared/NAT egress. |
 

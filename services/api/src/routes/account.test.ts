@@ -160,6 +160,16 @@ describe("Registration requires email verification", () => {
     expect(mail?.subject).toContain("verification code");
     const code = codeIn(mail?.text);
     expect(code).toMatch(/^\d{6}$/);
+    // Branded PARADA mail: plain text and HTML carry the same code, the
+    // product name, the establishment, the expiry, and no secrets beyond the code.
+    expect(mail?.text).toContain("Hi Driver");
+    expect(mail?.text).toContain("PARADA");
+    expect(mail?.text).toContain("LPU-Batangas Main Campus");
+    expect(mail?.text).toContain("10 minutes");
+    expect(mail?.html).toContain(code!);
+    expect(mail?.html).toContain("Verify your email address");
+    expect(mail?.html).toContain("LPU-Batangas Main Campus");
+    expect(mail?.html).not.toContain(PASSWORD);
     // The plaintext code is never stored.
     const rows = await prisma.verificationToken.findMany();
     expect(rows).toHaveLength(1);
@@ -331,6 +341,9 @@ describe("Forgot / reset password", () => {
     const resetToken = tokenIn(mail?.text)!;
     expect(resetToken).toHaveLength(64);
     expect(mail?.text).toContain(`parada://reset-password?token=${resetToken}`);
+    expect(mail?.text).toContain("30 minutes");
+    expect(mail?.html).toContain(`parada://reset-password?token=${resetToken}`);
+    expect(mail?.html).toContain("Reset your password");
     const row = await prisma.verificationToken.findFirstOrThrow({ where: { purpose: "PASSWORD_RESET" } });
     expect(row.tokenHash).not.toBe(resetToken);
     expect(row.expiresAt.getTime() - now.getTime()).toBe(30 * 60_000);

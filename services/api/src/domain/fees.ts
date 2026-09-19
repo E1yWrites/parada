@@ -57,6 +57,11 @@ export function calculateParkingFee(
  * caller's transaction. Both exit paths (camera pipeline and user-initiated)
  * route through here so a completed session can never end up unpriced.
  * `userId` is null for account-less guest sessions; the fee policy is the same.
+ *
+ * A registered driver also gets a SESSION_COMPLETED notification in the same
+ * transaction, so the fee and the message telling them about it can never
+ * disagree. Guests have no account to notify, so `notification` is null for
+ * them; the caller publishes it after commit.
  */
 export async function persistSessionFee(
   tx: Prisma.TransactionClient,
@@ -79,5 +84,22 @@ export async function persistSessionFee(
       status: "PENDING",
     },
   });
-  return { amount: fee.amount, breakdown: fee.breakdown, row };
+
+  const notification = input.userId
+    ? await tx.notification.create({
+        data: {
+          zoneId: input.zoneId,
+          userId: input.userId,
+          type: "SESSION_COMPLETED",
+          message: `Your parking session ended. Parking fee: ${formatFeeAmount(fee.amount)}.`,
+          targetRole: "USER",
+        },
+      })
+    : null;
+
+  return { amount: fee.amount, breakdown: fee.breakdown, row, notification };
+}
+
+function formatFeeAmount(amount: number): string {
+  return `PHP ${amount.toFixed(2)}`;
 }

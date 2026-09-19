@@ -11,6 +11,7 @@ import {
 } from "../http/errors";
 import { TokenService, type TokenConfig } from "./token";
 import { ConsoleMailer, type Mailer } from "../mail/mailer";
+import { passwordResetMail, verificationCodeMail, type MailBrand } from "../mail/templates";
 import {
   CODE_RESEND_COOLDOWN_MS,
   CODE_TTL_MS,
@@ -73,8 +74,10 @@ const FALLBACK_HASH =
 export interface AuthServiceDeps {
   mailer?: Mailer;
   verification?: VerificationService;
-  /** Establishment name used in mail subjects/bodies. */
+  /** Product name used in mail subjects/bodies. */
   appName?: string;
+  /** Establishment named in mail footers. */
+  organization?: string;
   /** Mobile deep-link scheme embedded in password-reset mail. */
   mobileScheme?: string;
   clock?: () => Date;
@@ -94,7 +97,7 @@ export class AuthService {
   readonly tokens: TokenService;
   readonly mailer: Mailer;
   readonly verification: VerificationService;
-  private readonly appName: string;
+  private readonly brand: MailBrand;
   private readonly mobileScheme: string;
   private readonly clock: () => Date;
 
@@ -102,7 +105,7 @@ export class AuthService {
     this.tokens = new TokenService(config);
     this.mailer = deps.mailer ?? new ConsoleMailer();
     this.verification = deps.verification ?? new VerificationService(config.secret, deps.clock);
-    this.appName = deps.appName ?? "PARADA";
+    this.brand = { appName: deps.appName ?? "PARADA", organization: deps.organization ?? "LPU-Batangas Main Campus" };
     this.mobileScheme = deps.mobileScheme ?? "parada";
     this.clock = deps.clock ?? (() => new Date());
   }
@@ -143,7 +146,7 @@ export class AuthService {
       throw err;
     }
 
-    const challenge = await this.sendEmailVerification(user.id, user.email);
+    const challenge = await this.sendEmailVerification(user.id, user.email, user.name);
     return { user: toPublic(user), verification: challenge };
   }
 
@@ -152,7 +155,7 @@ export class AuthService {
    * mail goes out; a transport failure surfaces to the caller (no fake
    * delivery) and the code stays valid so a resend simply issues another.
    */
-  private async sendEmailVerification(userId: string, email: string): Promise<VerificationChallenge> {
+  private async sendEmailVerification(userId: string, email: string, name: string): Promise<VerificationChallenge> {
     const issued = await this.verification.issue(prisma, {
       userId,
       purpose: "EMAIL_VERIFY",
@@ -160,14 +163,9 @@ export class AuthService {
       ttlMs: CODE_TTL_MS,
       cooldownMs: CODE_RESEND_COOLDOWN_MS,
     });
-    await this.mailer.send({
-      to: email,
-      subject: `${this.appName}: your verification code`,
-      text:
-        `Your ${this.appName} verification code is ${issued.secret}.\n\n` +
-        `It expires in ${Math.round(CODE_TTL_MS / 60_000)} minutes. ` +
-        `If you did not create a ${this.appName} account, ignore this message.`,
-    });
+    await this.mailer.send(
+      verificationCodeMail(this.brand, { to: email, name, code: issued.secret, ttlMs: CODE_TTL_MS })
+    );
     return toChallenge(issued);
   }
 
@@ -176,12 +174,12 @@ export class AuthService {
     const email = emailRaw.trim().toLowerCase();
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, emailVerifiedAt: true, status: true },
+      select: { id: true, email: true, name: true, emailVerifiedAt: true, status: true },
     });
     if (!user || user.emailVerifiedAt || user.status !== "ACTIVE") {
       return null;
     }
-    return this.sendEmailVerification(user.id, user.email);
+    return this.sendEmailVerification(user.id, user.email, user.name);
   }
 
   async verifyEmail(input: { email: string; code: string }): Promise<AuthUser> {
@@ -234,7 +232,7 @@ export class AuthService {
       // cooldown allows; otherwise the client is told when it may resend.
       let challenge: VerificationChallenge | null = null;
       try {
-        challenge = await this.sendEmailVerification(user.id, user.email);
+        challenge = await this.sendEmailVerification(user.id, user.email, user.name);
       } catch (err) {
         if (!(err instanceof TooManyRequestsError)) throw err;
       }
@@ -335,7 +333,7 @@ export class AuthService {
     const email = emailRaw.trim().toLowerCase();
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, status: true },
+      select: { id: true, email: true, name: true, status: true },
     });
     if (!user || user.status !== "ACTIVE") {
       return;
@@ -355,16 +353,15 @@ export class AuthService {
       if (err instanceof TooManyRequestsError) return;
       throw err;
     }
-    await this.mailer.send({
-      to: user.email,
-      subject: `${this.appName}: reset your password`,
-      text:
-        `Open this link on your phone to choose a new ${this.appName} password:\n\n` +
-        `${this.mobileScheme}://reset-password?token=${issued.secret}\n\n` +
-        `Or enter this reset code in the app: ${issued.secret}\n\n` +
-        `The link expires in ${Math.round(RESET_TOKEN_TTL_MS / 60_000)} minutes and works once. ` +
-        `If you did not ask to reset your password, ignore this message; your password is unchanged.`,
-    });
+    await this.mailer.send(
+      passwordResetMail(this.brand, {
+        to: user.email,
+        name: user.name,
+        token: issued.secret,
+        ttlMs: RESET_TOKEN_TTL_MS,
+        scheme: this.mobileScheme,
+      })
+    );
   }
 
   /**

@@ -9,6 +9,7 @@ import {
   UnprocessableError,
 } from "../http/errors";
 import type { Mailer } from "../mail/mailer";
+import { emailChangeCodeMail, phoneChangeCodeMail, type MailBrand } from "../mail/templates";
 import { toPublic, userSelect } from "./auth";
 import { CODE_RESEND_COOLDOWN_MS, CODE_TTL_MS, VerificationService } from "./verification";
 
@@ -55,6 +56,7 @@ export interface AccountServiceDeps {
   mailer: Mailer;
   verification: VerificationService;
   appName?: string;
+  organization?: string;
   clock?: () => Date;
 }
 
@@ -68,13 +70,13 @@ export interface AccountServiceDeps {
 export class AccountService {
   private readonly mailer: Mailer;
   private readonly verification: VerificationService;
-  private readonly appName: string;
+  private readonly brand: MailBrand;
   private readonly clock: () => Date;
 
   constructor(deps: AccountServiceDeps) {
     this.mailer = deps.mailer;
     this.verification = deps.verification;
-    this.appName = deps.appName ?? "PARADA";
+    this.brand = { appName: deps.appName ?? "PARADA", organization: deps.organization ?? "LPU-Batangas Main Campus" };
     this.clock = deps.clock ?? (() => new Date());
   }
 
@@ -139,14 +141,15 @@ export class AccountService {
     });
     await prisma.user.update({ where: { id: userId }, data: { pendingEmail: newEmail } });
     if (!taken) {
-      await this.mailer.send({
-        to: newEmail,
-        subject: `${this.appName}: confirm your new email address`,
-        text:
-          `Enter this code in ${this.appName} to confirm your new email address: ${issued.secret}\n\n` +
-          `It expires in ${Math.round(CODE_TTL_MS / 60_000)} minutes. ` +
-          `If you did not request this change, ignore this message.`,
-      });
+      await this.mailer.send(
+        emailChangeCodeMail(this.brand, {
+          to: newEmail,
+          name: user.name,
+          code: issued.secret,
+          ttlMs: CODE_TTL_MS,
+          currentEmail: user.email,
+        })
+      );
     }
     return toChallenge(issued);
   }
@@ -217,14 +220,9 @@ export class AccountService {
       cooldownMs: CODE_RESEND_COOLDOWN_MS,
     });
     await prisma.user.update({ where: { id: userId }, data: { pendingPhone: phone } });
-    await this.mailer.send({
-      to: user.email,
-      subject: `${this.appName}: confirm your phone number change`,
-      text:
-        `Enter this code in ${this.appName} to confirm your new phone number: ${issued.secret}\n\n` +
-        `It expires in ${Math.round(CODE_TTL_MS / 60_000)} minutes. ` +
-        `If you did not request this change, ignore this message and consider changing your password.`,
-    });
+    await this.mailer.send(
+      phoneChangeCodeMail(this.brand, { to: user.email, name: user.name, code: issued.secret, ttlMs: CODE_TTL_MS, phone })
+    );
     return toChallenge(issued);
   }
 

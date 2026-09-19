@@ -551,13 +551,14 @@ export class OccupancyService {
       });
       if (existing) {
         const durationMs = Math.max(0, detectedAt.getTime() - existing.enteredAt.getTime());
-        const { amount } = await persistSessionFee(tx, {
+        const { amount, notification: feeNotification } = await persistSessionFee(tx, {
           sessionId: existing.id,
           zoneId: existing.zoneId,
           userId: existing.userId,
           durationMs,
           feeConfig: await this.getFeeConfig(tx),
         });
+        if (feeNotification) notifications.push(feeNotification);
         await tx.parkingSession.update({
           where: { id: existing.id },
           data: {

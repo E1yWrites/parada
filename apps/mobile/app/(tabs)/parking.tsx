@@ -10,9 +10,12 @@ import {
   IconButton,
   LoadingState,
   ParkingRecommendation,
+  ReservationList,
   ReservationPanel,
   Screen,
   SectionHeader,
+  SegmentedControl,
+  VehicleSelectionProvider,
   ZoneAssignmentPanel,
   ZoneCard,
 } from "@/src/components";
@@ -32,6 +35,7 @@ export default function ParkingScreen() {
   const user = useSessionUser();
   const sessionToken = useSessionToken();
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+  const [actionMode, setActionMode] = useState<"assign" | "reserve">("assign");
   const zones = useQuery({
     queryKey: queryKeys.zones,
     queryFn: api.zones,
@@ -109,6 +113,7 @@ export default function ParkingScreen() {
     (assignmentList.status === "pending" || reservationList.status === "pending");
 
   return (
+    <VehicleSelectionProvider>
     <Screen
       title="Parking"
       subtitle="Live zone availability from the gate cameras"
@@ -176,9 +181,43 @@ export default function ParkingScreen() {
           ))}
         </View>
       )}
-      {activeSession ? null : <ZoneAssignmentPanel selectedZone={selectedZone} />}
-      {activeSession ? null : <ReservationPanel selectedZone={selectedZone} />}
+      {activeSession ? null : (
+        <View testID="parking-action">
+          <SectionHeader
+            title="Park your vehicle"
+            caption="Pick how you'd like to use the selected zone"
+            testID="parking-action-header"
+          />
+          <View style={styles.actionToggle} testID="parking-action-toggle">
+            <SegmentedControl
+              value={actionMode}
+              onChange={(mode) => setActionMode(mode as "assign" | "reserve")}
+              options={[
+                {
+                  value: "assign",
+                  label: "Park now",
+                  accessibilityLabel: "Park now: assign a vehicle to the selected zone",
+                  testID: "parking-action-assign",
+                },
+                {
+                  value: "reserve",
+                  label: "Reserve for later",
+                  accessibilityLabel: "Reserve the selected zone for later",
+                  testID: "parking-action-reserve",
+                },
+              ]}
+            />
+          </View>
+          {actionMode === "assign" ? (
+            <ZoneAssignmentPanel selectedZone={selectedZone} />
+          ) : (
+            <ReservationPanel selectedZone={selectedZone} />
+          )}
+        </View>
+      )}
+      {activeSession ? null : <ReservationList />}
     </Screen>
+    </VehicleSelectionProvider>
   );
 }
 
@@ -186,7 +225,7 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.xl,
+    gap: spacing.lg,
   },
   colWide: {
     width: "47%",
@@ -194,5 +233,9 @@ const styles = StyleSheet.create({
   },
   colNarrow: {
     width: "100%",
+  },
+  actionToggle: {
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
   },
 });

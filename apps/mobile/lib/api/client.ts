@@ -48,19 +48,6 @@ export type ZoneOccupancy = Pick<
 /** Enriched session DTO as returned by /sessions and /sessions/active. */
 export type SessionDto = ParkingSessionResponse;
 
-/** Establishment-level navigation destination (Phase 9.5). `null` until an
- *  admin configures a real address/coordinates — the app never fabricates it. */
-export type EstablishmentLocation = {
-  address: string;
-  latitude: number;
-  longitude: number;
-};
-
-/** GET /zones/establishment payload (authenticated). */
-export type EstablishmentInfo = {
-  location: EstablishmentLocation | null;
-};
-
 /** Input for POST /assignments (backend requires an owned vehicle). */
 export type CreateAssignmentInput = { zoneId: string; vehicleId: string };
 
@@ -263,33 +250,6 @@ function isReservationResponse(value: unknown): value is ReservationResponse {
     typeof reservation.vehicle === "object" &&
     reservation.vehicle !== null &&
     isVehicleRef(reservation.vehicle)
-  );
-}
-
-/** GET /zones/establishment payload: `{ location }` with an optional location. */
-function isEstablishmentInfo(value: unknown): value is EstablishmentInfo {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const info = value as Record<string, unknown>;
-  const location = info.location;
-  if (location === null) {
-    return true;
-  }
-  if (typeof location !== "object" || location === null) {
-    return false;
-  }
-  const loc = location as Record<string, unknown>;
-  return (
-    typeof loc.address === "string" &&
-    typeof loc.latitude === "number" &&
-    Number.isFinite(loc.latitude) &&
-    loc.latitude >= -90 &&
-    loc.latitude <= 90 &&
-    typeof loc.longitude === "number" &&
-    Number.isFinite(loc.longitude) &&
-    loc.longitude >= -180 &&
-    loc.longitude <= 180
   );
 }
 
@@ -520,14 +480,6 @@ export const api = {
       isRecommendation,
       "INVALID_RECOMMENDATION_RESPONSE",
       "We couldn't load a parking recommendation.",
-    ),
-
-  establishment: async () =>
-    requireValidatedObject(
-      await request<EstablishmentInfo>("/zones/establishment"),
-      isEstablishmentInfo,
-      "INVALID_ESTABLISHMENT_RESPONSE",
-      "We couldn't load navigation details.",
     ),
 
   assignments: async () =>

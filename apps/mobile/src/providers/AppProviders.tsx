@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { useEffect, type ReactNode } from "react";
+import { AppState, type AppStateStatus } from "react-native";
+import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { SessionProvider, useSession } from "./SessionProvider";
 import { queryClient } from "@/lib/query";
 import { useRealtime } from "@/src/lib/realtime";
@@ -24,8 +25,23 @@ function RealtimeMount() {
   return user ? <RealtimeConnection key={`${user.id}:${token ?? ""}`} /> : null;
 }
 
+/**
+ * React Query's focus detection is browser-only; without this its
+ * `refetchOnWindowFocus` setting does nothing on a device, and a screen that
+ * was backgrounded through a gate entry/exit keeps rendering stale state.
+ */
+function useAppStateFocus() {
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (next: AppStateStatus) => {
+      focusManager.setFocused(next === "active");
+    });
+    return () => subscription.remove();
+  }, []);
+}
+
 /** App-wide providers: React Query + PARADA session. */
 export function AppProviders({ children }: { children: ReactNode }) {
+  useAppStateFocus();
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider>

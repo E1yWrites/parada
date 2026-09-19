@@ -249,28 +249,6 @@ describe("api client: parking operations", () => {
     expect(err.message).toBe("We couldn't load a parking recommendation.");
   });
 
-  it("resolves an establishment info with a configured location", async () => {
-    const info = {
-      location: { address: "123 Test Ave", latitude: 14.5, longitude: 121.25 },
-    };
-    (global.fetch as unknown as jest.Mock) = mockFetch({ data: info });
-    await expect(api.establishment()).resolves.toEqual(info);
-  });
-
-  it("resolves an establishment info with no location (nothing fabricated)", async () => {
-    (global.fetch as unknown as jest.Mock) = mockFetch({ data: { location: null } });
-    await expect(api.establishment()).resolves.toEqual({ location: null });
-  });
-
-  it("maps a malformed establishment info to a friendly error", async () => {
-    (global.fetch as unknown as jest.Mock) = mockFetch({
-      data: { location: { address: "No coords here" } },
-    });
-    const err = (await api.establishment().catch((e: unknown) => e)) as ApiError;
-    expect(err.code).toBe("INVALID_ESTABLISHMENT_RESPONSE");
-    expect(err.message).toBe("We couldn't load navigation details.");
-  });
-
   it("maps a malformed assignment list to a friendly error", async () => {
     (global.fetch as unknown as jest.Mock) = mockFetch({ data: [{ id: "a1" }] });
     const err = (await api.assignments().catch((e: unknown) => e)) as ApiError;

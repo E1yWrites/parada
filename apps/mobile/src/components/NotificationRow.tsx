@@ -70,6 +70,8 @@ function notificationTitle(type: NotificationResponse["type"]): string {
       return "Appeal submitted";
     case "VIOLATION_APPEAL_RESULT":
       return "Appeal decision";
+    case "SESSION_COMPLETED":
+      return "Parking complete";
   }
 }
 

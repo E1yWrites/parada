@@ -1,4 +1,4 @@
-import { prisma, Prisma } from "@parada/database";
+import { prisma, Prisma, type Notification } from "@parada/database";
 import {
   BadRequestError,
   ConflictError,
@@ -222,7 +222,11 @@ export class ParkingSessionService {
     }
   }
 
-  async exit(userId: string, sessionId: string, input: SessionExitInput = {}): Promise<SessionExitResult> {
+  async exit(
+    userId: string,
+    sessionId: string,
+    input: SessionExitInput = {}
+  ): Promise<SessionExitResult & { notification: Notification | null }> {
     const session = await prisma.parkingSession.findFirst({
       where: { id: sessionId, userId },
       include: sessionInclude,
@@ -306,7 +310,7 @@ export class ParkingSessionService {
           include: sessionInclude,
         });
 
-        const { row: feeRow } = await persistSessionFee(tx, {
+        const { row: feeRow, notification } = await persistSessionFee(tx, {
           sessionId: session.id,
           zoneId: session.zoneId,
           userId,
@@ -314,7 +318,7 @@ export class ParkingSessionService {
           feeConfig,
         });
 
-        return { updated, feeRow };
+        return { updated, feeRow, notification };
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -331,6 +335,9 @@ export class ParkingSessionService {
         status: result.feeRow.status,
         rateBreakdown: result.feeRow.rateBreakdown,
       },
+      // Committed alongside the fee; the route publishes it and keeps it out of
+      // the response body, which stays the shared SessionExitResult shape.
+      notification: result.notification,
     };
   }
 }

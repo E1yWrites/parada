@@ -3,6 +3,7 @@ import { createApp } from "../app";
 import { AuthService } from "../domain/auth";
 import { ViolationService } from "../domain/violations";
 import { ConfigService } from "../domain/config";
+import { RealtimeHub, type RealtimeClient } from "../realtime/hub";
 import { prisma } from "@parada/database";
 
 /**
@@ -172,6 +173,114 @@ describe("exiting an already-exited session is a conflict, not a server error", 
     // Exactly one fee was charged for the session.
     const fees = await prisma.parkingFee.count({ where: { sessionId } });
     expect(fees).toBe(1);
+  });
+});
+
+/**
+ * Phase 15 remediation. A violation's status moved after it was issued, but
+ * nothing told the driver: the appeal decision published only a notification,
+ * and a direct admin dismissal published nothing at all. Both left the driver's
+ * cached violation stale until they happened to pull to refresh.
+ */
+describe("a violation status change reaches the driver", () => {
+  function spyClient(userId: string, role: "ADMIN" | "USER") {
+    const frames: string[] = [];
+    return {
+      client: {
+        id: `${userId}-${Math.random()}`,
+        userId,
+        role,
+        write: (c: string) => frames.push(c),
+      } as RealtimeClient,
+      frames,
+    };
+  }
+
+  async function seedPendingViolation(slug: string) {
+    const driver = await prisma.user.create({
+      data: { name: "V Driver", email: `v-${slug}-${RUN}@test.local`, passwordHash: "x", role: "USER" },
+    });
+    const admin = await prisma.user.create({
+      data: { name: "V Admin", email: `v-admin-${slug}-${RUN}@test.local`, passwordHash: "x", role: "ADMIN" },
+    });
+    const zone = await prisma.parkingZone.create({
+      data: { name: `V Zone ${slug} ${RUN}`, code: `VZ${slug}${RUN}`, capacity: 5 },
+    });
+    const violation = await prisma.violation.create({
+      data: {
+        userId: driver.id,
+        zoneId: zone.id,
+        violationType: "OVERSTAY",
+        fineAmount: 150,
+        status: "PENDING",
+      },
+    });
+    return { driver, admin, zone, violation };
+  }
+
+  it("publishes VIOLATION_UPDATED to the owner when an admin dismisses it directly", async () => {
+    const { driver, admin, violation } = await seedPendingViolation("a");
+    const hub = new RealtimeHub();
+    const owner = spyClient(driver.id, "USER");
+    hub.subscribe(owner.client);
+    const app = createApp({ auth, realtimeHub: hub });
+    const { token } = auth["tokens"].sign({ id: admin.id, role: "ADMIN" });
+
+    await request(app)
+      .patch(`/admin/violations/${violation.id}/status`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ status: "DISMISSED" })
+      .expect(200);
+
+    const frame = owner.frames.find((f) => f.includes("VIOLATION_UPDATED"));
+    expect(frame).toBeDefined();
+    // The published row carries the settled status, not the pre-update one.
+    expect(frame).toContain("DISMISSED");
+  });
+
+  it("publishes VIOLATION_UPDATED carrying the settled status after an appeal decision", async () => {
+    const { driver, admin, violation } = await seedPendingViolation("b");
+    await prisma.violation.update({ where: { id: violation.id }, data: { status: "APPEALED" } });
+    const appeal = await prisma.violationAppeal.create({
+      data: { violationId: violation.id, userId: driver.id, reason: "Not mine.", status: "PENDING" },
+    });
+
+    const hub = new RealtimeHub();
+    const owner = spyClient(driver.id, "USER");
+    hub.subscribe(owner.client);
+    const app = createApp({ auth, realtimeHub: hub });
+    const { token } = auth["tokens"].sign({ id: admin.id, role: "ADMIN" });
+
+    await request(app)
+      .patch(`/admin/appeals/${appeal.id}/status`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ status: "REJECTED" })
+      .expect(200);
+
+    const frame = owner.frames.find((f) => f.includes("VIOLATION_UPDATED"));
+    expect(frame).toBeDefined();
+    // review() settles the violation AFTER reading it, so publishing the
+    // service's own return value would have leaked the stale APPEALED status.
+    expect(frame).toContain("UPHELD");
+    expect(frame).not.toContain("\"status\":\"APPEALED\"");
+  });
+
+  it("never sends another driver's violation update", async () => {
+    const { driver, admin, violation } = await seedPendingViolation("c");
+    const hub = new RealtimeHub();
+    const stranger = spyClient(`stranger-${RUN}`, "USER");
+    hub.subscribe(stranger.client);
+    const app = createApp({ auth, realtimeHub: hub });
+    const { token } = auth["tokens"].sign({ id: admin.id, role: "ADMIN" });
+
+    await request(app)
+      .patch(`/admin/violations/${violation.id}/status`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ status: "DISMISSED" })
+      .expect(200);
+
+    expect(driver.id).not.toBe(stranger.client.userId);
+    expect(stranger.frames.some((f) => f.includes("VIOLATION_UPDATED"))).toBe(false);
   });
 });
 

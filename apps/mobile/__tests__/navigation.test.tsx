@@ -27,7 +27,6 @@ jest.mock("@/lib/api/client", () => {
       reservations: jest.fn(),
       createReservation: jest.fn(),
       cancelReservation: jest.fn(),
-      establishment: jest.fn(),
       notifications: jest.fn(),
       violations: jest.fn(),
     },
@@ -104,7 +103,6 @@ beforeEach(() => {
   (api.assignments as jest.Mock).mockResolvedValue([]);
   (api.createAssignment as jest.Mock).mockResolvedValue({});
   (api.reservations as jest.Mock).mockResolvedValue([]);
-  (api.establishment as jest.Mock).mockResolvedValue({ location: null });
   (api.notifications as jest.Mock).mockResolvedValue({ notifications: [], unreadCount: 0 });
 });
 

@@ -5,7 +5,6 @@ import Constants from "expo-constants";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { Avatar, Button, Card, ErrorState, IconTile, LoadingState, Screen, Text } from "@/src/components";
-import { AvatarEditor } from "@/src/components/AvatarEditor";
 import { api, ApiError, avatarUrl } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { useSession } from "@/src/providers/SessionProvider";
@@ -83,17 +82,11 @@ export default function AccountScreen() {
             <RolePill role={profile.role} />
           </Card>
 
-          {account.isError ? null : (
-            <Card testID="account-photo">
-              <AvatarEditor user={profile} testID="account-avatar-editor" />
-            </Card>
-          )}
-
           <Card style={styles.linksCard} padding={0}>
             <AccountLink
               icon="person-circle-outline"
               label="Edit profile"
-              caption="Name, username, email and phone"
+              caption="Photo, name, username, email and phone"
               onPress={() => router.push("/account/profile")}
               testID="account-edit-profile"
             />
@@ -131,7 +124,7 @@ export default function AccountScreen() {
             <View style={styles.linkDivider} />
             <InfoRow label="App version" value={version} testID="account-version" />
             <View style={styles.linkDivider} />
-            <InfoRow label="Data stays on your device" value="Session token stored in Secure Store" testID="account-security" />
+            <InfoRow label="Sign-in" value="Kept securely on this device" testID="account-security" />
           </Card>
 
           <Text variant="caption" style={styles.about}>

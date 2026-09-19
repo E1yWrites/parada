@@ -1,5 +1,6 @@
 import "dotenv/config";
 import * as argon2 from "argon2";
+import { randomBytes } from "node:crypto";
 import { prisma } from "../client";
 import { normalizePlate } from "../plate";
 import {
@@ -14,18 +15,18 @@ async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password, { type: argon2.argon2id });
 }
 
+function seedPassword(name: "PARADA_SEED_ADMIN_PASSWORD" | "PARADA_SEED_USER_PASSWORD"): string {
+  const configured = process.env[name];
+  if (configured) return configured;
+  if (process.env.NODE_ENV === "test") return randomBytes(32).toString("base64url");
+  throw new Error(`${name} must be set before seeding accounts.`);
+}
+
 export async function seed() {
   console.log("Seeding PARADA development data (LPU-Batangas Main Campus)...");
 
-  // Dev passwords (for development only - never use real passwords)
-  const ADMIN_PASSWORD = "AdminPass123!";
-  const USER_PASSWORD = "DriverPass123!";
-
-  const adminPasswordHash = await hashPassword(ADMIN_PASSWORD);
-  const userPasswordHash = await hashPassword(USER_PASSWORD);
-
-  console.log("  dev credentials: admin@parada.local / AdminPass123!");
-  console.log("  dev credentials: driver@parada.local / DriverPass123!");
+  const adminPasswordHash = await hashPassword(seedPassword("PARADA_SEED_ADMIN_PASSWORD"));
+  const userPasswordHash = await hashPassword(seedPassword("PARADA_SEED_USER_PASSWORD"));
 
   // --- Zones ---
   const zones: Record<string, { id: string }> = {};

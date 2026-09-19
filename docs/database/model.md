@@ -123,8 +123,40 @@ stay correct, but **no `ParkingSession` is created** (a session requires a real 
 - `20260906120000_fees_guests_and_integrity_indexes` — `parking_fees.userId` made nullable for guest fees; partial unique indexes `vehicles_one_active_per_normalized_plate` and `zone_assignments_one_active_per_vehicle`.
 - `20260914120000_account_lifecycle_and_zone_navigation` — `ZoneAssignmentStatus.CANCELLED` (driver release before entry, kept as history); `users.username` (unique), `phone`, `emailVerifiedAt` (existing rows backfilled as verified), `pendingEmail`, `pendingPhone`, `passwordChangedAt`, `tokenVersion`; `user_avatars`; `verification_tokens` + `VerificationPurpose` enum; `vehicles.make/model/color`; `parking_zones.navigationLat/navigationLng` (per-zone Directions target, null until an admin configures it).
 
+- `20260918090000_session_completed_notification` — `NotificationType.SESSION_COMPLETED`, so a
+  driver is told their session closed and what the fee was.
+
 Use `prisma migrate dev` for development, `prisma migrate deploy` for environments.
-`db push` is not the permanent strategy.
+
+### Constraints that live only in migration SQL
+
+Four integrity rules cannot be expressed in the Prisma schema language: Prisma has no
+`CHECK` support, and `@@unique` has no `WHERE` clause. They exist **only** in the migration
+SQL above, so any schema-first path — `prisma db push`, or recreating a database from
+`schema.prisma` instead of replaying migrations — produces a database that looks correct,
+passes typechecking, and silently permits data the application treats as impossible.
+
+| Constraint | Introduced in | Protects |
+| --- | --- | --- |
+| `parking_zones_occupied_in_bounds` (CHECK) | `20260829141334_init` | `0 <= occupiedCount <= capacity`; the last line of defence behind the atomic occupancy update |
+| `parking_sessions_one_active_per_vehicle` | `20260829143014_add_vehicle_and_session_identity` | One ACTIVE session per vehicle under concurrent gate events |
+| `vehicles_one_active_per_normalized_plate` | `20260906120000_fees_guests_and_integrity_indexes` | One ACTIVE registration per plate across all users |
+| `zone_assignments_one_active_per_vehicle` | `20260906120000_fees_guests_and_integrity_indexes` | One ACTIVE assignment per vehicle; the domain pre-check alone is racy |
+
+Rules for any environment holding real data:
+
+- Apply schema changes with `prisma migrate deploy`. Never `prisma db push`.
+- After migrating, verify all four are present before serving traffic:
+
+  ```sql
+  SELECT conname FROM pg_constraint WHERE conname = 'parking_zones_occupied_in_bounds';
+  SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexdef LIKE '%WHERE%';
+  ```
+
+  The second query must return exactly the three partial unique indexes above.
+- `packages/database/src/database.test.ts` asserts all four at the database level. Those
+  cases are the only thing that fails if one is dropped — the API's own tests pass either
+  way, because the domain layer pre-checks the same rules before writing.
 
 ## Local Development Database
 

@@ -36,7 +36,6 @@ jest.mock("@/lib/api/client", () => {
       reservations: jest.fn(),
       createReservation: jest.fn(),
       cancelReservation: jest.fn(),
-      establishment: jest.fn(),
       notifications: jest.fn().mockResolvedValue({ notifications: [], unreadCount: 0 }),
     },
   };
@@ -353,7 +352,6 @@ describe("parking screen: Phase 9.6 integration", () => {
     (api.assignments as jest.Mock).mockResolvedValue([]);
     (api.reservations as jest.Mock).mockResolvedValue([]);
     (api.vehicles as jest.Mock).mockResolvedValue([vehicle]);
-    (api.establishment as jest.Mock).mockResolvedValue({ location: null });
   });
 
   it("gives the active session precedence over assignment and reservation", async () => {
@@ -474,7 +472,6 @@ describe("phase 9.7: recommendation → assignment transition (Phase 9.6 warning
     (api.createAssignment as jest.Mock).mockResolvedValue(assignment);
     (api.reservations as jest.Mock).mockResolvedValue([]);
     (api.vehicles as jest.Mock).mockResolvedValue([vehicle]);
-    (api.establishment as jest.Mock).mockResolvedValue({ location: null });
   });
 
   it("flips to the assignment current state without an empty-state contradiction", async () => {
@@ -530,7 +527,6 @@ describe("phase 9.7: manual assignment → current state", () => {
     (api.createAssignment as jest.Mock).mockResolvedValue(assignment);
     (api.reservations as jest.Mock).mockResolvedValue([]);
     (api.vehicles as jest.Mock).mockResolvedValue([vehicle]);
-    (api.establishment as jest.Mock).mockResolvedValue({ location: null });
   });
 
   it("promotes a manually confirmed assignment into current state without the empty state", async () => {
@@ -560,12 +556,12 @@ describe("phase 9.7: reservation create → current state", () => {
     (api.reservations as jest.Mock).mockResolvedValue([]);
     (api.createReservation as jest.Mock).mockResolvedValue(reservation);
     (api.vehicles as jest.Mock).mockResolvedValue([vehicle]);
-    (api.establishment as jest.Mock).mockResolvedValue({ location: null });
   });
 
   it("promotes a confirmed reservation into current state exactly once (no duplicate cards)", async () => {
     renderWithProviders(<ParkingScreen />);
     fireEvent.press(await screen.findByTestId("zone-A"));
+    fireEvent.press(await screen.findByTestId("parking-action-reserve"));
 
     // The backend list confirms the CONFIRMED reservation on refetch.
     (api.reservations as jest.Mock).mockResolvedValue([reservation]);

@@ -76,6 +76,16 @@ npm install
 Copy the relevant `.env.example` to `.env` per package and fill in real values.
 **Never commit real secrets.** See each package's `.env.example` for specifics.
 
+When running the database seed, provide unique credentials for the seeded accounts:
+
+```text
+PARADA_SEED_ADMIN_PASSWORD=<strong-admin-password>
+PARADA_SEED_USER_PASSWORD=<strong-user-password>
+```
+
+The seed refuses to run without these variables outside the test environment and never prints
+their values.
+
 To set up the vision service's Python virtualenv (creates `services/vision/.venv` and installs
 `requirements.txt`):
 

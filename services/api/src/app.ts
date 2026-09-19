@@ -86,6 +86,7 @@ export function createApp(options: AppOptions = {}): Express {
       {
         mailer: options.mailer ?? createMailerFromEnv(env.mail, env.nodeEnv),
         appName: env.appName,
+        organization: env.mailOrganization,
         mobileScheme: env.mobileScheme,
       }
     );
@@ -93,6 +94,7 @@ export function createApp(options: AppOptions = {}): Express {
     mailer: auth.mailer,
     verification: auth.verification,
     appName: env.appName,
+    organization: env.mailOrganization,
   });
 
   app.use(express.json());

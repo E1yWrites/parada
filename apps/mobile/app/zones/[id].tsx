@@ -5,6 +5,7 @@ import {
   AvailabilityBadge,
   Button,
   CapacityBar,
+  EmptyState,
   ErrorState,
   GlassCard,
   LoadingState,
@@ -99,7 +100,20 @@ export default function ZoneDetailScreen() {
             Counts update every 30 seconds from the gate cameras.
           </Text>
         </>
-      ) : null}
+      ) : (
+        <EmptyState
+          illustration="zones"
+          title="Zone not found"
+          description="This parking zone is no longer listed."
+          testID="zone-detail-missing">
+          <Button
+            variant="secondary"
+            title="Back to parking"
+            onPress={() => router.back()}
+            testID="zone-detail-missing-back"
+          />
+        </EmptyState>
+      )}
     </Screen>
   );
 }

@@ -7,6 +7,7 @@ import type { ParkingSessionResponse } from "@parada/types";
 import { currentUserId } from "../middleware/auth";
 import type { ParkingSessionService } from "../domain/sessions";
 import type { RealtimeHub } from "../realtime/hub";
+import { publishZoneSnapshot } from "../realtime/occupancyEvents";
 
 type SessionRecord = {
   id: string;
@@ -124,10 +125,13 @@ export function sessionsRouter(sessionService?: ParkingSessionService, realtimeH
       const enteredAt = typeof body["enteredAt"] === "string" ? body["enteredAt"] : undefined;
 
       const session = await sessionService.entry(userId, { vehicleId, zoneId, enteredAt });
+      const occurredAt = new Date().toISOString();
       realtimeHub?.publish(
-        { type: "PARKING_SESSION_STARTED", occurredAt: new Date().toISOString(), payload: session },
+        { type: "PARKING_SESSION_STARTED", occurredAt, payload: session },
         { audience: "USER", userId }
       );
+      // Entering takes a space, so the zone snapshot every client renders moved.
+      if (realtimeHub) await publishZoneSnapshot(realtimeHub, session.zoneId, undefined, occurredAt);
       res.status(201).json(ok({ session }));
     })
   );
@@ -142,11 +146,32 @@ export function sessionsRouter(sessionService?: ParkingSessionService, realtimeH
       const body: Record<string, unknown> = req.body ?? {};
       const exitedAt = typeof body["exitedAt"] === "string" ? body["exitedAt"] : undefined;
 
-      const result = await sessionService.exit(userId, req.params["id"]!, { exitedAt });
+      const { notification, ...result } = await sessionService.exit(userId, req.params["id"]!, { exitedAt });
+      const occurredAt = new Date().toISOString();
       realtimeHub?.publish(
-        { type: "PARKING_SESSION_COMPLETED", occurredAt: new Date().toISOString(), payload: result.session },
+        { type: "PARKING_SESSION_COMPLETED", occurredAt, payload: result.session },
         { audience: "USER", userId }
       );
+      if (notification) {
+        realtimeHub?.publish(
+          {
+            type: "NOTIFICATION_CREATED",
+            occurredAt,
+            payload: {
+              id: notification.id,
+              zoneId: notification.zoneId,
+              userId: notification.userId,
+              type: notification.type,
+              message: notification.message,
+              targetRole: notification.targetRole,
+              createdAt: notification.createdAt.toISOString(),
+            },
+          },
+          { audience: "USER", userId }
+        );
+      }
+      // Exiting frees a space, so the zone snapshot every client renders moved.
+      if (realtimeHub) await publishZoneSnapshot(realtimeHub, result.session.zoneId, undefined, occurredAt);
       res.json(ok(result));
     })
   );

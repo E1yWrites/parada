@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { REALTIME_SYNC_EVENT, isRealtimeEvent, type RealtimeEventType } from "@parada/types";
+import {
+  REALTIME_SYNC_EVENT,
+  isRealtimeEvent,
+  isRealtimeSyncFrame,
+  type RealtimeEventType,
+} from "@parada/types";
 
 export type RealtimeStatus = "CONNECTED" | "DISCONNECTED" | "RECONNECTING" | "ERROR";
 
@@ -18,6 +23,7 @@ const INVALIDATIONS: Record<RealtimeEventType, string[][]> = {
   ASSIGNMENT_CREATED: [["dashboard"]],
   ASSIGNMENT_CANCELLED: [["dashboard"]],
   VIOLATION_CREATED: [["violations"], ["dashboard"]],
+  VIOLATION_UPDATED: [["violations"], ["appeals"], ["dashboard"]],
   GUEST_ADMISSION_ISSUE: [["anomalies"], ["dashboard"]],
   NOTIFICATION_CREATED: [["notifications"]],
 };
@@ -68,7 +74,18 @@ export function useRealtime(): { status: RealtimeStatus } {
 
     // The hub could not replay everything we missed. It sends no parking state
     // with this — we go back to REST for it.
-    source.addEventListener(REALTIME_SYNC_EVENT, () => {
+    source.addEventListener(REALTIME_SYNC_EVENT, (ev: MessageEvent) => {
+      // Adopt the hub's head as our cursor. After an API restart its seq
+      // counter is back near zero, so keeping our old (higher) cursor would
+      // make the gate below discard every event the new process publishes.
+      let head = 0;
+      try {
+        const parsed: unknown = JSON.parse(ev.data);
+        if (isRealtimeSyncFrame(parsed)) head = parsed.headSeq;
+      } catch {
+        head = 0;
+      }
+      lastSeq.current = head;
       resync();
     });
 

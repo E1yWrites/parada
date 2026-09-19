@@ -15,7 +15,8 @@ export type NotificationType =
   | "WRONG_ZONE_WARNING"
   | "VIOLATION_ISSUED"
   | "VIOLATION_APPEAL_SUBMITTED"
-  | "VIOLATION_APPEAL_RESULT";
+  | "VIOLATION_APPEAL_RESULT"
+  | "SESSION_COMPLETED";
 export type VehicleType = "CAR" | "MOTORCYCLE" | "VAN" | "TRUCK" | "OTHER";
 export type VehicleStatus = "ACTIVE" | "INACTIVE";
 export type GuestPolicy = "PRIMARY_ZONE" | "ALLOW_OVERFLOW" | "DENY_WHEN_FULL";

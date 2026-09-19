@@ -68,8 +68,7 @@ describe("ZoneCard: long content", () => {
   it("keeps metrics and availability visible beside a long name", () => {
     render(<ZoneCard zone={makeZone()} onPress={jest.fn()} testID="zone" />);
     expect(screen.getByTestId("zone-available")).toHaveTextContent("12");
-    expect(screen.getByTestId("zone-capacity")).toHaveTextContent("20");
-    expect(screen.getByTestId("zone-occupied")).toHaveTextContent("8");
+    expect(screen.getByTestId("zone-occupancy-percent")).toHaveTextContent("8 of 20 · 40%");
     expect(screen.getByText("Available")).toBeOnTheScreen();
   });
 });

@@ -1,12 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, tabClearance } from "@/src/theme";
@@ -35,8 +28,9 @@ type ScreenProps = {
 
 /**
  * Standard app screen: safe area, optional refreshable scroll container,
- * optional page header. `keyboard` wraps content in a KeyboardAvoidingView
- * (used by auth forms).
+ * optional page header. `keyboard` (auth/profile forms) lets the scroll view
+ * absorb the software keyboard through its content insets — the safe area,
+ * header and ambient background never resize while typing.
  */
 export function Screen({
   children,
@@ -103,6 +97,15 @@ export function Screen({
         contentContainerStyle={[styles.padding, { paddingBottom: tabClearance(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        // Keyboard handling for forms: on iOS the scroll view adjusts its own
+        // content inset so only the content scrolls; the safe area, ambient
+        // background and header never resize. (A KeyboardAvoidingView with
+        // `padding` shrank the whole screen on every keyboard-height change —
+        // the QuickType / password bar toggles while typing — which made the
+        // auth forms jump on each keystroke.) Android uses the window's
+        // adjustResize, so nothing extra is needed here.
+        automaticallyAdjustKeyboardInsets={keyboard && Platform.OS === "ios"}
+        keyboardDismissMode={keyboard ? "interactive" : "none"}
         refreshControl={
           onRefresh ? (
             <RefreshControl
@@ -120,22 +123,15 @@ export function Screen({
 
   if (!scroll) {
     return (
-      <SafeAreaView edges={["top"]} style={[styles.safe, styles.padding]}>
+      <SafeAreaView
+        edges={["top"]}
+        style={[styles.safe, styles.padding, { paddingBottom: tabClearance(insets.bottom) }]}>
         <GradientMesh testID={testID ? `${testID}-mesh` : undefined} />
         {body}
       </SafeAreaView>
     );
   }
-  if (!keyboard) {
-    return scrollView;
-  }
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.flex}>
-      {scrollView}
-    </KeyboardAvoidingView>
-  );
+  return scrollView;
 }
 
 const styles = StyleSheet.create({

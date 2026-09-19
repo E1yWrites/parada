@@ -696,6 +696,61 @@ describe("PARADA database integrity", () => {
     });
   });
 
+  // The API also pre-checks this rule in the domain layer, so these cases must stay
+  // at the database level: they are the only thing that fails if
+  // zone_assignments_one_active_per_vehicle is dropped (it lives in migration SQL
+  // only, because Prisma cannot express a partial unique index).
+  describe("one ACTIVE assignment per vehicle (DB partial unique index)", () => {
+    it("prevents two ACTIVE assignments for the same vehicle", async () => {
+      await prisma.zoneAssignment.create({
+        data: {
+          userId: user.id,
+          vehicleId: vehCar.id,
+          zoneId: zone.id,
+          status: "ACTIVE",
+        },
+      });
+      await expect(
+        prisma.zoneAssignment.create({
+          data: {
+            userId: user.id,
+            vehicleId: vehCar.id,
+            zoneId: zone.id,
+            status: "ACTIVE",
+          },
+        })
+      ).rejects.toThrow();
+    });
+
+    it("allows a new ACTIVE assignment once the previous one is cancelled", async () => {
+      const first = await prisma.zoneAssignment.create({
+        data: {
+          userId: user.id,
+          vehicleId: vehCar.id,
+          zoneId: zone.id,
+          status: "ACTIVE",
+        },
+      });
+      await prisma.zoneAssignment.update({
+        where: { id: first.id },
+        data: { status: "CANCELLED" },
+      });
+      const second = await prisma.zoneAssignment.create({
+        data: {
+          userId: user.id,
+          vehicleId: vehCar.id,
+          zoneId: zone.id,
+          status: "ACTIVE",
+        },
+      });
+      expect(second.status).toBe("ACTIVE");
+      const cancelled = await prisma.zoneAssignment.findUniqueOrThrow({
+        where: { id: first.id },
+      });
+      expect(cancelled.status).toBe("CANCELLED");
+    });
+  });
+
   describe("violation", () => {
     it("creates a violation linked to user, vehicle, and zone", async () => {
       const viol = await prisma.violation.create({

@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import EventSource from "react-native-sse";
-import { REALTIME_SYNC_EVENT, isRealtimeEvent, type RealtimeEventType } from "@parada/types";
+import {
+  REALTIME_SYNC_EVENT,
+  isRealtimeEvent,
+  isRealtimeSyncFrame,
+  type RealtimeEventType,
+} from "@parada/types";
 import { getToken } from "@/lib/auth/session";
 import { queryKeys } from "@/lib/query";
 
@@ -18,6 +24,7 @@ const INVALIDATIONS: Record<RealtimeEventType, (readonly unknown[])[]> = {
   ASSIGNMENT_CREATED: [queryKeys.assignments],
   ASSIGNMENT_CANCELLED: [queryKeys.assignments],
   VIOLATION_CREATED: [queryKeys.violations],
+  VIOLATION_UPDATED: [queryKeys.violations],
   GUEST_ADMISSION_ISSUE: [],
   NOTIFICATION_CREATED: [queryKeys.notifications],
 };
@@ -52,6 +59,17 @@ export function useRealtime(): { status: RealtimeStatus } {
   /** Highest hub sequence this mount has acted on. Survives reconnects on
    *  purpose: it is what makes a replayed or out-of-order frame identifiable. */
   const lastSeq = useRef(0);
+  /** Bumped when the app returns to the foreground, to force a fresh
+   *  connection: the OS can silently kill the socket while backgrounded, and a
+   *  dead EventSource never reports an error we could react to. */
+  const [generation, setGeneration] = useState(0);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (next: AppStateStatus) => {
+      if (next === "active") setGeneration((n) => n + 1);
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     let source: EventSource<SubscribedEvent> | null = null;
@@ -85,7 +103,20 @@ export function useRealtime(): { status: RealtimeStatus } {
 
       // The hub could not replay everything we missed. It sends no parking
       // state with this — we go back to REST for it.
-      source.addEventListener(REALTIME_SYNC_EVENT, () => {
+      source.addEventListener(REALTIME_SYNC_EVENT, (event) => {
+        // Adopt the hub's head as our cursor. After an API restart its seq
+        // counter is back near zero, so keeping our old (higher) cursor would
+        // make the gate below discard every event the new process publishes.
+        let head = 0;
+        if (event.data) {
+          try {
+            const parsed: unknown = JSON.parse(event.data);
+            if (isRealtimeSyncFrame(parsed)) head = parsed.headSeq;
+          } catch {
+            head = 0;
+          }
+        }
+        lastSeq.current = head;
         resync();
       });
 
@@ -115,7 +146,7 @@ export function useRealtime(): { status: RealtimeStatus } {
       cancelled = true;
       source?.close();
     };
-  }, [queryClient]);
+  }, [queryClient, generation]);
 
   return { status };
 }

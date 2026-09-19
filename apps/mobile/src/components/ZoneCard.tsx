@@ -19,12 +19,13 @@ type ZoneCardProps = {
 };
 
 /**
- * Zone "lane" card: the code plate, the live availability stamp and the free
- * count lead; capacity and occupied sit beside it in smaller data. Optionally
- * selectable for the Phase 9.3 manual assignment flow: a zone can only be
- * selected when the backend reports it as ACTIVE, has capacity and still has
- * free spaces. Selection is purely local UI state — it never assigns,
- * reserves or modifies occupancy.
+ * Zone "lane" card: the code plate and availability stamp lead, then the
+ * available-space count and a single occupancy bar (which already states
+ * "occupied of capacity"), so capacity and occupied are never repeated as
+ * separate numbers. Optionally selectable for the Phase 9.3 manual
+ * assignment flow: a zone can only be selected when the backend reports it
+ * as ACTIVE, has capacity and still has free spaces. Selection is purely
+ * local UI state — it never assigns, reserves or modifies occupancy.
  */
 export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardProps) {
   const router = useRouter();
@@ -58,7 +59,7 @@ export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardPr
       onPress={handlePress}
       style={({ pressed }) => [styles.wrapper, pressed && selectable ? styles.pressed : undefined]}
       testID={testID}>
-      <Card style={[styles.card, selected ? styles.cardSelected : undefined]}>
+      <Card padding={spacing.lg} style={[styles.card, selected ? styles.cardSelected : undefined]}>
         <View style={styles.headerRow}>
           <PlateChip value={zone.code} />
           <View style={styles.badgeSlot}>
@@ -82,19 +83,13 @@ export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardPr
           {zone.name}
         </Text>
 
-        <View style={styles.countRow}>
-          <Metric
-            label="Free"
-            value={String(zone.availableCount)}
-            accent={isFull ? colors.danger : status.color === colors.muted ? colors.foreground : status.color}
-            size="lg"
-            testID={testID ? `${testID}-available` : undefined}
-          />
-          <View style={styles.sideMetrics}>
-            <Metric label="Capacity" value={String(zone.capacity)} testID={testID ? `${testID}-capacity` : undefined} />
-            <Metric label="Occupied" value={String(zone.occupiedCount)} testID={testID ? `${testID}-occupied` : undefined} />
-          </View>
-        </View>
+        <Metric
+          label="Available"
+          value={String(zone.availableCount)}
+          accent={isFull ? colors.danger : status.color === colors.muted ? colors.foreground : status.color}
+          size="lg"
+          testID={testID ? `${testID}-available` : undefined}
+        />
 
         <CapacityBar
           occupied={zone.occupiedCount}
@@ -136,10 +131,11 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   cardSelected: {
+    backgroundColor: colors.primarySoft,
     borderColor: colors.primary,
-    borderWidth: 2,
+    borderWidth: 1.25,
     shadowColor: colors.primary,
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.16,
   },
   headerRow: {
     flexDirection: "row",
@@ -163,24 +159,13 @@ const styles = StyleSheet.create({
   detailsPressed: {
     backgroundColor: colors.surfaceElevated,
   },
-  countRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: spacing.xl,
-  },
-  sideMetrics: {
-    flexDirection: "row",
-    gap: spacing.xl2,
-    paddingBottom: spacing.sm,
-  },
   stateRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
   },
   selectedRow: {
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.surface,
     borderRadius: radii.sm,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,

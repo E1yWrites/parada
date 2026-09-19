@@ -2,6 +2,7 @@ import { Text as RNText } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
 import { ReservationPanel } from "@/src/components/ReservationPanel";
+import { ReservationList } from "@/src/components/ReservationList";
 import { api, ApiError, type PublicZone } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import type { ReservationResponse, Vehicle } from "@parada/types";
@@ -114,7 +115,12 @@ beforeEach(() => {
 });
 
 function Harness() {
-  return <ReservationPanel selectedZone={zoneA} />;
+  return (
+    <>
+      <ReservationPanel selectedZone={zoneA} />
+      <ReservationList />
+    </>
+  );
 }
 
 function WaitHarness() {
@@ -123,6 +129,7 @@ function WaitHarness() {
   return (
     <>
       <ReservationPanel selectedZone={zoneA} />
+      <ReservationList />
       <RNText testID="harness-count">{String(reservations.data?.length ?? 0)}</RNText>
       <RNText testID="harness-zones">{String(zones.data?.length ?? 0)}</RNText>
     </>

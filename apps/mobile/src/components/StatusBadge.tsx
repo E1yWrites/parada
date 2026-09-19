@@ -106,6 +106,8 @@ export function notificationTypeMeta(type: NotificationType): { icon: StatusMeta
       return { icon: "hourglass", color: colors.muted };
     case "VIOLATION_APPEAL_RESULT":
       return { icon: "chatbubble-ellipses", color: colors.primary };
+    case "SESSION_COMPLETED":
+      return { icon: "checkmark-done", color: colors.success };
   }
 }
 

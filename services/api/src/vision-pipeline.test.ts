@@ -50,6 +50,7 @@ interface ZoneCtx {
   capacity: number;
   entryCamId: string;
   exitCamId: string;
+  userId: string;
   vehicleABC: string;
   vehicleXYZ: string;
   plateABC: string;
@@ -85,6 +86,7 @@ async function seedZone(capacity = 20, slug = "a"): Promise<ZoneCtx> {
     capacity,
     entryCamId: entry.identifier,
     exitCamId: exit.identifier,
+    userId: userA.id,
     vehicleABC: abc.id,
     vehicleXYZ: xyz.id,
     plateABC,
@@ -763,6 +765,47 @@ describe("Phase 5 — Vision/OCR integration foundation", () => {
       expect(session.userId).toBeNull();
       expect(session.fee?.userId).toBeNull();
       expect(session.fee?.amount).toBe(20);
+    });
+
+    it("tells the registered driver their session completed and what it cost", async () => {
+      const ctx = await seedZone(20, "fn");
+      const app = createApp();
+      const exitAt = new Date();
+      const enteredAt = new Date(exitAt.getTime() - 3 * 60 * 60 * 1000).toISOString();
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "fn-in", eventType: "ENTRY", detectedPlate: ctx.plateABC, ocrConfidence: 0.96, detectedAt: enteredAt })
+        .expect(201);
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.exitCamId, sourceEventId: "fn-out", eventType: "EXIT", detectedPlate: ctx.plateABC, ocrConfidence: 0.96, detectedAt: exitAt.toISOString() })
+        .expect(201);
+
+      const notification = await prisma.notification.findFirstOrThrow({
+        where: { zoneId: ctx.zoneId, type: "SESSION_COMPLETED" },
+      });
+      expect(notification.targetRole).toBe("USER");
+      expect(notification.userId).toBe(ctx.userId);
+      expect(notification.message).toContain("30.00");
+    });
+
+    it("writes no completion notification for an account-less guest", async () => {
+      const ctx = await seedZone(20, "gn");
+      await seedGuestPrimaryZone(ctx.zoneId);
+      const app = createApp();
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.entryCamId, sourceEventId: "gn-in", eventType: "ENTRY", detectedPlate: "GUEST-NOTIF", ocrConfidence: 0.96 })
+        .expect(201);
+      await request(app)
+        .post(`/zones/${ctx.zoneId}/events`)
+        .send({ cameraIdentifier: ctx.exitCamId, sourceEventId: "gn-out", eventType: "EXIT", detectedPlate: "GUEST-NOTIF", ocrConfidence: 0.96 })
+        .expect(201);
+
+      // A guest has no account to notify; nothing is fabricated for them.
+      expect(
+        await prisma.notification.count({ where: { zoneId: ctx.zoneId, type: "SESSION_COMPLETED" } })
+      ).toBe(0);
     });
   });
 

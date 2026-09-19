@@ -185,13 +185,25 @@ describe("RealtimeHub", () => {
       expect(hub.replay(user.client, 1)).not.toBeNull();
     });
 
-    it("treats a cursor above the head as nothing-missed, and a negative cursor as a gap", () => {
+    it("treats a cursor at the head as nothing-missed, and a negative cursor as a gap", () => {
       const hub = new RealtimeHub();
       hub.publish(zoneEvent, { audience: "PUBLIC" });
       const user = makeClient("c1", "user1", "USER");
 
-      expect(hub.replay(user.client, 999)).toEqual([]);
+      expect(hub.replay(user.client, 1)).toEqual([]);
       expect(hub.replay(user.client, -1)).toBeNull();
+    });
+
+    it("reports a gap when the cursor is ahead of the head (the process restarted)", () => {
+      // seq restarts at 0 with the process, so a client reconnecting with a
+      // cursor from the previous lifetime is ahead of our head. Answering []
+      // would claim it is up to date, and the client's own seq gate would then
+      // drop every event this process publishes.
+      const hub = new RealtimeHub();
+      hub.publish(zoneEvent, { audience: "PUBLIC" });
+      const user = makeClient("c1", "user1", "USER");
+
+      expect(hub.replay(user.client, 999)).toBeNull();
     });
 
     it("never grows the replay buffer past its cap", () => {

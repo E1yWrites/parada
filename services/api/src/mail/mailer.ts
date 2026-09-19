@@ -1,10 +1,12 @@
 import nodemailer, { type Transporter } from "nodemailer";
 
-/** A plain-text message. Verification codes / reset tokens travel in `text`. */
+/** Verification codes / reset tokens always travel in `text`; `html` is the
+ *  branded rendering real inboxes show (see templates.ts). */
 export interface MailMessage {
   to: string;
   subject: string;
   text: string;
+  html?: string;
 }
 
 /**
@@ -103,6 +105,7 @@ export class SmtpMailer implements Mailer {
       to: message.to,
       subject: message.subject,
       text: message.text,
+      ...(message.html ? { html: message.html } : {}),
     });
   }
 }

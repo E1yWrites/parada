@@ -57,6 +57,9 @@ export type RealtimeEventInput =
   | Envelope<"ASSIGNMENT_CREATED", ZoneAssignmentResponse>
   | Envelope<"ASSIGNMENT_CANCELLED", ZoneAssignmentResponse>
   | Envelope<"VIOLATION_CREATED", ViolationResponse>
+  /** Status moved after issue — an admin dismissal, or an appeal decision. The
+   *  driver's cached violation is otherwise stale until they pull to refresh. */
+  | Envelope<"VIOLATION_UPDATED", ViolationResponse>
   | Envelope<"GUEST_ADMISSION_ISSUE", GuestAdmissionPayload>
   | Envelope<"NOTIFICATION_CREATED", NotificationCreatedPayload>;
 
@@ -81,6 +84,7 @@ const EVENT_TYPES: readonly RealtimeEventType[] = [
   "ASSIGNMENT_CREATED",
   "ASSIGNMENT_CANCELLED",
   "VIOLATION_CREATED",
+  "VIOLATION_UPDATED",
   "GUEST_ADMISSION_ISSUE",
   "NOTIFICATION_CREATED",
 ];

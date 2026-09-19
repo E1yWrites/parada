@@ -28,7 +28,9 @@ type InputProps = {
   onBlur?: () => void;
   onSubmit?: () => void;
   returnKeyType?: ReturnKeyTypeOptions;
-  textContentType?: "none" | "emailAddress" | "name" | "password" | "newPassword";
+  textContentType?: "none" | "emailAddress" | "name" | "password" | "newPassword" | "username" | "telephoneNumber" | "oneTimeCode";
+  /** Platform autofill hint (Android/web); iOS uses `textContentType`. */
+  autoComplete?: "off" | "email" | "name" | "password" | "new-password" | "username" | "tel" | "one-time-code";
   /** Multi-line text (e.g. an appeal reason). Renders a taller, top-aligned field. */
   multiline?: boolean;
   maxLength?: number;
@@ -52,6 +54,7 @@ export function Input({
   onSubmit,
   returnKeyType,
   textContentType,
+  autoComplete,
   multiline = false,
   maxLength,
   testID,
@@ -92,6 +95,11 @@ export function Input({
           onSubmitEditing={multiline ? undefined : onSubmit}
           returnKeyType={returnKeyType}
           textContentType={textContentType}
+          autoComplete={autoComplete}
+          // Never shows the yellow "automatic strong password" overlay on
+          // iOS for new-password fields (it covers the field and blocks
+          // typing); autofill suggestions still work via textContentType.
+          passwordRules={secureTextEntry ? "minlength: 8;" : undefined}
           selectionColor={colors.primary}
           cursorColor={colors.primary}
           accessibilityLabel={label}
@@ -172,13 +180,11 @@ const styles = StyleSheet.create({
   controlError: {
     borderColor: colors.danger,
   },
+  // Focus is a border-color change only: a shadow/elevation toggle here
+  // re-rasterised the control (and its neighbours on Android) on every
+  // focus/blur, which read as a flicker while moving between fields.
   controlFocused: {
     borderColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 1,
   },
   input: {
     flex: 1,

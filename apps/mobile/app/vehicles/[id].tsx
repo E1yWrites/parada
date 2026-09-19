@@ -3,7 +3,7 @@ import { Alert, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Vehicle, VehicleType, VehicleUpdateInput } from "@parada/types";
-import { Button, Card, ChoiceChip, ErrorState, Input, LoadingState, Screen, Text } from "@/src/components";
+import { Button, Card, ChoiceChip, EmptyState, ErrorState, Input, LoadingState, Screen, Text } from "@/src/components";
 import { api, ApiError } from "@/lib/api/client";
 import { formatVehicleType, normalizePlateInput } from "@/lib/format";
 import { queryKeys } from "@/lib/query";
@@ -53,7 +53,20 @@ export default function VehicleDetailScreen() {
           }}
         />
       ) : (
-        <ErrorState message="This vehicle is no longer registered." onRetry={() => router.back()} testID="vehicle-detail-missing" />
+        // Not an error to retry — the vehicle is simply gone, so the only
+        // honest action is going back, and it must not be labelled "Try again".
+        <EmptyState
+          illustration="vehicle"
+          title="Vehicle not found"
+          description="This vehicle is no longer registered."
+          testID="vehicle-detail-missing">
+          <Button
+            variant="secondary"
+            title="Back to vehicles"
+            onPress={() => router.back()}
+            testID="vehicle-detail-missing-back"
+          />
+        </EmptyState>
       )}
     </Screen>
   );

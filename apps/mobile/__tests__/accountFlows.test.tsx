@@ -49,7 +49,6 @@ jest.mock("@/lib/api/client", () => {
       zones: jest.fn(),
       zoneOccupancy: jest.fn(),
       recommendedZone: jest.fn(),
-      establishment: jest.fn(),
       assignments: jest.fn(),
       createAssignment: jest.fn(),
       cancelAssignment: jest.fn(),

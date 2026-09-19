@@ -1,9 +1,7 @@
-import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./Button";
 import { CapacityBar } from "./CapacityBar";
-import { ChoiceChip } from "./ChoiceChip";
 import { GlassCard } from "./GlassCard";
 import { Metric } from "./Metric";
 import { NavigateButton } from "./NavigateButton";
@@ -12,8 +10,9 @@ import { SectionHeader } from "./SectionHeader";
 import { Stamp } from "./Stamp";
 import { EmptyState, ErrorState, LoadingState } from "./StateComponents";
 import { Text } from "./Text";
+import { VehiclePicker, useVehicleSelection } from "./VehicleSelection";
 import { api, ApiError, type CreateAssignmentInput } from "@/lib/api/client";
-import { activeAssignmentFrom, isActiveVehicle, upsertAssignment } from "@/lib/assignment";
+import { activeAssignmentFrom, upsertAssignment } from "@/lib/assignment";
 import type { ZoneAssignmentResponse } from "@parada/types";
 import { ZONE_NAVIGATION_UNCONFIGURED, type NavigationDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
@@ -49,9 +48,8 @@ export function ParkingRecommendation({
   destinationReady = true,
 }: ParkingRecommendationProps = {}) {
   const queryClient = useQueryClient();
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const selection = useVehicleSelection();
 
-  const vehicles = useQuery({ queryKey: queryKeys.vehicles, queryFn: api.vehicles });
   const assignments = useQuery({ queryKey: queryKeys.assignments, queryFn: api.assignments });
   const recommendation = useQuery({
     queryKey: queryKeys.recommendation,
@@ -83,11 +81,7 @@ export function ParkingRecommendation({
   // Directions target the assigned zone's own admin-configured coordinates.
   const navigationDestination = confirmedAssignment ? destinationFor(confirmedAssignment.zoneId) : null;
 
-  const activeVehicles = (vehicles.data ?? []).filter(isActiveVehicle);
-  const soleVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
-  const selectedVehicle =
-    soleVehicle ?? activeVehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? null;
-  const needsVehicleChoice = activeVehicles.length > 1 && selectedVehicleId === null;
+  const { activeVehicles, selectedVehicle } = selection;
 
   const hasCapacity =
     recommended !== null &&
@@ -118,7 +112,11 @@ export function ParkingRecommendation({
     <View testID="parking-recommendation">
       <SectionHeader
         title={confirmedAssignment ? "Your assignment" : "Recommended for you"}
-        caption="Based on current availability"
+        caption={
+          confirmedAssignment
+            ? "Confirmed by the parking service"
+            : "Suggestion only - does not reserve a spot"
+        }
         testID="recommendation-header"
       />
 
@@ -146,21 +144,7 @@ export function ParkingRecommendation({
         </GlassCard>
       ) : recommendation.isPending ? (
         <LoadingState label="Finding the best zone…" testID="recommendation-loading" />
-      ) : isUnavailable ? (
-        <EmptyState
-          illustration="zones"
-          title="No zones available"
-          description="No suitable parking zone is currently available."
-          testID="recommendation-empty">
-          <Button
-            variant="secondary"
-            title="Retry"
-            accessibilityLabel="Retry loading parking recommendation."
-            onPress={retryRecommendation}
-            testID="recommendation-empty-retry"
-          />
-        </EmptyState>
-      ) : recommendation.isError ? (
+      ) : recommendation.isError && !isUnavailable ? (
         <ErrorState
           message={
             recommendation.error instanceof ApiError
@@ -170,7 +154,7 @@ export function ParkingRecommendation({
           onRetry={retryRecommendation}
           testID="recommendation-error"
         />
-      ) : recommended === null ? (
+      ) : isUnavailable || recommended === null ? (
         <EmptyState
           illustration="zones"
           title="No zones available"
@@ -196,7 +180,7 @@ export function ParkingRecommendation({
                 <PlateChip value={recommended.code} tone="soft" size="sm" />
               </View>
               <Metric
-                label="Free"
+                label="Available"
                 value={String(recommended.availableCount)}
                 accent={colors.success}
                 size="lg"
@@ -210,42 +194,15 @@ export function ParkingRecommendation({
             color={colors.success}
             testID="recommendation-occupancy"
           />
-          <View style={styles.metrics}>
-            <Metric label="Capacity" value={String(recommended.capacity)} testID="recommendation-capacity" />
-            <Metric label="Occupied" value={`${percent}%`} />
-          </View>
 
-          {activeVehicles.length === 0 ? (
-            <Text variant="caption" color={colors.muted} testID="recommendation-no-vehicle">
-              Add a vehicle first to accept a recommendation.
-            </Text>
-          ) : activeVehicles.length > 1 ? (
-            <View style={styles.vehicleBlock}>
-              <Text variant="micro">ASSIGN VEHICLE</Text>
-              <View style={styles.vehicleRow}>
-                {activeVehicles.map((vehicle) => (
-                  <ChoiceChip
-                    key={vehicle.id}
-                    label={vehicle.plateNumber}
-                    mono
-                    selected={vehicle.id === selectedVehicleId}
-                    accessibilityLabel={`Use vehicle ${vehicle.plateNumber}`}
-                    onPress={() => setSelectedVehicleId(vehicle.id)}
-                    testID={`vehicle-choice-${vehicle.id}`}
-                  />
-                ))}
-              </View>
-              {needsVehicleChoice ? (
-                <Text variant="caption" testID="recommendation-vehicle-hint">
-                  Choose a vehicle to accept.
-                </Text>
-              ) : null}
-            </View>
-          ) : (
-            <Text variant="caption" color={colors.muted} testID="recommendation-vehicle">
-              Vehicle {soleVehicle?.plateNumber}
-            </Text>
-          )}
+          <VehiclePicker
+            selection={selection}
+            testIDPrefix="recommendation"
+            chooseLabel="CHOOSE VEHICLE"
+            chooseHint="Choose a vehicle to accept."
+            emptyPrompt="Add a vehicle first to accept a recommendation."
+            chipTestID={(vehicleId) => `vehicle-choice-${vehicleId}`}
+          />
 
           {assign.isError ? (
             <Text variant="body" color={colors.danger} testID="assignment-error">
@@ -257,11 +214,11 @@ export function ParkingRecommendation({
 
           {activeVehicles.length > 0 ? (
             <Button
-              title="Accept Recommendation"
-              accessibilityLabel={`Accept recommended ${recommended.name}.`}
+              title="Use this zone"
+              accessibilityLabel={`Use recommended ${recommended.name}.`}
               onPress={handleAccept}
               loading={assign.isPending}
-              disabled={needsVehicleChoice || selectedVehicle === null}
+              disabled={selectedVehicle === null}
               testID="accept-recommendation"
             />
           ) : null}
@@ -293,18 +250,5 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.lg,
-  },
-  metrics: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xl3,
-  },
-  vehicleBlock: {
-    gap: spacing.md,
-  },
-  vehicleRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.md,
   },
 });

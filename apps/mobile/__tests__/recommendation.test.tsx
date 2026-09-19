@@ -35,7 +35,6 @@ jest.mock("@/lib/api/client", () => {
       reservations: jest.fn(),
       createReservation: jest.fn(),
       cancelReservation: jest.fn(),
-      establishment: jest.fn(),
       notifications: jest.fn().mockResolvedValue({ notifications: [], unreadCount: 0 }),
     },
   };
@@ -101,7 +100,6 @@ beforeEach(() => {
   (api.assignments as jest.Mock).mockResolvedValue([]);
   (api.createAssignment as jest.Mock).mockResolvedValue(assignment);
   (api.zones as jest.Mock).mockResolvedValue([]);
-  (api.establishment as jest.Mock).mockResolvedValue({ location: null });
   (api.activeSession as jest.Mock).mockResolvedValue(null);
 });
 
@@ -137,7 +135,7 @@ describe("parking recommendation: states", () => {
 
     await waitFor(() => expect(screen.getByTestId("accept-recommendation")).toBeOnTheScreen());
     expect(screen.getByTestId("accept-recommendation").props.accessibilityLabel).toBe(
-      "Accept recommended Zone B.",
+      "Use recommended Zone B.",
     );
   });
 

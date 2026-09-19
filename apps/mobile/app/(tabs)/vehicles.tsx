@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { VehicleCreateInput, VehicleType } from "@parada/types";
 import {
@@ -13,20 +12,19 @@ import {
   IconButton,
   Input,
   LoadingState,
+  Screen,
   SectionHeader,
   Text,
   VehicleCard,
 } from "@/src/components";
-import { GradientMesh } from "@/src/components/GradientMesh";
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { formatVehicleType, normalizePlateInput } from "@/lib/format";
-import { colors, spacing, tabClearance } from "@/src/theme";
+import { colors, spacing } from "@/src/theme";
 
 const VEHICLE_TYPES: VehicleType[] = ["CAR", "MOTORCYCLE", "VAN", "TRUCK", "OTHER"];
 
 export default function VehiclesScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const vehicles = useQuery({ queryKey: queryKeys.vehicles, queryFn: api.vehicles });
@@ -35,8 +33,22 @@ export default function VehiclesScreen() {
   const refreshing = vehicles.isFetching;
 
   return (
-    <SafeAreaView edges={["top"]} style={styles.flex}>
-      <GradientMesh />
+    <Screen
+      scroll={false}
+      title="Vehicles"
+      subtitle="Registered plates are your gate pass"
+      right={
+        open ? null : (
+          <IconButton
+            icon="add"
+            size={24}
+            accessibilityLabel="Add Vehicle"
+            onPress={() => setOpen(true)}
+            testID="vehicles-add-button"
+          />
+        )
+      }
+      testID="vehicles-screen">
       <FlatList
         data={vehicles.data ?? []}
         keyExtractor={(vehicle) => vehicle.id}
@@ -47,7 +59,7 @@ export default function VehiclesScreen() {
             testID={`vehicle-${item.plateNumber}`}
           />
         )}
-        contentContainerStyle={[styles.listContent, { paddingBottom: tabClearance(insets.bottom) }]}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={
@@ -59,7 +71,6 @@ export default function VehiclesScreen() {
             isLoading={vehicles.isPending}
             count={(vehicles.data ?? []).length}
             open={open}
-            onOpen={() => setOpen(true)}
             onClose={() => setOpen(false)}
           />
         }
@@ -86,7 +97,7 @@ export default function VehiclesScreen() {
         }
         testID="vehicles-list"
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -94,38 +105,21 @@ function ListHeader({
   isLoading,
   count,
   open,
-  onOpen,
   onClose,
 }: {
   isLoading: boolean;
   count: number;
   open: boolean;
-  onOpen: () => void;
   onClose: () => void;
 }) {
   return (
     <View style={styles.header}>
-      <View style={styles.titleRow}>
-        <View style={styles.titleText}>
-          <Text variant="hero">Vehicles</Text>
-          <Text variant="caption">Registered plates are your gate pass</Text>
-        </View>
-        {isLoading ? (
-          <Text testID="vehicles-header-state" variant="caption">
-            Loading…
-          </Text>
-        ) : open ? null : (
-          <IconButton
-            icon="add"
-            size={24}
-            accessibilityLabel="Add Vehicle"
-            onPress={onOpen}
-            testID="vehicles-add-button"
-          />
-        )}
-      </View>
       {open ? <AddVehicleForm onClose={onClose} /> : null}
-      <SectionHeader title="Your vehicles" caption={`${count} registered`} testID="vehicles-section" />
+      {/* The list below already renders its own LoadingState; a second bare
+          "Loading…" above it read like leftover scaffolding. */}
+      {isLoading ? null : (
+        <SectionHeader title="Your vehicles" caption={`${count} registered`} testID="vehicles-section" />
+      )}
     </View>
   );
 }
@@ -230,10 +224,7 @@ function AddVehicleForm({ onClose }: { onClose: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
   listContent: {
-    paddingHorizontal: spacing.xl2,
-    paddingTop: spacing.xl,
     gap: spacing.lg,
     flexGrow: 1,
   },

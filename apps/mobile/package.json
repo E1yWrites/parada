@@ -6,8 +6,11 @@
   "main": "index.js",
   "scripts": {
     "build": "expo export --platform ios --platform android",
+    "predev": "node scripts/set-lan-ip.js",
     "dev": "cross-env EXPO_NO_WEB=1 expo start --port 8082",
+    "predev:lan": "node scripts/set-lan-ip.js",
     "dev:lan": "cross-env EXPO_NO_WEB=1 expo start --host lan --port 8082",
+    "prestart": "node scripts/set-lan-ip.js",
     "start": "cross-env EXPO_NO_WEB=1 expo start --port 8082",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

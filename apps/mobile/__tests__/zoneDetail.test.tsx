@@ -9,7 +9,6 @@ jest.mock("@/lib/api/client", () => {
     ...actual,
     api: {
       zones: jest.fn(),
-      establishment: jest.fn(),
       notifications: jest.fn().mockResolvedValue({ notifications: [], unreadCount: 0 }),
     },
   };
@@ -32,7 +31,6 @@ const zoneB: PublicZone = {
 beforeEach(() => {
   jest.clearAllMocks();
   (useLocalSearchParams as jest.Mock).mockReturnValue({ id: "z2" });
-  (api.establishment as jest.Mock).mockResolvedValue({ location: null });
 });
 
 describe("zone detail screen", () => {

@@ -89,6 +89,7 @@ export default function ViolationDetailScreen() {
             </Text>
           </GlassCard>
 
+          <Text variant="section">What happened</Text>
           <Card testID="violation-details-card" style={styles.details}>
             <View style={styles.detailRow}>
               <Text variant="micro">PLATE</Text>
@@ -104,17 +105,25 @@ export default function ViolationDetailScreen() {
                 </Text>
               </View>
             </View>
-            {violation.description ? (
-              <>
-                <View style={styles.divider} />
-                <Text variant="body" color={colors.muted}>
-                  {violation.description}
-                </Text>
-              </>
-            ) : null}
+            <View style={styles.divider} />
+            <Text variant="body" color={colors.muted}>
+              {violation.description ??
+                (violation.violationType === "WRONG_ZONE"
+                  ? "Your vehicle was detected outside its assigned zone."
+                  : "The parking service recorded an establishment violation.")}
+            </Text>
             <View style={styles.divider} />
             <Text variant="caption">Issued {formatDateTime(violation.issuedAt)}</Text>
           </Card>
+
+          {violation.status === "PENDING" && !violation.appeal ? (
+            <>
+              <Text variant="section">What you can do</Text>
+              <Text variant="caption" color={colors.muted}>
+                Review the details below and submit an appeal if the record is incorrect.
+              </Text>
+            </>
+          ) : null}
 
           <Text variant="section">History</Text>
           <Card style={styles.timeline} testID="violation-timeline">

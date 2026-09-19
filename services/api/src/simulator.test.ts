@@ -474,19 +474,31 @@ describe("Phase 6 — occupancy simulator & admin infrastructure", () => {
           .send({ scenario, zoneId: raw.zoneId, vehicleIds: raw.vehicleIds })
           .expect(201);
 
+      // This case is about the operational (ADMIN) threshold notifications, so
+      // it counts those only. Exits also notify each driver that their own
+      // session closed, which is a USER notification and is asserted below.
+      const adminCount = () =>
+        prisma.notification.count({ where: { zoneId: raw.zoneId, targetRole: "ADMIN" } });
+
       await run("FILL_ZONE"); // LOW once (avail <= 4), FULL once (20) -> 2
-      const before = await prisma.notification.count({ where: { zoneId: raw.zoneId } });
+      const before = await adminCount();
       expect(before).toBe(2);
 
       // Drain the 8 registered vehicles (occupancy 20 -> 12, above low threshold).
       await run("MULTIPLE_EXITS");
-      const afterExit = await prisma.notification.count({ where: { zoneId: raw.zoneId } });
-      expect(afterExit).toBe(before); // exitting never adds notifications
+      expect(await adminCount()).toBe(before); // exiting never adds an ADMIN notification
+
+      // Each of the 8 drained registered vehicles is told its session completed.
+      const driverNotifications = await prisma.notification.findMany({
+        where: { zoneId: raw.zoneId, targetRole: "USER" },
+      });
+      expect(driverNotifications).toHaveLength(8);
+      expect(driverNotifications.every((n) => n.type === "SESSION_COMPLETED")).toBe(true);
+      expect(driverNotifications.every((n) => n.userId !== null)).toBe(true);
 
       // Refill to cross the threshold again -> a NEW LOW + FULL transition.
       await run("FILL_ZONE");
-      const afterRefill = await prisma.notification.count({ where: { zoneId: raw.zoneId } });
-      expect(afterRefill).toBe(before + 2);
+      expect(await adminCount()).toBe(before + 2);
     });
 
     it("rejects an overflow without state changes or new notifications", async () => {

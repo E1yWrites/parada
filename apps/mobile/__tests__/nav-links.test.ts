@@ -4,26 +4,10 @@ import {
   NavigationUnavailableError,
   openNavigation,
   primaryNavigationUrl,
-  resolveEstablishmentDestination,
 } from "@/lib/navigation";
 
 const current = { latitude: 14.5995, longitude: 120.9842 };
 const destination = { label: "PARADA HQ", latitude: 14.5502, longitude: 121.0402 };
-
-describe("lib/navigation: destination resolution", () => {
-  it("resolves the establishment location into a navigable destination", () => {
-    const dest = resolveEstablishmentDestination({
-      location: { address: "123 Test Ave", latitude: 14.5, longitude: 121.25 },
-    });
-    expect(dest).toEqual({ label: "123 Test Ave", latitude: 14.5, longitude: 121.25 });
-  });
-
-  it("returns null when no location is configured (never invents one)", () => {
-    expect(resolveEstablishmentDestination({ location: null })).toBeNull();
-    expect(resolveEstablishmentDestination(null)).toBeNull();
-    expect(resolveEstablishmentDestination(undefined)).toBeNull();
-  });
-});
 
 describe("lib/navigation: URL creation", () => {
   it("builds an Apple Maps directions link with current + destination coordinates", () => {

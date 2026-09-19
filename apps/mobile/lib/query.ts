@@ -5,7 +5,6 @@ export const queryKeys = {
   zones: ["zones"] as const,
   zoneOccupancy: (zoneId: string) => ["zones", zoneId, "occupancy"] as const,
   recommendation: ["zones", "recommendation"] as const,
-  establishment: ["zones", "establishment"] as const,
   assignments: ["assignments"] as const,
   reservations: ["reservations"] as const,
   vehicles: ["vehicles"] as const,

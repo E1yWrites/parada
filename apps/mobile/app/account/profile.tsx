@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Input, Screen, Text } from "@/src/components";
+import { AvatarEditor } from "@/src/components/AvatarEditor";
 import { api, ApiError, type UserDto } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { useSession } from "@/src/providers/SessionProvider";
@@ -38,6 +39,10 @@ export default function EditProfileScreen() {
 
   return (
     <Screen back keyboard title="Edit profile" subtitle="Changes are saved to your PARADA account" testID="profile-screen">
+      <Card style={styles.section} testID="profile-photo-section">
+        <Text variant="section">Profile photo</Text>
+        <AvatarEditor user={user} testID="profile-avatar-editor" />
+      </Card>
       <NameSection user={user} onSaved={apply} />
       <EmailSection user={user} onSaved={apply} />
       <PhoneSection user={user} onSaved={apply} />

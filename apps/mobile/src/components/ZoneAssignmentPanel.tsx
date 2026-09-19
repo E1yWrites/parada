@@ -1,16 +1,13 @@
-import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./Button";
 import { Card } from "./Card";
-import { ChoiceChip } from "./ChoiceChip";
 import { PlateChip } from "./PlateChip";
-import { ErrorState, LoadingState } from "./StateComponents";
 import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
+import { VehiclePicker, useVehicleSelection } from "./VehicleSelection";
 import { api, ApiError, type CreateAssignmentInput, type PublicZone } from "@/lib/api/client";
-import { activeAssignmentFrom, isActiveVehicle, upsertAssignment } from "@/lib/assignment";
+import { activeAssignmentFrom, upsertAssignment } from "@/lib/assignment";
 import type { ZoneAssignmentResponse } from "@parada/types";
 import { queryKeys } from "@/lib/query";
 import { colors, spacing } from "@/src/theme";
@@ -28,11 +25,9 @@ type ZoneAssignmentPanelProps = {
  * shown as backend-confirmed without offering another assignment request.
  */
 export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) {
-  const router = useRouter();
   const queryClient = useQueryClient();
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const selection = useVehicleSelection();
 
-  const vehicles = useQuery({ queryKey: queryKeys.vehicles, queryFn: api.vehicles });
   const assignments = useQuery({ queryKey: queryKeys.assignments, queryFn: api.assignments });
 
   const assign = useMutation({
@@ -54,11 +49,7 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
 
   const confirmedAssignment = assign.data ?? activeAssignmentFrom(assignments.data);
 
-  const activeVehicles = (vehicles.data ?? []).filter(isActiveVehicle);
-  const soleVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
-  const selectedVehicle =
-    soleVehicle ?? activeVehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? null;
-  const needsVehicleChoice = activeVehicles.length > 1 && selectedVehicleId === null;
+  const { activeVehicles, selectedVehicle } = selection;
 
   const zoneUnavailable = selectedZone !== null && selectedZone.availableCount <= 0;
   const canSubmit =
@@ -106,7 +97,7 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
   })();
 
   return (
-    <View testID="assignment-panel">
+    <View style={styles.panel} testID="assignment-panel">
       <SectionHeader
         title={confirmedAssignment ? "You have an assignment" : "Assign a vehicle"}
         caption={
@@ -119,10 +110,10 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
 
       {confirmedAssignment ? (
         <Text variant="caption" color={colors.muted} testID="assignment-already-assigned">
-          You already have an assigned zone. See it under Current parking above.
+          Cancel it from Current parking to choose a different zone.
         </Text>
       ) : (
-        <>
+        <Card style={styles.body} testID="assignment-body">
           {selectedZone === null ? (
             <Text variant="caption" color={colors.muted} testID="assignment-zone-hint">
               Select a parking zone above.
@@ -143,58 +134,13 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
             </Card>
           )}
 
-          {vehicles.isPending ? (
-            <LoadingState label="Loading your vehicles…" testID="assignment-vehicles-loading" />
-          ) : vehicles.isError ? (
-            <ErrorState
-              message={
-                vehicles.error instanceof ApiError
-                  ? vehicles.error.message
-                  : "Couldn't load your vehicles."
-              }
-              testID="assignment-vehicles-error"
-            />
-          ) : activeVehicles.length === 0 ? (
-            <View style={styles.noVehicle} testID="assignment-no-vehicle">
-              <Text variant="body">Add a vehicle first to assign a zone.</Text>
-              <Button
-                variant="secondary"
-                title="Add a vehicle"
-                onPress={() => router.push("/vehicles")}
-                testID="assignment-add-vehicle"
-              />
-            </View>
-          ) : (
-            <View style={styles.vehicleBlock} testID="assignment-vehicles">
-              {activeVehicles.length > 1 ? (
-                <>
-                  <Text variant="micro">CHOOSE VEHICLE</Text>
-                  <View style={styles.vehicleRow}>
-                    {activeVehicles.map((vehicle) => (
-                      <ChoiceChip
-                        key={vehicle.id}
-                        label={vehicle.plateNumber}
-                        mono
-                        selected={vehicle.id === selectedVehicleId}
-                        accessibilityLabel={`Use vehicle ${vehicle.plateNumber}`}
-                        onPress={() => setSelectedVehicleId(vehicle.id)}
-                        testID={`assignment-vehicle-${vehicle.id}`}
-                      />
-                    ))}
-                  </View>
-                  {needsVehicleChoice ? (
-                    <Text variant="caption" testID="assignment-vehicle-hint">
-                      Choose a vehicle to assign.
-                    </Text>
-                  ) : null}
-                </>
-              ) : (
-                <Text variant="caption" color={colors.muted} testID="assignment-vehicle">
-                  Vehicle {soleVehicle?.plateNumber}
-                </Text>
-              )}
-            </View>
-          )}
+          <VehiclePicker
+            selection={selection}
+            testIDPrefix="assignment"
+            chooseLabel="CHOOSE VEHICLE"
+            chooseHint="Choose a vehicle to assign."
+            emptyPrompt="Add a vehicle first to assign a zone."
+          />
 
           {assign.isError ? (
             <Text variant="body" color={colors.danger} testID="assignment-error">
@@ -212,13 +158,19 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
               testID="assignment-submit"
             />
           ) : null}
-        </>
+        </Card>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  panel: {
+    gap: spacing.md,
+  },
+  body: {
+    gap: spacing.lg,
+  },
   summary: {
     flexDirection: "row",
     alignItems: "center",
@@ -228,16 +180,5 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: spacing.xs,
-  },
-  noVehicle: {
-    gap: spacing.md,
-  },
-  vehicleBlock: {
-    gap: spacing.md,
-  },
-  vehicleRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.md,
   },
 });
