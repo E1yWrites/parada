@@ -1,5 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Button } from "./Button";
 import { CapacityBar } from "./CapacityBar";
 import { GlassCard } from "./GlassCard";
@@ -8,25 +10,32 @@ import { NavigateButton } from "./NavigateButton";
 import { PlateChip } from "./PlateChip";
 import { SectionHeader } from "./SectionHeader";
 import { Stamp } from "./Stamp";
+import { ReservationBadge } from "./StatusBadge";
 import { EmptyState, ErrorState, LoadingState } from "./StateComponents";
 import { Text } from "./Text";
 import { VehiclePicker, useVehicleSelection } from "./VehicleSelection";
-import { api, ApiError, type CreateAssignmentInput } from "@/lib/api/client";
-import { activeAssignmentFrom, upsertAssignment } from "@/lib/assignment";
-import type { ZoneAssignmentResponse } from "@parada/types";
+import { api, ApiError, type CreateReservationInput } from "@/lib/api/client";
+import { currentReservationFrom, upsertReservation } from "@/lib/current";
+import type { ReservationResponse } from "@parada/types";
+import { formatDateTime } from "@/lib/format";
 import { ZONE_NAVIGATION_UNCONFIGURED, type NavigationDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
-import { spacing } from "@/src/theme";
+import { radii, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
+import { withAlpha } from "@/src/theme/colors";
 
 /**
  * Recommended-zone + accept-recommendation flow (Phase 9.2).
  *
  * The recommendation comes straight from the backend (GET /zones/recommendation)
- * and is NOT an assignment: the user must explicitly accept it, which triggers
- * POST /assignments{zoneId,vehicleId}. Assigned state is only ever shown after
- * the backend confirms the assignment (mutation result) or an ACTIVE assignment
- * already exists in the assignments list.
+ * and is NOT a reservation: the user must explicitly accept it, which triggers
+ * POST /reservations{zoneId,vehicleId,startAt} — a capacity-protected hold,
+ * matching the intended Recommendation → Reservation workflow (Recommendation ≠
+ * Assignment ≠ Reservation ≠ Session; see CLAUDE.md). Reserved state is only
+ * ever shown after the backend confirms the reservation (mutation result) or a
+ * live reservation already exists in the reservations list. A driver who does
+ * not want the recommended zone can back out to the Park tab's own zone rail
+ * and reservation flow instead ("Choose another zone").
  */
 /**
  * The backend returns `{ recommendedZone: null }` when nothing is suitable.
@@ -49,39 +58,40 @@ export function ParkingRecommendation({
   destinationReady = true,
 }: ParkingRecommendationProps = {}) {
   const colors = useColors();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const selection = useVehicleSelection();
 
-  const assignments = useQuery({ queryKey: queryKeys.assignments, queryFn: api.assignments });
+  const reservations = useQuery({ queryKey: queryKeys.reservations, queryFn: api.reservations });
   const recommendation = useQuery({
     queryKey: queryKeys.recommendation,
     queryFn: api.recommendedZone,
     refetchInterval: 30_000,
   });
 
-  const assign = useMutation({
-    mutationFn: (input: CreateAssignmentInput) => api.createAssignment(input),
+  const create = useMutation({
+    mutationFn: (input: CreateReservationInput) => api.createReservation(input),
     onSuccess: (confirmed) => {
       // The POST response is backend-confirmed state. Writing it into the
-      // assignments cache makes current-state resolution see it immediately,
+      // reservations cache makes current-state resolution see it immediately,
       // so the screen never shows a contradictory "no current parking" empty
-      // state while this assignment is real.
-      void queryClient.setQueryData(queryKeys.assignments, (old: ZoneAssignmentResponse[] | undefined) =>
-        upsertAssignment(old, confirmed),
+      // state while this reservation is real.
+      void queryClient.setQueryData(queryKeys.reservations, (old: ReservationResponse[] | undefined) =>
+        upsertReservation(old, confirmed),
       );
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.recommendation });
       void queryClient.invalidateQueries({ queryKey: queryKeys.zones });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.assignments });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reservations });
     },
   });
 
   const recommended = recommendation.data?.recommendedZone ?? null;
-  const confirmedAssignment =
-    assign.data ?? activeAssignmentFrom(assignments.data);
-  // Directions target the assigned zone's own admin-configured coordinates.
-  const navigationDestination = confirmedAssignment ? destinationFor(confirmedAssignment.zoneId) : null;
+  const confirmedReservation =
+    create.data ?? currentReservationFrom(reservations.data);
+  // Directions target the reserved zone's own admin-configured coordinates.
+  const navigationDestination = confirmedReservation ? destinationFor(confirmedReservation.zoneId) : null;
 
   const { activeVehicles, selectedVehicle } = selection;
 
@@ -107,40 +117,53 @@ export function ParkingRecommendation({
     if (!recommended || !selectedVehicle) {
       return;
     }
-    assign.mutate({ zoneId: recommended.id, vehicleId: selectedVehicle.id });
+    create.mutate({ zoneId: recommended.id, vehicleId: selectedVehicle.id, startAt: new Date().toISOString() });
+  }
+
+  function handleChooseAnother() {
+    router.push("/(tabs)/park");
   }
 
   return (
     <View testID="parking-recommendation">
       <SectionHeader
-        title={confirmedAssignment ? "Your assignment" : "Recommended for you"}
+        title={confirmedReservation ? "Your reservation" : "Recommended for you"}
         caption={
-          confirmedAssignment
+          confirmedReservation
             ? "Confirmed by the parking service"
             : "Suggestion only - does not reserve a spot"
         }
         testID="recommendation-header"
       />
 
-      {confirmedAssignment ? (
-        <GlassCard style={styles.card} testID="assignment-confirmed">
-          <Stamp label="ZONE ASSIGNED" icon="location" color={colors.primaryDeep} />
-          <Text variant="hero" numberOfLines={2} testID="assignment-zone-name">
-            {confirmedAssignment.zone.name}
+      {confirmedReservation ? (
+        <GlassCard style={styles.card} wash={colors.success} testID="reservation-confirmed">
+          <View style={styles.headerRow}>
+            <Stamp label="RESERVED" icon="calendar" color={colors.success} />
+            <ReservationBadge status={confirmedReservation.status} testID="reservation-confirmed-badge" />
+          </View>
+          <Text variant="hero" numberOfLines={2} testID="reservation-confirmed-zone">
+            {confirmedReservation.zone.name}
           </Text>
           <View style={styles.plateRow}>
-            <PlateChip value={confirmedAssignment.zone.code} tone="soft" size="sm" testID="assignment-zone-code" />
-            <Text variant="plate" testID="assignment-vehicle">
-              {confirmedAssignment.vehicle.plateNumber}
+            <PlateChip value={confirmedReservation.zone.code} tone="soft" size="sm" testID="reservation-confirmed-zone-code" />
+            <Text variant="plate" testID="reservation-confirmed-vehicle">
+              {confirmedReservation.vehicle.plateNumber}
+            </Text>
+          </View>
+          <View style={[styles.windowBox, { backgroundColor: withAlpha(colors.surface, 0.7) }]}>
+            <Ionicons name="time-outline" size={14} color={colors.success} />
+            <Text variant="caption" color={colors.foreground} style={styles.inlineText} testID="reservation-confirmed-window">
+              Start {formatDateTime(confirmedReservation.startAt)} · End {formatDateTime(confirmedReservation.endAt)}
             </Text>
           </View>
           {!destinationReady ? null : (
             <NavigateButton
               destination={navigationDestination}
-              label="Navigate to assigned zone"
+              label="Navigate to reserved zone"
               primary
               unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
-              testID="assignment-navigate"
+              testID="reservation-confirmed-navigate"
             />
           )}
         </GlassCard>
@@ -206,23 +229,32 @@ export function ParkingRecommendation({
             chipTestID={(vehicleId) => `vehicle-choice-${vehicleId}`}
           />
 
-          {assign.isError ? (
-            <Text variant="body" color={colors.danger} testID="assignment-error">
-              {assign.error instanceof ApiError
-                ? assign.error.message
-                : "We couldn't assign this zone."}
+          {create.isError ? (
+            <Text variant="body" color={colors.danger} testID="reservation-error">
+              {create.error instanceof ApiError
+                ? create.error.message
+                : "We couldn't reserve this zone."}
             </Text>
           ) : null}
 
           {activeVehicles.length > 0 ? (
-            <Button
-              title="Use this zone"
-              accessibilityLabel={`Use recommended ${recommended.name}.`}
-              onPress={handleAccept}
-              loading={assign.isPending}
-              disabled={selectedVehicle === null}
-              testID="accept-recommendation"
-            />
+            <View style={styles.actions}>
+              <Button
+                title="Reserve Recommended Zone"
+                accessibilityLabel={`Reserve recommended ${recommended.name}.`}
+                onPress={handleAccept}
+                loading={create.isPending}
+                disabled={selectedVehicle === null}
+                testID="accept-recommendation"
+              />
+              <Button
+                variant="ghost"
+                title="Choose Another Zone"
+                accessibilityLabel="Choose a different zone on the Park tab."
+                onPress={handleChooseAnother}
+                testID="recommendation-choose-other"
+              />
+            </View>
           ) : null}
         </GlassCard>
       )}
@@ -233,6 +265,12 @@ export function ParkingRecommendation({
 const styles = StyleSheet.create({
   card: {
     gap: spacing.xl,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
   },
   zoneBlock: {
     gap: spacing.md,
@@ -252,5 +290,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.lg,
+  },
+  windowBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    borderRadius: radii.sm,
+    padding: spacing.lg,
+  },
+  inlineText: {
+    flexShrink: 1,
+  },
+  actions: {
+    gap: spacing.md,
   },
 });

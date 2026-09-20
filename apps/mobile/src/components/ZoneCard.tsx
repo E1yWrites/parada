@@ -64,7 +64,11 @@ export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardPr
       onPress={handlePress}
       style={({ pressed }) => [styles.wrapper, pressed && selectable ? styles.pressed : undefined]}
       testID={testID}>
-      <Card padding={spacing.lg} style={[styles.card, selected ? styles.cardSelected : undefined]}>
+      <Card
+        padding={spacing.lg}
+        style={[styles.card, selected ? styles.cardSelected : undefined]}
+        shadowColor={selected ? colors.primary : undefined}
+        shadowOpacity={selected ? 0.2 : undefined}>
         <View style={styles.headerRow}>
           <PlateChip value={zone.code} />
           <View style={styles.badgeSlot}>
@@ -139,9 +143,6 @@ function buildStyles(colors: ColorTokens) {
     cardSelected: {
       backgroundColor: colors.primarySoft,
       borderColor: colors.primary,
-      borderWidth: 1.25,
-      shadowColor: colors.primary,
-      shadowOpacity: 0.2,
     },
     headerRow: {
       flexDirection: "row",

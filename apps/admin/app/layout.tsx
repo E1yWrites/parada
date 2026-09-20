@@ -29,6 +29,15 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "PARADA · Operations",
   description: "PARADA smart parking operations console",
+  icons: {
+    icon: [
+      { url: "/icons/icon-light-32.png", sizes: "32x32", type: "image/png", media: "(prefers-color-scheme: light)" },
+      { url: "/icons/icon-light-192.png", sizes: "192x192", type: "image/png", media: "(prefers-color-scheme: light)" },
+      { url: "/icons/icon-dark-32.png", sizes: "32x32", type: "image/png", media: "(prefers-color-scheme: dark)" },
+      { url: "/icons/icon-dark-192.png", sizes: "192x192", type: "image/png", media: "(prefers-color-scheme: dark)" },
+    ],
+    apple: [{ url: "/icons/apple-icon-180.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({

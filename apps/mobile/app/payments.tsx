@@ -131,7 +131,7 @@ export default function PaymentsScreen() {
 function buildStyles(colors: ColorTokens) {
   return StyleSheet.create({
     content: {
-      gap: spacing.lg,
+      gap: spacing.xl,
     },
     balance: {
       marginTop: spacing.xs,

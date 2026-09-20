@@ -63,32 +63,40 @@ export type ColorTokens = {
   data: readonly [string, string, string, string];
 };
 
+// Warm-sunset repaint of the dark register (user-supplied reference palette:
+// cream FFEBD2 → light-orange FFA364 → orange FC7643 → rust AF4F41 → navy
+// 273248), swapped in for the original cold navy/gold dark theme. Navy
+// ground lightened (#0E1220 → #273248) and gold accent shifted to the
+// warmer orange from the reference; azure/red/green re-tuned to clear
+// 4.5:1 against the new, lighter ground. Rust AF4F41 itself fails text
+// contrast here (2.46:1) so it isn't used as a token value directly — its
+// role in the reference (a pressed/deep accent) is filled by primaryDeep.
 const dark: ColorTokens = {
-  background: "#0E1220",
-  surface: "#161B2E",
-  surfaceElevated: "#1F2640",
-  surfaceRaised2: "#29314F",
-  foreground: "#F1F3FA",
-  muted: "#A9AFC6",
-  faint: "#6E7492",
-  border: "rgba(241, 243, 250, 0.09)",
-  borderStrong: "rgba(241, 243, 250, 0.16)",
-  primary: "#F2A93B",
-  primaryDeep: "#D98C1E",
-  primarySoft: "rgba(242, 169, 59, 0.16)",
-  danger: "#F0524A",
-  dangerSoft: "rgba(240, 82, 74, 0.14)",
+  background: "#273248",
+  surface: "#2F3B54",
+  surfaceElevated: "#38455F",
+  surfaceRaised2: "#414F6C",
+  foreground: "#FFEBD2",
+  muted: "#C7BBAE",
+  faint: "#9A9086",
+  border: "rgba(255, 235, 210, 0.09)",
+  borderStrong: "rgba(255, 235, 210, 0.16)",
+  primary: "#FC7643",
+  primaryDeep: "#FFA364",
+  primarySoft: "rgba(252, 118, 67, 0.18)",
+  danger: "#FF8478",
+  dangerSoft: "rgba(255, 132, 120, 0.14)",
   success: "#3DDC84",
   successSoft: "rgba(61, 220, 132, 0.14)",
-  warning: "#FF9F3F",
-  warningSoft: "rgba(255, 159, 63, 0.14)",
-  highlight: "#FF9F3F",
-  info: "#5B93F7",
-  infoSoft: "rgba(91, 147, 247, 0.16)",
-  disabledSurface: "#1F2640",
-  disabledForeground: "#545A78",
+  warning: "#FFC65C",
+  warningSoft: "rgba(255, 198, 92, 0.14)",
+  highlight: "#FFC65C",
+  info: "#82ACFF",
+  infoSoft: "rgba(130, 172, 255, 0.16)",
+  disabledSurface: "#38455F",
+  disabledForeground: "#A79D8E",
   onAccent: "#15111C",
-  data: ["#F2A93B", "#3DDC84", "#5B93F7", "#FF9F3F"],
+  data: ["#FC7643", "#3DDC84", "#82ACFF", "#FFC65C"],
 };
 
 const light: ColorTokens = {

@@ -160,7 +160,7 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
 
 const styles = StyleSheet.create({
   panel: {
-    gap: spacing.md,
+    gap: spacing.xl,
   },
   body: {
     gap: spacing.lg,

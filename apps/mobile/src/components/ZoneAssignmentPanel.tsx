@@ -176,7 +176,7 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
 
 const styles = StyleSheet.create({
   panel: {
-    gap: spacing.md,
+    gap: spacing.xl,
   },
   body: {
     gap: spacing.lg,

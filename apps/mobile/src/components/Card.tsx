@@ -15,6 +15,9 @@ type CardProps = {
   /** `tinted` sits on the raised surface without a shadow (nested content). */
   tone?: "surface" | "tinted";
   style?: StyleProp<ViewStyle>;
+  /** Recolors the theme card shadow (e.g. a selected-state glow); offset/blur stay fixed. */
+  shadowColor?: string;
+  shadowOpacity?: number;
   testID?: string;
 };
 
@@ -31,15 +34,31 @@ export function Card({
   padding = spacing.xl,
   tone = "surface",
   style,
+  shadowColor,
+  shadowOpacity,
   testID,
 }: CardProps) {
   const colors = useColors();
   const shadows = useThemeShadows();
   const styles = useMemo(() => buildStyles(colors, shadows), [colors, shadows]);
-  const containerStyle = [styles.base, tone === "tinted" ? styles.tinted : undefined, { padding }, style];
+  const outerStyle = [
+    styles.outer,
+    tone === "tinted" ? styles.outerTinted : undefined,
+    shadowColor != null ? { shadowColor } : undefined,
+    shadowOpacity != null ? { shadowOpacity } : undefined,
+  ];
   const scale = useRef(new Animated.Value(1)).current;
-  const body = (
-    <>
+  const content = (
+    // The border/background/radius clip lives on its own inner view, separate
+    // from the shadow-casting outer one (no border, no background) — on
+    // Android, an elevation shadow drawn on a view that also paints a border
+    // renders as a hard rectangle instead of following the rounded corner, so
+    // the two concerns can't share a view. `style` lands here (not on
+    // `outer`) since this is the node that actually holds the children —
+    // same split as GlassCard, and for the same reason.
+    <View
+      testID={testID ? `${testID}-content` : undefined}
+      style={[styles.clip, tone === "tinted" ? styles.clipTinted : undefined, { padding }, style]}>
       {accent ? (
         <View
           testID={testID ? `${testID}-accent` : undefined}
@@ -47,7 +66,7 @@ export function Card({
         />
       ) : null}
       {children}
-    </>
+    </View>
   );
   if (onPress) {
     return (
@@ -66,31 +85,38 @@ export function Card({
             useNativeDriver: true,
           }).start();
         }}>
-        <Animated.View style={[containerStyle, { transform: [{ scale }] }]}>{body}</Animated.View>
+        <Animated.View style={[outerStyle, { transform: [{ scale }] }]}>{content}</Animated.View>
       </Pressable>
     );
   }
   return (
-    <View testID={testID} style={containerStyle}>
-      {body}
+    <View testID={testID} style={outerStyle}>
+      {content}
     </View>
   );
 }
 
 function buildStyles(colors: ColorTokens, shadows: ShadowTokens) {
   return StyleSheet.create({
-    base: {
+    outer: {
+      borderRadius: radii.lg,
+      borderTopRightRadius: radii.cut,
+      ...shadows.card,
+    },
+    outerTinted: {
+      ...shadows.none,
+    },
+    clip: {
       backgroundColor: colors.surface,
       borderRadius: radii.lg,
       borderTopRightRadius: radii.cut,
       borderWidth: 1,
       borderColor: colors.border,
-      ...shadows.card,
+      overflow: "hidden",
     },
-    tinted: {
+    clipTinted: {
       backgroundColor: colors.surfaceElevated,
       borderColor: "transparent",
-      ...shadows.none,
     },
     accent: {
       width: 28,
