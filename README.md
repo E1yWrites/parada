@@ -206,11 +206,16 @@ followed by 16 (Documentation + Final Review).
 
 See the `docs/` directory:
 
+- `docs/how-to/` — task-oriented guides: [adding a camera](docs/how-to/add-a-camera.md),
+  [adding a zone](docs/how-to/add-a-zone.md),
+  [editing the database](docs/how-to/edit-the-database.md),
+  [running and testing locally](docs/how-to/run-and-test-locally.md),
+  [deploying](docs/how-to/deploy.md) (Phase 15 is still pending — this is a
+  checklist against what exists today, not a record of a finished deployment)
 - `docs/architecture/` — system architecture, decisions, and the phase roadmap
 - `docs/database/` — schema and data model
 - `docs/api/` — API reference, including the realtime (SSE) stream contract
 - `docs/mobile/` — mobile app notes
 - `docs/vision/` — camera / OCR processing
+- `docs/security/` — Phase 15 threat model and release gates
 - `services/vision/README.md` — vision service setup, camera sources, and troubleshooting
-
-Testing and deployment guides are not written yet (phases 14 and 15).
