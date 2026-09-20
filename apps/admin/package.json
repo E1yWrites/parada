@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@parada/config": "0.1.0",
