@@ -53,3 +53,12 @@ services/vision/evaluation/dataset/images/
 # Tool caches
 .pytest_cache/
 *.tsbuildinfo
+
+# Agent tooling (skills/plans/design-tool state) — machine-local, not app code
+.agents/
+.claude/skills/
+.impeccable/
+apps/admin/.impeccable/
+apps/mobile/.impeccable/
+.opencode/plans/
+docs/superpowers/
