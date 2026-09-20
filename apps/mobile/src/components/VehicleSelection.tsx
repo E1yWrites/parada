@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -123,6 +123,18 @@ export function VehiclePicker({
   const colors = useColors();
   const router = useRouter();
   const { activeVehicles, soleVehicle, selectedVehicle, needsVehicleChoice } = selection;
+  // A driver only ever sees the chip list when there is a real choice to
+  // make (`needsVehicleChoice`) or they explicitly asked to change vehicle —
+  // otherwise the primary/sole vehicle is shown as an already-made choice.
+  // Once shown, for either reason, it stays open for the rest of this
+  // action — picking a vehicle should never yank the list out from under
+  // the driver's finger the instant `needsVehicleChoice` resolves.
+  const [expanded, setExpanded] = useState(needsVehicleChoice);
+  useEffect(() => {
+    if (needsVehicleChoice) {
+      setExpanded(true);
+    }
+  }, [needsVehicleChoice]);
 
   if (selection.isPending) {
     return <LoadingState label="Loading your vehicles…" testID={`${testIDPrefix}-vehicles-loading`} />;
@@ -150,9 +162,17 @@ export function VehiclePicker({
     );
   }
 
+  if (activeVehicles.length === 1) {
+    return (
+      <Text variant="caption" color={colors.muted} testID={`${testIDPrefix}-vehicle`}>
+        Vehicle {soleVehicle?.plateNumber}
+      </Text>
+    );
+  }
+
   return (
     <View style={styles.vehicleBlock} testID={`${testIDPrefix}-vehicles`}>
-      {activeVehicles.length > 1 ? (
+      {expanded ? (
         <>
           <Text variant="micro">{chooseLabel}</Text>
           <View style={styles.vehicleRow}>
@@ -175,9 +195,19 @@ export function VehiclePicker({
           ) : null}
         </>
       ) : (
-        <Text variant="caption" color={colors.muted} testID={`${testIDPrefix}-vehicle`}>
-          Vehicle {soleVehicle?.plateNumber}
-        </Text>
+        <View style={styles.compactRow} testID={`${testIDPrefix}-vehicle-compact`}>
+          <Text variant="caption" color={colors.muted}>
+            Parking with <Text variant="plate">{selectedVehicle?.plateNumber}</Text>
+          </Text>
+          <Button
+            variant="ghost"
+            size="sm"
+            title="Change"
+            accessibilityLabel="Change vehicle for this action"
+            onPress={() => setExpanded(true)}
+            testID={`${testIDPrefix}-vehicle-change`}
+          />
+        </View>
       )}
     </View>
   );
@@ -193,6 +223,12 @@ const styles = StyleSheet.create({
   vehicleRow: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  compactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: spacing.md,
   },
 });

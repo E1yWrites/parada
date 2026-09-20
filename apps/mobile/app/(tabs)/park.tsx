@@ -6,7 +6,6 @@ import {
   ErrorState,
   LoadingState,
   MascotCallout,
-  ReservationList,
   ReservationPanel,
   Screen,
   SectionHeader,
@@ -124,13 +123,13 @@ export default function ParkScreen() {
           </ScrollView>
         )}
         {activeSession ? null : (
-          <View testID="parking-action">
+          <View style={styles.parkingAction} testID="parking-action">
             <SectionHeader
               title="Park your vehicle"
               caption="Pick how you'd like to use the selected zone"
               testID="parking-action-header"
             />
-            <View style={styles.actionToggle} testID="parking-action-toggle">
+            <View testID="parking-action-toggle">
               <SegmentedControl
                 value={actionMode}
                 onChange={(mode) => setActionMode(mode as "assign" | "reserve")}
@@ -157,7 +156,6 @@ export default function ParkScreen() {
             )}
           </View>
         )}
-        {activeSession ? null : <ReservationList />}
       </Screen>
     </VehicleSelectionProvider>
   );
@@ -179,8 +177,7 @@ const styles = StyleSheet.create({
   tile: {
     width: ZONE_TILE_WIDTH,
   },
-  actionToggle: {
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
+  parkingAction: {
+    gap: spacing.xl,
   },
 });

@@ -83,7 +83,8 @@ describe("the chosen vehicle belongs to the parking action, not to one panel", (
       </>,
     );
 
-    // Nothing is auto-picked while the choice is real.
+    // Nothing is auto-picked while the choice is real, so the chip list shows
+    // itself rather than staying collapsed behind "Change".
     await waitFor(() => expect(screen.getByTestId("assignment-vehicle-v2")).toBeOnTheScreen());
     expect(screen.getByTestId("assignment-vehicle-hint")).toBeOnTheScreen();
     expect(screen.getByTestId("reservation-vehicle-hint")).toBeOnTheScreen();
@@ -132,24 +133,29 @@ describe("the chosen vehicle belongs to the parking action, not to one panel", (
       </>,
     );
 
-    // The primary is preselected: no hint nagging for a choice, and the
-    // primary's chip already shows selected.
+    // The primary is preselected: shown already-chosen in the compact row,
+    // with no hint and no chip list until "Change" is tapped.
     await waitFor(() =>
-      expect(screen.getByTestId("assignment-vehicle-v2").props.accessibilityState).toMatchObject({
-        selected: true,
-      }),
+      expect(screen.getByTestId("assignment-vehicle-compact")).toHaveTextContent(/XYZ-5678/),
     );
     expect(screen.queryByTestId("assignment-vehicle-hint")).not.toBeOnTheScreen();
+    expect(screen.queryByTestId("assignment-vehicle-v1")).not.toBeOnTheScreen();
 
-    // Picking the other vehicle overrides the primary for this action.
+    // Tapping "Change" reveals the full chip list; picking the other vehicle
+    // overrides the primary for this action only.
+    fireEvent.press(screen.getByTestId("assignment-vehicle-change"));
+    await waitFor(() => expect(screen.getByTestId("assignment-vehicle-v1")).toBeOnTheScreen());
     fireEvent.press(screen.getByTestId("assignment-vehicle-v1"));
+
     await waitFor(() =>
-      expect(screen.getByTestId("reservation-vehicle-v1").props.accessibilityState).toMatchObject({
+      expect(screen.getByTestId("assignment-vehicle-v1").props.accessibilityState).toMatchObject({
         selected: true,
       }),
     );
-    expect(screen.getByTestId("reservation-vehicle-v2").props.accessibilityState.selected).toBe(
-      false,
+    // The reservation panel was never expanded, so it reflects the new pick
+    // as its own compact row without the driver touching it.
+    await waitFor(() =>
+      expect(screen.getByTestId("reservation-vehicle-compact")).toHaveTextContent(/ABC-1234/),
     );
   });
 
