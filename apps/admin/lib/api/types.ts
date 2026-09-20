@@ -322,6 +322,8 @@ export interface AdminDashboard {
   }[];
   recentAnomalies: AdminAnomaly[];
   recentNotifications: AdminNotification[];
+  /** 25 hourly points, T-24h through now, summed across every zone. */
+  trend: { at: string; totalOccupied: number; totalCapacity: number }[];
 }
 
 export type SimulatorScenario =

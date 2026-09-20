@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import SettingsPage from "@/app/(app)/settings/page";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { api } from "@/lib/api/client";
 import type { EstablishmentSettings } from "@/lib/api/types";
 
@@ -21,7 +22,9 @@ const settings: EstablishmentSettings = {
 const renderPage = () =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <SettingsPage />
+      <ThemeProvider>
+        <SettingsPage />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 

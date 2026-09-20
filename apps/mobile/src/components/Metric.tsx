@@ -1,7 +1,8 @@
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 import { Text } from "./Text";
 
 type MetricProps = {
@@ -16,14 +17,15 @@ type MetricProps = {
 };
 
 /** Labeled data point with tabular numerals so counts never jump width. */
-export function Metric({ label, value, accent = colors.foreground, icon, size = "md", testID }: MetricProps) {
+export function Metric({ label, value, accent, icon, size = "md", testID }: MetricProps) {
+  const colors = useColors();
   return (
     <View style={styles.container}>
       <View style={styles.labelRow}>
         {icon ? <Ionicons name={icon} size={12} color={colors.muted} /> : null}
         <Text variant="micro">{label.toUpperCase()}</Text>
       </View>
-      <Text variant={size === "lg" ? "display" : "monoBold"} color={accent} testID={testID}>
+      <Text variant={size === "lg" ? "display" : "monoBold"} color={accent ?? colors.foreground} testID={testID}>
         {value}
       </Text>
     </View>

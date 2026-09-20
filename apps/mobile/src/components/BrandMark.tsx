@@ -1,52 +1,56 @@
-import { StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { colors, radii, spacing } from "@/src/theme";
-import { Text } from "./Text";
+import { useMemo } from "react";
+import { Image, StyleSheet, View } from "react-native";
+import { radii, spacing } from "@/src/theme";
+import { useColors, useThemeShadows } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
+import type { ShadowTokens } from "@/src/theme/shadows";
+
+const LOGO = require("../../assets/brand/parada-logo.webp");
+/** The source asset's real aspect ratio (1500 × 198 px) — never distort it. */
+const LOGO_ASPECT = 1500 / 198;
 
 type BrandMarkProps = {
-  /** Show the PARADA wordmark beside the tile. */
-  wordmark?: boolean;
+  /** Height of the logo mark in points; width follows the asset's own aspect ratio. */
   size?: number;
   testID?: string;
 };
 
 /**
- * PARADA mark: a blue tile with a car glyph — the gate-pass "badge" — and the
- * wordmark set in the display face. The only place the brand draws itself.
+ * The canonical PARADA logo, unmodified, mounted on its own light plate so
+ * the mark stays legible on the dark ground (the source asset is black ink
+ * with orange cuts on a transparent field). The plate is a fixed neutral
+ * white by design — intentionally theme-independent, since the mark needs
+ * the same legible ground in both registers, not a themed surface color.
+ * Reserved for brand moments — auth, onboarding, splash — never repeated as
+ * generic screen chrome.
  */
-export function BrandMark({ wordmark = true, size = 44, testID }: BrandMarkProps) {
+export function BrandMark({ size = 22, testID }: BrandMarkProps) {
+  const colors = useColors();
+  const shadows = useThemeShadows();
+  const styles = useMemo(() => buildStyles(colors, shadows), [colors, shadows]);
   return (
-    <View style={styles.row} testID={testID} accessibilityRole="header" accessibilityLabel="PARADA">
-      <View style={[styles.tile, { width: size, height: size, borderRadius: Math.round(size * 0.3) }]}>
-        <Ionicons name="car-sport" size={Math.round(size * 0.55)} color={colors.onAccent} />
-      </View>
-      {wordmark ? (
-        <Text variant="title" style={styles.word}>
-          PARADA
-        </Text>
-      ) : null}
+    <View style={styles.plate} testID={testID} accessibilityRole="image" accessibilityLabel="PARADA">
+      <Image
+        source={LOGO}
+        resizeMode="contain"
+        style={{ width: Math.round(size * LOGO_ASPECT), height: size }}
+      />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
-  },
-  tile: {
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.md,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    elevation: 4,
-  },
-  word: {
-    letterSpacing: 2,
-  },
-});
+function buildStyles(colors: ColorTokens, shadows: ShadowTokens) {
+  return StyleSheet.create({
+    plate: {
+      alignSelf: "flex-start",
+      backgroundColor: "#FFFFFF",
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+      borderRadius: radii.lg,
+      borderTopRightRadius: radii.cut,
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...shadows.card,
+    },
+  });
+}

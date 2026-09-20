@@ -28,7 +28,7 @@ const ACCENTS: Record<NonNullable<MetricCardProps["accent"]>, string> = {
   red: "text-danger",
   green: "text-success",
   amber: "text-warning",
-  info: "text-brand",
+  info: "text-brand-dark",
 };
 
 /** One figure inside a `FacilityStrip`. */

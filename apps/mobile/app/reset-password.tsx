@@ -4,7 +4,8 @@ import { StyleSheet, View } from "react-native";
 import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import { api, ApiError } from "@/lib/api/client";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 const TOKEN_RE = /^[a-f0-9]{64}$/i;
 
@@ -14,6 +15,7 @@ const TOKEN_RE = /^[a-f0-9]{64}$/i;
  * The token is consumed server-side exactly once; success returns to Login.
  */
 export default function ResetPasswordScreen() {
+  const colors = useColors();
   const router = useRouter();
   const params = useLocalSearchParams<{ token?: string }>();
   const [token, setToken] = useState(typeof params.token === "string" ? params.token : "");
@@ -118,7 +120,7 @@ export default function ResetPasswordScreen() {
       <Text variant="caption" align="center" style={styles.footer}>
         Need a new code?{" "}
         <Link href="/forgot-password" testID="reset-password-goto-forgot">
-          <Text variant="caption" color={colors.primary}>
+          <Text variant="caption" color={colors.primaryDeep}>
             Request another
           </Text>
         </Link>

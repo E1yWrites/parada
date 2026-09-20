@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./Button";
 import { Card } from "./Card";
+import { MascotCallout } from "./MascotCallout";
 import { PlateChip } from "./PlateChip";
 import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
@@ -10,7 +11,8 @@ import { api, ApiError, type PublicZone } from "@/lib/api/client";
 import { upsertReservation } from "@/lib/current";
 import type { ReservationResponse } from "@parada/types";
 import { queryKeys } from "@/lib/query";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 type ReservationPanelProps = {
   /** Zone the user picked on the grid (live data from the zones query). */
@@ -26,6 +28,7 @@ type ReservationPanelProps = {
  * two-tap acknowledgement against PATCH /reservations/:id/cancel.
  */
 export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
+  const colors = useColors();
   const queryClient = useQueryClient();
   const selection = useVehicleSelection();
 
@@ -92,6 +95,13 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
 
   return (
     <View style={styles.panel} testID="reservation-panel">
+      {create.isSuccess && create.data ? (
+        <MascotCallout
+          variant="park"
+          text={`Reserved ${create.data.zone.name} for you!`}
+          testID="reservation-confirmed-mascot"
+        />
+      ) : null}
       <SectionHeader
         title="Reserve a spot"
         caption="Hold a zone for your arrival with a reservation"
@@ -164,16 +174,5 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: spacing.xs,
-  },
-  noVehicle: {
-    gap: spacing.md,
-  },
-  vehicleBlock: {
-    gap: spacing.md,
-  },
-  vehicleRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.md,
   },
 });

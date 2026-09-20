@@ -4,7 +4,8 @@ import { Button } from "./Button";
 import { Text } from "./Text";
 import { getCurrentLocation, LocationError, requestLocationPermission } from "@/lib/location";
 import { NavigationUnavailableError, openNavigation, type NavigationDestination } from "@/lib/navigation";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 type NavigateButtonProps = {
   /** Destination from application data; null when the backend hasn't one. */
@@ -38,6 +39,7 @@ export function NavigateButton({
   unavailableMessage = "Navigation isn't available right now.",
   testID,
 }: NavigateButtonProps) {
+  const colors = useColors();
   const [state, setState] = useState<NavigateState>({ kind: "idle" });
   const busyRef = useRef(false);
 

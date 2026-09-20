@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "./Button";
@@ -8,7 +8,9 @@ import { ReservationBadge } from "./StatusBadge";
 import { Text } from "./Text";
 import { formatDateTime } from "@/lib/format";
 import type { ReservationResponse } from "@parada/types";
-import { colors, radii, spacing } from "@/src/theme";
+import { radii, spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 
 type ReservationCardProps = {
   reservation: ReservationResponse;
@@ -32,6 +34,8 @@ export function ReservationCard({
   cancelling = false,
   testID,
 }: ReservationCardProps) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const [confirming, setConfirming] = useState(false);
   const cancellable =
     onCancel != null &&
@@ -58,7 +62,7 @@ export function ReservationCard({
 
       <View style={styles.window}>
         <View style={styles.windowIcon}>
-          <Ionicons name="time-outline" size={16} color={colors.primary} />
+          <Ionicons name="time-outline" size={16} color={colors.primaryDeep} />
         </View>
         <View style={styles.windowText}>
           <Text variant="caption" color={colors.foreground}>
@@ -101,60 +105,63 @@ export function ReservationCard({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    gap: spacing.lg,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  heading: {
-    flex: 1,
-    minWidth: 0,
-    gap: spacing.md,
-  },
-  badgeSlot: {
-    flexShrink: 0,
-  },
-  window: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radii.sm,
-    padding: spacing.lg,
-  },
-  windowIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  windowText: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  cancel: {
-    marginTop: spacing.sm,
-    paddingTop: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    alignItems: "flex-start",
-  },
-  confirmRow: {
-    alignSelf: "stretch",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  confirmText: {
-    flexShrink: 1,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    card: {
+      gap: spacing.lg,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: spacing.md,
+    },
+    heading: {
+      flex: 1,
+      minWidth: 0,
+      gap: spacing.md,
+    },
+    badgeSlot: {
+      flexShrink: 0,
+    },
+    window: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.lg,
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: radii.sm,
+      padding: spacing.lg,
+    },
+    windowIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: radii.sm,
+      borderTopRightRadius: radii.cut,
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    windowText: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+    cancel: {
+      marginTop: spacing.sm,
+      paddingTop: spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      alignItems: "flex-start",
+    },
+    confirmRow: {
+      alignSelf: "stretch",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.md,
+    },
+    confirmText: {
+      flexShrink: 1,
+    },
+  });
+}

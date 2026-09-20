@@ -8,7 +8,47 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, SavedNote, SectionHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
+import { useTheme, type ThemeMode } from "@/components/providers/theme-provider";
+import { Monitor, MoonStar, SunMedium } from "lucide-react";
 import type { EstablishmentSettings } from "@/lib/api/types";
+
+const THEME_OPTIONS: { value: ThemeMode; label: string; icon: typeof Monitor }[] = [
+  { value: "system", label: "System", icon: Monitor },
+  { value: "light", label: "Light", icon: SunMedium },
+  { value: "dark", label: "Dark", icon: MoonStar },
+];
+
+/** Appearance control: System / Light / Dark, persisted to localStorage + a cookie. */
+function AppearanceCard() {
+  const { mode, setMode } = useTheme();
+  return (
+    <Card>
+      <SectionHeader title="Appearance" description="Choose how the console looks on this device" />
+      <div className="flex flex-wrap gap-2 p-5" role="radiogroup" aria-label="Appearance">
+        {THEME_OPTIONS.map((option) => {
+          const selected = option.value === mode;
+          const Icon = option.icon;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => setMode(option.value)}
+              className={`inline-flex min-h-[40px] items-center gap-2 rounded-control rounded-tr-control-cut border px-4 text-sm font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:shadow-focus ${
+                selected ? "border-brand bg-brand text-on-accent" : "border-line bg-card text-muted hover:bg-raised hover:text-charcoal"
+              }`}
+              data-testid={`appearance-${option.value}`}
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" />
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
 
 const EMPTY: EstablishmentSettings = {
   parkingFee: { baseFee: 20, baseDurationHours: 2, additionalFeePerHour: 10 },
@@ -109,6 +149,9 @@ export default function SettingsPage() {
         title="Establishment Settings"
         description="Fees, guest admission, reservation windows, navigation destination and violation rules. One save applies everything."
       />
+      <div className="mb-5">
+        <AppearanceCard />
+      </div>
       <QueryBoundary status={settings.status} error={settings.error} isEmpty={false} onRetry={() => settings.refetch()}>
         <form className="grid grid-cols-1 gap-5 xl:grid-cols-2" onSubmit={submit}>
           <Card>

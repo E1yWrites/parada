@@ -2738,6 +2738,94 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
   });
 });
 
+describe("Admin dashboard — occupancy trend (24h)", () => {
+  const tokens = new TokenService({
+    secret: "test-secret-key-for-testing-only-32chars",
+    issuer: "parada-api-test",
+    expiresIn: "1d",
+  });
+
+  beforeEach(async () => {
+    await cleanDatabase();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  it("forward-fills each zone's last known snapshot into 25 hourly points, summed across zones", async () => {
+    const app = createApp();
+    const admin = await prisma.user.create({
+      data: { name: "Trend Admin", email: "trend-admin@test.local", passwordHash: "x", role: "ADMIN" },
+    });
+    const token = tokens.sign({ id: admin.id, role: "ADMIN" }).token;
+
+    const zoneA = await prisma.parkingZone.create({
+      data: { name: "Trend A", code: "TRA", capacity: 10, occupiedCount: 4 },
+    });
+    const zoneB = await prisma.parkingZone.create({
+      data: { name: "Trend B", code: "TRB", capacity: 6, occupiedCount: 5 },
+    });
+
+    const now = Date.now();
+    const hour = 60 * 60 * 1000;
+    // Zone A never changes inside the 24h window — one snapshot well before it.
+    await prisma.occupancyHistory.create({
+      data: { zoneId: zoneA.id, occupiedCount: 4, availableCount: 6, occurredAt: new Date(now - 30 * hour) },
+    });
+    // Zone B steps twice inside the window: 0 -> 3 (~10.5h ago) -> 5 (~2.5h ago).
+    // Offsets are placed mid-bucket (not on an exact hour) so a few
+    // milliseconds of clock drift between this timestamp and the route
+    // handler's own `now` can never flip which bucket an event lands in.
+    await prisma.occupancyHistory.create({
+      data: { zoneId: zoneB.id, occupiedCount: 0, availableCount: 6, occurredAt: new Date(now - 30 * hour) },
+    });
+    await prisma.occupancyHistory.create({
+      data: { zoneId: zoneB.id, occupiedCount: 3, availableCount: 3, occurredAt: new Date(now - 10.5 * hour) },
+    });
+    await prisma.occupancyHistory.create({
+      data: { zoneId: zoneB.id, occupiedCount: 5, availableCount: 1, occurredAt: new Date(now - 2.5 * hour) },
+    });
+
+    const res = await request(app).get("/admin/dashboard").set("Authorization", `Bearer ${token}`).expect(200);
+    const trend: { at: string; totalOccupied: number; totalCapacity: number }[] = res.body.data.trend;
+
+    // 25 points: one per hour boundary from T-24h through T-0h inclusive.
+    expect(trend).toHaveLength(25);
+    expect(trend.every((p) => p.totalCapacity === 16)).toBe(true);
+
+    // Comfortably before either zone B step (window opens at T-24h; the
+    // first step is ~10.5h before now, i.e. ~13.5h into the window).
+    expect(trend[0]?.totalOccupied).toBe(4);
+    // Comfortably after both steps: the current instant.
+    expect(trend[24]?.totalOccupied).toBe(9);
+    // Exactly two step changes should appear across the whole series (0->3->5
+    // added to zone A's constant 4), never a value outside {4, 7, 9}.
+    const values = new Set(trend.map((p) => p.totalOccupied));
+    expect(values).toEqual(new Set([4, 7, 9]));
+    // Real backend truth, not fabricated: the trend's own totalOccupied at
+    // "now" agrees with the zones the dashboard's own summary reports live.
+    expect(trend[24]?.totalOccupied).toBe(res.body.data.summary.totalOccupied);
+  });
+
+  it("falls back to each zone's current occupiedCount when it has no history at all", async () => {
+    const app = createApp();
+    const admin = await prisma.user.create({
+      data: { name: "Trend Admin 2", email: "trend-admin-2@test.local", passwordHash: "x", role: "ADMIN" },
+    });
+    const token = tokens.sign({ id: admin.id, role: "ADMIN" }).token;
+    await prisma.parkingZone.create({ data: { name: "Fresh Zone", code: "FRZ", capacity: 8, occupiedCount: 3 } });
+
+    const res = await request(app).get("/admin/dashboard").set("Authorization", `Bearer ${token}`).expect(200);
+    const trend: { at: string; totalOccupied: number; totalCapacity: number }[] = res.body.data.trend;
+
+    expect(trend).toHaveLength(25);
+    // No occupancy_history rows exist for this zone yet — every point must
+    // fall back to its real current occupiedCount (3), never 0 or fabricated.
+    expect(trend.every((p) => p.totalOccupied === 3 && p.totalCapacity === 8)).toBe(true);
+  });
+});
+
 describe("Phase 11B — Rate limiting (AUDIT-003)", () => {
   const tokens = new TokenService({
     secret: "test-secret-key-for-testing-only-32chars",

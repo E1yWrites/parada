@@ -20,11 +20,13 @@ import {
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { formatVehicleType, normalizePlateInput } from "@/lib/format";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 const VEHICLE_TYPES: VehicleType[] = ["CAR", "MOTORCYCLE", "VAN", "TRUCK", "OTHER"];
 
 export default function VehiclesScreen() {
+  const colors = useColors();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const vehicles = useQuery({ queryKey: queryKeys.vehicles, queryFn: api.vehicles });
@@ -36,7 +38,7 @@ export default function VehiclesScreen() {
     <Screen
       scroll={false}
       title="Vehicles"
-      subtitle="Registered plates are your gate pass"
+      subtitle="Registered plates are what gate cameras recognize"
       right={
         open ? null : (
           <IconButton

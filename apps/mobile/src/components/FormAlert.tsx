@@ -1,7 +1,10 @@
+import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
-import { colors, radii, spacing } from "@/src/theme";
+import { radii, spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -20,6 +23,8 @@ type FormAlertProps = {
  * so an error is always announced as one.
  */
 export function FormAlert({ tone, message, icon, testID }: FormAlertProps) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const isError = tone === "error";
   const color = isError ? colors.danger : colors.success;
   return (
@@ -39,21 +44,24 @@ export function FormAlert({ tone, message, icon, testID }: FormAlertProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  banner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-  },
-  error: {
-    backgroundColor: colors.dangerSoft,
-  },
-  notice: {
-    backgroundColor: colors.successSoft,
-  },
-  text: {
-    flex: 1,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    banner: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      borderRadius: radii.md,
+      borderTopRightRadius: radii.cut,
+      padding: spacing.lg,
+    },
+    error: {
+      backgroundColor: colors.dangerSoft,
+    },
+    notice: {
+      backgroundColor: colors.successSoft,
+    },
+    text: {
+      flex: 1,
+    },
+  });
+}

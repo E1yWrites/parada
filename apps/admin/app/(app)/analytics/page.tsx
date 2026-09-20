@@ -33,7 +33,7 @@ export default function AnalyticsPage() {
                 <ul className="divide-y divide-line">
                   {analytics.data.zones.map((zone) => {
                     const pct = zone.capacity > 0 ? Math.round((zone.occupiedCount / zone.capacity) * 100) : 0;
-                    const fill = pct >= 100 ? "bg-danger" : pct >= 80 ? "bg-warning-bright" : "bg-success-bright";
+                    const fill = pct >= 100 ? "bg-danger" : pct >= 80 ? "bg-warning" : "bg-success";
                     return (
                       <li key={zone.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-4 px-5 py-3">
                         <PlateChip>{zone.code}</PlateChip>

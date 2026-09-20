@@ -6,8 +6,7 @@
  * fields must not trigger the iOS strong-password overlay.
  */
 import { Platform, ScrollView, StyleSheet, TextInput } from "react-native";
-import { render, screen } from "@testing-library/react-native";
-import { renderWithAppProviders, renderWithProviders } from "@/src/test/utils";
+import { render, renderWithAppProviders, renderWithProviders, screen } from "@/src/test/utils";
 import { GradientMesh } from "@/src/components/GradientMesh";
 import { Input } from "@/src/components/Input";
 import { Screen } from "@/src/components/Screen";

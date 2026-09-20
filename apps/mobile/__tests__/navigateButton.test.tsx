@@ -1,5 +1,6 @@
 import { Linking } from "react-native";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, waitFor } from "@testing-library/react-native";
+import { render, screen } from "@/src/test/utils";
 import * as LocationMock from "expo-location";
 import { NavigateButton } from "@/src/components/NavigateButton";
 

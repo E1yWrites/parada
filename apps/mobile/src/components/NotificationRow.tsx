@@ -1,10 +1,13 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { IconTile } from "./IconTile";
+import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
 import { notificationTypeMeta } from "./StatusBadge";
 import { formatRelativeTime } from "@/lib/format";
 import type { NotificationResponse } from "@parada/types";
-import { colors, radii, spacing } from "@/src/theme";
+import { radii, spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 
 type NotificationRowProps = {
   notification: NotificationResponse;
@@ -13,10 +16,12 @@ type NotificationRowProps = {
   testID?: string;
 };
 
-/** One row in the notification feed. Unread rows carry a white raised
- *  surface, bold title and an unread dot — never color alone. */
+/** One row in the notification feed. Unread rows carry a raised surface,
+ *  bold title and an unread dot — never color alone. */
 export function NotificationRow({ notification, onPress, now, testID }: NotificationRowProps) {
-  const meta = notificationTypeMeta(notification.type);
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
+  const meta = notificationTypeMeta(notification.type, colors);
   const unread = !notification.read;
 
   return (
@@ -26,7 +31,9 @@ export function NotificationRow({ notification, onPress, now, testID }: Notifica
       onPress={onPress}
       style={({ pressed }) => [styles.row, unread ? styles.unread : undefined, pressed ? styles.pressed : undefined]}
       testID={testID}>
-      <IconTile icon={meta.icon} color={meta.color} size={40} />
+      <View style={styles.iconSlot}>
+        <Ionicons name={meta.icon} size={22} color={meta.color} />
+      </View>
       <View style={styles.body}>
         <View style={styles.topRow}>
           <Text variant={unread ? "bodySemi" : "body"} style={styles.title} numberOfLines={1}>
@@ -75,46 +82,53 @@ function notificationTitle(type: NotificationResponse["type"]): string {
   }
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: spacing.lg,
-    padding: spacing.lg,
-    borderRadius: radii.lg,
-    minHeight: 64,
-  },
-  unread: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  body: {
-    flex: 1,
-    minWidth: 0,
-    gap: spacing.xs,
-  },
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  title: {
-    flexShrink: 1,
-  },
-  meta: {
-    flexShrink: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: spacing.lg,
+      padding: spacing.lg,
+      borderRadius: radii.lg,
+      minHeight: 64,
+    },
+    unread: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    pressed: {
+      opacity: 0.85,
+    },
+    iconSlot: {
+      width: 22,
+      alignItems: "center",
+      paddingTop: spacing.xs,
+    },
+    body: {
+      flex: 1,
+      minWidth: 0,
+      gap: spacing.xs,
+    },
+    topRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    title: {
+      flexShrink: 1,
+    },
+    meta: {
+      flexShrink: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    unreadDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+  });
+}

@@ -14,6 +14,70 @@ import { rateLimit } from "../http/rateLimit";
 import type { RealtimeHub } from "../realtime/hub";
 import { publishOccupancyOutcome, publishZoneSnapshot, withoutNotifications } from "../realtime/occupancyEvents";
 
+/**
+ * 24h occupancy trend, one point per hour boundary (25 points: T-24h..T-0h).
+ * `OccupancyHistory` rows are per-zone point-in-time snapshots, not evenly
+ * spaced, so each point forward-fills each zone's most recent snapshot at or
+ * before that instant (a step function — exactly what the snapshots mean: the
+ * occupancy count in force until the next change). A zone with no snapshot
+ * yet (or none before the window) falls back to its current `occupiedCount`,
+ * which is the real authoritative value at "now" and a defensible flat
+ * baseline for a zone that hasn't changed within the window. Capacity is
+ * held at each zone's current value across all points — zone capacity
+ * changes are rare admin edits, not something this table tracks over time.
+ */
+async function buildOccupancyTrend(
+  zones: { id: string; capacity: number; occupiedCount: number }[],
+  now: Date
+): Promise<{ at: string; totalOccupied: number; totalCapacity: number }[]> {
+  const HOURS = 24;
+  const windowStart = new Date(now.getTime() - HOURS * 60 * 60 * 1000);
+  const zoneIds = zones.map((z) => z.id);
+
+  const [baselines, windowRows] = await Promise.all([
+    Promise.all(
+      zoneIds.map((zoneId) =>
+        prisma.occupancyHistory.findFirst({
+          where: { zoneId, occurredAt: { lt: windowStart } },
+          orderBy: { occurredAt: "desc" },
+          select: { zoneId: true, occurredAt: true, occupiedCount: true },
+        })
+      )
+    ),
+    prisma.occupancyHistory.findMany({
+      where: { zoneId: { in: zoneIds }, occurredAt: { gte: windowStart, lte: now } },
+      orderBy: { occurredAt: "asc" },
+      select: { zoneId: true, occurredAt: true, occupiedCount: true },
+    }),
+  ]);
+
+  const eventsByZone = new Map<string, { occurredAt: Date; occupiedCount: number }[]>();
+  for (const zoneId of zoneIds) eventsByZone.set(zoneId, []);
+  for (const b of baselines) {
+    if (b) eventsByZone.get(b.zoneId)?.push({ occurredAt: b.occurredAt, occupiedCount: b.occupiedCount });
+  }
+  for (const row of windowRows) {
+    eventsByZone.get(row.zoneId)?.push({ occurredAt: row.occurredAt, occupiedCount: row.occupiedCount });
+  }
+
+  const totalCapacity = zones.reduce((s, z) => s + z.capacity, 0);
+
+  return Array.from({ length: HOURS + 1 }, (_, i) => {
+    const at = new Date(windowStart.getTime() + i * 60 * 60 * 1000);
+    let totalOccupied = 0;
+    for (const zone of zones) {
+      const events = eventsByZone.get(zone.id) ?? [];
+      let occupied: number | null = null;
+      for (const e of events) {
+        if (e.occurredAt.getTime() <= at.getTime()) occupied = e.occupiedCount;
+        else break;
+      }
+      totalOccupied += occupied ?? zone.occupiedCount;
+    }
+    return { at: at.toISOString(), totalOccupied, totalCapacity };
+  });
+}
+
 function zoneSummary(z: {
   id: string;
   name: string;
@@ -226,8 +290,9 @@ export function adminRouter(deps: {
       const totalCapacity = zones.reduce((s, z) => s + z.capacity, 0);
       const totalOccupied = zones.reduce((s, z) => s + z.occupiedCount, 0);
       const totalAvailable = Math.max(0, totalCapacity - totalOccupied);
+      const now = new Date();
 
-      const [activeSessions, cameraCounts, recentEvents, anomalies, notifications] =
+      const [activeSessions, cameraCounts, recentEvents, anomalies, notifications, trend] =
         await Promise.all([
           prisma.parkingSession.count({ where: { status: "ACTIVE" } }),
           prisma.camera.groupBy({ by: ["status"], _count: { _all: true } }),
@@ -281,6 +346,7 @@ export function adminRouter(deps: {
               zone: { select: { id: true, name: true, code: true } },
             },
           }),
+          buildOccupancyTrend(zones, now),
         ]);
 
       const onlineCameras = cameraCounts.find((c) => c.status === "ONLINE")?._count._all ?? 0;
@@ -319,6 +385,7 @@ export function adminRouter(deps: {
             source: a.event?.source ?? null,
           })),
           recentNotifications: notifications,
+          trend,
         })
       );
     })

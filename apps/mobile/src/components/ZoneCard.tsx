@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -7,7 +8,9 @@ import { AvailabilityBadge, parkingStatusMeta } from "./StatusBadge";
 import { Metric } from "./Metric";
 import { PlateChip } from "./PlateChip";
 import { Text } from "./Text";
-import { colors, motion, radii, spacing, touchTarget } from "@/src/theme";
+import { motion, radii, spacing, touchTarget } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 import type { PublicZone } from "@/lib/api/client";
 
 type ZoneCardProps = {
@@ -28,6 +31,8 @@ type ZoneCardProps = {
  * local UI state — it never assigns, reserves or modifies occupancy.
  */
 export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardProps) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const router = useRouter();
   const hasCapacity = Number.isFinite(zone.capacity) && zone.capacity > 0;
   const percent = hasCapacity
@@ -35,7 +40,7 @@ export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardPr
     : 0;
   const isFull = hasCapacity && zone.availableCount <= 0;
   const selectable = onPress != null && zone.status === "ACTIVE" && hasCapacity && !isFull;
-  const status = parkingStatusMeta(zone.availability);
+  const status = parkingStatusMeta(zone.availability, colors);
 
   const summary = `${hasCapacity
     ? `Zone ${zone.name}. ${zone.occupiedCount} of ${zone.capacity} spaces occupied. ${zone.availableCount} spaces available. ${percent} percent occupied.`
@@ -108,8 +113,8 @@ export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardPr
         ) : null}
         {selected ? (
           <View style={[styles.stateRow, styles.selectedRow]} testID={testID ? `${testID}-selected` : undefined}>
-            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-            <Text variant="caption" color={colors.primary} style={styles.selectedText}>
+            <Ionicons name="checkmark-circle" size={16} color={colors.primaryDeep} />
+            <Text variant="caption" color={colors.primaryDeep} style={styles.selectedText}>
               Selected for assignment or reservation
             </Text>
           </View>
@@ -119,58 +124,60 @@ export function ZoneCard({ zone, onPress, selected = false, testID }: ZoneCardPr
   );
 }
 
-const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-  },
-  pressed: {
-    opacity: 0.94,
-    transform: [{ scale: motion.pressScale }],
-  },
-  card: {
-    gap: spacing.lg,
-  },
-  cardSelected: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
-    borderWidth: 1.25,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.16,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  badgeSlot: {
-    flexShrink: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  detailsButton: {
-    minWidth: 32,
-    minHeight: touchTarget,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.full,
-  },
-  detailsPressed: {
-    backgroundColor: colors.surfaceElevated,
-  },
-  stateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  selectedRow: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  selectedText: {
-    flexShrink: 1,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    wrapper: {
+      flex: 1,
+    },
+    pressed: {
+      opacity: 0.94,
+      transform: [{ scale: motion.pressScale }],
+    },
+    card: {
+      gap: spacing.lg,
+    },
+    cardSelected: {
+      backgroundColor: colors.primarySoft,
+      borderColor: colors.primary,
+      borderWidth: 1.25,
+      shadowColor: colors.primary,
+      shadowOpacity: 0.2,
+    },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.md,
+    },
+    badgeSlot: {
+      flexShrink: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    detailsButton: {
+      minWidth: 32,
+      minHeight: touchTarget,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radii.full,
+    },
+    detailsPressed: {
+      backgroundColor: colors.surfaceElevated,
+    },
+    stateRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    selectedRow: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.sm,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    selectedText: {
+      flexShrink: 1,
+    },
+  });
+}

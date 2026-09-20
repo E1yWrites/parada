@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -23,11 +24,24 @@ import {
   Menu,
   X,
   ChevronDown,
-  CarFront as BrandGlyph,
   ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "./providers/auth-provider";
 import { FullPageSpinner } from "./ui/State";
+
+/** The canonical PARADA logo, unmodified, mounted on its own light plate —
+ *  the source asset is black ink on a transparent field and would disappear
+ *  directly on the dark nav/ground. The plate is a fixed neutral white by
+ *  design (intentionally theme-independent): the mark needs the same
+ *  legible ground in both registers, not a themed surface color. */
+function BrandLogo({ height = 15 }: { height?: number }) {
+  const width = Math.round(height * (1500 / 198));
+  return (
+    <div className="inline-flex shrink-0 items-center rounded-lg rounded-tr-[3px] border border-line bg-white px-2 py-1.5">
+      <Image src="/brand/parada-logo.webp" alt="PARADA" width={width} height={height} priority />
+    </div>
+  );
+}
 
 interface NavItem {
   href: string;
@@ -54,7 +68,7 @@ const GROUPS: NavGroup[] = [
       { href: "/zones", label: "Zones", icon: MapPinned },
       { href: "/cameras", label: "Cameras", icon: Camera },
       { href: "/reservations", label: "Reservations", icon: Clock3 },
-      { href: "/sessions", label: "Sessions", icon: CarFront },
+      { href: "/sessions", label: "Vehicles", icon: CarFront },
     ],
   },
   {
@@ -108,13 +122,8 @@ function isActive(href: string, exact: boolean | undefined, pathname: string): b
 function Brand() {
   return (
     <Link href="/" className="flex items-center gap-3 rounded-control focus-visible:outline-none focus-visible:shadow-focus">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand shadow-primary">
-        <BrandGlyph className="h-5 w-5 text-white" aria-hidden="true" />
-      </div>
-      <div className="leading-none">
-        <span className="font-display text-lg font-black tracking-[0.12em] text-charcoal">PARADA</span>
-        <span className="mt-1 block text-[11px] font-semibold text-muted">Operations console</span>
-      </div>
+      <BrandLogo height={14} />
+      <span className="mt-0.5 block text-[11px] font-semibold text-muted">Operations console</span>
     </Link>
   );
 }
@@ -133,7 +142,7 @@ function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: stri
           active ? "text-brand-dark" : "text-muted hover:bg-raised hover:text-charcoal"
         }`}
       >
-        <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-brand" : "text-muted"}`} aria-hidden="true" />
+        <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-brand-dark" : "text-muted"}`} aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate">{item.label}</span>
         {active ? <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" /> : null}
       </Link>
@@ -234,7 +243,7 @@ function SidebarFooter({ name, onLogout }: { name?: string; onLogout: () => void
     <div className="border-t border-line p-3">
       <div className="flex items-center gap-3 rounded-control px-3 py-2">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-soft" aria-hidden="true">
-          <UserCircle2 className="h-5 w-5 text-brand" />
+          <UserCircle2 className="h-5 w-5 text-brand-dark" />
         </div>
         <div className="min-w-0 leading-tight">
           <p className="truncate text-sm font-bold text-charcoal">{name ?? "Account"}</p>
@@ -261,10 +270,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand shadow-primary">
-          <BrandGlyph className="h-7 w-7 text-white" aria-hidden="true" />
-        </div>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center">
+        <BrandLogo height={20} />
         <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">Admin access required</h1>
         <p className="max-w-sm text-sm text-muted">
           PARADA Operations is restricted to administrators. Sign in with an admin account.
@@ -296,7 +303,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-white lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-card lg:flex">
         <div className="px-5 pb-3 pt-5">
           <Brand />
         </div>
@@ -312,7 +319,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
-          <aside className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-line bg-white shadow-card-hover">
+          <aside className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-line bg-card shadow-card-hover">
             <div className="flex items-center justify-between border-b border-line px-4 py-4">
               <Brand />
               <button
@@ -332,7 +339,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-line bg-white/85 px-4 backdrop-blur-md sm:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-line bg-card/85 px-4 backdrop-blur-md sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -344,7 +351,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
             <div className="flex min-w-0 items-center gap-2.5">
               <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-success-bright opacity-60 animate-pulse-dot" />
+                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-60 animate-pulse-dot" />
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
               </span>
               <p className="truncate text-sm font-semibold text-muted">Live facility state</p>
@@ -354,14 +361,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             <Link
               href="/notifications"
-              className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-raised hover:text-brand focus-visible:outline-none focus-visible:shadow-focus"
+              className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-raised hover:text-brand-dark focus-visible:outline-none focus-visible:shadow-focus"
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5" aria-hidden="true" />
             </Link>
-            <div className="flex items-center gap-2.5 rounded-control border border-line bg-white py-1.5 pl-1.5 pr-3">
+            <div className="flex items-center gap-2.5 rounded-control rounded-tr-control-cut border border-line bg-card py-1.5 pl-1.5 pr-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft" aria-hidden="true">
-                <UserCircle2 className="h-5 w-5 text-brand" />
+                <UserCircle2 className="h-5 w-5 text-brand-dark" />
               </div>
               <div className="hidden min-w-0 leading-tight sm:block">
                 <p className="max-w-[12rem] truncate text-sm font-bold text-charcoal">{user.name}</p>

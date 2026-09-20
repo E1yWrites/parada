@@ -1,11 +1,14 @@
+import { useMemo } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors, radii, spacing } from "@/src/theme";
+import { radii, spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 import { Text } from "./Text";
 
 type PlateChipProps = {
   /** Zone code or plate number — always data, always mono. */
   value: string;
-  /** `ink` is the default dark plate; `soft` a blue-tinted plate for secondary rows. */
+  /** `ink` is the default plate (reads like a physical plate in both themes); `soft` an orange-tinted plate for secondary rows. */
   tone?: "ink" | "soft";
   size?: "sm" | "md";
   style?: StyleProp<ViewStyle>;
@@ -18,6 +21,8 @@ type PlateChipProps = {
  * recognizable as the literal thing painted on the gate.
  */
 export function PlateChip({ value, tone = "ink", size = "md", style, testID }: PlateChipProps) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const compact = size === "sm";
   return (
     <View
@@ -39,29 +44,31 @@ export function PlateChip({ value, tone = "ink", size = "md", style, testID }: P
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    alignSelf: "flex-start",
-    paddingHorizontal: spacing.md + 2,
-    paddingVertical: spacing.sm + 1,
-    borderRadius: radii.sm - 4,
-  },
-  compact: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 2,
-  },
-  ink: {
-    backgroundColor: colors.foreground,
-  },
-  soft: {
-    backgroundColor: colors.primarySoft,
-  },
-  text: {
-    letterSpacing: 1,
-  },
-  textSm: {
-    letterSpacing: 0.8,
-    fontSize: 11,
-    lineHeight: 16,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    base: {
+      alignSelf: "flex-start",
+      paddingHorizontal: spacing.md + 2,
+      paddingVertical: spacing.sm + 1,
+      borderRadius: radii.sm - 4,
+    },
+    compact: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: 2,
+    },
+    ink: {
+      backgroundColor: colors.foreground,
+    },
+    soft: {
+      backgroundColor: colors.primarySoft,
+    },
+    text: {
+      letterSpacing: 1,
+    },
+    textSm: {
+      letterSpacing: 0.8,
+      fontSize: 11,
+      lineHeight: 16,
+    },
+  });
+}

@@ -1,5 +1,8 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { colors, radii, spacing, touchTarget } from "@/src/theme";
+import { radii, spacing, touchTarget } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 import { Text } from "./Text";
 
 type SegmentOption = {
@@ -22,6 +25,8 @@ type SegmentedControlProps = {
  * control rather than two independent buttons.
  */
 export function SegmentedControl({ options, value, onChange, testID }: SegmentedControlProps) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   return (
     <View style={styles.track} testID={testID}>
       {options.map((option) => {
@@ -49,30 +54,32 @@ export function SegmentedControl({ options, value, onChange, testID }: Segmented
   );
 }
 
-const styles = StyleSheet.create({
-  track: {
-    flexDirection: "row",
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radii.md,
-    padding: spacing.xs,
-    gap: spacing.xs,
-  },
-  segment: {
-    flex: 1,
-    minHeight: touchTarget - 4,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.md - 4,
-  },
-  segmentSelected: {
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  segmentPressed: {
-    backgroundColor: colors.surface,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    track: {
+      flexDirection: "row",
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: radii.md,
+      padding: spacing.xs,
+      gap: spacing.xs,
+    },
+    segment: {
+      flex: 1,
+      minHeight: touchTarget - 4,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radii.md - 4,
+    },
+    segmentSelected: {
+      backgroundColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.24,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    segmentPressed: {
+      backgroundColor: colors.surface,
+    },
+  });
+}

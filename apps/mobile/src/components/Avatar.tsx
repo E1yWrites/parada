@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
-import { colors, radii } from "@/src/theme";
+import { radii } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 import { Text } from "./Text";
 
 /** Initials from a display name ("Alex Driver" → "AD"). */
@@ -21,10 +23,12 @@ type AvatarProps = {
 };
 
 /**
- * Profile picture when one is stored, otherwise the blue initials tile. A
+ * Profile picture when one is stored, otherwise the orange initials tile. A
  * failed image load falls back to initials rather than a broken frame.
  */
 export function Avatar({ name, uri = null, authToken = null, size = 40, testID }: AvatarProps) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     setFailed(false);
@@ -54,16 +58,18 @@ export function Avatar({ name, uri = null, authToken = null, size = 40, testID }
   );
 }
 
-const styles = StyleSheet.create({
-  tile: {
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    borderRadius: radii.md,
-    overflow: "hidden",
-  },
-  text: {
-    letterSpacing: 0.5,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    tile: {
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+      borderRadius: radii.md,
+      overflow: "hidden",
+    },
+    text: {
+      letterSpacing: 0.5,
+    },
+  });
+}

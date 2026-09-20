@@ -1,12 +1,12 @@
-export { colors, softColor, withAlpha } from "./colors";
-export type { ColorToken } from "./colors";
+export { colors, palettes, softColor, withAlpha } from "./colors";
+export type { ColorToken, ColorScheme, ColorTokens } from "./colors";
 export { fonts, fontAssets, fontSizes, lineHeights, letterSpacing } from "./typography";
 export type { FontToken } from "./typography";
 export { spacing, touchTarget } from "./spacing";
 export { radii } from "./radii";
-export { shadows } from "./shadows";
-export type { ShadowPreset } from "./shadows";
-export { glass, blurMethod } from "./glass";
-export type { GlassPreset } from "./glass";
+export { shadows, getShadows } from "./shadows";
+export type { ShadowPreset, ShadowTokens } from "./shadows";
+export { glass, getGlass, blurMethod } from "./glass";
+export type { GlassPreset, GlassTokens } from "./glass";
 export { layout, tabClearance } from "./layout";
 export { motion } from "./motion";

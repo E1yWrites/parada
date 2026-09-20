@@ -19,9 +19,11 @@ import {
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { ZONE_NAVIGATION_UNCONFIGURED, resolveZoneDestination } from "@/lib/navigation";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 export default function ZoneDetailScreen() {
+  const colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   // Shares the ["zones"] cache with the Parking tab: already warm when opened
@@ -29,7 +31,7 @@ export default function ZoneDetailScreen() {
   // list payload — the single-zone /occupancy endpoint omits it.
   const zones = useQuery({ queryKey: queryKeys.zones, queryFn: api.zones, refetchInterval: 30_000 });
   const zoneData = zones.data?.find((z) => z.id === id) ?? null;
-  const status = zoneData ? parkingStatusMeta(zoneData.availability) : null;
+  const status = zoneData ? parkingStatusMeta(zoneData.availability, colors) : null;
   const isFull = zoneData ? zoneData.availableCount <= 0 : false;
 
   return (

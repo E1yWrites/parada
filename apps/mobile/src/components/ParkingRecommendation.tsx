@@ -16,7 +16,8 @@ import { activeAssignmentFrom, upsertAssignment } from "@/lib/assignment";
 import type { ZoneAssignmentResponse } from "@parada/types";
 import { ZONE_NAVIGATION_UNCONFIGURED, type NavigationDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 /**
  * Recommended-zone + accept-recommendation flow (Phase 9.2).
@@ -47,6 +48,7 @@ export function ParkingRecommendation({
   destinationFor = () => null,
   destinationReady = true,
 }: ParkingRecommendationProps = {}) {
+  const colors = useColors();
   const queryClient = useQueryClient();
   const selection = useVehicleSelection();
 
@@ -122,7 +124,7 @@ export function ParkingRecommendation({
 
       {confirmedAssignment ? (
         <GlassCard style={styles.card} testID="assignment-confirmed">
-          <Stamp label="ZONE ASSIGNED" icon="location" color={colors.primary} />
+          <Stamp label="ZONE ASSIGNED" icon="location" color={colors.primaryDeep} />
           <Text variant="hero" numberOfLines={2} testID="assignment-zone-name">
             {confirmedAssignment.zone.name}
           </Text>

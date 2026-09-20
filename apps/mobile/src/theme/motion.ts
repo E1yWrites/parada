@@ -13,6 +13,8 @@ export const motion = {
     base: 220,
     /** Live pulse cycle. */
     slow: 1200,
+    /** One leg of the ambient background drift (GradientMesh). Ongoing, not a one-shot moment. */
+    ambient: 18000,
   },
   easing: {
     out: Easing.out(Easing.cubic),
@@ -22,6 +24,11 @@ export const motion = {
   spring: {
     friction: 6,
     tension: 120,
+  },
+  /** Bouncier spring for the mascot's entrance — more overshoot than the stamp's landing. */
+  springPlayful: {
+    friction: 5,
+    tension: 160,
   },
   /** Scale applied to pressed cards/buttons. */
   pressScale: 0.98,

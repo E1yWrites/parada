@@ -1,4 +1,4 @@
-import { useState, type ComponentProps } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import Constants from "expo-constants";
@@ -8,9 +8,13 @@ import { Avatar, Button, Card, ErrorState, IconTile, LoadingState, Screen, Text 
 import { api, ApiError, avatarUrl } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { useSession } from "@/src/providers/SessionProvider";
-import { colors, radii, spacing, touchTarget } from "@/src/theme";
+import { radii, spacing, touchTarget } from "@/src/theme";
+import { useColors, useThemeMode, type ThemeMode } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 
 export default function AccountScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const router = useRouter();
   const { user, token, signOut } = useSession();
   const account = useQuery({ queryKey: queryKeys.account, queryFn: api.me });
@@ -57,7 +61,7 @@ export default function AccountScreen() {
                 hitSlop={10}
                 style={styles.degradedRetry}
                 testID="account-cache-retry">
-                <Text variant="bodySemi" color={colors.primary} align="center">
+                <Text variant="bodySemi" color={colors.primaryDeep} align="center">
                   Retry
                 </Text>
               </Pressable>
@@ -82,7 +86,25 @@ export default function AccountScreen() {
             <RolePill role={profile.role} />
           </Card>
 
+          <AppearanceCard />
+
           <Card style={styles.linksCard} padding={0}>
+            <AccountLink
+              icon="car-sport-outline"
+              label="My Vehicles"
+              caption="Registered plates for gate entry"
+              onPress={() => router.push("/vehicles")}
+              testID="account-vehicles"
+            />
+            <View style={styles.linkDivider} />
+            <AccountLink
+              icon="wallet-outline"
+              label="Payments & Fees"
+              caption="Violation fines and session fees"
+              onPress={() => router.push("/payments")}
+              testID="account-payments"
+            />
+            <View style={styles.linkDivider} />
             <AccountLink
               icon="person-circle-outline"
               label="Edit profile"
@@ -149,7 +171,47 @@ export default function AccountScreen() {
   );
 }
 
+const THEME_OPTIONS: { value: ThemeMode; label: string; icon: ComponentProps<typeof Ionicons>["name"] }[] = [
+  { value: "system", label: "System", icon: "phone-portrait-outline" },
+  { value: "light", label: "Light", icon: "sunny-outline" },
+  { value: "dark", label: "Dark", icon: "moon-outline" },
+];
+
+/** Appearance control: System / Light / Dark, persisted to SecureStore. */
+function AppearanceCard() {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
+  const { mode, setMode } = useThemeMode();
+  return (
+    <Card style={styles.appearanceCard} testID="account-appearance">
+      <Text variant="micro">APPEARANCE</Text>
+      <View style={styles.appearanceRow} testID="account-appearance-options">
+        {THEME_OPTIONS.map((option) => {
+          const selected = option.value === mode;
+          return (
+            <Pressable
+              key={option.value}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${option.label} appearance`}
+              onPress={() => setMode(option.value)}
+              style={[styles.appearanceOption, selected ? styles.appearanceOptionSelected : undefined]}
+              testID={`account-appearance-${option.value}`}>
+              <Ionicons name={option.icon} size={18} color={selected ? colors.onAccent : colors.muted} />
+              <Text variant="caption" color={selected ? colors.onAccent : colors.muted}>
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </Card>
+  );
+}
+
 function RolePill({ role }: { role: string }) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const label = role === "ADMIN" ? "ADMIN" : "DRIVER";
   return (
     <View style={styles.pill} testID="account-role">
@@ -175,6 +237,8 @@ function AccountLink({
   onPress: () => void;
   testID?: string;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   return (
     <Pressable
       accessibilityRole="button"
@@ -202,6 +266,8 @@ function AccountLink({
 }
 
 function InfoRow({ label, value, testID }: { label: string; value: string; testID?: string }) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   return (
     <View style={styles.infoRow}>
       <Text variant="caption" style={styles.infoLabel}>
@@ -214,108 +280,131 @@ function InfoRow({ label, value, testID }: { label: string; value: string; testI
   );
 }
 
-const styles = StyleSheet.create({
-  profileCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
-    flexWrap: "nowrap",
-  },
-  degraded: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.warningSoft,
-    borderRadius: radii.md,
-    paddingLeft: spacing.lg,
-    paddingRight: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  degradedText: {
-    flex: 1,
-  },
-  degradedRetry: {
-    minHeight: touchTarget,
-    minWidth: 72,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.md,
-  },
-  profileText: {
-    flex: 1,
-    minWidth: 0,
-    gap: spacing.xs,
-  },
-  pill: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radii.full,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    flexShrink: 0,
-  },
-  linksCard: {
-    overflow: "hidden",
-  },
-  linkDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginLeft: spacing.xl,
-  },
-  linkRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
-    minHeight: touchTarget + 16,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-  },
-  linkPressed: {
-    backgroundColor: colors.surfaceElevated,
-  },
-  linkText: {
-    flex: 1,
-    minWidth: 0,
-    gap: spacing.xs,
-  },
-  linkBadge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: radii.full,
-    backgroundColor: colors.danger,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.sm + 2,
-  },
-  linkBadgeText: {
-    letterSpacing: 0,
-  },
-  infoCard: {
-    overflow: "hidden",
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: spacing.xl,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    minHeight: touchTarget,
-  },
-  infoLabel: {
-    flexShrink: 1,
-  },
-  infoValue: {
-    textAlign: "right",
-    flexShrink: 1,
-    color: colors.foreground,
-  },
-  about: {
-    paddingHorizontal: spacing.sm,
-  },
-  signOut: {
-    marginTop: spacing.xl,
-    paddingTop: spacing.xl2,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    profileCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.lg,
+      flexWrap: "nowrap",
+    },
+    degraded: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      backgroundColor: colors.warningSoft,
+      borderRadius: radii.md,
+      paddingLeft: spacing.lg,
+      paddingRight: spacing.sm,
+      paddingVertical: spacing.sm,
+    },
+    degradedText: {
+      flex: 1,
+    },
+    degradedRetry: {
+      minHeight: touchTarget,
+      minWidth: 72,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: spacing.md,
+    },
+    profileText: {
+      flex: 1,
+      minWidth: 0,
+      gap: spacing.xs,
+    },
+    pill: {
+      backgroundColor: colors.primarySoft,
+      borderRadius: radii.full,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      flexShrink: 0,
+    },
+    appearanceCard: {
+      gap: spacing.md,
+    },
+    appearanceRow: {
+      flexDirection: "row",
+      gap: spacing.md,
+    },
+    appearanceOption: {
+      flex: 1,
+      minHeight: touchTarget,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.xs,
+      borderRadius: radii.md,
+      borderTopRightRadius: radii.cut,
+      backgroundColor: colors.surfaceElevated,
+      paddingVertical: spacing.md,
+    },
+    appearanceOptionSelected: {
+      backgroundColor: colors.primary,
+    },
+    linksCard: {
+      overflow: "hidden",
+    },
+    linkDivider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginLeft: spacing.xl,
+    },
+    linkRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.lg,
+      minHeight: touchTarget + 16,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+    },
+    linkPressed: {
+      backgroundColor: colors.surfaceElevated,
+    },
+    linkText: {
+      flex: 1,
+      minWidth: 0,
+      gap: spacing.xs,
+    },
+    linkBadge: {
+      minWidth: 22,
+      height: 22,
+      borderRadius: radii.full,
+      backgroundColor: colors.danger,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: spacing.sm + 2,
+    },
+    linkBadgeText: {
+      letterSpacing: 0,
+    },
+    infoCard: {
+      overflow: "hidden",
+    },
+    infoRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: spacing.xl,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+      minHeight: touchTarget,
+    },
+    infoLabel: {
+      flexShrink: 1,
+    },
+    infoValue: {
+      textAlign: "right",
+      flexShrink: 1,
+      color: colors.foreground,
+    },
+    about: {
+      paddingHorizontal: spacing.sm,
+    },
+    signOut: {
+      marginTop: spacing.xl,
+      paddingTop: spacing.xl2,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+  });
+}

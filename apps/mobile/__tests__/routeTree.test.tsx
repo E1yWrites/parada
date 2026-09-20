@@ -14,6 +14,7 @@ import Index from "@/app/index";
 import { api } from "@/lib/api/client";
 import { markOnboardingCompleted, resetOnboarding } from "@/lib/onboarding";
 import { SessionProvider } from "@/src/providers/SessionProvider";
+import { ThemeProvider } from "@/src/providers/ThemeProvider";
 
 jest.unmock("expo-router");
 jest.mock("@/lib/api/client", () => {
@@ -42,11 +43,13 @@ function NotFound() {
 // session to decide the startup redirect, so the test layout must too.
 function RootLayout() {
   return (
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <SessionProvider>
-        <Stack screenOptions={{ headerShown: false }} />
-      </SessionProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SessionProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </SessionProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 function TabsLayout() {
@@ -60,10 +63,12 @@ const routes = {
   "(tabs)/_layout": TabsLayout,
   "(tabs)/account": page("account"),
   "(tabs)/parking": page("parking"),
+  "(tabs)/park": page("park"),
   "(tabs)/sessions": page("sessions"),
   "(tabs)/vehicles": page("vehicles"),
   login: page("login"),
   notifications: page("notifications"),
+  payments: page("payments"),
   onboarding: page("onboarding"),
   register: page("register"),
   "verify-email": page("verify-email"),

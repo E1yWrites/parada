@@ -1,5 +1,6 @@
 import { renderWithAppProviders, renderWithProviders, screen } from "@/src/test/utils";
 import ParkingScreen from "@/app/(tabs)/parking";
+import ParkScreen from "@/app/(tabs)/park";
 import VehiclesScreen from "@/app/(tabs)/vehicles";
 import SessionsScreen from "@/app/(tabs)/sessions";
 import AccountScreen from "@/app/(tabs)/account";
@@ -107,9 +108,14 @@ beforeEach(() => {
 });
 
 describe("tab route smoke tests", () => {
-  it("renders the Parking route", async () => {
+  it("renders the Home route", async () => {
     renderWithProviders(<ParkingScreen />);
-    expect(await screen.findByTestId("parking-screen-title")).toHaveTextContent("Parking");
+    expect(await screen.findByTestId("parking-screen-title")).toHaveTextContent("Home");
+  });
+
+  it("renders the Park route", async () => {
+    renderWithProviders(<ParkScreen />);
+    expect(await screen.findByTestId("park-screen-title")).toHaveTextContent("Park");
   });
 
   it("renders the Vehicles route", async () => {

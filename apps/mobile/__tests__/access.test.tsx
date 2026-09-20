@@ -3,6 +3,7 @@ import { renderWithAppProviders, screen, waitFor } from "@/src/test/utils";
 import TabsLayout from "@/app/(tabs)/_layout";
 import { api } from "@/lib/api/client";
 import { sessionStatusMeta } from "@/src/components/StatusBadge";
+import { colors } from "@/src/theme";
 
 jest.mock("@/lib/api/client", () => {
   const actual = jest.requireActual("@/lib/api/client");
@@ -50,10 +51,20 @@ describe("access control", () => {
     renderWithAppProviders(<TabsLayout />);
 
     await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
-    expect(screen.getByText("Parking")).toBeOnTheScreen();
-    expect(screen.getByText("Vehicles")).toBeOnTheScreen();
+    expect(screen.getByText("Home")).toBeOnTheScreen();
+    expect(screen.getByText("Park")).toBeOnTheScreen();
     expect(screen.getByText("Sessions")).toBeOnTheScreen();
     expect(screen.getByText("Account")).toBeOnTheScreen();
+  });
+
+  it("does not show Vehicles as a bottom tab (moved to Account)", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-ok");
+    (api.me as jest.Mock).mockResolvedValue(user);
+
+    renderWithAppProviders(<TabsLayout />);
+
+    await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
+    expect(screen.queryByText("Vehicles")).not.toBeOnTheScreen();
   });
 
   it("gives every tab destination an explicit accessibility label", async () => {
@@ -63,7 +74,7 @@ describe("access control", () => {
     renderWithAppProviders(<TabsLayout />);
 
     await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
-    for (const label of ["Parking", "Vehicles", "Sessions", "Account"]) {
+    for (const label of ["Home", "Park", "Sessions", "Account"]) {
       expect(screen.getByText(label).props.accessibilityLabel).toBe(label);
     }
   });
@@ -89,7 +100,7 @@ describe("mobile API surface", () => {
 
 // Guard against accidental icon-less status rendering (a11y requirement).
 test("session status meta always pairs an icon with text", () => {
-  const meta = sessionStatusMeta("ACTIVE");
+  const meta = sessionStatusMeta("ACTIVE", colors);
   expect(meta.label.length).toBeGreaterThan(0);
   expect(meta.icon.length).toBeGreaterThan(0);
 });

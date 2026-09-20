@@ -3,7 +3,9 @@ import { Animated, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
 import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
-import { colors, motion, radii, softColor, spacing } from "@/src/theme";
+import { motion, radii, spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import { softColor } from "@/src/theme/colors";
 import { Text } from "./Text";
 
 type StampProps = {
@@ -18,7 +20,9 @@ type StampProps = {
  * The pass card's stamp: a tinted icon+caps pill that lands with a short
  * spring (0.92 → 1) when the state resolves. Static under Reduce Motion.
  */
-export function Stamp({ label, icon, color = colors.primary, testID }: StampProps) {
+export function Stamp({ label, icon, color, testID }: StampProps) {
+  const colors = useColors();
+  const resolvedColor = color ?? colors.primary;
   const reducedMotion = usePrefersReducedMotion();
   const scale = useRef(new Animated.Value(reducedMotion ? 1 : 0.92)).current;
 
@@ -39,9 +43,9 @@ export function Stamp({ label, icon, color = colors.primary, testID }: StampProp
     <Animated.View
       testID={testID}
       accessibilityLabel={label}
-      style={[styles.stamp, { backgroundColor: softColor(color), transform: [{ scale }] }]}>
-      <Ionicons name={icon} size={13} color={color} />
-      <Text variant="micro" color={color}>
+      style={[styles.stamp, { backgroundColor: softColor(resolvedColor, colors), transform: [{ scale }] }]}>
+      <Ionicons name={icon} size={13} color={resolvedColor} />
+      <Text variant="micro" color={resolvedColor}>
         {label}
       </Text>
     </Animated.View>

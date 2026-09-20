@@ -88,7 +88,7 @@ export default function SessionsPage() {
   return (
     <div>
       <PageHeader
-        title="Parking Sessions"
+        title="Vehicles"
         description="Every camera-recorded entry and exit, for registered vehicles and guests."
       />
 

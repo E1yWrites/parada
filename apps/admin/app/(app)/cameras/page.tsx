@@ -292,7 +292,7 @@ export default function CamerasPage() {
       cell: (c) => (
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-brand-soft">
-            <Camera className="h-4 w-4 text-brand" aria-hidden="true" />
+            <Camera className="h-4 w-4 text-brand-dark" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <p className="font-mono text-sm font-bold text-charcoal">{c.identifier}</p>

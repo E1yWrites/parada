@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
+import { useMemo } from "react";
 import { Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, spacing, tabClearance } from "@/src/theme";
+import { spacing, tabClearance } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 import { Text } from "./Text";
 import { GradientMesh } from "./GradientMesh";
 import { IconButton } from "./IconButton";
@@ -45,6 +48,8 @@ export function Screen({
   keyboard = false,
   testID,
 }: ScreenProps) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const header =
@@ -134,38 +139,40 @@ export function Screen({
   return scrollView;
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  safe: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  padding: {
-    paddingHorizontal: spacing.xl2,
-    paddingTop: spacing.xl,
-    gap: spacing.xl2,
-  },
-  header: {
-    gap: spacing.md,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
-    minHeight: 44,
-  },
-  headerText: {
-    flex: 1,
-    minWidth: 0,
-    gap: spacing.xs,
-  },
-  headerRight: {
-    flexShrink: 0,
-  },
-  content: {
-    gap: spacing.xl,
-  },
-  contentFill: {
-    flex: 1,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    flex: { flex: 1 },
+    safe: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    padding: {
+      paddingHorizontal: spacing.xl2,
+      paddingTop: spacing.xl,
+      gap: spacing.xl2,
+    },
+    header: {
+      gap: spacing.md,
+    },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.lg,
+      minHeight: 44,
+    },
+    headerText: {
+      flex: 1,
+      minWidth: 0,
+      gap: spacing.xs,
+    },
+    headerRight: {
+      flexShrink: 0,
+    },
+    content: {
+      gap: spacing.xl,
+    },
+    contentFill: {
+      flex: 1,
+    },
+  });
+}

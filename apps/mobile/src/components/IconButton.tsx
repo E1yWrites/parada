@@ -1,7 +1,10 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import { colors, motion, radii, touchTarget } from "@/src/theme";
+import { motion, radii, touchTarget } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 import { Text } from "./Text";
 
 type IconButtonProps = {
@@ -11,7 +14,7 @@ type IconButtonProps = {
   onPress: () => void;
   /** Small count bubble (e.g. unread notifications). Values above 9 render as "9+". */
   badge?: number;
-  /** `filled` is the blue primary tile; `surface` a white circle; `plain` no chrome. */
+  /** `filled` is the badge-gold primary tile; `surface` a dark circle; `plain` no chrome. */
   tone?: "surface" | "filled" | "plain";
   size?: number;
   testID?: string;
@@ -27,6 +30,8 @@ export function IconButton({
   size = 20,
   testID,
 }: IconButtonProps) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const color = tone === "filled" ? colors.onAccent : colors.foreground;
   return (
     <Pressable
@@ -53,42 +58,44 @@ export function IconButton({
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    width: touchTarget,
-    height: touchTarget,
-    borderRadius: radii.full,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  surface: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filled: {
-    backgroundColor: colors.primary,
-  },
-  pressed: {
-    transform: [{ scale: motion.pressScale }],
-    opacity: 0.9,
-  },
-  badge: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    minWidth: 18,
-    height: 18,
-    borderRadius: radii.full,
-    backgroundColor: colors.danger,
-    borderWidth: 2,
-    borderColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 3,
-  },
-  badgeText: {
-    letterSpacing: 0,
-    lineHeight: 13,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    base: {
+      width: touchTarget,
+      height: touchTarget,
+      borderRadius: radii.full,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    surface: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    filled: {
+      backgroundColor: colors.primary,
+    },
+    pressed: {
+      transform: [{ scale: motion.pressScale }],
+      opacity: 0.9,
+    },
+    badge: {
+      position: "absolute",
+      top: -2,
+      right: -2,
+      minWidth: 18,
+      height: 18,
+      borderRadius: radii.full,
+      backgroundColor: colors.danger,
+      borderWidth: 2,
+      borderColor: colors.background,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 3,
+    },
+    badgeText: {
+      letterSpacing: 0,
+      lineHeight: 13,
+    },
+  });
+}

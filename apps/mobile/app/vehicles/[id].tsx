@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -7,7 +7,9 @@ import { Button, Card, ChoiceChip, EmptyState, ErrorState, Input, LoadingState, 
 import { api, ApiError } from "@/lib/api/client";
 import { formatVehicleType, normalizePlateInput } from "@/lib/format";
 import { queryKeys } from "@/lib/query";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 
 const VEHICLE_TYPES: VehicleType[] = ["CAR", "MOTORCYCLE", "VAN", "TRUCK", "OTHER"];
 
@@ -81,6 +83,8 @@ function VehicleForm({
   onSaved: (next: Vehicle) => void;
   onUnregistered: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const [plate, setPlate] = useState(vehicle.plateNumber);
   const [type, setType] = useState<VehicleType>(vehicle.vehicleType);
   const [make, setMake] = useState(vehicle.make ?? "");
@@ -221,15 +225,17 @@ function VehicleForm({
   );
 }
 
-const styles = StyleSheet.create({
-  form: { gap: spacing.xl },
-  typeBlock: { gap: spacing.md },
-  typeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
-  danger: {
-    gap: spacing.md,
-    marginTop: spacing.xl,
-    paddingTop: spacing.xl2,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    form: { gap: spacing.xl },
+    typeBlock: { gap: spacing.md },
+    typeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
+    danger: {
+      gap: spacing.md,
+      marginTop: spacing.xl,
+      paddingTop: spacing.xl2,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+  });
+}

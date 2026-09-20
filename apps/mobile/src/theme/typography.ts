@@ -1,11 +1,14 @@
 import {
-  Nunito_400Regular,
-  Nunito_500Medium,
-  Nunito_600SemiBold,
-  Nunito_700Bold,
-  Nunito_800ExtraBold,
-  Nunito_900Black,
-} from "@expo-google-fonts/nunito";
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from "@expo-google-fonts/space-grotesk";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
 import {
   JetBrainsMono_400Regular,
   JetBrainsMono_500Medium,
@@ -13,22 +16,26 @@ import {
 } from "@expo-google-fonts/jetbrains-mono";
 
 /**
- * PARADA type ramp — Nunito (display + UI, friendly rounded grotesque)
- * and JetBrains Mono strictly for data: plates, zone codes, timestamps.
+ * PARADA type ramp — Space Grotesk (display/headings, geometric, echoes the
+ * logo's angular character) + Inter (body/UI) + JetBrains Mono strictly for
+ * data: plates, zone codes, timestamps.
  *
  * The google-fonts constants are the actual `.ttf` assets (needed by
  * `useFonts`); `fontFamily` uses the registered human-readable names, which
- * are exactly the constant identifiers (e.g. "Nunito_900Black").
+ * are exactly the constant identifiers (e.g. "SpaceGrotesk_700Bold"). Space
+ * Grotesk tops out at 700 (no black/900 cut); at display size it still reads
+ * heavy, so the ramp leans on scale rather than a heavier weight that
+ * doesn't exist for this family.
  */
 export const fonts = {
-  heading: "Nunito_900Black",
-  headingMedium: "Nunito_800ExtraBold",
-  heading500: "Nunito_700Bold",
-  headingRegular: "Nunito_600SemiBold",
-  body: "Nunito_400Regular",
-  bodyMedium: "Nunito_500Medium",
-  bodySemi: "Nunito_600SemiBold",
-  bodyBold: "Nunito_700Bold",
+  heading: "SpaceGrotesk_700Bold",
+  headingMedium: "SpaceGrotesk_600SemiBold",
+  heading500: "SpaceGrotesk_600SemiBold",
+  headingRegular: "SpaceGrotesk_500Medium",
+  body: "Inter_400Regular",
+  bodyMedium: "Inter_500Medium",
+  bodySemi: "Inter_600SemiBold",
+  bodyBold: "Inter_700Bold",
   mono: "JetBrainsMono_500Medium",
   monoRegular: "JetBrainsMono_400Regular",
   monoBold: "JetBrainsMono_700Bold",
@@ -36,12 +43,13 @@ export const fonts = {
 
 /** Map of family name → `.ttf` asset, passed to `useFonts`. */
 export const fontAssets = {
-  Nunito_400Regular,
-  Nunito_500Medium,
-  Nunito_600SemiBold,
-  Nunito_700Bold,
-  Nunito_800ExtraBold,
-  Nunito_900Black,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
   JetBrainsMono_400Regular,
   JetBrainsMono_500Medium,
   JetBrainsMono_700Bold,

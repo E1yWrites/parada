@@ -10,7 +10,8 @@ import { api, ApiError } from "@/lib/api/client";
 import type { Vehicle } from "@parada/types";
 import { isActiveVehicle } from "@/lib/assignment";
 import { queryKeys } from "@/lib/query";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 type VehicleSelectionContextValue = {
   selectedVehicleId: string | null;
@@ -114,6 +115,7 @@ export function VehiclePicker({
   emptyPrompt,
   chipTestID,
 }: VehiclePickerProps) {
+  const colors = useColors();
   const router = useRouter();
   const { activeVehicles, soleVehicle, selectedVehicle, needsVehicleChoice } = selection;
 

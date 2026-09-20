@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -8,7 +8,9 @@ import {
   type ReturnKeyTypeOptions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, fonts, fontSizes, radii, spacing, touchTarget } from "@/src/theme";
+import { fonts, fontSizes, radii, spacing, touchTarget } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 import { Text } from "./Text";
 
 type InputProps = {
@@ -59,11 +61,13 @@ export function Input({
   maxLength,
   testID,
 }: InputProps) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const [secure, setSecure] = useState(secureTextEntry);
   const [focused, setFocused] = useState(false);
   return (
     <View style={styles.container} testID={testID ? `${testID}-wrap` : undefined}>
-      <Text variant="micro" color={error ? colors.danger : focused ? colors.primary : colors.muted}>
+      <Text variant="micro" color={error ? colors.danger : focused ? colors.primaryDeep : colors.muted}>
         {label.toUpperCase()}
       </Text>
       <View
@@ -78,7 +82,7 @@ export function Input({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={colors.muted}
+          placeholderTextColor={colors.faint}
           secureTextEntry={secure}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -108,6 +112,7 @@ export function Input({
             styles.input,
             multiline ? styles.multilineInput : undefined,
             variant === "mono" ? styles.monoInput : undefined,
+            !editable ? styles.inputDisabled : undefined,
           ]}
         />
         {secureTextEntry ? (
@@ -116,6 +121,7 @@ export function Input({
               secure={secure}
               onToggle={() => setSecure((s) => !s)}
               testID={testID ? `${testID}-toggle` : undefined}
+              muted={colors.muted}
             />
           </View>
         ) : null}
@@ -141,7 +147,17 @@ export function Input({
   );
 }
 
-function TestableEyeButton({ secure, onToggle, testID }: { secure: boolean; onToggle: () => void; testID?: string }) {
+function TestableEyeButton({
+  secure,
+  onToggle,
+  testID,
+  muted,
+}: {
+  secure: boolean;
+  onToggle: () => void;
+  testID?: string;
+  muted: string;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -150,70 +166,12 @@ function TestableEyeButton({ secure, onToggle, testID }: { secure: boolean; onTo
       hitSlop={8}
       testID={testID}
       style={styles.eyeButton}>
-      <Ionicons name={secure ? "eye-outline" : "eye-off-outline"} size={20} color={colors.muted} />
+      <Ionicons name={secure ? "eye-outline" : "eye-off-outline"} size={20} color={muted} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: spacing.md,
-  },
-  control: {
-    flexDirection: "row",
-    alignItems: "center",
-    minHeight: touchTarget + 8,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.xl,
-  },
-  controlMultiline: {
-    alignItems: "flex-start",
-    minHeight: 112,
-    paddingVertical: spacing.md,
-  },
-  controlDisabled: {
-    backgroundColor: colors.surfaceElevated,
-  },
-  controlError: {
-    borderColor: colors.danger,
-  },
-  // Focus is a border-color change only: a shadow/elevation toggle here
-  // re-rasterised the control (and its neighbours on Android) on every
-  // focus/blur, which read as a flicker while moving between fields.
-  controlFocused: {
-    borderColor: colors.primary,
-  },
-  input: {
-    flex: 1,
-    minHeight: touchTarget,
-    color: colors.foreground,
-    fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.body + 1,
-    paddingVertical: spacing.lg,
-  },
-  monoInput: {
-    fontFamily: fonts.monoBold,
-    fontSize: fontSizes.monoValue,
-    letterSpacing: 1.5,
-  },
-  multilineInput: {
-    minHeight: 96,
-    paddingVertical: 0,
-  },
-  messageRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: spacing.sm,
-  },
-  message: {
-    flex: 1,
-  },
-  eyeSlot: {
-    marginLeft: spacing.md,
-  },
   eyeButton: {
     minWidth: 32,
     minHeight: 44,
@@ -221,3 +179,70 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
+
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    container: {
+      gap: spacing.md,
+    },
+    control: {
+      flexDirection: "row",
+      alignItems: "center",
+      minHeight: touchTarget + 8,
+      backgroundColor: colors.surface,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderTopRightRadius: radii.cut,
+      paddingHorizontal: spacing.xl,
+    },
+    controlMultiline: {
+      alignItems: "flex-start",
+      minHeight: 112,
+      paddingVertical: spacing.md,
+    },
+    controlDisabled: {
+      backgroundColor: colors.disabledSurface,
+    },
+    controlError: {
+      borderColor: colors.danger,
+    },
+    // Focus is a border-color change only: a shadow/elevation toggle here
+    // re-rasterised the control (and its neighbours on Android) on every
+    // focus/blur, which read as a flicker while moving between fields.
+    controlFocused: {
+      borderColor: colors.primaryDeep,
+    },
+    input: {
+      flex: 1,
+      minHeight: touchTarget,
+      color: colors.foreground,
+      fontFamily: fonts.bodyMedium,
+      fontSize: fontSizes.body + 1,
+      paddingVertical: spacing.lg,
+    },
+    inputDisabled: {
+      color: colors.disabledForeground,
+    },
+    monoInput: {
+      fontFamily: fonts.monoBold,
+      fontSize: fontSizes.monoValue,
+      letterSpacing: 1.5,
+    },
+    multilineInput: {
+      minHeight: 96,
+      paddingVertical: 0,
+    },
+    messageRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: spacing.sm,
+    },
+    message: {
+      flex: 1,
+    },
+    eyeSlot: {
+      marginLeft: spacing.md,
+    },
+  });
+}

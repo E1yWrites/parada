@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Play, Activity, CheckCircle2, AlertCircle, Loader2, Ban, History } from "lucide-react";
+import { Play, Zap, CheckCircle2, AlertCircle, Loader2, Ban, History, type LucideIcon } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionHeader } from "@/components/ui/Card";
@@ -201,11 +201,12 @@ export default function SimulatorPage() {
               <SectionHeader title="Simulator status" />
               {status.data ? (
                 <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-3">
-                  <StatusMetric label="Runs" value={String(status.data.runs)} />
-                  <StatusMetric label="Events processed" value={String(status.data.eventsProcessed)} />
+                  <StatusMetric label="Runs" value={String(status.data.runs)} icon={Play} />
+                  <StatusMetric label="Events processed" value={String(status.data.eventsProcessed)} icon={Zap} />
                   <StatusMetric
                     label="Last run"
                     value={status.data.lastRunAt ? new Date(status.data.lastRunAt).toLocaleString() : "Never"}
+                    icon={History}
                   />
                 </div>
               ) : (
@@ -231,8 +232,8 @@ export default function SimulatorPage() {
                   {result.zone ? (
                     <div className="surface-panel flex items-center justify-between gap-3 px-4 py-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-white" aria-hidden="true">
-                          <History className="h-4 w-4 text-brand" />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-card" aria-hidden="true">
+                          <History className="h-4 w-4 text-brand-dark" />
                         </div>
                         <div className="min-w-0">
                           <PlateChip>{result.zone.code}</PlateChip>
@@ -308,11 +309,11 @@ export default function SimulatorPage() {
   );
 }
 
-function StatusMetric({ label, value }: { label: string; value: string }) {
+function StatusMetric({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) {
   return (
     <div className="surface-panel flex items-center gap-3 p-4">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-white" aria-hidden="true">
-        <Activity className="h-4 w-4 text-brand" />
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-card" aria-hidden="true">
+        <Icon className="h-4 w-4 text-brand-dark" />
       </span>
       <div className="min-w-0">
         <p className="text-xs font-bold text-muted">{label}</p>

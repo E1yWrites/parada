@@ -1,13 +1,14 @@
 import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import type { Vehicle } from "@parada/types";
 import { Card } from "./Card";
-import { IconTile } from "./IconTile";
 import { Text } from "./Text";
 import { StatusBadge } from "./StatusBadge";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 import { formatVehicleType } from "@/lib/format";
 import type { ComponentProps } from "react";
-import type { Ionicons } from "@expo/vector-icons";
 
 type VehicleCardProps = {
   vehicle: Vehicle;
@@ -15,10 +16,14 @@ type VehicleCardProps = {
   testID?: string;
 };
 
-const vehicleStatusMeta: Record<Vehicle["status"], { label: string; icon: "checkmark-circle" | "power"; color: string }> = {
-  ACTIVE: { label: "Active", icon: "checkmark-circle", color: colors.success },
-  INACTIVE: { label: "Inactive", icon: "power", color: colors.muted },
-};
+function vehicleStatusMeta(
+  status: Vehicle["status"],
+  colors: ColorTokens,
+): { label: string; icon: "checkmark-circle" | "power"; color: string } {
+  return status === "ACTIVE"
+    ? { label: "Active", icon: "checkmark-circle", color: colors.success }
+    : { label: "Inactive", icon: "power", color: colors.muted };
+}
 
 const vehicleIcon: Record<Vehicle["vehicleType"], ComponentProps<typeof Ionicons>["name"]> = {
   CAR: "car-sport",
@@ -29,14 +34,17 @@ const vehicleIcon: Record<Vehicle["vehicleType"], ComponentProps<typeof Ionicons
 };
 
 export function VehicleCard({ vehicle, onPress, testID }: VehicleCardProps) {
+  const colors = useColors();
   const active = vehicle.status === "ACTIVE";
   return (
     <Card onPress={onPress} style={styles.card} testID={testID}>
-      <IconTile
-        icon={vehicleIcon[vehicle.vehicleType] ?? "car"}
-        color={active ? colors.primary : colors.muted}
-        size={48}
-      />
+      <View style={styles.iconSlot} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <Ionicons
+          name={vehicleIcon[vehicle.vehicleType] ?? "car"}
+          size={26}
+          color={active ? colors.primaryDeep : colors.muted}
+        />
+      </View>
       <View style={styles.plateGroup}>
         <Text variant="plate" testID={testID ? `${testID}-plate` : undefined}>
           {vehicle.plateNumber}
@@ -47,7 +55,7 @@ export function VehicleCard({ vehicle, onPress, testID }: VehicleCardProps) {
             .join(" · ")}
         </Text>
       </View>
-      <StatusBadge meta={vehicleStatusMeta[vehicle.status]} size="sm" testID={testID ? `${testID}-status` : undefined} />
+      <StatusBadge meta={vehicleStatusMeta(vehicle.status, colors)} size="sm" testID={testID ? `${testID}-status` : undefined} />
     </Card>
   );
 }
@@ -57,6 +65,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.lg,
+  },
+  iconSlot: {
+    width: 26,
+    alignItems: "center",
   },
   plateGroup: {
     gap: spacing.xs,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,11 +19,15 @@ import {
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { colors, radii, spacing } from "@/src/theme";
+import { radii, spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 
 const REASON_MAX = 500;
 
 export default function ViolationDetailScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();
   const violations = useQuery({ queryKey: queryKeys.violations, queryFn: api.violations });
@@ -36,6 +40,7 @@ export default function ViolationDetailScreen() {
   });
 
   const violation = violations.data?.find((v) => v.id === id) ?? null;
+  const violationColor = violation ? violationStatusMeta(violation.status, colors).color : colors.muted;
 
   const appealError = (() => {
     if (!appeal.isError) {
@@ -76,12 +81,12 @@ export default function ViolationDetailScreen() {
         />
       ) : (
         <>
-          <GlassCard wash={violationStatusMeta(violation.status).color} style={styles.summary} testID="violation-summary">
+          <GlassCard wash={violationColor} style={styles.summary} testID="violation-summary">
             <View style={styles.summaryRow}>
               <Text variant="micro">FINE</Text>
               <ViolationBadge status={violation.status} testID="violation-summary-status" />
             </View>
-            <Text variant="display" color={violationStatusMeta(violation.status).color}>
+            <Text variant="display" color={violationColor}>
               {formatCurrency(violation.fineAmount)}
             </Text>
             <Text variant="body" color={colors.muted}>
@@ -205,6 +210,8 @@ function TimelineItem({
   color: string;
   last?: boolean;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   return (
     <View style={styles.timelineItem}>
       <View style={styles.timelineMarker}>
@@ -223,73 +230,75 @@ function TimelineItem({
   );
 }
 
-const styles = StyleSheet.create({
-  summary: {
-    gap: spacing.md,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  details: {
-    gap: spacing.lg,
-  },
-  detailRow: {
-    gap: spacing.sm,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  zoneRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  zoneName: {
-    flexShrink: 1,
-  },
-  timeline: {
-    gap: 0,
-  },
-  timelineItem: {
-    flexDirection: "row",
-    gap: spacing.lg,
-  },
-  timelineMarker: {
-    width: 12,
-    alignItems: "center",
-  },
-  timelineDot: {
-    width: 11,
-    height: 11,
-    borderRadius: 999,
-    marginTop: 4,
-  },
-  timelineLine: {
-    width: 2,
-    flex: 1,
-    backgroundColor: colors.border,
-    marginTop: 2,
-  },
-  timelineBody: {
-    flex: 1,
-    paddingBottom: spacing.xl,
-  },
-  timelineLabel: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  appealBox: {
-    gap: spacing.lg,
-  },
-  quote: {
-    fontStyle: "italic",
-    borderLeftWidth: 1,
-    borderLeftColor: colors.border,
-    paddingLeft: spacing.lg,
-    borderRadius: radii.sm,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    summary: {
+      gap: spacing.md,
+    },
+    summaryRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.md,
+    },
+    details: {
+      gap: spacing.lg,
+    },
+    detailRow: {
+      gap: spacing.sm,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+    },
+    zoneRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    zoneName: {
+      flexShrink: 1,
+    },
+    timeline: {
+      gap: 0,
+    },
+    timelineItem: {
+      flexDirection: "row",
+      gap: spacing.lg,
+    },
+    timelineMarker: {
+      width: 12,
+      alignItems: "center",
+    },
+    timelineDot: {
+      width: 11,
+      height: 11,
+      borderRadius: 999,
+      marginTop: 4,
+    },
+    timelineLine: {
+      width: 2,
+      flex: 1,
+      backgroundColor: colors.border,
+      marginTop: 2,
+    },
+    timelineBody: {
+      flex: 1,
+      paddingBottom: spacing.xl,
+    },
+    timelineLabel: {
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    appealBox: {
+      gap: spacing.lg,
+    },
+    quote: {
+      fontStyle: "italic",
+      borderLeftWidth: 1,
+      borderLeftColor: colors.border,
+      paddingLeft: spacing.lg,
+      borderRadius: radii.sm,
+    },
+  });
+}

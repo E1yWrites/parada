@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "@/src/providers/SessionProvider";
 import { FullScreenLoading } from "@/src/components/FullScreenLoading";
 import { TabBarBackground } from "@/src/components/TabBarBackground";
-import { colors, fonts, fontSizes, layout, radii, shadows } from "@/src/theme";
+import { fonts, fontSizes, layout, radii } from "@/src/theme";
+import { useColors, useThemeShadows } from "@/src/providers/ThemeProvider";
 
 type IconProps = { color: ColorValue; size: number; focused: boolean };
 
@@ -18,22 +19,35 @@ const TabIcon = ({
   size,
   focused,
   name,
-}: IconProps & { name: keyof typeof Ionicons.glyphMap }) => (
-  <View style={[styles.iconWrap, focused ? styles.iconWrapActive : undefined]}>
-    <Ionicons name={name} size={size} color={color} />
-  </View>
-);
+}: IconProps & { name: keyof typeof Ionicons.glyphMap }) => {
+  const colors = useColors();
+  return (
+    <View style={[iconStyles.iconWrap, focused ? { backgroundColor: colors.primarySoft } : undefined]}>
+      <Ionicons name={name} size={size} color={color} />
+    </View>
+  );
+};
 
-const ParkingIcon = (props: IconProps) => <TabIcon {...props} name={props.focused ? "grid" : "grid-outline"} />;
-const VehiclesIcon = (props: IconProps) => (
-  <TabIcon {...props} name={props.focused ? "car-sport" : "car-sport-outline"} />
-);
+const iconStyles = StyleSheet.create({
+  iconWrap: {
+    width: 40,
+    height: 28,
+    borderRadius: radii.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
+
+const HomeIcon = (props: IconProps) => <TabIcon {...props} name={props.focused ? "home" : "home-outline"} />;
+const ParkIcon = (props: IconProps) => <TabIcon {...props} name={props.focused ? "car" : "car-outline"} />;
 const SessionsIcon = (props: IconProps) => <TabIcon {...props} name={props.focused ? "time" : "time-outline"} />;
 const AccountIcon = (props: IconProps) => (
   <TabIcon {...props} name={props.focused ? "person" : "person-outline"} />
 );
 
 export default function TabsLayout() {
+  const colors = useColors();
+  const shadows = useThemeShadows();
   const { user, isLoading } = useSession();
   const insets = useSafeAreaInsets();
 
@@ -49,7 +63,7 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.primaryDeep,
         tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
           position: "absolute",
@@ -73,11 +87,11 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen
         name="parking"
-        options={{ title: "Parking", tabBarAccessibilityLabel: "Parking", tabBarIcon: ParkingIcon }}
+        options={{ title: "Home", tabBarAccessibilityLabel: "Home", tabBarIcon: HomeIcon }}
       />
       <Tabs.Screen
-        name="vehicles"
-        options={{ title: "Vehicles", tabBarAccessibilityLabel: "Vehicles", tabBarIcon: VehiclesIcon }}
+        name="park"
+        options={{ title: "Park", tabBarAccessibilityLabel: "Park", tabBarIcon: ParkIcon }}
       />
       <Tabs.Screen
         name="sessions"
@@ -87,19 +101,9 @@ export default function TabsLayout() {
         name="account"
         options={{ title: "Account", tabBarAccessibilityLabel: "Account", tabBarIcon: AccountIcon }}
       />
+      {/* Vehicles moves off the tab bar (Figma direction) but stays reachable
+          at /vehicles, e.g. from the Account screen's "My Vehicles" link. */}
+      <Tabs.Screen name="vehicles" options={{ href: null }} />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  iconWrap: {
-    width: 40,
-    height: 28,
-    borderRadius: radii.sm,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconWrapActive: {
-    backgroundColor: colors.primarySoft,
-  },
-});

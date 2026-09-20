@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./Button";
 import { Card } from "./Card";
+import { MascotCallout } from "./MascotCallout";
 import { PlateChip } from "./PlateChip";
 import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
@@ -10,7 +11,8 @@ import { api, ApiError, type CreateAssignmentInput, type PublicZone } from "@/li
 import { activeAssignmentFrom, upsertAssignment } from "@/lib/assignment";
 import type { ZoneAssignmentResponse } from "@parada/types";
 import { queryKeys } from "@/lib/query";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 type ZoneAssignmentPanelProps = {
   /** Zone the user picked in the zones grid (live data from the zones query). */
@@ -25,6 +27,7 @@ type ZoneAssignmentPanelProps = {
  * shown as backend-confirmed without offering another assignment request.
  */
 export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) {
+  const colors = useColors();
   const queryClient = useQueryClient();
   const selection = useVehicleSelection();
 
@@ -98,6 +101,13 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
 
   return (
     <View style={styles.panel} testID="assignment-panel">
+      {confirmedAssignment ? (
+        <MascotCallout
+          variant="park"
+          text={`You're all set in ${confirmedAssignment.zone.name}!`}
+          testID="assignment-confirmed-mascot"
+        />
+      ) : null}
       <SectionHeader
         title={confirmedAssignment ? "You have an assignment" : "Assign a vehicle"}
         caption={

@@ -1,12 +1,12 @@
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "./Card";
-import { IconTile } from "./IconTile";
 import { Text } from "./Text";
-import { ViolationBadge, violationStatusMeta } from "./StatusBadge";
+import { ViolationBadge } from "./StatusBadge";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import type { ViolationResponse } from "@parada/types";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 type ViolationCardProps = {
   violation: ViolationResponse;
@@ -16,10 +16,9 @@ type ViolationCardProps = {
 
 /** Summary card for the violations list. Tap to open the full detail/appeal screen. */
 export function ViolationCard({ violation, onPress, testID }: ViolationCardProps) {
-  const meta = violationStatusMeta(violation.status);
+  const colors = useColors();
   return (
     <Card onPress={onPress} style={styles.card} testID={testID}>
-      <IconTile icon="alert-circle" color={meta.color} size={44} />
       <View style={styles.body}>
         <View style={styles.row}>
           <Text variant="title" numberOfLines={2} style={styles.title}>

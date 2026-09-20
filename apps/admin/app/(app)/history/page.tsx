@@ -145,7 +145,7 @@ export default function HistoryPage() {
         >
           {!history.data || history.data.entries.length === 0 ? (
             <EmptyState
-              icon={Clock3}
+              mascot="history"
               title="No occupancy history"
               message={history.isFetching || navigating ? "Loading…" : "No occupancy history for this period."}
             />
@@ -183,7 +183,7 @@ function ZoneTimeline({ data }: { data: ZoneHistory }) {
             {entries.map((e) => {
               const ratio = e.occupiedCount / capacity;
               const h = Math.max(2, ratio * 100);
-              const fill = ratio >= 1 ? "bg-danger" : ratio >= 0.8 ? "bg-warning-bright" : "bg-brand";
+              const fill = ratio >= 1 ? "bg-danger" : ratio >= 0.8 ? "bg-warning" : "bg-brand";
               return (
                 <div
                   key={e.id}

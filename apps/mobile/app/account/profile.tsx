@@ -6,7 +6,8 @@ import { AvatarEditor } from "@/src/components/AvatarEditor";
 import { api, ApiError, type UserDto } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { useSession } from "@/src/providers/SessionProvider";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 function messageOf(err: unknown, fallback: string): string {
   return err instanceof ApiError ? err.message : fallback;
@@ -18,6 +19,7 @@ function messageOf(err: unknown, fallback: string): string {
  * what the app shows. Every request is scoped to the signed-in user by the API.
  */
 export default function EditProfileScreen() {
+  const colors = useColors();
   const { user, updateUser } = useSession();
   const queryClient = useQueryClient();
 
@@ -51,6 +53,7 @@ export default function EditProfileScreen() {
 }
 
 function NameSection({ user, onSaved }: { user: UserDto; onSaved: (next: UserDto) => void }) {
+  const colors = useColors();
   const [name, setName] = useState(user.name);
   const [username, setUsername] = useState(user.username ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -140,6 +143,7 @@ function useCooldown(resendAvailableAt: string | null): number {
 }
 
 function EmailSection({ user, onSaved }: { user: UserDto; onSaved: (next: UserDto) => void }) {
+  const colors = useColors();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -264,6 +268,7 @@ function EmailSection({ user, onSaved }: { user: UserDto; onSaved: (next: UserDt
 }
 
 function PhoneSection({ user, onSaved }: { user: UserDto; onSaved: (next: UserDto) => void }) {
+  const colors = useColors();
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);

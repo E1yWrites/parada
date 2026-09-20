@@ -1,13 +1,16 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
 import { GlassCard } from "./GlassCard";
+import { Mascot } from "./Mascot";
 import { PlateChip } from "./PlateChip";
 import { Stamp } from "./Stamp";
 import { Text } from "./Text";
 import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
-import { colors, motion, radii, spacing } from "@/src/theme";
+import { motion, radii, spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import { withAlpha, type ColorTokens } from "@/src/theme/colors";
 import { formatElapsed } from "@/lib/format";
 import type { SessionDto } from "@/lib/api/client";
 
@@ -26,6 +29,8 @@ type ActiveSessionBannerProps = {
  * pulses. Both are skipped under Reduce Motion.
  */
 export function ActiveSessionBanner({ session, now, children, testID }: ActiveSessionBannerProps) {
+  const colors = useColors();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const reducedMotion = usePrefersReducedMotion();
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -68,9 +73,12 @@ export function ActiveSessionBanner({ session, now, children, testID }: ActiveSe
             />
             <View style={styles.dot} />
           </View>
-          <Stamp label="Parked" icon="car" color={colors.primary} testID={testID ? `${testID}-badge` : undefined} />
+          <Stamp label="Parked" icon="car" color={colors.primaryDeep} testID={testID ? `${testID}-badge` : undefined} />
         </View>
-        <PlateChip value={session.zone.code} tone="soft" size="sm" />
+        <View style={styles.rightGroup}>
+          <PlateChip value={session.zone.code} tone="soft" size="sm" />
+          <Mascot variant="park" size={48} testID={testID ? `${testID}-mascot` : undefined} />
+        </View>
       </View>
 
       <View style={styles.content}>
@@ -84,7 +92,7 @@ export function ActiveSessionBanner({ session, now, children, testID }: ActiveSe
 
       <View style={styles.elapsedRow}>
         <View style={styles.elapsedIcon}>
-          <Ionicons name="time" size={18} color={colors.primary} />
+          <Ionicons name="time" size={18} color={colors.primaryDeep} />
         </View>
         <View style={styles.elapsedText}>
           <Text variant="micro">SESSION ELAPSED</Text>
@@ -98,62 +106,69 @@ export function ActiveSessionBanner({ session, now, children, testID }: ActiveSe
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    gap: spacing.xl2,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  liveRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    flexShrink: 1,
-  },
-  dotWrap: {
-    width: 16,
-    height: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  glow: {
-    position: "absolute",
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.primary,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-  },
-  content: {
-    gap: spacing.lg,
-  },
-  elapsedRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-  },
-  elapsedIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.sm,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  elapsedText: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-});
+function buildStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    card: {
+      gap: spacing.xl2,
+    },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.md,
+    },
+    liveRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      flexShrink: 1,
+    },
+    rightGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    dotWrap: {
+      width: 16,
+      height: 16,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    glow: {
+      position: "absolute",
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: colors.primary,
+    },
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.primary,
+    },
+    content: {
+      gap: spacing.lg,
+    },
+    elapsedRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.lg,
+      backgroundColor: withAlpha(colors.surface, 0.7),
+      borderRadius: radii.lg,
+      padding: spacing.lg,
+    },
+    elapsedIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.sm,
+      backgroundColor: colors.primarySoft,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    elapsedText: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+  });
+}

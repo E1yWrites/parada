@@ -80,7 +80,7 @@ export default function NotificationsPage() {
             >
               {f}
               {f === "UNREAD" && unreadCount > 0 ? (
-                <span className="ml-1.5 rounded-full bg-brand px-2 py-0.5 font-display text-[11px] font-black text-white">
+                <span className="ml-1.5 rounded-full bg-brand px-2 py-0.5 font-display text-[11px] font-black text-on-accent">
                   {unreadCount}
                 </span>
               ) : null}
@@ -101,6 +101,7 @@ export default function NotificationsPage() {
         error={notifications.error}
         isEmpty={!notifications.data || notifications.data.notifications.length === 0}
         emptyTitle="No notifications."
+        emptyMascot="notifications"
         loadingRows={4}
         onRetry={() => notifications.refetch()}
       >

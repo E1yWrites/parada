@@ -1,25 +1,16 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
 import {
   Avatar,
   CurrentParkingState,
-  EmptyState,
-  ErrorState,
   IconButton,
-  LoadingState,
+  MascotCallout,
   ParkingRecommendation,
-  ReservationList,
-  ReservationPanel,
   Screen,
-  SectionHeader,
-  SegmentedControl,
   VehicleSelectionProvider,
-  ZoneAssignmentPanel,
-  ZoneCard,
 } from "@/src/components";
-import { api, ApiError, avatarUrl, type PublicZone } from "@/lib/api/client";
+import { api, ApiError, avatarUrl } from "@/lib/api/client";
 import type { ZoneAssignmentResponse } from "@parada/types";
 import { activeAssignmentFrom } from "@/lib/assignment";
 import { currentReservationFrom } from "@/lib/current";
@@ -27,22 +18,24 @@ import { resolveZoneDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
 import { useNow } from "@/src/hooks/useNow";
 import { useSessionToken, useSessionUser } from "@/src/providers/SessionProvider";
-import { spacing } from "@/src/theme";
 
+/**
+ * Home: current parking status only (session / assignment / reservation),
+ * plus a recommendation when idle. The zone picker and park/reserve flow
+ * live on the Park tab (Figma direction splits these two concerns).
+ */
 export default function ParkingScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const user = useSessionUser();
   const sessionToken = useSessionToken();
-  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
-  const [actionMode, setActionMode] = useState<"assign" | "reserve">("assign");
+  const firstName = user?.name?.trim().split(/\s+/)[0];
+  const greeting = firstName ? `Hey ${firstName}, let's find your spot.` : "Let's find your spot.";
   const zones = useQuery({
     queryKey: queryKeys.zones,
     queryFn: api.zones,
     refetchInterval: 30_000,
   });
-  const { width } = useWindowDimensions();
-  const wide = width >= 520;
   const active = useQuery({
     queryKey: queryKeys.activeSession,
     queryFn: api.activeSession,
@@ -96,7 +89,6 @@ export default function ParkingScreen() {
     [zones.data],
   );
 
-  const selectedZone = zones.data?.find((zone) => zone.id === selectedZoneId) ?? null;
   const assignment = activeAssignmentFrom(assignmentList.data);
   const reservation = currentReservationFrom(reservationList.data);
   const hasCurrentState = activeSession !== null || assignment !== null || reservation !== null;
@@ -114,128 +106,45 @@ export default function ParkingScreen() {
 
   return (
     <VehicleSelectionProvider>
-    <Screen
-      title="Parking"
-      subtitle="Live zone availability from the gate cameras"
-      leading={<Avatar name={user?.name} uri={avatarUrl(user)} authToken={sessionToken} testID="parking-avatar" />}
-      right={
-        <IconButton
-          icon="notifications-outline"
-          accessibilityLabel="Notifications"
-          badge={notifications.data?.unreadCount}
-          onPress={() => router.push("/notifications")}
-          testID="parking-notifications"
-        />
-      }
-      refreshing={refreshing}
-      onRefresh={refresh}
-      testID="parking-screen">
-      <CurrentParkingState
-        session={activeSession}
-        assignment={assignment}
-        reservation={reservation}
-        destinationFor={destinationFor}
-        destinationReady={zones.status === "success"}
-        onCancelAssignment={onCancelAssignment}
-        now={now}
-        activePending={active.isPending}
-        activeError={active.isError}
-        activeErrorMessage={
-          active.error instanceof ApiError ? active.error.message : "Couldn't load your active session."
-        }
-        statePending={statePending}
-        assignmentError={assignmentList.isError}
-        reservationError={reservationList.isError}
-        onRetry={refresh}
-      />
-      {showRecommendation ? (
-        <ParkingRecommendation destinationFor={destinationFor} destinationReady={zones.status === "success"} />
-      ) : null}
-      <SectionHeader title="Zones" caption="Updated every 30 seconds" testID="zones-header" />
-      {zones.isPending ? (
-        <LoadingState label="Loading park availability…" testID="zones-loading" />
-      ) : zones.isError ? (
-        <ErrorState
-          message={zones.error instanceof ApiError ? zones.error.message : "Couldn't load live availability."}
-          onRetry={refresh}
-          testID="zones-error"
-        />
-      ) : zones.data && zones.data.length === 0 ? (
-        <EmptyState
-          illustration="zones"
-          title="No zones yet"
-          description="There are no parking zones configured."
-          testID="zones-empty"
-        />
-      ) : (
-        <View style={styles.grid} testID="zones-grid">
-          {(zones.data ?? []).map((zone: PublicZone) => (
-            <View key={zone.id} style={wide ? styles.colWide : styles.colNarrow}>
-              <ZoneCard
-                zone={zone}
-                onPress={hasCurrentState ? null : () => setSelectedZoneId(zone.id)}
-                selected={selectedZoneId === zone.id}
-                testID={`zone-${zone.code}`}
-              />
-            </View>
-          ))}
-        </View>
-      )}
-      {activeSession ? null : (
-        <View testID="parking-action">
-          <SectionHeader
-            title="Park your vehicle"
-            caption="Pick how you'd like to use the selected zone"
-            testID="parking-action-header"
+      <Screen
+        title="Home"
+        subtitle="Live zone availability from the gate cameras"
+        leading={<Avatar name={user?.name} uri={avatarUrl(user)} authToken={sessionToken} testID="parking-avatar" />}
+        right={
+          <IconButton
+            icon="notifications-outline"
+            accessibilityLabel="Notifications"
+            badge={notifications.data?.unreadCount}
+            onPress={() => router.push("/notifications")}
+            testID="parking-notifications"
           />
-          <View style={styles.actionToggle} testID="parking-action-toggle">
-            <SegmentedControl
-              value={actionMode}
-              onChange={(mode) => setActionMode(mode as "assign" | "reserve")}
-              options={[
-                {
-                  value: "assign",
-                  label: "Park now",
-                  accessibilityLabel: "Park now: assign a vehicle to the selected zone",
-                  testID: "parking-action-assign",
-                },
-                {
-                  value: "reserve",
-                  label: "Reserve for later",
-                  accessibilityLabel: "Reserve the selected zone for later",
-                  testID: "parking-action-reserve",
-                },
-              ]}
-            />
-          </View>
-          {actionMode === "assign" ? (
-            <ZoneAssignmentPanel selectedZone={selectedZone} />
-          ) : (
-            <ReservationPanel selectedZone={selectedZone} />
-          )}
-        </View>
-      )}
-      {activeSession ? null : <ReservationList />}
-    </Screen>
+        }
+        refreshing={refreshing}
+        onRefresh={refresh}
+        testID="parking-screen">
+        <MascotCallout variant="home" text={greeting} size={100} testID="parking-greeting" />
+        <CurrentParkingState
+          session={activeSession}
+          assignment={assignment}
+          reservation={reservation}
+          destinationFor={destinationFor}
+          destinationReady={zones.status === "success"}
+          onCancelAssignment={onCancelAssignment}
+          now={now}
+          activePending={active.isPending}
+          activeError={active.isError}
+          activeErrorMessage={
+            active.error instanceof ApiError ? active.error.message : "Couldn't load your active session."
+          }
+          statePending={statePending}
+          assignmentError={assignmentList.isError}
+          reservationError={reservationList.isError}
+          onRetry={refresh}
+        />
+        {showRecommendation ? (
+          <ParkingRecommendation destinationFor={destinationFor} destinationReady={zones.status === "success"} />
+        ) : null}
+      </Screen>
     </VehicleSelectionProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.lg,
-  },
-  colWide: {
-    width: "47%",
-    flexGrow: 1,
-  },
-  colNarrow: {
-    width: "100%",
-  },
-  actionToggle: {
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
-  },
-});

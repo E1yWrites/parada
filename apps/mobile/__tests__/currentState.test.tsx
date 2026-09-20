@@ -1,8 +1,13 @@
 import { Linking } from "react-native";
 import * as LocationMock from "expo-location";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
+import { ThemeProvider } from "@/src/providers/ThemeProvider";
 import ParkingScreen from "@/app/(tabs)/parking";
+import ParkScreen from "@/app/(tabs)/park";
 import { CurrentParkingState } from "@/src/components/CurrentParkingState";
+import { VehicleSelectionProvider } from "@/src/components/VehicleSelection";
 import { api, ApiError, type SessionDto, type PublicZone } from "@/lib/api/client";
 import type { NavigationDestination } from "@/lib/navigation";
 import type { ReservationResponse, Vehicle, ZoneAssignmentResponse } from "@parada/types";
@@ -530,7 +535,11 @@ describe("phase 9.7: manual assignment → current state", () => {
   });
 
   it("promotes a manually confirmed assignment into current state without the empty state", async () => {
-    renderWithProviders(<ParkingScreen />);
+    // Park and Home are separate screens post-redesign, but share one query
+    // client in production (both mount under the app's single root
+    // QueryClientProvider). Reproduce that here: confirm on Park, then mount
+    // Home against the *same* client and assert the promotion is immediate.
+    const { client, rerender } = renderWithProviders(<ParkScreen />);
     fireEvent.press(await screen.findByTestId("zone-A"));
     const submit = await screen.findByTestId("assignment-submit");
     expect(submit.props.accessibilityState).toMatchObject({ disabled: false });
@@ -538,11 +547,23 @@ describe("phase 9.7: manual assignment → current state", () => {
     // The backend list confirms the ACTIVE assignment on refetch.
     (api.assignments as jest.Mock).mockResolvedValue([assignment]);
     fireEvent.press(submit);
+    await waitFor(() => expect(screen.getByTestId("assignment-already-assigned")).toBeOnTheScreen());
+
+    rerender(
+      <SafeAreaProvider
+        initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
+        <ThemeProvider>
+          <QueryClientProvider client={client}>
+            <VehicleSelectionProvider>
+              <ParkingScreen />
+            </VehicleSelectionProvider>
+          </QueryClientProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>,
+    );
 
     await waitFor(() => expect(screen.getByTestId("assignment-current")).toBeOnTheScreen());
     expect(screen.queryByTestId("current-state-empty")).not.toBeOnTheScreen();
-    // The panel collapses to the "already assigned" pointer instead of a card.
-    expect(screen.getByTestId("assignment-already-assigned")).toBeOnTheScreen();
   });
 });
 
@@ -559,13 +580,27 @@ describe("phase 9.7: reservation create → current state", () => {
   });
 
   it("promotes a confirmed reservation into current state exactly once (no duplicate cards)", async () => {
-    renderWithProviders(<ParkingScreen />);
+    const { client, rerender } = renderWithProviders(<ParkScreen />);
     fireEvent.press(await screen.findByTestId("zone-A"));
     fireEvent.press(await screen.findByTestId("parking-action-reserve"));
 
     // The backend list confirms the CONFIRMED reservation on refetch.
     (api.reservations as jest.Mock).mockResolvedValue([reservation]);
     fireEvent.press(await screen.findByTestId("reservation-create"));
+    await waitFor(() => expect(api.createReservation).toHaveBeenCalled());
+
+    rerender(
+      <SafeAreaProvider
+        initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
+        <ThemeProvider>
+          <QueryClientProvider client={client}>
+            <VehicleSelectionProvider>
+              <ParkingScreen />
+            </VehicleSelectionProvider>
+          </QueryClientProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>,
+    );
 
     await waitFor(() => expect(screen.getByTestId("reservation-current")).toBeOnTheScreen());
     expect(screen.queryByTestId("current-state-empty")).not.toBeOnTheScreen();

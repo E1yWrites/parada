@@ -1,12 +1,13 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import {
-  StyleSheet,
   Text as RNText,
   type AccessibilityRole,
   type StyleProp,
   type TextStyle,
 } from "react-native";
-import { fonts, fontSizes, letterSpacing, lineHeights, colors } from "@/src/theme";
+import { fonts, fontSizes, letterSpacing, lineHeights } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import type { ColorTokens } from "@/src/theme/colors";
 
 export type TextVariant =
   | "display"
@@ -37,83 +38,87 @@ type TextProps = {
   testID?: string;
 };
 
-const variantStyles: Record<TextVariant, TextStyle> = {
-  display: {
-    fontFamily: fonts.heading,
-    fontSize: fontSizes.display,
-    lineHeight: lineHeights.display,
-    letterSpacing: letterSpacing.display,
-    color: colors.foreground,
-    fontVariant: ["tabular-nums"],
-  },
-  hero: {
-    fontFamily: fonts.heading,
-    fontSize: fontSizes.hero,
-    lineHeight: lineHeights.hero,
-    letterSpacing: letterSpacing.hero,
-    color: colors.foreground,
-  },
-  title: {
-    fontFamily: fonts.headingMedium,
-    fontSize: fontSizes.title,
-    lineHeight: lineHeights.title,
-    letterSpacing: letterSpacing.title,
-    color: colors.foreground,
-  },
-  section: {
-    fontFamily: fonts.headingMedium,
-    fontSize: fontSizes.section,
-    lineHeight: lineHeights.section,
-    color: colors.foreground,
-  },
-  body: {
-    fontFamily: fonts.body,
-    fontSize: fontSizes.body,
-    lineHeight: lineHeights.body,
-    color: colors.foreground,
-  },
-  bodySemi: {
-    fontFamily: fonts.bodySemi,
-    fontSize: fontSizes.body,
-    lineHeight: lineHeights.body,
-    color: colors.foreground,
-  },
-  caption: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.caption,
-    lineHeight: lineHeights.caption,
-    color: colors.muted,
-  },
-  micro: {
-    fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.micro,
-    lineHeight: lineHeights.micro,
-    color: colors.muted,
-    letterSpacing: letterSpacing.micro,
-  },
-  mono: {
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.caption,
-    lineHeight: lineHeights.caption,
-    color: colors.foreground,
-    fontVariant: ["tabular-nums"],
-  },
-  monoBold: {
-    fontFamily: fonts.monoBold,
-    fontSize: fontSizes.monoValue,
-    lineHeight: lineHeights.monoValue,
-    color: colors.foreground,
-    fontVariant: ["tabular-nums"],
-  },
-  plate: {
-    fontFamily: fonts.monoBold,
-    fontSize: fontSizes.monoValue,
-    lineHeight: lineHeights.monoValue,
-    letterSpacing: 1.5,
-    color: colors.foreground,
-    fontVariant: ["tabular-nums"],
-  },
-};
+function buildVariantStyles(colors: ColorTokens): Record<TextVariant, TextStyle> {
+  return {
+    display: {
+      fontFamily: fonts.heading,
+      fontSize: fontSizes.display,
+      lineHeight: lineHeights.display,
+      letterSpacing: letterSpacing.display,
+      color: colors.foreground,
+      fontVariant: ["tabular-nums"],
+    },
+    hero: {
+      fontFamily: fonts.heading,
+      fontSize: fontSizes.hero,
+      lineHeight: lineHeights.hero,
+      letterSpacing: letterSpacing.hero,
+      color: colors.foreground,
+    },
+    title: {
+      fontFamily: fonts.headingMedium,
+      fontSize: fontSizes.title,
+      lineHeight: lineHeights.title,
+      letterSpacing: letterSpacing.title,
+      color: colors.foreground,
+    },
+    section: {
+      fontFamily: fonts.headingMedium,
+      fontSize: fontSizes.section,
+      lineHeight: lineHeights.section,
+      color: colors.foreground,
+    },
+    body: {
+      fontFamily: fonts.body,
+      fontSize: fontSizes.body,
+      lineHeight: lineHeights.body,
+      color: colors.foreground,
+    },
+    bodySemi: {
+      fontFamily: fonts.bodySemi,
+      fontSize: fontSizes.body,
+      lineHeight: lineHeights.body,
+      color: colors.foreground,
+    },
+    caption: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: fontSizes.caption,
+      lineHeight: lineHeights.caption,
+      color: colors.muted,
+    },
+    micro: {
+      fontFamily: fonts.bodyBold,
+      fontSize: fontSizes.micro,
+      lineHeight: lineHeights.micro,
+      color: colors.muted,
+      letterSpacing: letterSpacing.micro,
+    },
+    mono: {
+      fontFamily: fonts.mono,
+      fontSize: fontSizes.caption,
+      lineHeight: lineHeights.caption,
+      color: colors.foreground,
+      fontVariant: ["tabular-nums"],
+    },
+    monoBold: {
+      fontFamily: fonts.monoBold,
+      fontSize: fontSizes.monoValue,
+      lineHeight: lineHeights.monoValue,
+      color: colors.foreground,
+      fontVariant: ["tabular-nums"],
+    },
+    plate: {
+      fontFamily: fonts.monoBold,
+      fontSize: fontSizes.monoValue,
+      lineHeight: lineHeights.monoValue,
+      letterSpacing: 1.5,
+      color: colors.foreground,
+      fontVariant: ["tabular-nums"],
+    },
+  };
+}
+
+const baseStyle: TextStyle = { includeFontPadding: false };
 
 export function Text({
   children,
@@ -127,6 +132,8 @@ export function Text({
   style,
   testID,
 }: TextProps) {
+  const colors = useColors();
+  const variantStyles = useMemo(() => buildVariantStyles(colors), [colors]);
   return (
     <RNText
       testID={testID}
@@ -135,7 +142,7 @@ export function Text({
       numberOfLines={numberOfLines}
       maxFontSizeMultiplier={maxFontSizeMultiplier}
       style={[
-        styles.base,
+        baseStyle,
         variantStyles[variant],
         align ? { textAlign: align } : undefined,
         color ? { color } : undefined,
@@ -145,9 +152,3 @@ export function Text({
     </RNText>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    includeFontPadding: false,
-  },
-});

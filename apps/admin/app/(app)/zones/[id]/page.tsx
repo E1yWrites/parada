@@ -282,7 +282,7 @@ function PhysicalInventory({ zoneId, zoneCode, capacity }: { zoneId: string; zon
                 <li
                   key={slot.id}
                   className={`flex items-center justify-between gap-2 rounded-control border px-3 py-2 ${
-                    slot.status === "ACTIVE" ? "border-line bg-white" : "border-transparent bg-raised opacity-70"
+                    slot.status === "ACTIVE" ? "border-line bg-card" : "border-transparent bg-raised opacity-70"
                   }`}
                 >
                   <div className="min-w-0">
@@ -394,7 +394,7 @@ export default function ZoneDetailPage() {
                         <div className="flex min-w-0 items-center gap-3">
                           <span
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control ${
-                              isEntry ? "bg-success-soft text-success" : "bg-brand-soft text-brand"
+                              isEntry ? "bg-success-soft text-success" : "bg-brand-soft text-brand-dark"
                             }`}
                             aria-hidden="true"
                           >

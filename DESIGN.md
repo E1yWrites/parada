@@ -1,85 +1,83 @@
 ---
 name: PARADA
-description: Your plate is your gate pass. Slate ink on a cool off-white ground, one electric-blue action, one tinted family per parking state.
+description: Two purpose-built surfaces, one ecosystem — a warm-navy driver app led by its own gate-attendant mascot, and a graphite operations console led by the logo's own orange cut.
 colors:
-  ground: "#F4F6FB"
-  surface: "#FFFFFF"
-  raised: "#EEF2FA"
-  ink: "#0F1B2D"
-  slate: "#5B6B82"
-  hairline: "#E3E8F1"
-  hairline-alpha: "rgba(15, 27, 45, 0.08)"
-  electric-blue: "#1E5EFF"
-  electric-blue-deep: "#1546C9"
-  electric-blue-soft: "#E8EFFF"
-  coral: "#D9342F"
-  coral-soft: "#FDE9E8"
-  mint: "#0B7F4F"
-  mint-soft: "#E1F6EC"
-  mint-bright: "#17B978"
-  amber: "#A35F04"
-  amber-soft: "#FFF3DB"
-  amber-bright: "#F5A524"
-  on-accent: "#FFFFFF"
+  mobile-ink-navy: "#0E1220"
+  mobile-panel-navy: "#161B2E"
+  mobile-raised-navy: "#1F2640"
+  mobile-foreground: "#F1F3FA"
+  mobile-muted: "#A9AFC6"
+  mobile-badge-gold: "#F2A93B"
+  mobile-badge-gold-deep: "#D98C1E"
+  mobile-azure-active: "#5B93F7"
+  mobile-barrier-red: "#F0524A"
+  mobile-signal-green: "#3DDC84"
+  mobile-amber-warning: "#FF9F3F"
+  mobile-light-paper: "#F3F5FC"
+  mobile-light-ink: "#10142A"
+  admin-graphite-paper: "#121316"
+  admin-graphite-card: "#1B1D22"
+  admin-charcoal: "#F5F4F2"
+  admin-muted: "#90949E"
+  admin-brand-orange: "#F7931A"
+  admin-brand-orange-deep: "#EA580C"
+  admin-signal-green: "#3DDC84"
+  admin-warning-yellow: "#FFD600"
+  admin-danger-red: "#F0524A"
+  admin-light-paper: "#F5F2EC"
+  admin-light-brand-deep: "#C2410C"
 typography:
   display:
-    fontFamily: "Nunito, system-ui, sans-serif"
+    fontFamily: "Space Grotesk, sans-serif"
     fontSize: "40px"
-    fontWeight: 900
+    fontWeight: 700
     lineHeight: "44px"
     letterSpacing: "-0.8px"
   hero:
-    fontFamily: "Nunito, system-ui, sans-serif"
+    fontFamily: "Space Grotesk, sans-serif"
     fontSize: "30px"
-    fontWeight: 900
+    fontWeight: 600
     lineHeight: "36px"
     letterSpacing: "-0.6px"
   title:
-    fontFamily: "Nunito, system-ui, sans-serif"
+    fontFamily: "Space Grotesk, sans-serif"
     fontSize: "20px"
-    fontWeight: 800
+    fontWeight: 600
     lineHeight: "26px"
     letterSpacing: "-0.3px"
-  section:
-    fontFamily: "Nunito, system-ui, sans-serif"
-    fontSize: "17px"
-    fontWeight: 800
-    lineHeight: "24px"
   body:
-    fontFamily: "Nunito, system-ui, sans-serif"
+    fontFamily: "Inter, sans-serif"
     fontSize: "15px"
     fontWeight: 400
     lineHeight: "22px"
   caption:
-    fontFamily: "Nunito, system-ui, sans-serif"
+    fontFamily: "Inter, sans-serif"
     fontSize: "13px"
     fontWeight: 500
     lineHeight: "18px"
   micro:
-    fontFamily: "Nunito, system-ui, sans-serif"
+    fontFamily: "Inter, sans-serif"
     fontSize: "11px"
     fontWeight: 700
     lineHeight: "14px"
     letterSpacing: "0.8px"
-  plate:
-    fontFamily: "JetBrains Mono, ui-monospace, Menlo, monospace"
-    fontSize: "18px"
-    fontWeight: 700
-    lineHeight: "24px"
-    letterSpacing: "1.5px"
   mono:
-    fontFamily: "JetBrains Mono, ui-monospace, Menlo, monospace"
+    fontFamily: "JetBrains Mono, ui-monospace, monospace"
     fontSize: "13px"
     fontWeight: 500
     lineHeight: "18px"
 rounded:
-  plate: "6px"
-  sm: "12px"
-  md: "16px"
-  lg: "24px"
-  xl: "32px"
-  tab-bar: "32px"
-  full: "999px"
+  mobile-sm: "10px"
+  mobile-md: "14px"
+  mobile-lg: "20px"
+  mobile-xl: "28px"
+  mobile-cut: "3px"
+  mobile-full: "999px"
+  admin-panel: "1.25rem"
+  admin-panel-cut: "0.1875rem"
+  admin-control: "0.75rem"
+  admin-control-cut: "0.125rem"
+  admin-chip: "0.5rem"
 spacing:
   xs: "2px"
   sm: "4px"
@@ -91,275 +89,171 @@ spacing:
   xl4: "32px"
   xl5: "40px"
 components:
-  button-primary:
-    backgroundColor: "{colors.electric-blue}"
-    textColor: "{colors.on-accent}"
+  mobile-button-primary:
+    backgroundColor: "{colors.mobile-badge-gold}"
+    textColor: "#15111C"
     typography: "{typography.body}"
-    rounded: "{rounded.md}"
+    rounded: "{rounded.mobile-md}"
     padding: "12px 20px"
     height: "48px"
-  button-primary-pressed:
-    backgroundColor: "{colors.electric-blue-deep}"
-    textColor: "{colors.on-accent}"
-  button-secondary:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    padding: "12px 20px"
-    height: "48px"
-  button-secondary-pressed:
-    backgroundColor: "{colors.raised}"
-    textColor: "{colors.ink}"
-  button-danger:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.coral}"
-    rounded: "{rounded.md}"
-    padding: "12px 20px"
-    height: "48px"
-  button-danger-pressed:
-    backgroundColor: "{colors.coral-soft}"
-    textColor: "{colors.coral}"
-  button-ghost:
-    backgroundColor: "transparent"
-    textColor: "{colors.electric-blue}"
-    rounded: "{rounded.md}"
-    padding: "12px 20px"
-    height: "48px"
-  button-ghost-pressed:
-    backgroundColor: "{colors.electric-blue-soft}"
-    textColor: "{colors.electric-blue}"
-  card:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.lg}"
+  mobile-button-primary-pressed:
+    backgroundColor: "{colors.mobile-badge-gold-deep}"
+    textColor: "#15111C"
+  mobile-card:
+    backgroundColor: "{colors.mobile-panel-navy}"
+    textColor: "{colors.mobile-foreground}"
+    rounded: "{rounded.mobile-lg}"
     padding: "16px"
-  card-tinted:
-    backgroundColor: "{colors.raised}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    padding: "16px"
-  pass-card:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.xl}"
+  mobile-zone-tile-selected:
+    backgroundColor: "{colors.mobile-badge-gold}"
+    textColor: "{colors.mobile-foreground}"
+    rounded: "{rounded.mobile-lg}"
+  mobile-plate-chip:
+    backgroundColor: "{colors.mobile-foreground}"
+    textColor: "{colors.mobile-ink-navy}"
+    typography: "{typography.mono}"
+    rounded: "{rounded.mobile-sm}"
+    padding: "5px 10px"
+  admin-button-primary:
+    backgroundColor: "{colors.admin-brand-orange}"
+    textColor: "#0F0A05"
+    typography: "{typography.body}"
+    rounded: "{rounded.admin-control}"
+    padding: "12px 20px"
+    height: "44px"
+  admin-button-primary-hover:
+    backgroundColor: "{colors.admin-brand-orange-deep}"
+    textColor: "#0F0A05"
+  admin-card:
+    backgroundColor: "{colors.admin-graphite-card}"
+    textColor: "{colors.admin-charcoal}"
+    rounded: "{rounded.admin-panel}"
     padding: "20px"
-  input:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.md}"
-    padding: "8px 16px"
-    height: "44px"
-  input-disabled:
-    backgroundColor: "{colors.raised}"
-    textColor: "{colors.slate}"
-  status-pill:
-    backgroundColor: "{colors.raised}"
-    textColor: "{colors.slate}"
-    typography: "{typography.micro}"
-    rounded: "{rounded.full}"
-    padding: "5px 12px"
-  status-pill-available:
-    backgroundColor: "{colors.mint-soft}"
-    textColor: "{colors.mint}"
-  status-pill-low:
-    backgroundColor: "{colors.amber-soft}"
-    textColor: "{colors.amber}"
-  status-pill-full:
-    backgroundColor: "{colors.coral-soft}"
-    textColor: "{colors.coral}"
-  status-pill-active:
-    backgroundColor: "{colors.electric-blue-soft}"
-    textColor: "{colors.electric-blue-deep}"
-  plate-chip:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.on-accent}"
-    typography: "{typography.mono}"
-    rounded: "{rounded.plate}"
-    padding: "5px 10px"
-  plate-chip-soft:
-    backgroundColor: "{colors.electric-blue-soft}"
-    textColor: "{colors.electric-blue-deep}"
-    typography: "{typography.mono}"
-    rounded: "{rounded.plate}"
-    padding: "5px 10px"
-  choice-chip:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    padding: "0 16px"
-    height: "44px"
-  choice-chip-selected:
-    backgroundColor: "{colors.electric-blue}"
-    textColor: "{colors.on-accent}"
-  nav-item:
-    backgroundColor: "transparent"
-    textColor: "{colors.slate}"
-    rounded: "{rounded.md}"
-    padding: "0 12px"
-    height: "40px"
-  nav-item-active:
-    backgroundColor: "{colors.electric-blue-soft}"
-    textColor: "{colors.electric-blue-deep}"
+  admin-stat-panel-hero:
+    backgroundColor: "{colors.admin-graphite-card}"
+    textColor: "{colors.admin-charcoal}"
+    rounded: "{rounded.admin-panel}"
+    padding: "24px"
 ---
 
 # Design System: PARADA
 
 ## Overview
 
-**Creative North Star: "The Campus Gate Pass"**
+**Creative North Star: "One Ecosystem, Two Purpose-Built Rooms"**
 
-PARADA is a zone-based campus parking system with two surfaces in one world: a driver app (Expo/React Native) and an operations console (Next.js). The world is a laminated gate pass: a white card on a cool blue-grey ground, slate ink for everything that is read, one electric-blue action, and the driver's plate set in monospace like the literal thing painted on the gate. Parking state is never inferred from color alone; it is a stamp (icon + label + tinted band) that the backend confirms.
+PARADA is a zone-based campus parking system with two surfaces that deliberately do not share a palette: a driver app (Expo/React Native) built around its own canonical mascot — a gate-attendant dog in a navy uniform with a gold badge — and an operations console (Next.js) built around the PARADA wordmark's own black-ink-and-orange-cut geometry. The driver app is **"The Attendant"**: a warm, deep-navy world lit by badge-gold, azure and barrier-red, because a driver meets PARADA through its mascot, outdoors, one-handed, wanting reassurance. The admin is **"The Control Room"**: a true-neutral graphite world lit by a single restrained orange accent, because an operator meets PARADA through the logo, at a desk, for hours, wanting instant status legibility over personality. Both refuse the category defaults (map-with-pins-plus-slot-grid on mobile; wall-of-identical-stat-cards on admin) and both refuse a shared color story — consistency comes from typography, the cut-corner geometry, interaction quality and domain language, not from hex codes.
 
-The driver surface leads with one large rounded pass card that states the current state (parked / assigned / reserved / none), and zones read as gate lanes with live counts. The admin surface is a registry, not a dashboard: every editable record is a bounded white panel with a header rule, hairline seams inside, and its save action alone at the end. Both refuse the category defaults (map-with-pins plus slot grid; wall of same-size metric cards; glassy marketing shell).
-
-The build landed darker than the direction contract asked for. The contract named coral #F04E4E, mint #12A66A, amber #E59A0B and radii 12/16/24/32; the shipped status tokens are #D9342F, #0B7F4F, #A35F04, chosen so every status color reaches 4.5:1 as text on white; mobile radii follow the contract (12/16/24/32) while admin keeps 20px panels / 14px controls. This file records the build.
+The driver surface leads with a horizontal, swipeable zone rail (never a generic wrapping grid) and a mascot that appears at empty/first-time/confirmation moments only — never behind content, never competing with the selector. The admin surface is a registry: every editable record is a bounded graphite panel with a header rule and hairline seams, status communicated by icon+label+tint rather than a color-only accent bar.
 
 **Key Characteristics:**
-- Slate ink (#0F1B2D) on cool off-white (#F4F6FB); pure white surfaces; blue-tinted raised surface for tracks and chips.
-- Electric blue is the single brand accent and the one filled action per screen or form.
-- Four status families (blue active, mint available, amber low/pending, coral full/danger), each a full-strength text color plus a soft fill, always paired with an icon or dot and a label.
-- Nunito 900/800 for headings and hero numbers, Nunito 400-700 for UI; JetBrains Mono strictly for plates, zone codes, camera ids and timestamps.
-- Soft ink-tinted offset shadows at panel level only; hairline seams inside panels; frosted chrome limited to the mobile tab bar and pass cards.
-- Tabular numerals everywhere; a designed ghost track under every capacity bar.
+- Mobile: deep navy grounds (`#0E1220`), badge-gold (`#F2A93B`) as the one brand accent, azure (`#5B93F7`) for "active/yours right now", barrier-red for danger/full, signal-green for available.
+- Admin: true-neutral graphite grounds (`#121316`, zero hue tint — deliberately cooler than mobile's navy), PARADA orange (`#F7931A`, the logo's own hue) as the one brand accent.
+- Shared typography across both surfaces: Space Grotesk (display/heading), Inter (body/UI), JetBrains Mono (plates, zone codes, timestamps, ids — never labels or prose).
+- Shared geometry: the "PARADA cut" — three soft corners, one sharp corner (top-right) on every card/panel/button/input on both surfaces, echoing the logo's own diagonal cut. Chips, pills, tab bars and avatars stay full-round.
+- The canonical mascot (a real, fixed image asset — never redrawn, recolored, or distorted) is mobile-only, used selectively at empty/error/onboarding/greeting moments.
+- Both themes (System/Light/Dark) are independently tuned per surface; light is never a literal inversion of dark.
 
 ## Colors
 
-A cool, low-chroma neutral world with one saturated blue and three deep, text-safe status hues; soft tints carry fills, full-strength hues carry text and icons.
+Two palettes, one grammar: a near-neutral or near-navy dark ground, one restrained brand accent, and status hues that read by icon+label first, color second.
 
-### Primary
-- **Electric Blue** (`electric-blue`): the brand, the one filled button on a screen or form, the selected choice chip, the active session/assignment status, the link tint, the caret and selection color, the hero wash behind the pass card. Used sparingly so it always means "act here" or "yours right now".
-- **Electric Blue Deep** (`electric-blue-deep`): pressed/hover state of the filled button; the text color inside blue-soft pills and soft plate chips.
-- **Electric Blue Soft** (`electric-blue-soft`): the tint for active pills, the admin sidebar's active nav pill, selected rows, and the soft plate chip.
+### Mobile — "The Attendant"
 
-### Secondary (status families)
-- **Mint** (`mint`, soft `mint-soft`, bright `mint-bright`): available / success / confirmed / online / resolved / dismissed. `mint-bright` is admin-only and used for bar fills and the live-pulse dot, never for text.
-- **Amber** (`amber`, soft `amber-soft`, bright `amber-bright`): low availability / pending / warning; also the fee highlight on mobile (same token). `amber-bright` is admin-only bar fill, never text.
-- **Coral** (`coral`, soft `coral-soft`): full / danger / violation issued / upheld / open anomaly; the outlined destructive button's text and border.
+- **Badge Gold** (`mobile-badge-gold`, #F2A93B): the mascot's own badge color. The one filled action per screen, the selected zone-rail tile, the caret/selection color. `mobile-badge-gold-deep` (#D98C1E dark / #8A5A00 light) is the pressed state and the only text-safe variant — raw badge-gold fails AA as text on either surface.
+- **Azure Active** (`mobile-azure-active`, #5B93F7 dark / #1D4ED8 light): "active/assigned/yours right now" — the mascot's own P-sign blue. Reserved for state, never used as a second brand accent.
+- **Barrier Red** (`mobile-barrier-red`, #F0524A dark / #B3261E light): danger, full, offline — the mascot's barrier-stripe red.
+- **Signal Green** (`mobile-signal-green`, #3DDC84 dark / #146C43 light): available, confirmed, success.
+- **Amber Warning** (`mobile-amber-warning`, #FF9F3F dark / #8A4B00 light): low-availability/pending — deliberately more orange than badge-gold so a warning never reads as "tap here."
+- **Ink Navy** (`mobile-ink-navy` / `mobile-light-paper`): app ground. Dark is warm-leaning navy (R<G<B but never OLED-black); light is a cool blue-white paper, not an inversion.
+- **Panel / Raised Navy**: card and nested-surface steps, one lightness step apart, dark register only (light uses `#FFFFFF` / a light tint instead of a parallel navy ramp).
 
-### Neutral
-- **Ground** (`ground`): app and page background. Admin lays two fixed radial washes over it (blue at top-right, mint at bottom-left, ≤10% alpha).
-- **Surface** (`surface`): cards, panels, inputs, sidebar rail, sticky table header.
-- **Raised** (`raised`): blue-tinted nested surface for capacity tracks, tinted cards, icon tiles, disabled inputs, hover rows, neutral pills.
-- **Ink** (`ink`): all primary text; the ink plate chip fill; the shadow tint.
-- **Slate** (`slate`): captions, labels, muted status (offline, expired, completed, revoked), inactive nav.
-- **Hairline** (`hairline` on admin, `hairline-alpha` on mobile): 1px borders, seams between panel rows, table row dividers, the track border under capacity bars.
-- **On Accent** (`on-accent`): text and icons on blue or ink fills.
+### Admin — "The Control Room"
+
+- **Brand Orange** (`admin-brand-orange`, #F7931A dark / same hue, `admin-light-brand-deep` #C2410C for light-mode text): the logo's own color, not the mascot's. The one filled action per screen or form; everywhere else is outlined, ghost or a tinted pill (**The One Filled Button Rule**, unchanged from the incumbent system).
+- **Graphite Paper** (`admin-graphite-paper`, #121316): true-neutral dark ground — zero hue tint, deliberately cooler than mobile's navy so status color reads against a hue-neutral field instead of competing with a tinted one. Light register (`admin-light-paper`, #F5F2EC) stays warm paper, kept asymmetric to dark's cool neutral rather than inverted.
+- **Success / Warning / Danger**: green #3DDC84, yellow #FFD600, red #F0524A (dark); deepened per-theme equivalents in light, each independently verified ≥4.5:1 as text.
+- **Data hues** (`data-1..4`): ordered chart/series colors, orange/green/blue/yellow — never reused for status pills.
 
 ### Named Rules
-**The One Filled Button Rule.** Exactly one filled electric-blue button per screen (mobile) or per form/panel (admin). Every other action is outlined, ghost, or a tinted pill; a second filled blue button on the same surface is a defect.
+**The Two-Palette Rule.** Mobile and admin never share a literal hex for their primary brand accent. Mobile's badge-gold comes from the mascot; admin's orange comes from the logo. Both may share status semantics (green=available, red=danger) without being required to.
 
-**The Stamp Rule.** A status is never color alone. Every status pill, badge, and pass-card stamp carries an icon or a dot plus a label, in the family's full-strength hue on its soft fill. Bright variants (`mint-bright`, `amber-bright`) fill bars and dots only.
-
-**The Isolated Destructive Rule.** Destructive actions (Deactivate, Revoke, Delete, Sign out) are outlined coral on white, never filled, and sit apart from the primary action rather than beside it.
+**The Stamp Rule** (both surfaces). A status is never color alone: every pill, badge and alert row carries an icon or dot plus a label. A bare color bar (e.g. a `border-l-4` accent strip with nothing else) is a defect, not a shortcut.
 
 ## Typography
 
-**Display Font:** Nunito (with system-ui, sans-serif)
-**Body Font:** Nunito (with system-ui, sans-serif)
-**Label/Mono Font:** JetBrains Mono (with ui-monospace, Menlo, monospace)
+**Display Font:** Space Grotesk (with system sans-serif fallback)
+**Body Font:** Inter (with system sans-serif fallback)
+**Label/Mono Font:** JetBrains Mono (with ui-monospace, monospace)
 
-**Character:** A friendly rounded grotesque set heavy at the top of the ramp and light in running text, with a strict monospace reserved for data that is literally printed on a gate or a plate. Steps are deliberately far apart (40 / 30 / 20 / 17 / 15 / 13 / 11) so hierarchy reads from across a room.
+**Character:** A geometric, slightly technical display face (echoing the logo's angular cut) paired with a humanist, highly legible body face; JetBrains Mono strictly for anything that is literally data — plates, zone codes, camera ids, timestamps — never for labels or prose. Shared verbatim across both surfaces; only the size scale and color pairing differ.
 
 ### Hierarchy
-- **Display** (900, 40px, 44px, -0.8px, tabular): hero numbers only: the elapsed clock, the free-space count. Admin's equivalent is the facility-strip figure (900, 28px, leading-none, tracking-tight).
-- **Hero** (900, 30px, 36px, -0.6px): screen titles and the pass card's zone name. Admin page titles are 900 at 28px (30px from `sm`), -0.02em.
-- **Title** (800, 20px, 26px, -0.3px): card titles (zone name on a lane card, vehicle, session).
-- **Section** (800, 17px, 24px): section headers on mobile; admin panel headers are 900 at 16px, tracking-tight.
-- **Body** (400 / 600 for `bodySemi`, 15px, 22px): running text and button labels (600). Admin body is 14px (`text-sm`); inputs are 15px at 500.
-- **Caption** (500, 13px, 18px, slate): descriptions under titles, timestamps in prose, hints; admin equivalent is 12px slate.
-- **Micro** (700, 11px, 14px, +0.8px, UPPERCASE, slate): field labels, data-value labels ("ENTERED", "PARKING FEE"), table column headers, admin nav group labels (11px, +0.08em). Sits above a value or a control, never above a heading.
-- **Plate** (JetBrains Mono 700, 18px, 24px, +1.5px, tabular): plate numbers and mono inputs.
-- **Mono** (JetBrains Mono 500, 13px, 18px, tabular): zone codes in plate chips, camera ids, occupancy figures, timestamps in tables. Admin plate chips are 12px 700 with +0.08em.
+- **Display** (700, 40px, 44px, -0.8px, tabular): mobile hero numbers only (elapsed clock, free-space count). Admin's equivalent is the dashboard hero stat figure (900-weight via Tailwind's font-black, 48px/`text-5xl`, tabular, now animated with an odometer-style settle via `NumberTicker`).
+- **Hero** (600, 30px, 36px, -0.6px): mobile screen titles. Admin page titles run 900 at 24-28px, -0.02em tracking.
+- **Title** (600, 20px, 26px, -0.3px): mobile card titles (zone name, vehicle, session).
+- **Body** (400, 15px, 22px): mobile running text and button labels. Admin body is 14px (`text-sm`).
+- **Caption** (500, 13px, 18px): descriptions, timestamps, hints. Admin equivalent is 12px muted.
+- **Micro** (700, 11px, 14px, +0.8px, uppercase): field labels, data-value labels, table column headers.
+- **Mono** (500, 13px, 18px, tabular): zone codes, camera ids, occupancy figures, timestamps in tables.
 
 ### Named Rules
-**The Mono-Is-Data Rule.** JetBrains Mono appears only on identifiers and machine values: plates, zone codes, camera ids, timestamps, counts. Never on labels, headings, or prose.
+**The Mono-Is-Data Rule.** JetBrains Mono appears only on identifiers and machine values. Never on labels, headings, or prose.
 
-**The No-Eyebrow Rule.** Headings carry their own weight. Nothing sits above a page title, section header, or panel header. A micro uppercase label may sit above a value, a field, or a column, and the pass card's stamp (icon + micro label in a status hue) may sit above the zone name because it is the card's state, not an introduction.
-
-**The Tabular Figures Rule.** Every number that can change sets in tabular numerals so counters tick in place and columns align.
+**The Tabular Figures Rule.** Every number that can change sets in tabular numerals. Admin's dashboard hero figures additionally settle into place via a short digit tween (`NumberTicker`, ~650ms, eased, skipped under Reduce Motion) rather than instantly jumping — adapted from Calamansi UI's odometer number-ticker concept, reimplemented dependency-free.
 
 ## Layout
 
-Mobile is a single column on a 4pt grid (2 / 4 / 8 / 12 / 16 / 20 / 24 / 32 / 40). Screen padding is 16px; card padding is 16px, pass-card padding 20px; every tappable control is at least 44pt tall (buttons 48pt, inputs 52pt outer). Zone lane cards run 2-up on wide phones and 1-up on narrow ones. A floating pill tab bar (64px tall, 16px side margin, 10px above the safe-area inset, 32px radius) sits over content; scroll surfaces pad their bottom by `inset + 10 + 64 + 24` so nothing hides behind it.
+**Mobile** is a single column on a 4pt grid (2/4/8/12/16/20/24/32/40, `spacing.*`). Screen padding 16-20px; every tappable control ≥44pt. The Park screen's zone selector is a horizontal, swipeable, snap-scrolling rail of compact zone tiles (208pt wide) — never a wrapping grid of full-size cards — with a live "X of Y zones open" summary computed from real zone data above it. A floating pill tab bar sits over content on a frosted navy/gold-rimmed (dark) or white (light) chrome.
 
-Admin is a 240px white sidebar rail (`lg` and up; a 288px drawer with a charcoal/40 blurred scrim below `lg`), a sticky 64px header strip (white at 85% with backdrop blur, hairline underneath), and a main column capped at 88rem with 16px padding (24px from `sm`) and 24-32px vertical padding. Page header: title left, one-sentence description under it, actions right, 24px below. The dashboard opens with a single facility strip (one panel, figures separated by seams, 2 columns then 4 at `lg`) rather than a card grid. Tables are dense: header cells 10px/16px padding, body cells 12px/16px, sticky header, hairline row seams, hover tint, no zebra.
+**Admin** is a 240px sidebar rail (drawer below `lg`) with a single active-position marker that slides between rows (`translateY` + CSS transition, measured off the active link's real layout box), a sticky 64px header, and a main column capped at 88rem. The dashboard opens with an asymmetric stat composition — one hero figure spanning two rows, three companion figures beside it — never a uniform grid. Tables are dense: sticky header, hairline row seams, hover tint, no zebra striping.
 
 ## Elevation & Depth
 
-Hybrid, shadow-light. Depth is mostly tonal: white panels on the cool ground, a blue-tinted raised surface for nested tracks and chips, hairline seams inside panels. Shadows are soft, offset, low-opacity, and tinted with ink so cards sit on the ground rather than floating grey. They appear at panel level only; rows, chips, pills and nested surfaces never carry a shadow. The filled primary button and the selected choice chip carry a blue-tinted glow instead of an ink shadow, which is the only place a control casts one. Frost (blur + white overlay) is limited to the mobile tab bar chrome and the pass/hero cards, and both fall back to flat white under Reduce Transparency.
+**Mobile**: hybrid, shadow-light. Ink-tinted offset shadows at panel level only (dark: pure black shadow since a near-black ground makes tinted shadows invisible; light: navy-ink-tinted, matching `mobile-light-ink`). Frost (blur + tint overlay) is limited to the tab bar chrome and hero/pass cards, both falling back to flat color under Reduce Transparency. An ambient two-blob gradient mesh drifts and breathes slowly (~24s/leg) behind screen content — frozen under Reduce Motion.
 
-### Shadow Vocabulary
-- **Card / panel** (mobile: ink at 7%, offset 0 8, blur 20, Android elevation 3; admin: `0 8px 24px -8px rgba(15,27,45,0.08), 0 1px 2px rgba(15,27,45,0.04)`): every white card and registry panel at rest.
-- **Card hover** (admin only: `0 14px 32px -10px rgba(15,27,45,0.14), 0 1px 2px rgba(15,27,45,0.04)`): tappable panels on hover, 200ms.
-- **Pill chrome** (mobile: ink at 14%, offset 0 12, blur 28, elevation 10): the floating tab bar only.
-- **Primary glow** (mobile: blue at 28%, offset 0 8, blur 16; admin: `0 8px 18px -8px rgba(30,94,255,0.55)`): the one filled button; selected choice chip uses blue at 22%, offset 0 6, blur 12.
-- **Focus ring** (admin: `0 0 0 3px rgba(30,94,255,0.25)`; mobile input focus: blue at 18%, blur 6, no offset): keyboard focus and focused inputs.
+**Admin**: near-flat, tonal. White-on-graphite panels with hairline seams; depth comes from the raised-surface step, not stacked shadows. `card` / `card-hover` shadow tokens exist for tappable panels only. A slow ambient radial-wash drift (`parada-drift`, 28s) sits behind the page ground, mirroring mobile's GradientMesh — frozen under `prefers-reduced-motion`.
 
 ### Named Rules
-**The Panel-Level Shadow Rule.** Only the outermost white surface casts a shadow. Inside it, depth is drawn with hairlines and the raised tint.
+**The Panel-Level Shadow Rule.** Only the outermost surface casts a shadow (or frost); nested rows, chips and pills never do.
 
 ## Shapes
 
-Soft and rounded, with larger surfaces earning larger corners: plate chips 6px (the one near-square shape, so a code reads as a stamped plate), chips and tracks 12px, buttons, inputs, choice chips and nav items 16px, cards 24px, pass cards and sheets 32px, the tab bar pill 32px, pills and bars fully round. Borders are 1px hairlines on cards and 1.5px on inputs and choice chips. Admin mirrors the scale as panel 20px (`1.25rem`), control 14px (`0.875rem`), chip 8px (`0.5rem`). The card's optional stamp mark is a 28x4px rounded bar in a status color above the content; the pass card's blue wash is a 260px circle at 16% bleeding off the top-right corner, clipped by the card.
+Both surfaces share the **PARADA cut**: three soft corners plus one sharp corner (top-right), echoing the logo's diagonal cut geometry — drawn as real per-corner-radius geometry (SVG path) where a platform can't express it natively (e.g. the mobile mascot's own body shape). Mobile's scale: chips/tracks 10px, buttons/inputs 14px, cards 20px, hero surfaces 28px, tab bar/pills fully round. Admin's scale: chip 8px, control 12px, panel 20px, all mirroring the same three-soft-one-sharp rule at a slightly tighter ratio for desktop density.
 
 ## Components
 
-### Buttons
-Confident, quiet, one loud voice per surface.
-- **Shape:** rounded control corners (14px); 48pt tall on mobile (44pt for `sm`), 44px on admin (36px for `sm`); 20px horizontal padding, 8px icon gap; label in Nunito 600 15px (admin 700 14px).
-- **Primary:** electric-blue fill, white text, blue glow; pressed goes deep blue and scales to 0.98 (admin hover deep blue, active scale 0.98, 150ms).
-- **Secondary:** white fill, ink text, hairline border; pressed/hover goes raised.
-- **Danger:** white fill, coral text, coral border at 30-35%; pressed/hover goes coral-soft. Never filled.
-- **Ghost:** transparent, blue text; pressed/hover goes blue-soft. Admin adds **Success** (mint-soft fill, mint text, hover inverts to mint fill) for confirm-type row actions.
-- **Focus / Disabled:** admin focus ring `0 0 0 3px` blue at 25%; disabled at 50% opacity on both surfaces; loading shows a spinner in the label color.
+### Buttons (both surfaces)
+Confident, one loud voice per surface. Mobile: badge-gold fill, dark-ink text, 48pt tall, spring-bounce on press (scale to 0.96 on press-in, bouncy overshoot back to 1 via the `springPlayful` motion token — not a flat opacity dim). Admin: orange fill, dark-ink text, 44px tall, hover deepens to `admin-brand-orange-deep`.
 
-### Chips
-- **Plate chip:** identifiers only. Ink fill with white JetBrains Mono, 6px corners (admin 8px), +1px tracking (admin +0.08em); `soft` tone is blue-soft with deep-blue text for secondary rows. The same chip everywhere a zone code, plate, or camera id appears.
-- **Choice chip (mobile):** pick-one, all options stay present; 44pt, 14px corners, white with 1.5px hairline; selected is struck forward as blue fill, white text, check icon, blue glow.
-- **Segmented filter (admin):** white container with hairline and 4px padding, 14px corners; items 34px tall, slate 700 12px; pressed item is blue-soft with deep-blue text.
+### Cards
+Mobile: navy panel, PARADA-cut corners, spring-bounce on press (same token as buttons) for every tappable card — vehicles, sessions, zones. Admin: graphite panel, PARADA-cut corners, `card-hover` shadow lift on hover only.
 
-### Status pills
-- **Style:** fully round, soft fill of the family, full-strength text of the family, 700 at 11-13px, icon 12-14px (admin 14px lucide glyph or a 6px dot) with 4-6px gap; 12px horizontal padding (admin 10px, 26px min height).
-- **Families:** available/success mint; low/pending amber; full/danger coral; active/assigned/unread blue; offline/expired/completed/revoked/read neutral (raised + slate). Live states (active session, unread) pulse their dot at 2s.
+### Zone selector (mobile signature)
+A horizontal rail of compact zone tiles (plate-chip code, availability badge, 2-line zone name cap, available-count metric, occupancy bar) replacing the retired icon-in-tile / wrap-grid pattern. Selected tile: badge-gold border + soft gold fill + a checkmark row naming the selection explicitly (never color alone). Full/offline tiles are disabled with an explicit reason line, matching backend `status`/`availability`/`availableCount` exactly — no fabricated slot-level occupancy.
 
-### Cards / Containers
-- **Corner Style:** 24px for mobile cards (20px admin panels); 32px for the pass card.
-- **Background:** white; `tinted` variant is raised with no border and no shadow for nested content.
-- **Shadow Strategy:** card shadow at rest (see Elevation); admin `card-hover` lifts on hover.
-- **Border:** 1px hairline.
-- **Internal Padding:** 16px (mobile), 20px on the pass card; admin panel header is 20px/16px with a hairline seam below and a 900 16px title with a 12px slate description.
-- **Pass card (mobile signature):** GlassCard at 32px with white frost (blur 50, white overlay 72%) over a status-colored wash (blue for assigned/parked, mint for reserved/recommended); a stamp row (`Stamp` pill: icon + micro label on the status tint, status badge on the right), the zone name at hero size, the plate in `plate` mono, a validity line, and one primary action. The stamp lands with a spring (friction 6, tension 120) from 0.92 to 1; reduced motion skips the spring.
-- **Facility strip (admin signature):** one panel holding 2-4 figures (label 700 12px slate, value 900 28px, detail 600 12px) separated by seams, not a row of metric cards.
+### Mascot (mobile signature)
+The canonical PARADA mascot — a fixed, unmodified image asset (never redrawn, recolored, stretched, or distorted) — bounces in on mount (`springPlayful`, skipped under Reduce Motion) at empty/error/onboarding/first-greeting moments only. Never rendered behind content, never on the same surface as the zone selector competing for attention.
 
-### Inputs / Fields
-- **Style:** micro uppercase label above (slate; blue while focused; coral on error), white field with 1.5px hairline, 16px corners, 16px horizontal padding, 500 weight at 15-16px; mono variant uses the `plate` face for plate entry. Admin selects add a slate chevron; textareas are 128px min.
-- **Focus:** border goes blue with a blue glow (mobile) or the 3px blue focus ring (admin); caret and selection are blue.
-- **Error / Disabled:** coral border with an alert icon and coral caption (`role=alert`); disabled sits on raised with slate text. Hint text is a slate caption below.
+### Stat panel (admin signature)
+One hero figure (2-row span, its own occupancy track) plus companion figures, replacing a uniform stat-card grid. Numeric values animate via `NumberTicker` on change.
 
 ### Navigation
-- **Mobile:** floating frosted pill (blur 70, white at 82%, 6% ink hairline, pill shadow), 64px tall, 32px radius; four tabs with 11px labels, blue active tint, slate inactive, blue-soft 10px-radius pill behind the active icon.
-- **Admin:** white sidebar rail with the PARADA mark (blue 40px tile with white glyph, 900 wordmark at +0.12em); groups labelled in micro uppercase slate, "Parking Operations" collapsed by default with a rotating chevron; items 40px tall, 14px corners, slate 600 text; active item is blue-soft with deep-blue text, blue icon and a 6px blue dot. Sign out sits in the footer and hovers to coral-soft.
-
-### Capacity bar
-A designed ghost track: 8px tall, fully round, raised fill with a hairline border, and a status-colored fill (mint-bright / amber-bright / coral / slate on admin; caller-supplied status token on mobile) whose width is clamped but whose numbers are never altered. Mobile shows "OCCUPANCY" micro label and `occupied of capacity · %` in mono beside it; remaining capacity is drawn as deliberately as the used part.
+Mobile: floating frosted pill tab bar, gold active tint, gold-soft pill behind the active icon. Admin: sidebar with a single sliding active-position marker (no per-row background paint); groups collapse/expand with a rotating chevron.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** put exactly one filled electric-blue button on a screen or form; make every other action outlined, ghost, or a pill.
-- **Do** set every plate, zone code, camera id, timestamp and count in JetBrains Mono with tabular numerals, and wrap identifiers in the plate chip.
-- **Do** pair every status with an icon or dot plus a label on the family's soft fill; use `mint-bright` and `amber-bright` for bar fills and dots only.
-- **Do** keep destructive actions outlined coral on white and spaced apart from the primary action.
-- **Do** draw the empty part of every capacity bar as a bordered raised track, and show the numbers next to it.
-- **Do** cast shadows at panel level only (card shadow at rest, hover lift on admin); separate rows inside a panel with 1px hairlines.
-- **Do** keep controls at 44pt or taller, and provide a flat white fallback for every frosted surface and a static fallback for every spring or pulse under reduced motion/transparency.
+- **Do** keep mobile and admin's brand-accent hue distinct (badge-gold vs. logo-orange) even while sharing status semantics.
+- **Do** draw the PARADA cut (three soft corners, one sharp) on every card/panel/button/input on both surfaces.
+- **Do** pair every status with an icon or label, never color alone — including alert-feed rows (no bare `border-l-4` accent strips).
+- **Do** compute any "X of Y" summary language from real query data; never fabricate availability, occupancy, or slot-level state the backend doesn't report.
+- **Do** use the canonical mascot image unmodified, and only at empty/error/onboarding/greeting/confirmation moments.
+- **Do** animate live operational numbers (admin hero stats) with a settle/tween, not an instant jump — and always gate it behind Reduce Motion.
 
 ### Don't:
-- **Don't** place a kicker or eyebrow above any heading, page title, section header or panel header; micro uppercase labels belong above values, fields and columns only, and the pass card's stamp is the only sanctioned label above a hero line.
-- **Don't** fill a destructive button with coral, or place two filled buttons in one form.
-- **Don't** use Nunito for identifiers or JetBrains Mono for labels and prose.
-- **Don't** signal state with color alone, or use a status hue outside its family (blue means active/yours, mint available, amber low/pending, coral full/danger).
-- **Don't** lay out the dashboard as a grid of same-size metric cards, or the parking screen as a map with pins plus a slot grid.
-- **Don't** add shadows to rows, chips, pills or nested surfaces, or frost anything other than the tab bar and pass/hero cards.
-- **Don't** zebra-stripe tables or replace the sticky hairline header with a filled band.
+- **Don't** default a zone/item selector to a generic wrapping vertical card grid — use the horizontal rail (mobile) or the asymmetric stat composition (admin).
+- **Don't** let the mascot appear behind content or compete with the primary selector on screen.
+- **Don't** invert light mode from dark mode on either surface; both registers are independently tuned.
+- **Don't** reuse Calamansi UI's own signature geometry (the squircle) or its Persuade-mode effects (3D pointer-tilt glare) in PARADA's Operate-mode admin — borrow interaction quality, not their brand mark.
+- **Don't** add a second filled accent-colored button to the same form or screen.

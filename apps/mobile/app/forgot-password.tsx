@@ -4,13 +4,15 @@ import { StyleSheet, View } from "react-native";
 import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import { api, ApiError } from "@/lib/api/client";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 /**
  * Forgot password, step 1. The API answers the same way whether or not the
  * address exists, so this screen never confirms an account either.
  */
 export default function ForgotPasswordScreen() {
+  const colors = useColors();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +95,7 @@ export default function ForgotPasswordScreen() {
       <Text variant="caption" align="center" style={styles.footer}>
         Remembered it?{" "}
         <Link href="/login" testID="forgot-password-goto-login">
-          <Text variant="caption" color={colors.primary}>
+          <Text variant="caption" color={colors.primaryDeep}>
             Back to sign in
           </Text>
         </Link>

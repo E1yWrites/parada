@@ -8,7 +8,8 @@ import { api, ApiError, avatarUrl, type UserDto } from "@/lib/api/client";
 import { AvatarPickError, pickAvatarImage, prepareAvatarUpload, type AvatarSource } from "@/lib/avatar";
 import { queryKeys } from "@/lib/query";
 import { useSession } from "@/src/providers/SessionProvider";
-import { colors, spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
+import { spacing } from "@/src/theme";
 
 type AvatarEditorProps = {
   user: UserDto;
@@ -22,6 +23,7 @@ type AvatarEditorProps = {
  * local file.
  */
 export function AvatarEditor({ user, testID = "avatar-editor" }: AvatarEditorProps) {
+  const colors = useColors();
   const { token, updateUser } = useSession();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);

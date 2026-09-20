@@ -1,16 +1,18 @@
 import { StyleSheet, View } from "react-native";
 import { BlurView } from "expo-blur";
-import { blurMethod, glass, layout } from "@/src/theme";
+import { blurMethod, layout } from "@/src/theme";
+import { useThemeGlass } from "@/src/providers/ThemeProvider";
 import { usePrefersReducedTransparency } from "@/src/hooks/usePrefersReducedTransparency";
 
 /**
  * Frosted background for the floating pill tab bar. Rendered via
  * `Tabs`' `tabBarBackground` option, behind the tab bar's icons/labels, with
  * `tabBarStyle.backgroundColor` set to `"transparent"` at the call site.
- * Falls back to a solid white fill under Reduce Transparency.
+ * Falls back to a solid theme-surface fill under Reduce Transparency.
  */
 export function TabBarBackground({ testID }: { testID?: string }) {
   const reducedTransparency = usePrefersReducedTransparency();
+  const glass = useThemeGlass();
   const preset = glass.chrome;
 
   if (reducedTransparency) {

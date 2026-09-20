@@ -30,7 +30,7 @@ const TONES: Record<Tone, string> = {
 const DOTS: Record<Tone, string> = {
   neutral: "bg-muted",
   success: "bg-success",
-  warn: "bg-warning-bright",
+  warn: "bg-warning",
   danger: "bg-danger",
   info: "bg-brand",
 };
@@ -47,8 +47,8 @@ export const AVAILABILITY_META: Record<
 
 /** Fill color for occupancy bars, from the same availability family. */
 export const AVAILABILITY_BAR: Record<Availability, string> = {
-  AVAILABLE: "bg-success-bright",
-  LOW_AVAILABILITY: "bg-warning-bright",
+  AVAILABLE: "bg-success",
+  LOW_AVAILABILITY: "bg-warning",
   FULL: "bg-danger",
   OFFLINE: "bg-muted",
 };
@@ -217,7 +217,7 @@ export function StatCard({
     success: "text-success",
     warn: "text-warning",
     danger: "text-danger",
-    info: "text-brand",
+    info: "text-brand-dark",
   };
   return (
     <div className="min-w-0 px-5 py-4">

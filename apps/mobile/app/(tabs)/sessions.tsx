@@ -5,6 +5,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  MascotCallout,
   Screen,
   SectionHeader,
   SessionCard,
@@ -12,9 +13,11 @@ import {
 import { api, ApiError, type SessionDto } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { useNow } from "@/src/hooks/useNow";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 export default function SessionsScreen() {
+  const colors = useColors();
   const sessions = useQuery({
     queryKey: queryKeys.sessions,
     queryFn: api.sessions,
@@ -96,7 +99,22 @@ function Header({
       {/* The list below already renders its own LoadingState; a second bare
           "Loading…" above it read like leftover scaffolding. */}
       {isError || isLoading ? null : (
-        <SectionHeader title="History" caption={`${historyCount} completed`} testID="sessions-history" />
+        <>
+          {/* Skip the callout when actively parked — the banner above already
+              carries its own mascot accent; two at once reads cluttered. */}
+          {active ? null : (
+            <MascotCallout
+              variant="history"
+              text={
+                historyCount > 0
+                  ? `${historyCount} completed ${historyCount === 1 ? "trip" : "trips"} logged!`
+                  : "Your parking journey starts here."
+              }
+              testID="sessions-greeting"
+            />
+          )}
+          <SectionHeader title="History" caption={`${historyCount} completed`} testID="sessions-history" />
+        </>
       )}
     </View>
   );

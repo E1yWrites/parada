@@ -14,6 +14,15 @@
         "value": "sfmono-regular",
         "createdAt": "2026-09-14T13:31:23.422Z",
         "reason": "email template: mail clients cannot load web fonts, system stacks are the only safe option (agent decision)"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "apps/admin/app/(app)/page.tsx"
+        ],
+        "createdAt": "2026-09-19T13:30:17.921Z",
+        "reason": "Live Alerts row left-border matches the approved Figma reference design's colored alert cards (red/amber accent per anomaly/notification severity) — not an AI-slop artifact, intentional reproduction of source design"
       }
     ]
   }

@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { BlurView } from "expo-blur";
-import { blurMethod, colors, glass, motion, radii, shadows, spacing } from "@/src/theme";
+import { blurMethod, motion, radii, spacing } from "@/src/theme";
+import { useColors, useThemeGlass, useThemeShadows } from "@/src/providers/ThemeProvider";
+import type { ShadowTokens } from "@/src/theme/shadows";
 import { usePrefersReducedTransparency } from "@/src/hooks/usePrefersReducedTransparency";
 
 type GlassCardProps = {
@@ -9,37 +12,34 @@ type GlassCardProps = {
   onPress?: () => void;
   accent?: string;
   padding?: number;
-  /** Wash color painted behind the frost (defaults to brand blue). */
+  /** Wash color painted behind the frost (defaults to brand orange). */
   wash?: string;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
 
 /**
- * The pass / hero surface: a white frost over a soft color wash, so the card
- * reads as a subtle gradient rather than flat white. Same shape/contract as
+ * The pass / hero surface: a frost over a soft color wash, so the card reads
+ * as a subtle gradient rather than flat surface. Same shape/contract as
  * `Card`; reserved for the current-state pass, summaries and hero banners.
  * Falls back to a solid surface under the OS Reduce Transparency setting.
  */
-export function GlassCard({
-  children,
-  onPress,
-  accent,
-  padding = spacing.xl2,
-  wash = colors.primary,
-  style,
-  testID,
-}: GlassCardProps) {
+export function GlassCard({ children, onPress, accent, padding = spacing.xl2, wash, style, testID }: GlassCardProps) {
+  const colors = useColors();
+  const shadows = useThemeShadows();
+  const glass = useThemeGlass();
+  const styles = useMemo(() => buildStyles(shadows), [shadows]);
   const reducedTransparency = usePrefersReducedTransparency();
   const preset = glass.hero;
+  const washColor = wash ?? colors.primary;
 
   const background = reducedTransparency ? (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: preset.fallbackColor }]} />
   ) : (
     <>
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />
-      <View style={[styles.wash, styles.washTop, { backgroundColor: wash }]} />
-      <View style={[styles.wash, styles.washBottom, { backgroundColor: wash }]} />
+      <View style={[styles.wash, styles.washTop, { backgroundColor: washColor }]} />
+      <View style={[styles.wash, styles.washBottom, { backgroundColor: washColor }]} />
       <BlurView
         testID={testID ? `${testID}-blur` : undefined}
         style={StyleSheet.absoluteFill}
@@ -94,40 +94,44 @@ export function GlassCard({
   );
 }
 
-const styles = StyleSheet.create({
-  outer: {
-    borderRadius: radii.xl,
-    ...shadows.card,
-  },
-  clip: {
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  wash: {
-    position: "absolute",
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    opacity: 0.16,
-  },
-  washTop: {
-    top: -140,
-    right: -80,
-  },
-  washBottom: {
-    bottom: -180,
-    left: -60,
-    opacity: 0.08,
-  },
-  accent: {
-    width: 28,
-    height: 4,
-    borderRadius: 2,
-    marginBottom: spacing.lg,
-  },
-  pressed: {
-    opacity: 0.94,
-    transform: [{ scale: motion.pressScale }],
-  },
-});
+function buildStyles(shadows: ShadowTokens) {
+  return StyleSheet.create({
+    outer: {
+      borderRadius: radii.xl,
+      borderTopRightRadius: radii.cut + 4,
+      ...shadows.card,
+    },
+    clip: {
+      borderRadius: radii.xl,
+      borderTopRightRadius: radii.cut + 4,
+      borderWidth: 1,
+      overflow: "hidden",
+    },
+    wash: {
+      position: "absolute",
+      width: 260,
+      height: 260,
+      borderRadius: 130,
+      opacity: 0.16,
+    },
+    washTop: {
+      top: -140,
+      right: -80,
+    },
+    washBottom: {
+      bottom: -180,
+      left: -60,
+      opacity: 0.08,
+    },
+    accent: {
+      width: 28,
+      height: 4,
+      borderRadius: 2,
+      marginBottom: spacing.lg,
+    },
+    pressed: {
+      opacity: 0.94,
+      transform: [{ scale: motion.pressScale }],
+    },
+  });
+}

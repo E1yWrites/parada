@@ -5,9 +5,11 @@ import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import { useSession } from "@/src/providers/SessionProvider";
 import { ApiError } from "@/lib/api/client";
-import { colors, fonts, spacing } from "@/src/theme";
+import { fonts, spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 export default function LoginScreen() {
+  const colors = useColors();
   const { signIn } = useSession();
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string; notice?: string }>();
@@ -106,7 +108,7 @@ export default function LoginScreen() {
       <View style={styles.links}>
         <Text variant="caption" align="center">
           <Link href="/forgot-password" testID="login-goto-forgot">
-            <Text variant="caption" color={colors.primary} style={styles.linkText}>
+            <Text variant="caption" color={colors.primaryDeep} style={styles.linkText}>
               Forgot your password?
             </Text>
           </Link>
@@ -114,14 +116,14 @@ export default function LoginScreen() {
         <Text variant="caption" align="center">
           New here?{" "}
           <Link href="/register" testID="login-goto-register">
-            <Text variant="caption" color={colors.primary} style={styles.linkText}>
+            <Text variant="caption" color={colors.primaryDeep} style={styles.linkText}>
               Create an account
             </Text>
           </Link>
         </Text>
         <Text variant="caption" align="center">
           <Link href="/onboarding" testID="login-goto-onboarding">
-            <Text variant="caption" color={colors.primary} style={styles.linkText}>
+            <Text variant="caption" color={colors.primaryDeep} style={styles.linkText}>
               How PARADA works
             </Text>
           </Link>

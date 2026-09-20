@@ -5,9 +5,11 @@ import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import { useSession } from "@/src/providers/SessionProvider";
 import { ApiError } from "@/lib/api/client";
-import { colors, fonts, spacing } from "@/src/theme";
+import { fonts, spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 export default function RegisterScreen() {
+  const colors = useColors();
   const { signUp } = useSession();
   const router = useRouter();
   const [name, setName] = useState("");
@@ -68,7 +70,7 @@ export default function RegisterScreen() {
       <View style={styles.heading}>
         <Text variant="hero">Create your account</Text>
         <Text variant="body" color={colors.muted}>
-          Register once, then add your plates — they are your gate pass.
+          Register once, then add your plates so gate cameras recognize you.
         </Text>
       </View>
       {error ? (
@@ -145,7 +147,7 @@ export default function RegisterScreen() {
       <Text variant="caption" align="center" style={styles.footer}>
         Already have an account?{" "}
         <Link href="/login" testID="register-goto-login">
-          <Text variant="caption" color={colors.primary} style={styles.linkText}>
+          <Text variant="caption" color={colors.primaryDeep} style={styles.linkText}>
             Sign in
           </Text>
         </Link>

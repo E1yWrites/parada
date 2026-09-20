@@ -2,20 +2,105 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * PARADA "operations console" world — deliberately its own atmosphere, not
+ * the mobile app's palette carried over. Mobile draws its identity from the
+ * mascot (warm navy + badge-gold); admin draws from the logo mark and the
+ * job of the surface: a true-neutral graphite control room with PARADA
+ * orange as the one brand accent, so status color (success/warning/danger)
+ * reads instantly against a hue-neutral ground instead of competing with a
+ * tinted one. Light is an independently tuned counterpart (warm paper, kept
+ * deliberately asymmetric to dark's cool neutral rather than a simple
+ * inversion) sharing every token name so no component needs theme-specific
+ * code. `[data-theme]` on <html> selects the theme explicitly; without it,
+ * `prefers-color-scheme` decides.
+ */
 :root {
-  --paper: #f4f6fb;
-  --card: #ffffff;
-  --raised: #eef2fa;
-  --charcoal: #0f1b2d;
-  --muted: #5b6b82;
-  --line: #e3e8f1;
-  --brand: #1e5eff;
-  --brand-dark: #1546c9;
-  --brand-soft: #e8efff;
-  --success: #0b7f4f;
-  --warning: #a35f04;
-  --danger: #d9342f;
+  --paper: 18 19 22;
+  --card: 27 29 34;
+  --raised: 35 38 44;
+  --raised2: 44 47 54;
+  --charcoal: 245 244 242;
+  --muted: 144 148 158;
+  --faint: 107 111 122;
+  --line: 36 38 45;
+  --line-strong: 51 54 63;
+  --brand: 247 147 26;
+  --brand-dark: 234 88 12;
+  --brand-soft: 42 32 21;
+  --success: 61 220 132;
+  --success-soft: 21 41 29;
+  --warning: 255 214 0;
+  --warning-soft: 46 42 16;
+  --danger: 240 82 74;
+  --danger-soft: 46 22 20;
+  --on-accent: 15 10 5;
+  --data-1: 247 147 26;
+  --data-2: 61 220 132;
+  --data-3: 91 141 239;
+  --data-4: 255 214 0;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --paper: 245 242 236;
+  --card: 255 253 249;
+  --raised: 241 235 224;
+  --raised2: 255 255 255;
+  --charcoal: 24 19 16;
+  --muted: 101 93 83;
+  --faint: 155 145 134;
+  --line: 228 221 207;
+  --line-strong: 217 208 192;
+  --brand: 247 147 26;
+  /* Deliberately darker than dark mode's brand-dark: raw brand orange only
+     reaches ~2.3:1 as text on this warm-white surface, and #EA580C still
+     falls short at ~3.5:1. #C2410C clears 4.5:1 against both card and
+     paper, so every `text-brand-dark` / `bg-brand-dark` call site stays
+     AA-compliant here without touching the many components that use it. */
+  --brand-dark: 194 65 12;
+  --brand-soft: 253 235 211;
+  --success: 23 112 71;
+  --success-soft: 225 240 232;
+  --warning: 138 106 0;
+  --warning-soft: 255 243 204;
+  --danger: 194 42 38;
+  --danger-soft: 251 228 227;
+  --on-accent: 15 10 5;
+  --data-1: 234 88 12;
+  --data-2: 23 112 71;
+  --data-3: 29 78 216;
+  --data-4: 138 106 0;
   color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --paper: 245 242 236;
+    --card: 255 253 249;
+    --raised: 241 235 224;
+    --raised2: 255 255 255;
+    --charcoal: 24 19 16;
+    --muted: 101 93 83;
+    --faint: 155 145 134;
+    --line: 228 221 207;
+    --line-strong: 217 208 192;
+    --brand: 247 147 26;
+    --brand-dark: 194 65 12;
+    --brand-soft: 253 235 211;
+    --success: 23 112 71;
+    --success-soft: 225 240 232;
+    --warning: 138 106 0;
+    --warning-soft: 255 243 204;
+    --danger: 194 42 38;
+    --danger-soft: 251 228 227;
+    --on-accent: 15 10 5;
+    --data-1: 234 88 12;
+    --data-2: 23 112 71;
+    --data-3: 29 78 216;
+    --data-4: 138 106 0;
+    color-scheme: light;
+  }
 }
 
 @layer base {
@@ -29,8 +114,8 @@
   }
 
   ::selection {
-    background: rgba(30, 94, 255, 0.18);
-    color: var(--charcoal);
+    background: rgb(var(--brand) / 0.28);
+    color: rgb(var(--charcoal));
   }
 
   h1,
@@ -42,21 +127,21 @@
 
   input,
   textarea {
-    caret-color: var(--brand);
+    caret-color: rgb(var(--brand));
   }
 
   /* Native date/time pickers inherit the brand tint */
   input[type="datetime-local"],
   input[type="number"] {
-    accent-color: var(--brand);
+    accent-color: rgb(var(--brand));
   }
 }
 
-/* ---- Ground: cool off-white with two soft blue/mint washes ---- */
+/* ---- Ground: asphalt dark (or warm paper light) with two soft orange/mint washes ---- */
 .parada-background {
   position: relative;
   min-height: 100vh;
-  background-color: var(--paper);
+  background-color: rgb(var(--paper));
 }
 
 .parada-background::before {
@@ -66,14 +151,32 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(720px 400px at 92% -10%, rgba(30, 94, 255, 0.1), transparent 70%),
-    radial-gradient(640px 360px at -6% 104%, rgba(30, 94, 255, 0.06), transparent 70%);
+    radial-gradient(720px 400px at 92% -10%, rgb(var(--brand) / 0.06), transparent 70%),
+    radial-gradient(640px 360px at -6% 104%, rgb(var(--success) / 0.05), transparent 70%);
+  animation: parada-drift 28s ease-in-out infinite;
+}
+
+/* Slow ambient drift + breathe, mirroring the mobile app's GradientMesh —
+   ambient life without competing for attention. Reduced-motion media query
+   below zeroes the animation duration, so this freezes on its resting frame. */
+@keyframes parada-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  50% {
+    transform: translate3d(-1.5%, 1.5%, 0);
+    opacity: 0.88;
+  }
 }
 
 @layer components {
-  /* ---- Panels: the registry surface ---- */
+  /* ---- Panels: the registry surface. Three soft corners, one sharp cut
+     (top-right) — the shared PARADA shape, echoing the logo's diagonal cut.
+     Never a plain uniform rounded rectangle. ---- */
   .card {
-    @apply rounded-panel border border-line bg-card shadow-card;
+    @apply rounded-panel rounded-tr-panel-cut border border-line bg-card shadow-card;
   }
 
   .card-hover {
@@ -82,12 +185,12 @@
 
   /* Nested row surface inside a panel */
   .surface-panel {
-    @apply rounded-control border border-line bg-raised/60;
+    @apply rounded-control rounded-tr-control-cut border border-line bg-raised/60;
   }
 
-  /* ---- Buttons ---- */
+  /* ---- Buttons: same cut as panels — the primary action carries the brand shape ---- */
   .btn {
-    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-control px-5 text-sm font-bold transition-all duration-150 focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-control rounded-tr-control-cut px-5 text-sm font-bold transition-all duration-150 focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
   }
 
   .btn-sm {
@@ -95,38 +198,38 @@
   }
 
   .btn-primary {
-    @apply btn bg-brand text-white shadow-primary hover:bg-brand-dark;
+    @apply btn bg-brand text-on-accent shadow-primary hover:bg-brand-dark;
   }
 
   .btn-secondary {
-    @apply btn border border-line bg-white text-charcoal hover:border-charcoal/20 hover:bg-raised;
+    @apply btn border border-line bg-card text-charcoal hover:border-line-strong hover:bg-raised;
   }
 
   .btn-ghost {
-    @apply btn border border-transparent text-brand hover:bg-brand-soft;
+    @apply btn border border-transparent text-brand-dark hover:bg-brand-soft;
   }
 
   .btn-success {
-    @apply btn border border-success/30 bg-success-soft text-success hover:bg-success hover:text-white;
+    @apply btn border border-success/30 bg-success-soft text-success hover:bg-success hover:text-on-accent;
   }
 
   .btn-danger {
-    @apply btn border border-danger/30 bg-white text-danger hover:bg-danger-soft;
+    @apply btn border border-danger/40 bg-card text-danger hover:bg-danger-soft;
   }
 
   /* ---- Inputs ---- */
   .input {
-    @apply min-h-[44px] w-full rounded-control border-[1.5px] border-line bg-white px-4 py-2 text-[15px] font-medium text-charcoal placeholder:font-normal placeholder:text-muted/80 transition-[border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:border-brand focus-visible:shadow-focus disabled:bg-raised disabled:text-muted;
+    @apply min-h-[44px] w-full rounded-control rounded-tr-control-cut border-[1.5px] border-line bg-card px-4 py-2 text-[15px] font-medium text-charcoal placeholder:font-normal placeholder:text-faint transition-[border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:border-brand focus-visible:shadow-focus disabled:bg-raised disabled:text-muted;
   }
 
   select.input {
     @apply cursor-pointer appearance-none bg-no-repeat pr-10;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235b6b82' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239c9ca6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
     background-position: right 0.9rem center;
   }
 
   select.input option {
-    @apply bg-white text-charcoal;
+    @apply bg-card text-charcoal;
   }
 
   textarea.input {
@@ -146,14 +249,14 @@
     @apply mt-1.5 text-xs text-muted;
   }
 
-  /* ---- Status pill: tinted fill, icon + text ---- */
+  /* ---- Status pill: tinted fill, icon + text (chips/badges stay full-pill) ---- */
   .status-pill {
     @apply inline-flex min-h-[26px] items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold;
   }
 
   /* ---- Identifier plate chip (zone codes, plates, camera ids) ---- */
   .plate-chip {
-    @apply inline-flex items-center rounded-chip bg-charcoal px-2 py-0.5 font-mono text-[12px] font-bold tracking-[0.08em] text-white;
+    @apply inline-flex items-center rounded-chip bg-charcoal px-2 py-0.5 font-mono text-[12px] font-bold tracking-[0.08em] text-paper;
   }
 
   .plate-chip-soft {
@@ -170,7 +273,7 @@
   }
 
   .table-base thead th {
-    @apply sticky top-0 z-[1] bg-white px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted;
+    @apply sticky top-0 z-[1] bg-card px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted;
   }
 
   .table-base tbody tr {
@@ -192,16 +295,16 @@
 
   /* ---- Inline alert ---- */
   .alert-danger {
-    @apply flex items-start gap-2 rounded-control border border-danger/25 bg-danger-soft px-3.5 py-2.5 text-sm font-semibold text-danger;
+    @apply flex items-start gap-2 rounded-control border border-danger/30 bg-danger-soft px-3.5 py-2.5 text-sm font-semibold text-danger;
   }
 
   .alert-warning {
-    @apply flex items-start gap-2 rounded-control border border-warning/25 bg-warning-soft px-3.5 py-2.5 text-sm font-semibold text-warning;
+    @apply flex items-start gap-2 rounded-control border border-warning/30 bg-warning-soft px-3.5 py-2.5 text-sm font-semibold text-warning;
   }
 
   /* ---- Segmented filter ---- */
   .segmented {
-    @apply inline-flex items-center gap-1 rounded-control border border-line bg-white p-1;
+    @apply inline-flex items-center gap-1 rounded-control border border-line bg-card p-1;
   }
 
   .segmented-item {
@@ -211,7 +314,7 @@
   /* ---- Scrollbar ---- */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #c9d2e3 transparent;
+    scrollbar-color: rgb(var(--line-strong)) transparent;
   }
 
   ::-webkit-scrollbar {
@@ -220,7 +323,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #c9d2e3;
+    background: rgb(var(--line-strong));
     border-radius: 9999px;
   }
 

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@/src/test/utils";
 import { Button, Input, StatusBadge, Text } from "@/src/components";
 import { parkingStatusMeta } from "@/src/components/StatusBadge";
-import { fonts } from "@/src/theme";
+import { colors, fonts } from "@/src/theme";
 
 function flattenStyle(style: unknown): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -60,16 +60,16 @@ describe("Button: accessibility states", () => {
 
 describe("StatusBadge: icon + text + label", () => {
   it("pairs a text label with the status and exposes it to screen readers", () => {
-    render(<StatusBadge meta={parkingStatusMeta("AVAILABLE")} testID="badge" />);
+    render(<StatusBadge meta={parkingStatusMeta("AVAILABLE", colors)} testID="badge" />);
 
     expect(screen.getByText("Available")).toBeOnTheScreen();
     expect(screen.getByTestId("badge").props.accessibilityLabel).toBe("Available");
   });
 
   it("renders a distinct label, icon slug and color for each zone status", () => {
-    const low = parkingStatusMeta("LOW_AVAILABILITY");
-    const full = parkingStatusMeta("FULL");
-    const offline = parkingStatusMeta("OFFLINE");
+    const low = parkingStatusMeta("LOW_AVAILABILITY", colors);
+    const full = parkingStatusMeta("FULL", colors);
+    const offline = parkingStatusMeta("OFFLINE", colors);
 
     expect(low.label.length).toBeGreaterThan(0);
     expect(low.icon).toBe("alert-circle");

@@ -4,7 +4,8 @@ import { StyleSheet, View } from "react-native";
 import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import { api, ApiError } from "@/lib/api/client";
-import { colors, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
+import { useColors } from "@/src/providers/ThemeProvider";
 
 /** Seconds until `iso`; 0 when it is in the past or unparsable. */
 function secondsUntil(iso: string | null, now = Date.now()): number {
@@ -25,6 +26,7 @@ function secondsUntil(iso: string | null, now = Date.now()): number {
  * returns to Login (no token is issued here).
  */
 export default function VerifyEmailScreen() {
+  const colors = useColors();
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string }>();
   const email = typeof params.email === "string" ? params.email : "";
@@ -155,7 +157,7 @@ export default function VerifyEmailScreen() {
       <Text variant="caption" align="center" style={styles.footer}>
         Already verified?{" "}
         <Link href={{ pathname: "/login", params: { email } }} testID="verify-email-goto-login">
-          <Text variant="caption" color={colors.primary}>
+          <Text variant="caption" color={colors.primaryDeep}>
             Sign in
           </Text>
         </Link>
