@@ -118,6 +118,14 @@ function VehicleForm({
     onSuccess: onUnregistered,
     onError: (err) => setError(err instanceof ApiError ? err.message : "We couldn't unregister this vehicle. Please try again."),
   });
+  const makePrimary = useMutation({
+    mutationFn: () => api.setPrimaryVehicle(vehicle.id),
+    onSuccess: (next) => {
+      setError(null);
+      onSaved(next);
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "We couldn't set this as your primary vehicle."),
+  });
 
   const cleanedPlate = normalizePlateInput(plate);
   const dirty =
@@ -207,6 +215,29 @@ function VehicleForm({
           accessibilityLabel="Save vehicle changes"
         />
       </Card>
+      {vehicle.status === "ACTIVE" ? (
+        <View style={styles.primaryBlock}>
+          {vehicle.isPrimary ? (
+            <Text variant="caption" color={colors.muted} testID="vehicle-is-primary">
+              This is your primary vehicle.
+            </Text>
+          ) : (
+            <>
+              <Text variant="caption" color={colors.muted}>
+                Your primary vehicle is preselected when you start parking.
+              </Text>
+              <Button
+                testID="vehicle-make-primary"
+                variant="secondary"
+                title={makePrimary.isPending ? "Setting…" : "Set as primary"}
+                loading={makePrimary.isPending}
+                onPress={() => makePrimary.mutate()}
+                accessibilityLabel={`Set ${vehicle.plateNumber} as primary vehicle`}
+              />
+            </>
+          )}
+        </View>
+      ) : null}
       <View style={styles.danger}>
         <Text variant="caption" color={colors.muted}>
           Unregistering keeps your past sessions, fees and violations. A vehicle that is parked, assigned or reserved can't be
@@ -229,6 +260,7 @@ function buildStyles(colors: ColorTokens) {
   return StyleSheet.create({
     form: { gap: spacing.xl },
     typeBlock: { gap: spacing.md },
+    primaryBlock: { gap: spacing.md, marginTop: spacing.xl },
     typeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
     danger: {
       gap: spacing.md,

@@ -71,15 +71,18 @@ export class VehicleService {
     if (existing && existing.status === "ACTIVE") {
       throw new UnprocessableError("You already have a vehicle with this plate number.");
     }
+    // A driver's first active vehicle is naturally their primary; later
+    // registrations don't disturb an existing choice.
+    const hasPrimary = (await prisma.vehicle.count({ where: { userId, status: "ACTIVE", isPrimary: true } })) > 0;
     try {
       if (existing) {
         return await prisma.vehicle.update({
           where: { id: existing.id },
-          data: { plateNumber, vehicleType, status: "ACTIVE", ...details },
+          data: { plateNumber, vehicleType, status: "ACTIVE", isPrimary: !hasPrimary, ...details },
         });
       }
       return await prisma.vehicle.create({
-        data: { userId, plateNumber, normalizedPlate, vehicleType, status: "ACTIVE", ...details },
+        data: { userId, plateNumber, normalizedPlate, vehicleType, status: "ACTIVE", isPrimary: !hasPrimary, ...details },
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -87,6 +90,23 @@ export class VehicleService {
       }
       throw err;
     }
+  }
+
+  /**
+   * Makes an active vehicle the driver's primary. Only one vehicle can be
+   * primary at a time (partial unique index), so the previous holder is
+   * cleared in the same transaction.
+   */
+  async setPrimary(userId: string, vehicleId: string) {
+    const vehicle = await this.get(userId, vehicleId);
+    if (vehicle.isPrimary) {
+      return vehicle;
+    }
+    const [, updated] = await prisma.$transaction([
+      prisma.vehicle.updateMany({ where: { userId, isPrimary: true }, data: { isPrimary: false } }),
+      prisma.vehicle.update({ where: { id: vehicle.id }, data: { isPrimary: true } }),
+    ]);
+    return updated;
   }
 
   async update(userId: string, vehicleId: string, input: VehicleUpdateInput) {
@@ -124,16 +144,29 @@ export class VehicleService {
     }
   }
 
-  /** Unregister: INACTIVE, never deleted. Refused while the vehicle is in use. */
+  /**
+   * Unregister: INACTIVE, never deleted. Refused while the vehicle is in
+   * use. A deactivated primary hands the role to another active vehicle
+   * (most recently registered), if the driver has one.
+   */
   async deactivate(userId: string, vehicleId: string) {
     const vehicle = await this.get(userId, vehicleId);
     await this.assertNotInUse(vehicle.id, "unregister");
     const flipped = await prisma.vehicle.updateMany({
       where: { id: vehicle.id, userId, status: "ACTIVE" },
-      data: { status: "INACTIVE" },
+      data: { status: "INACTIVE", isPrimary: false },
     });
     if (flipped.count !== 1) {
       throw new NotFoundError("Vehicle not found.");
+    }
+    if (vehicle.isPrimary) {
+      const successor = await prisma.vehicle.findFirst({
+        where: { userId, status: "ACTIVE" },
+        orderBy: { createdAt: "desc" },
+      });
+      if (successor) {
+        await prisma.vehicle.update({ where: { id: successor.id }, data: { isPrimary: true } });
+      }
     }
     return prisma.vehicle.findUniqueOrThrow({ where: { id: vehicle.id } });
   }

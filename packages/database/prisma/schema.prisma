@@ -264,6 +264,10 @@ model Vehicle {
   // INACTIVE = unregistered by the driver. History (sessions, violations,
   // fees) keeps pointing at the row; it is never hard-deleted.
   status          VehicleStatus @default(ACTIVE)
+  // The driver's default vehicle for the parking flow. At most one per user
+  // (enforced by a partial unique index) and only ever true on an ACTIVE
+  // vehicle; the domain layer keeps both invariants when this changes.
+  isPrimary       Boolean       @default(false)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 

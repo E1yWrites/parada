@@ -626,6 +626,43 @@ describe("Vehicle lifecycle", () => {
     await bearer(a.token)(request(app).delete(`/vehicles/${v.id}`)).expect(200);
     expect((await prisma.parkingZone.findUniqueOrThrow({ where: { id: z.id } })).occupiedCount).toBe(0);
   });
+
+  it("keeps exactly one primary vehicle per driver, letting the driver change it and reassigning it when it's unregistered", async () => {
+    const a = await driver("vprimary@test.local");
+    const b = await driver("vprimaryb@test.local");
+
+    // The first active vehicle is automatically primary.
+    const v1 = (await bearer(a.token)(request(app).post("/vehicles")).send({ plateNumber: "PRI-1", vehicleType: "CAR" }).expect(201)).body.data;
+    expect(v1.isPrimary).toBe(true);
+
+    // A second registration doesn't disturb the existing primary.
+    const v2 = (await bearer(a.token)(request(app).post("/vehicles")).send({ plateNumber: "PRI-2", vehicleType: "CAR" }).expect(201)).body.data;
+    expect(v2.isPrimary).toBe(false);
+
+    // The driver can switch it explicitly; only one stays primary.
+    const switched = await bearer(a.token)(request(app).post(`/vehicles/${v2.id}/primary`)).expect(200);
+    expect(switched.body.data.isPrimary).toBe(true);
+    const list1 = await bearer(a.token)(request(app).get("/vehicles")).expect(200);
+    expect(list1.body.data.find((v: { id: string }) => v.id === v1.id).isPrimary).toBe(false);
+    expect(list1.body.data.find((v: { id: string }) => v.id === v2.id).isPrimary).toBe(true);
+
+    // Ownership is enforced server-side: another driver can't set it.
+    await bearer(b.token)(request(app).post(`/vehicles/${v2.id}/primary`)).expect(404);
+
+    // Unregistering the current primary hands the role to another active vehicle.
+    await bearer(a.token)(request(app).delete(`/vehicles/${v2.id}`)).expect(200);
+    const list2 = await bearer(a.token)(request(app).get("/vehicles")).expect(200);
+    expect(list2.body.data).toHaveLength(1);
+    expect(list2.body.data[0]).toMatchObject({ id: v1.id, isPrimary: true });
+
+    // Unregistering the last active vehicle leaves no primary — nothing to promote.
+    await bearer(a.token)(request(app).delete(`/vehicles/${v1.id}`)).expect(200);
+    expect(await prisma.vehicle.count({ where: { userId: a.id, status: "ACTIVE" } })).toBe(0);
+
+    // Re-registering after having none becomes primary again.
+    const v3 = (await bearer(a.token)(request(app).post("/vehicles")).send({ plateNumber: "PRI-3", vehicleType: "CAR" }).expect(201)).body.data;
+    expect(v3.isPrimary).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

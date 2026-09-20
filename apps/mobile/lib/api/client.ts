@@ -531,6 +531,8 @@ export const api = {
     request<Vehicle>("/vehicles", { method: "POST", body: input }),
   updateVehicle: (vehicleId: string, input: VehicleUpdateInput) =>
     request<Vehicle>(`/vehicles/${vehicleId}`, { method: "PATCH", body: input }),
+  setPrimaryVehicle: (vehicleId: string) =>
+    request<Vehicle>(`/vehicles/${vehicleId}/primary`, { method: "POST" }),
   unregisterVehicle: (vehicleId: string) =>
     request<Vehicle>(`/vehicles/${vehicleId}`, { method: "DELETE" }),
 

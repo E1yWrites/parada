@@ -57,6 +57,14 @@ export function vehiclesRouter(vehicles: VehicleService = new VehicleService()):
     })
   );
 
+  router.post(
+    "/vehicles/:id/primary",
+    asyncHandler(async (req, res) => {
+      const userId = currentUserId(res);
+      res.json(ok(await vehicles.setPrimary(userId, req.params["id"]!)));
+    })
+  );
+
   // Unregister = deactivate. Nothing is deleted; history stays intact.
   router.delete(
     "/vehicles/:id",

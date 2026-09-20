@@ -58,6 +58,7 @@ jest.mock("@/lib/api/client", () => {
       vehicles: jest.fn(),
       createVehicle: jest.fn(),
       updateVehicle: jest.fn(),
+      setPrimaryVehicle: jest.fn(),
       unregisterVehicle: jest.fn(),
       sessions: jest.fn(),
       activeSession: jest.fn(),
@@ -100,6 +101,7 @@ const vehicle: Vehicle = {
   model: "Vios",
   color: null,
   status: "ACTIVE",
+  isPrimary: true,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
 };
@@ -489,6 +491,23 @@ describe("vehicle edit / unregister screen", () => {
     await waitFor(() => expect(api.unregisterVehicle).toHaveBeenCalledWith("v1"));
     await waitFor(() => expect(__router.back).toHaveBeenCalled());
     alertSpy.mockRestore();
+  });
+
+  it("offers to set a non-primary active vehicle as primary, and reflects the switch", async () => {
+    (api.vehicles as jest.Mock)
+      .mockResolvedValueOnce([{ ...vehicle, isPrimary: false }])
+      .mockResolvedValue([{ ...vehicle, isPrimary: true }]);
+    (api.setPrimaryVehicle as jest.Mock).mockResolvedValue({ ...vehicle, isPrimary: true });
+    renderWithProviders(<VehicleDetailScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("vehicle-make-primary")).toBeOnTheScreen());
+    expect(screen.queryByTestId("vehicle-is-primary")).not.toBeOnTheScreen();
+
+    fireEvent.press(screen.getByTestId("vehicle-make-primary"));
+
+    await waitFor(() => expect(api.setPrimaryVehicle).toHaveBeenCalledWith("v1"));
+    await waitFor(() => expect(screen.getByTestId("vehicle-is-primary")).toBeOnTheScreen());
+    expect(screen.queryByTestId("vehicle-make-primary")).not.toBeOnTheScreen();
   });
 
   it("shows the domain block when the vehicle is parked / reserved", async () => {

@@ -189,6 +189,7 @@ export interface Vehicle {
   model: string | null;
   color: string | null;
   status: VehicleStatus;
+  isPrimary: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

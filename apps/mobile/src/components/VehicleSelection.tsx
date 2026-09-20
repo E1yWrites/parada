@@ -70,9 +70,14 @@ export function useVehicleSelection(): VehicleSelection {
 
   const activeVehicles = (vehicles.data ?? []).filter(isActiveVehicle);
   const soleVehicle = activeVehicles.length === 1 ? (activeVehicles[0] ?? null) : null;
+  const primaryVehicle = activeVehicles.find((vehicle) => vehicle.isPrimary) ?? null;
   // The sole vehicle wins over a stale id left from when the driver had more.
+  // Otherwise an explicit pick for this action wins over the driver's
+  // primary, which only preselects — it never overrides an intentional choice.
   const selectedVehicle =
-    soleVehicle ?? activeVehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? null;
+    soleVehicle ??
+    activeVehicles.find((vehicle) => vehicle.id === selectedVehicleId) ??
+    primaryVehicle;
 
   return {
     activeVehicles,

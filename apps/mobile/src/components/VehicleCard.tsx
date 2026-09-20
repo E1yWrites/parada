@@ -46,9 +46,16 @@ export function VehicleCard({ vehicle, onPress, testID }: VehicleCardProps) {
         />
       </View>
       <View style={styles.plateGroup}>
-        <Text variant="plate" testID={testID ? `${testID}-plate` : undefined}>
-          {vehicle.plateNumber}
-        </Text>
+        <View style={styles.plateRow}>
+          <Text variant="plate" testID={testID ? `${testID}-plate` : undefined}>
+            {vehicle.plateNumber}
+          </Text>
+          {vehicle.isPrimary ? (
+            <Text variant="micro" color={colors.primaryDeep} testID={testID ? `${testID}-primary` : undefined}>
+              PRIMARY
+            </Text>
+          ) : null}
+        </View>
         <Text variant="caption" numberOfLines={2} testID={testID ? `${testID}-type` : undefined}>
           {[formatVehicleType(vehicle.vehicleType), [vehicle.color, vehicle.make, vehicle.model].filter(Boolean).join(" ")]
             .filter((part) => part && part.length > 0)
@@ -74,5 +81,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     flex: 1,
     minWidth: 0,
+  },
+  plateRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.sm,
   },
 });

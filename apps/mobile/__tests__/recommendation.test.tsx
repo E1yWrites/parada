@@ -65,6 +65,7 @@ const vehicle: Vehicle = {
   model: null,
   color: null,
   status: "ACTIVE",
+  isPrimary: false,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
 };

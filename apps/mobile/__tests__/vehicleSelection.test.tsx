@@ -47,6 +47,7 @@ const vehicle: Vehicle = {
   model: null,
   color: null,
   status: "ACTIVE",
+  isPrimary: false,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
 };
@@ -119,6 +120,37 @@ describe("the chosen vehicle belongs to the parking action, not to one panel", (
     expect(screen.getByTestId("reservation-vehicle")).toHaveTextContent(/ABC-1234/);
     expect(screen.queryByTestId("assignment-vehicle-v1")).not.toBeOnTheScreen();
     expect(screen.queryByTestId("reservation-vehicle-v1")).not.toBeOnTheScreen();
+  });
+
+  it("preselects the driver's primary vehicle, without forcing it over an explicit pick", async () => {
+    (api.vehicles as jest.Mock).mockResolvedValue([vehicle, { ...otherVehicle, isPrimary: true }]);
+
+    renderWithProviders(
+      <>
+        <ZoneAssignmentPanel selectedZone={zoneA} />
+        <ReservationPanel selectedZone={zoneA} />
+      </>,
+    );
+
+    // The primary is preselected: no hint nagging for a choice, and the
+    // primary's chip already shows selected.
+    await waitFor(() =>
+      expect(screen.getByTestId("assignment-vehicle-v2").props.accessibilityState).toMatchObject({
+        selected: true,
+      }),
+    );
+    expect(screen.queryByTestId("assignment-vehicle-hint")).not.toBeOnTheScreen();
+
+    // Picking the other vehicle overrides the primary for this action.
+    fireEvent.press(screen.getByTestId("assignment-vehicle-v1"));
+    await waitFor(() =>
+      expect(screen.getByTestId("reservation-vehicle-v1").props.accessibilityState).toMatchObject({
+        selected: true,
+      }),
+    );
+    expect(screen.getByTestId("reservation-vehicle-v2").props.accessibilityState.selected).toBe(
+      false,
+    );
   });
 
   it("offers the add-vehicle route from every parking action when there is none", async () => {

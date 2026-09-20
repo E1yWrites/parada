@@ -32,13 +32,14 @@ const baseVehicle = (over: Partial<Vehicle>): Vehicle => ({
   model: null,
   color: null,
   status: "ACTIVE",
+  isPrimary: false,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   ...over,
 });
 
 const vehicles: Vehicle[] = [
-  baseVehicle({}),
+  baseVehicle({ isPrimary: true }),
   baseVehicle({ id: "v2", plateNumber: "ABC-1234", normalizedPlate: "ABC1234", vehicleType: "CAR" }),
 ];
 
@@ -65,6 +66,13 @@ describe("vehicles screen", () => {
     expect(screen.getByText("ABC-1234")).toBeOnTheScreen();
     expect(screen.getAllByText("Motorcycle").length).toBeGreaterThan(0);
     expect(screen.getByText("2 registered")).toBeOnTheScreen();
+  });
+
+  it("marks the primary vehicle in the list", async () => {
+    renderWithProviders(<VehiclesScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("vehicle-XYZ-5678-primary")).toBeOnTheScreen());
+    expect(screen.queryByTestId("vehicle-ABC-1234-primary")).not.toBeOnTheScreen();
   });
 
   it("shows an empty state when there are no vehicles", async () => {
