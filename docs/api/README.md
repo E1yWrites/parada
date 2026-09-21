@@ -241,6 +241,7 @@ Returns `201` with the created `occupancy_event`.
 | `MAIL_ORGANIZATION` | `LPU-Batangas Main Campus` | Establishment named in mail headers/footers. Templates live in `services/api/src/mail/templates.ts` (plain text + branded HTML). |
 | `MOBILE_APP_SCHEME` | `parada` | Deep-link scheme in the password-reset mail (must match `apps/mobile/app.json` `scheme`). |
 | `AUTH_RATE_LIMIT` | `10` | Credential endpoints per minute per IP (register, login, verify, resend, forgot, reset share one bucket). Raise for shared/NAT egress. |
+| `TRUST_PROXY` | *(unset)* | Express `trust proxy` setting: a hop count (`1` behind one TLS reverse proxy), `true`/`false`, or a comma-separated address/subnet list. Unset = `X-Forwarded-For` is ignored. Required behind a reverse proxy, or every client shares the proxy's address and one `AUTH_RATE_LIMIT` budget. |
 
 ## Anomalies
 
@@ -666,8 +667,6 @@ only, zones carry no geometry):
 | Zone | Code | Capacity | Cameras (all `BIDIRECTIONAL`, `ONLINE`) |
 |------|------|---------:|------------------------------------------|
 | Main Loop | `A` | 30 | `cam-a-main-gate` (P. Herrera cor. Doña Aurelia), `cam-a-north-gate` (Doña Aurelia) |
-| Back Parking | `B` | 30 | `cam-b-access-path` (tree-covered path from the rotonda, beside the Mabini Building) |
-| Capitol Off-Campus Lot | `C` | 100 | `cam-c-entrance` (Oriental Garden Subdivision road off Pres. J.P. Laurel Hwy) |
 
 The establishment navigation destination is the main gate,
 `13.76447, 121.06462` (`EstablishmentConfig.location`).

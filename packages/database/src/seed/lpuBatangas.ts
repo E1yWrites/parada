@@ -55,25 +55,6 @@ export const ZONES: SeedZone[] = [
     description:
       "Parking along the internal loop driveway around the JPL Building: main gate at P. Herrera St. cor. Doña Aurelia St. (13.76447, 121.06462), rotonda south of JPL, north gate on Doña Aurelia St. (13.76446, 121.06544).",
   },
-  {
-    name: "Back Parking",
-    code: "B",
-    capacity: 30,
-    // Drivers enter through the main gate and follow the loop to the path.
-    navigationLat: 13.76447,
-    navigationLng: 121.06462,
-    description:
-      "Open lot at the south-west grounds beside the Mabini Building (centre 13.76295, 121.06460), reached from the Zone A rotonda by the tree-covered path (13.7632, 121.0648).",
-  },
-  {
-    name: "Capitol Off-Campus Lot",
-    code: "C",
-    capacity: 100,
-    navigationLat: 13.7678,
-    navigationLng: 121.0627,
-    description:
-      "Off-campus lot (centre 13.767638, 121.062348) beside Laurel Park / Provincial Capitol, about 600 m by road from the main gate: P. Herrera St. north, left onto Pres. J.P. Laurel Hwy (National Road), entrance via the Oriental Garden Subdivision road.",
-  },
 ];
 
 export const CAMERAS: SeedCamera[] = [
@@ -90,22 +71,6 @@ export const CAMERAS: SeedCamera[] = [
     name: "Main Loop North Gate",
     location:
       "North gate on Doña Aurelia St. between the JPL Building and the College of Dentistry (13.76446, 121.06544)",
-    gateType: "BIDIRECTIONAL",
-  },
-  {
-    zoneCode: "B",
-    identifier: "cam-b-access-path",
-    name: "Back Parking Access Path",
-    location:
-      "Tree-covered path from the Zone A rotonda to the back lot beside the Mabini Building (13.7632, 121.0648) - candidate mount, verify on site",
-    gateType: "BIDIRECTIONAL",
-  },
-  {
-    zoneCode: "C",
-    identifier: "cam-c-entrance",
-    name: "Capitol Off-Campus Lot Entrance",
-    location:
-      "Lot entrance from the Oriental Garden Subdivision road off Pres. J.P. Laurel Hwy (approx. 13.7678, 121.0627) - candidate mount, verify on site",
     gateType: "BIDIRECTIONAL",
   },
 ];

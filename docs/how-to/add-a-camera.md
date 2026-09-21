@@ -34,6 +34,17 @@ The vision service (`services/vision`) needs to know where frames for that
 `CAM-A01` identifier come from: a USB device, an RTSP stream, or a video file.
 This is environment configuration only — no DB schema change, no API change.
 
+**`services/api`'s `CAMERA_API_KEY` alone is not enough.** It only
+authenticates vision's HTTP calls to the API — it says nothing about which
+physical device to read frames from. That's a separate set of variables,
+local to `services/vision`, with no defaults for the values that matter
+(`CAMERA_IDENTIFIER`, `CAMERA_ZONE_ID`, the source itself). Copy
+[`services/vision/.env.example`](../../services/vision/.env.example) to
+`services/vision/.env` and fill it in — every variable is documented there.
+Note that vision reads the process environment only (no dotenv loader), so
+export the file before starting it (`set -a; . ./.env; set +a`) or point a
+systemd `EnvironmentFile=` / container env at it:
+
 | Variable | Meaning |
 |---|---|
 | `CAMERA_SOURCE` | `usb` \| `rtsp` \| `file` |
@@ -44,6 +55,13 @@ This is environment configuration only — no DB schema change, no API change.
 | `CAMERA_FILE_PATH` | path to a video fixture, if `CAMERA_SOURCE=file` |
 | `PARADA_API_URL` | API base URL (default `http://localhost:4100`) |
 | `CAMERA_API_KEY` | shared `X-API-Key` credential, must match the API's `CAMERA_API_KEY` |
+
+Plus tuning/resilience variables (`VISION_PROCESS_FPS`,
+`OBSERVATION_COOLDOWN_SECONDS`, `CAMERA_RECONNECT_DELAY_SECONDS`,
+`MAX_CONSECUTIVE_READ_FAILURES`, `MAX_FORWARD_ATTEMPTS`,
+`MAX_CAMERA_RECONNECTS`) and `OCR_PLATE_CONFIDENCE_THRESHOLD`, which must
+match the same value set in `services/api/.env` — defaults are fine unless
+you have a specific reason to change them.
 
 Example (USB, bash/WSL):
 

@@ -21,6 +21,35 @@
       ],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "api-prod",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "cross-env",
+        "NODE_ENV=production",
+        "CAMERA_API_KEY=local-preview-placeholder-not-a-real-key",
+        "npm",
+        "run",
+        "start",
+        "-w",
+        "@parada/api"
+      ],
+      "port": 4100
+    },
+    {
+      "name": "admin-prod",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "cross-env",
+        "PORT=3000",
+        "npm",
+        "run",
+        "start",
+        "-w",
+        "@parada/admin"
+      ],
+      "port": 3000
     }
   ]
 }

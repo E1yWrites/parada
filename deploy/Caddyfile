@@ -1,0 +1,29 @@
+# PARADA public edge for docker-compose.online.yml. Caddy obtains and renews
+# Let's Encrypt certificates automatically as long as API_DOMAIN and
+# ADMIN_DOMAIN resolve (public DNS A/AAAA records) to this host and ports 80
+# and 443 are reachable from the Internet.
+
+{
+	email {$ACME_EMAIL}
+}
+
+# Mobile app + on-site vision runtime talk to the API here.
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:4100 {
+		# Server-Sent Events: never buffer /realtime/stream.
+		flush_interval -1
+		# Caddy adds X-Forwarded-For itself; the API trusts exactly one hop
+		# (TRUST_PROXY=1) so the per-client login limiter keys on the phone's
+		# address, not on this container.
+	}
+}
+
+# Admin console. The browser only ever talks to this origin; the Next.js
+# server proxies to the API over the internal network.
+{$ADMIN_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy admin:3000 {
+		flush_interval -1
+	}
+}

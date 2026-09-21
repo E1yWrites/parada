@@ -1,0 +1,4 @@
+# Place the demo video here as input.mp4 (generate one with
+# services/vision/tests/fixtures/generate_video.py). Videos are not committed.
+*.mp4
+*.avi

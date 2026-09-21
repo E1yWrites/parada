@@ -2859,6 +2859,41 @@ describe("Phase 11B — Rate limiting (AUDIT-003)", () => {
     expect(Number(limited.headers["retry-after"])).toBeGreaterThanOrEqual(1);
   });
 
+  it("ignores X-Forwarded-For for the credential budget unless a proxy hop is trusted", async () => {
+    // Default: no trusted proxy, so a forged forwarded address cannot buy a
+    // client a fresh budget — every request from the same socket shares one.
+    const app = createApp({ authRateLimit: { limit: 2, windowMs: 60_000 } });
+    const attempt = (forwardedFor: string) =>
+      request(app)
+        .post("/auth/login")
+        .set("X-Forwarded-For", forwardedFor)
+        .send({ email: "nobody@test.local", password: "WrongPass1!" });
+
+    await attempt("203.0.113.10").expect(401);
+    await attempt("203.0.113.11").expect(401);
+    const limited = await attempt("203.0.113.12").expect(429);
+    expect(limited.body.error.code).toBe("TOO_MANY_REQUESTS");
+  });
+
+  it("keys the credential budget by the forwarded client address behind one trusted proxy hop", async () => {
+    // Production sits behind a TLS reverse proxy: with TRUST_PROXY=1 the real
+    // client address keys the budget, so one client being throttled does not
+    // lock every other client out of login.
+    const app = createApp({ authRateLimit: { limit: 2, windowMs: 60_000 }, trustProxy: 1 });
+    const attempt = (forwardedFor: string) =>
+      request(app)
+        .post("/auth/login")
+        .set("X-Forwarded-For", forwardedFor)
+        .send({ email: "nobody@test.local", password: "WrongPass1!" });
+
+    await attempt("203.0.113.10").expect(401);
+    await attempt("203.0.113.10").expect(401);
+    await attempt("203.0.113.10").expect(429);
+
+    // A different client keeps its own allowance.
+    await attempt("203.0.113.11").expect(401);
+  });
+
   it("resets the credential budget after the window elapses", async () => {
     const app = createApp({ authRateLimit: { limit: 2, windowMs: 150 } });
 

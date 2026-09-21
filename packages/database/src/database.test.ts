@@ -1237,18 +1237,16 @@ describe("PARADA database integrity", () => {
       // A zone left by an earlier seed with a slot code outside the new layout:
       // re-seeding must keep the zone row (same code) and retire the stale slot.
       const stale = await prisma.parkingZone.create({
-        data: { name: "Zone C", code: "C", capacity: 10, occupiedCount: 0 },
+        data: { name: "Zone A", code: "A", capacity: 10, occupiedCount: 0 },
       });
       await prisma.parkingSlot.create({
-        data: { zoneId: stale.id, slotCode: "C01", label: "C01", status: "ACTIVE" },
+        data: { zoneId: stale.id, slotCode: "A99", label: "A99", status: "ACTIVE" },
       });
       await seed();
 
       const zonesInDb = await prisma.parkingZone.findMany({ orderBy: { code: "asc" } });
       expect(zonesInDb.map((z) => [z.code, z.name, z.capacity, z.occupiedCount, z.status])).toEqual([
         ["A", "Main Loop", 30, 0, "ACTIVE"],
-        ["B", "Back Parking", 30, 0, "ACTIVE"],
-        ["C", "Capitol Off-Campus Lot", 100, 0, "ACTIVE"],
       ]);
       for (const z of zonesInDb) {
         const seedZone = ZONES.find((sz) => sz.code === z.code)!;
@@ -1257,18 +1255,16 @@ describe("PARADA database integrity", () => {
         // active slots are inventory only and start equal to capacity (zoneConfig invariant)
         expect(await prisma.parkingSlot.count({ where: { zoneId: z.id, status: "ACTIVE" } })).toBe(z.capacity);
       }
-      const c100 = await prisma.parkingSlot.findFirst({ where: { slotCode: "C100" } });
-      expect(c100).not.toBeNull();
-      const staleSlot = await prisma.parkingSlot.findFirst({ where: { slotCode: "C01" } });
+      const a30 = await prisma.parkingSlot.findFirst({ where: { slotCode: "A30" } });
+      expect(a30).not.toBeNull();
+      const staleSlot = await prisma.parkingSlot.findFirst({ where: { slotCode: "A99" } });
       expect(staleSlot?.status).toBe("INACTIVE");
-      expect(zonesInDb.find((z) => z.code === "C")?.id).toBe(stale.id);
+      expect(zonesInDb.find((z) => z.code === "A")?.id).toBe(stale.id);
 
       const camerasInDb = await prisma.camera.findMany({ include: { zone: true }, orderBy: { identifier: "asc" } });
       expect(camerasInDb.map((c) => [c.identifier, c.zone.code, c.gateType, c.status])).toEqual([
         ["cam-a-main-gate", "A", "BIDIRECTIONAL", "ONLINE"],
         ["cam-a-north-gate", "A", "BIDIRECTIONAL", "ONLINE"],
-        ["cam-b-access-path", "B", "BIDIRECTIONAL", "ONLINE"],
-        ["cam-c-entrance", "C", "BIDIRECTIONAL", "ONLINE"],
       ]);
 
       const cfg = await prisma.establishmentConfig.findUnique({ where: { id: "singleton" } });

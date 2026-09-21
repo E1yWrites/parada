@@ -21,6 +21,7 @@
     "db:start": "npm run db:start -w @parada/database",
     "db:prepare": "npm run db:start && npm run db:migrate -w @parada/database",
     "db:stop": "npm run db:stop -w @parada/database",
+    "db:reset": "npm run db:start && npm run db:reset -w @parada/database",
     "postinstall": "node scripts/ensure-expo-link.cjs"
   },
   "devDependencies": {

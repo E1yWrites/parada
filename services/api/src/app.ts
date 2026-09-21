@@ -19,7 +19,7 @@ import { ZoneService } from "./domain/zones";
 import { AssignmentService } from "./domain/assignment";
 import { ReservationService } from "./domain/reservation";
 import { ParkingSessionService } from "./domain/sessions";
-import { loadEnv } from "./config/env";
+import { loadEnv, type TrustProxySetting } from "./config/env";
 import { createAuthMiddleware } from "./middleware/auth";
 import { HttpError, InternalError } from "./http/errors";
 import { errorBody } from "./http/response";
@@ -48,11 +48,21 @@ export interface AppOptions {
   realtimeHub?: RealtimeHub;
   /** Outbound mail transport (defaults to the env-configured one). Ignored when `auth` is supplied. */
   mailer?: Mailer;
+  /** Express `trust proxy` setting (defaults to env `TRUST_PROXY`; null leaves it off). */
+  trustProxy?: TrustProxySetting | null;
 }
 
 export function createApp(options: AppOptions = {}): Express {
   const app = express();
   const env = loadEnv();
+
+  // Behind a TLS-terminating reverse proxy `req.ip` must come from
+  // X-Forwarded-For, or the per-client credential rate limit collapses into
+  // one shared budget for everyone. Only ever enabled by explicit config.
+  const trustProxy = options.trustProxy !== undefined ? options.trustProxy : env.trustProxy;
+  if (trustProxy !== null) {
+    app.set("trust proxy", trustProxy);
+  }
 
   const config = options.config ?? new ConfigService();
   const realtimeHub =

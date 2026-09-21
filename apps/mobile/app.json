@@ -10,14 +10,16 @@
     "icon": "./assets/brand/icon-1024.png",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.parada.mobile"
+      "bundleIdentifier": "com.parada.mobile",
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.parada.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/brand/adaptive-icon-foreground.png",
         "backgroundColor": "#273248"
-      }
+      },
+      "versionCode": 1
     },
     "plugins": [
       "expo-router",

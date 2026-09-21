@@ -125,6 +125,9 @@ stay correct, but **no `ParkingSession` is created** (a session requires a real 
 
 - `20260918090000_session_completed_notification` — `NotificationType.SESSION_COMPLETED`, so a
   driver is told their session closed and what the fee was.
+- `20260920090000_vehicle_primary` — `vehicles.isPrimary` (backfilled to each user's most recent
+  ACTIVE vehicle) plus the partial unique index `vehicles_one_primary_per_user`
+  (`WHERE "isPrimary" = true`), which like the four rules below lives only in migration SQL.
 
 Use `prisma migrate dev` for development, `prisma migrate deploy` for environments.
 

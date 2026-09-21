@@ -210,8 +210,10 @@ See the `docs/` directory:
   [adding a zone](docs/how-to/add-a-zone.md),
   [editing the database](docs/how-to/edit-the-database.md),
   [running and testing locally](docs/how-to/run-and-test-locally.md),
-  [deploying](docs/how-to/deploy.md) (Phase 15 is still pending — this is a
-  checklist against what exists today, not a record of a finished deployment)
+  [deploying](docs/how-to/deploy.md) — LOCAL / ONLINE / HYBRID profiles of the
+  one application, with step-by-step guides for [local + tunnelling](docs/how-to/deploy-local.md),
+  [online on free tiers](docs/how-to/deploy-online-free.md) and [online on a paid VPS](docs/how-to/deploy-online-paid.md)
+  (Phase 15 is still pending: deployable and verified on Linux, not a record of a finished deployment)
 - `docs/architecture/` — system architecture, decisions, and the phase roadmap
 - `docs/database/` — schema and data model
 - `docs/api/` — API reference, including the realtime (SSE) stream contract

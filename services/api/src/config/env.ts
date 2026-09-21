@@ -20,6 +20,12 @@ export interface Env {
   adminRateLimitPerMinute: number;
   realtimeMaxConnectionsPerUser: number;
   realtimeReplayBufferSize: number;
+  /**
+   * Express `trust proxy` setting, or null to leave it off. Behind a TLS
+   * reverse proxy the client address (`req.ip`, which keys the credential rate
+   * limit) is only correct when the proxy hop count is trusted.
+   */
+  trustProxy: TrustProxySetting | null;
   /** Outbound mail transport for verification / recovery flows. */
   mail: MailEnv;
   /**
@@ -55,6 +61,28 @@ function optionalSecret(name: string): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+/** Value accepted by Express's `trust proxy` setting. */
+export type TrustProxySetting = boolean | number | string;
+
+/**
+ * `TRUST_PROXY` mirrors Express's `trust proxy` setting: a hop count (`1` for
+ * one reverse proxy in front of the API), `true`/`false`, or a comma-separated
+ * list of trusted addresses/subnets/keywords (`loopback`, `10.0.0.0/8`).
+ * Unset or blank leaves the setting off, so a client can never spoof its
+ * address through `X-Forwarded-For` unless an operator opted in.
+ */
+function optionalTrustProxy(name: string): TrustProxySetting | null {
+  const raw = process.env[name]?.trim();
+  if (!raw) {
+    return null;
+  }
+  const lowered = raw.toLowerCase();
+  if (lowered === "true") return true;
+  if (lowered === "false") return false;
+  if (/^\d+$/.test(raw)) return Number(raw);
+  return raw;
 }
 
 function required(name: string): string {
@@ -111,6 +139,10 @@ export function loadEnv(): Env {
     // limit"), so these bound one process and nothing coordinates across two.
     realtimeMaxConnectionsPerUser: optionalInt("REALTIME_MAX_CONNECTIONS_PER_USER", 5),
     realtimeReplayBufferSize: optionalInt("REALTIME_REPLAY_BUFFER_SIZE", 500),
+    // Off unless an operator states how many proxy hops sit in front of the
+    // API; with it off behind a reverse proxy every client shares the proxy's
+    // address and therefore one credential rate-limit budget.
+    trustProxy: optionalTrustProxy("TRUST_PROXY"),
     mail: { transport: "console", smtp: null },
     appName: process.env["APP_NAME"]?.trim() || "PARADA",
     mailOrganization: process.env["MAIL_ORGANIZATION"]?.trim() || "LPU-Batangas Main Campus",

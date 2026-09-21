@@ -1,0 +1,123 @@
+# PARADA — ONLINE profile on one Linux host (VPS or an always-free cloud VM).
+#
+#   cp .env.online.example .env.online      # fill in, never commit
+#   docker compose --env-file .env.online -f docker-compose.online.yml up -d --build
+#
+# Services: PostgreSQL, API, Admin, and Caddy (public HTTPS for both). Vision
+# is NOT part of this stack on purpose — cameras live on the facility LAN, so
+# the vision runtime stays on-site and posts to https://$API_DOMAIN (hybrid
+# deployment, docs/how-to/deploy.md). For a camera-less demo, start the
+# optional `vision-demo` service (`--profile demo`), which replays a video file.
+#
+# Same application, same images as the local profile; only the environment
+# differs. See docs/how-to/deploy-online-paid.md for the host-side steps.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-parada}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.online}
+      POSTGRES_DB: ${POSTGRES_DB:-parada}
+    volumes:
+      - parada_online_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-parada} -d ${POSTGRES_DB:-parada}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Not published: only reachable from the other containers.
+
+  # One-shot: `prisma migrate deploy` before the API accepts traffic. Uses the
+  # API image so the CLI version always matches the schema in the repo.
+  migrate:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    working_dir: /app
+    command: ["npm", "run", "migrate:deploy", "-w", "@parada/database"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env.online}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    restart: unless-stopped
+    env_file: .env.online
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "4100"
+      # Caddy is the single hop in front of the API.
+      TRUST_PROXY: "1"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:4100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # Server-only; the browser never sees it. Container-to-container URL.
+      API_BASE_URL: http://api:4100
+    depends_on:
+      api:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env.online}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:?set ADMIN_DOMAIN in .env.online}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - parada_online_caddy_data:/data
+      - parada_online_caddy_config:/config
+    depends_on:
+      - api
+      - admin
+
+  # Optional camera-less demo: replays a video fixture through the REAL OCR
+  # pipeline and forwards to the API like an on-site camera would.
+  #   docker compose --env-file .env.online -f docker-compose.online.yml --profile demo up -d vision-demo
+  vision-demo:
+    profiles: ["demo"]
+    build:
+      context: services/vision
+    restart: unless-stopped
+    env_file: .env.online
+    environment:
+      PARADA_API_URL: http://api:4100
+      CAMERA_SOURCE: file
+      CAMERA_FILE_PATH: /srv/vision/demo/input.mp4
+    volumes:
+      # Put the demo video at deploy/vision-demo/input.mp4 (not committed).
+      - ./deploy/vision-demo:/srv/vision/demo:ro
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  parada_online_pgdata:
+  parada_online_caddy_data:
+  parada_online_caddy_config:

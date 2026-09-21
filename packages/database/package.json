@@ -18,6 +18,7 @@
     "db:start": "node scripts/start-dev-db-background.cjs",
     "db:stop": "node scripts/stop-dev-db.cjs",
     "db:migrate": "cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada?schema=public\" prisma migrate deploy",
+    "db:reset": "cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada?schema=public\" prisma migrate reset --force",
     "db:test:setup": "node scripts/setup-test-db.cjs && cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test?schema=public\" prisma migrate deploy && cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test_api?schema=public\" prisma migrate deploy",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",

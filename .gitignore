@@ -10,11 +10,13 @@ out/
 .turbo/
 coverage/
 
-# Environment variables - NEVER commit secrets
+# Environment variables - NEVER commit secrets. Only the *.example templates
+# (.env.example, .env.local.example, .env.online.example, per-package
+# .env.example) are tracked; every filled-in variant is ignored.
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example
+!.env.*.example
 
 # Logs
 *.log
