@@ -76,7 +76,7 @@ export function ActiveSessionBanner({ session, now, children, testID }: ActiveSe
           <Stamp label="Parked" icon="car" color={colors.primaryDeep} testID={testID ? `${testID}-badge` : undefined} />
         </View>
         <View style={styles.rightGroup}>
-          <PlateChip value={session.zone.code} tone="soft" size="sm" />
+          <PlateChip value={session.zone.code} tone="soft" />
           <Mascot variant="park" size={48} testID={testID ? `${testID}-mascot` : undefined} />
         </View>
       </View>
@@ -126,7 +126,7 @@ function buildStyles(colors: ColorTokens) {
     rightGroup: {
       flexDirection: "row",
       alignItems: "center",
-      gap: spacing.sm,
+      gap: spacing.md,
     },
     dotWrap: {
       width: 16,

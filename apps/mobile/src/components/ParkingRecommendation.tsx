@@ -125,7 +125,7 @@ export function ParkingRecommendation({
   }
 
   return (
-    <View testID="parking-recommendation">
+    <View style={styles.section} testID="parking-recommendation">
       <SectionHeader
         title={confirmedReservation ? "Your reservation" : "Recommended for you"}
         caption={
@@ -202,7 +202,7 @@ export function ParkingRecommendation({
                 <Text variant="hero" numberOfLines={2}>
                   {recommended.name}
                 </Text>
-                <PlateChip value={recommended.code} tone="soft" size="sm" />
+                <PlateChip value={recommended.code} tone="soft" />
               </View>
               <Metric
                 label="Available"
@@ -263,6 +263,9 @@ export function ParkingRecommendation({
 }
 
 const styles = StyleSheet.create({
+  section: {
+    gap: spacing.xl2,
+  },
   card: {
     gap: spacing.xl,
   },

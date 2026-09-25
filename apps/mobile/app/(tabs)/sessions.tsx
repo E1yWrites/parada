@@ -47,7 +47,6 @@ export default function SessionsScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />
         }
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListHeaderComponent={
           <Header
             isLoading={sessions.isPending}
@@ -125,9 +124,10 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     flexGrow: 1,
   },
-  separator: { height: spacing.lg },
+  // SectionHeader carries its own 8pt top margin, so 16 + 8 lands the same
+  // 24pt step between the banner, History header and first card.
   header: {
-    gap: spacing.xl2,
-    marginBottom: spacing.md,
+    gap: spacing.xl,
+    marginBottom: spacing.lg,
   },
 });

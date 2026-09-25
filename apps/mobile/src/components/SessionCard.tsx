@@ -111,7 +111,7 @@ function buildStyles(colors: ColorTokens) {
     times: {
       flexDirection: "row",
       flexWrap: "wrap",
-      gap: spacing.xl2,
+      gap: spacing.xl3,
     },
     timeGroup: {
       gap: spacing.xs,

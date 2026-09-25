@@ -317,7 +317,7 @@ function buildStyles(colors: ColorTokens) {
       backgroundColor: colors.primarySoft,
       borderRadius: radii.full,
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
+      paddingVertical: spacing.sm + 2,
       flexShrink: 0,
     },
     appearanceCard: {
@@ -347,14 +347,14 @@ function buildStyles(colors: ColorTokens) {
     linkDivider: {
       height: 1,
       backgroundColor: colors.border,
-      marginLeft: spacing.xl,
+      marginLeft: spacing.xl2,
     },
     linkRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.lg,
       minHeight: touchTarget + 16,
-      paddingHorizontal: spacing.xl,
+      paddingHorizontal: spacing.xl2,
       paddingVertical: spacing.lg,
     },
     linkPressed: {
@@ -385,7 +385,7 @@ function buildStyles(colors: ColorTokens) {
       justifyContent: "space-between",
       alignItems: "center",
       gap: spacing.xl,
-      paddingHorizontal: spacing.xl,
+      paddingHorizontal: spacing.xl2,
       paddingVertical: spacing.lg,
       minHeight: touchTarget,
     },
