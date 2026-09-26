@@ -39,9 +39,9 @@ export const AVAILABILITY_META: Record<
   { label: string; tone: Tone; Icon: typeof Circle }
 > = {
   AVAILABLE: { label: "Available", tone: "success", Icon: CheckCircle2 },
-  LOW_AVAILABILITY: { label: "Low availability", tone: "warn", Icon: AlertCircle },
+  LOW_AVAILABILITY: { label: "Few spaces", tone: "warn", Icon: AlertCircle },
   FULL: { label: "Full", tone: "danger", Icon: Ban },
-  OFFLINE: { label: "Offline", tone: "neutral", Icon: Power },
+  OFFLINE: { label: "Inactive", tone: "neutral", Icon: Power },
 };
 
 /** Fill color for occupancy bars, from the same availability family. */
@@ -201,35 +201,3 @@ export function PlateChip({ children, soft = false }: { children: ReactNode; sof
   return <span className={soft ? "plate-chip-soft" : "plate-chip"}>{children}</span>;
 }
 
-/**
- * One figure in a facility strip: label above, tabular number below. Not a
- * card — figures sit side by side on one surface separated by seams.
- */
-export function StatCard({
-  label,
-  value,
-  detail,
-  tone = "neutral",
-}: {
-  label: string;
-  value: ReactNode;
-  detail?: ReactNode;
-  tone?: "neutral" | "success" | "warn" | "danger" | "info";
-}) {
-  const valueClass: Record<NonNullable<typeof tone>, string> = {
-    neutral: "text-charcoal",
-    success: "text-success",
-    warn: "text-warning",
-    danger: "text-danger",
-    info: "text-brand-ink",
-  };
-  return (
-    <div className="min-w-0 px-5 py-4">
-      <p className="text-xs font-bold text-muted">{label}</p>
-      <p className={`mt-1 font-display text-3xl font-black leading-none tracking-tight ${valueClass[tone]}`}>
-        {value}
-      </p>
-      {detail ? <p className="mt-1.5 truncate text-xs font-semibold text-muted">{detail}</p> : null}
-    </div>
-  );
-}

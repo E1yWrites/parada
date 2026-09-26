@@ -118,7 +118,7 @@ describe("park screen: zone availability", () => {
     renderWithProviders(<ParkScreen />);
 
     await waitFor(() => expect(screen.getByText("Available")).toBeOnTheScreen());
-    expect(screen.getByText("Low")).toBeOnTheScreen();
+    expect(screen.getByText("Few spaces")).toBeOnTheScreen();
     expect(screen.getByText("Full")).toBeOnTheScreen();
     expect(screen.getByText("Offline")).toBeOnTheScreen();
     expect(screen.getByTestId("zone-A-available")).toHaveTextContent("5");

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import { api, ApiError } from "@/lib/api/client";
@@ -8,6 +9,8 @@ import { DataTable, type Column } from "@/components/ui/DataTable";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import { DotPill, PlateChip } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { SavedNote } from "@/components/ui/Card";
+import { VIOLATION_TYPE_LABEL, labelFor } from "@/lib/labels";
 import type { AdminViolation } from "@/lib/api/types";
 
 const VIOLATION_TONE: Record<string, "success" | "warn" | "danger" | "neutral" | "info"> = {
@@ -28,10 +31,14 @@ const VIOLATION_LABEL: Record<string, string> = {
 
 export default function ViolationsPage() {
   const client = useQueryClient();
+  const [notice, setNotice] = useState<{ id: number; text: string } | null>(null);
   const query = useQuery({ queryKey: ["violations"], queryFn: () => api.violations() });
   const update = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) => api.updateViolationStatus(id, status),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["violations"] }),
+    mutationFn: ({ id, status }: { id: string; status: string; plate: string }) => api.updateViolationStatus(id, status),
+    onSuccess: (_updated, variables) => {
+      setNotice((prev) => ({ id: (prev?.id ?? 0) + 1, text: `Violation for ${variables.plate} dismissed.` }));
+      return client.invalidateQueries({ queryKey: ["violations"] });
+    },
   });
 
   const columns: Column<AdminViolation>[] = [
@@ -40,7 +47,7 @@ export default function ViolationsPage() {
       header: "Type",
       cell: (v) => (
         <div>
-          <p className="text-sm font-bold text-charcoal">{v.violationType}</p>
+          <p className="text-sm font-bold text-charcoal">{labelFor(VIOLATION_TYPE_LABEL, v.violationType)}</p>
           <p className="text-xs text-muted">{v.description ?? "No description"}</p>
         </div>
       ),
@@ -63,7 +70,14 @@ export default function ViolationsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <DotPill tone={VIOLATION_TONE[v.status] ?? "neutral"}>{VIOLATION_LABEL[v.status] ?? v.status}</DotPill>
           {v.status === "PENDING" ? (
-            <Button variant="secondary" size="sm" onClick={() => update.mutate({ id: v.id, status: "DISMISSED" })} disabled={update.isPending}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => update.mutate({ id: v.id, status: "DISMISSED", plate: v.vehicle?.plateNumber ?? "an unknown vehicle" })}
+              loading={update.isPending && update.variables?.id === v.id}
+              disabled={update.isPending}
+              aria-label={`Dismiss ${labelFor(VIOLATION_TYPE_LABEL, v.violationType).toLowerCase()} violation for ${v.vehicle?.plateNumber ?? "an unknown vehicle"}`}
+            >
               Dismiss
             </Button>
           ) : null}
@@ -78,6 +92,11 @@ export default function ViolationsPage() {
         title="Violations"
         description="Establishment-defined parking violations and their resolution."
       />
+      {notice ? (
+        <p className="mb-4">
+          <SavedNote key={notice.id}>{notice.text}</SavedNote>
+        </p>
+      ) : null}
       {update.error ? (
         <p role="alert" className="alert-danger mb-4">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />

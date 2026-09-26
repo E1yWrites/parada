@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 
 /**
  * Facility strip: several figures on one panel, separated by seams instead of
- * a grid of same-size cards. Pass `StatCard`s (or any figure) as children.
+ * a grid of same-size cards. Pass `MetricCard`s as children — the one figure
+ * component in the console (StatCard and the dashboard StatPanel are gone).
  */
 export function FacilityStrip({ children, label }: { children: ReactNode; label: string }) {
   return (

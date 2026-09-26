@@ -145,3 +145,25 @@ describe("Admin cameras page — Phase 11A configuration", () => {
     expect(confirm).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("Admin cameras page — redesign labels and feedback", () => {
+  it("says 'Entry and exit', not 'Bidirectional', and names row actions", async () => {
+    mockedApi.cameras.mockResolvedValue([{ ...camera, gateType: "BIDIRECTIONAL" }]);
+    mockedApi.zones.mockResolvedValue([zone]);
+    renderPage();
+    expect(await screen.findByText("Entry and exit")).toBeInTheDocument();
+    expect(screen.queryByText(/bidirectional/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit camera CAM-A01" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Disable camera CAM-A01" })).toBeInTheDocument();
+  });
+
+  it("confirms enabling a camera with a status message", async () => {
+    mockedApi.cameras.mockResolvedValue([{ ...camera, status: "OFFLINE" }]);
+    mockedApi.zones.mockResolvedValue([zone]);
+    mockedApi.updateCamera.mockResolvedValue({ ...camera, status: "ONLINE" });
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Enable camera CAM-A01" }));
+    await waitFor(() => expect(mockedApi.updateCamera).toHaveBeenCalledWith("c1", { status: "ONLINE" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Camera CAM-A01 enabled.");
+  });
+});

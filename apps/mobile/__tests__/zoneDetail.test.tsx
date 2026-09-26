@@ -40,7 +40,7 @@ describe("zone detail screen", () => {
 
     expect(await screen.findByText("Zone B")).toBeOnTheScreen();
     expect(screen.getByText("B")).toBeOnTheScreen();
-    expect(screen.getByText("Low")).toBeOnTheScreen();
+    expect(screen.getByText("Few spaces")).toBeOnTheScreen();
     expect(screen.getByText("4")).toBeOnTheScreen();
     expect(screen.getByText(zoneB.description!)).toBeOnTheScreen();
   });

@@ -361,7 +361,7 @@ export default function ZoneDetailPage() {
             </div>
 
             <FacilityStrip label="Zone occupancy">
-              <MetricCard label="Capacity" value={zone.capacity} detail="Authoritative total" />
+              <MetricCard label="Capacity" value={zone.capacity} detail="Cars this zone accepts" />
               <MetricCard
                 label="Occupied"
                 value={zone.occupiedCount}

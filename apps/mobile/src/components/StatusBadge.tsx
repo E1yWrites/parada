@@ -25,7 +25,7 @@ export function parkingStatusMeta(status: ZoneAvailability, colors: ColorTokens)
     case "AVAILABLE":
       return { label: "Available", icon: "checkmark-circle", color: colors.success };
     case "LOW_AVAILABILITY":
-      return { label: "Low", icon: "alert-circle", color: colors.warning };
+      return { label: "Few spaces", icon: "alert-circle", color: colors.warning };
     case "FULL":
       return { label: "Full", icon: "ban", color: colors.danger };
     case "OFFLINE":
