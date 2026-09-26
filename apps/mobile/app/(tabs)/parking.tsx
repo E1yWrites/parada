@@ -5,7 +5,6 @@ import {
   Avatar,
   CurrentParkingState,
   IconButton,
-  ParkingRecommendation,
   Screen,
 } from "@/src/components";
 import { api, ApiError, avatarUrl } from "@/lib/api/client";
@@ -20,8 +19,9 @@ import { useSessionToken, useSessionUser } from "@/src/providers/SessionProvider
 
 /**
  * Now: what is happening with this driver's parking right now (session /
- * reservation / assignment) and its actions, plus the least-busy-zone card
- * when idle. Choosing a zone and assigning/reserving lives on the Zones tab.
+ * reservation / assignment) and its actions. When nothing is current it says
+ * so and offers "Find a zone"; choosing a zone and assigning/reserving (and
+ * the "Least busy" tag) live on the Zones tab.
  */
 export default function ParkingScreen() {
   const router = useRouter();
@@ -89,15 +89,6 @@ export default function ParkingScreen() {
 
   const assignment = activeAssignmentFrom(assignmentList.data);
   const reservation = currentReservationFrom(reservationList.data);
-  const hasCurrentState = activeSession !== null || assignment !== null || reservation !== null;
-  // The recommendation is a suggestion only: it never competes with an active
-  // session, assignment, reservation, or with a current state that is still
-  // loading/unknown (an active session may be hiding behind a failed query).
-  const showRecommendation =
-    active.status === "success" &&
-    !hasCurrentState &&
-    assignmentList.status === "success" &&
-    reservationList.status === "success";
   const statePending =
     activeSession === null &&
     (assignmentList.status === "pending" || reservationList.status === "pending");
@@ -138,9 +129,6 @@ export default function ParkingScreen() {
         onRetry={refresh}
         onFindZone={() => router.push("/park")}
       />
-      {showRecommendation ? (
-        <ParkingRecommendation destinationFor={destinationFor} destinationReady={zones.status === "success"} />
-      ) : null}
     </Screen>
   );
 }

@@ -160,7 +160,7 @@ describe("park screen: manual zone selection (phase 9.3)", () => {
     renderWithProviders(<ParkScreen />);
 
     fireEvent.press(await screen.findByTestId("zone-A"));
-    expect(screen.getByTestId("zone-A-selected")).toBeOnTheScreen();
+    expect(screen.getByTestId("zone-A").props.accessibilityState).toMatchObject({ checked: true });
     expect(api.createAssignment).not.toHaveBeenCalled();
   });
 
@@ -170,8 +170,8 @@ describe("park screen: manual zone selection (phase 9.3)", () => {
     fireEvent.press(await screen.findByTestId("zone-A"));
     fireEvent.press(screen.getByTestId("zone-B"));
 
-    expect(screen.getByTestId("zone-B-selected")).toBeOnTheScreen();
-    expect(screen.queryByTestId("zone-A-selected")).not.toBeOnTheScreen();
+    expect(screen.getByTestId("zone-B").props.accessibilityState).toMatchObject({ checked: true });
+    expect(screen.getByTestId("zone-A").props.accessibilityState).toMatchObject({ checked: false });
     expect(api.createAssignment).not.toHaveBeenCalled();
   });
 
@@ -182,7 +182,7 @@ describe("park screen: manual zone selection (phase 9.3)", () => {
     expect(screen.getByTestId("zone-C-unavailable")).toHaveTextContent(/No spaces available/);
     expect(screen.getByTestId("zone-C").props.accessibilityState).toMatchObject({ disabled: true });
     fireEvent.press(screen.getByTestId("zone-C"));
-    expect(screen.queryByTestId("zone-C-selected")).not.toBeOnTheScreen();
+    expect(screen.getByTestId("zone-C").props.accessibilityState).toMatchObject({ checked: false });
     expect(api.createAssignment).not.toHaveBeenCalled();
   });
 
@@ -192,7 +192,53 @@ describe("park screen: manual zone selection (phase 9.3)", () => {
     await screen.findByTestId("zone-D");
     expect(screen.getByTestId("zone-D").props.accessibilityState).toMatchObject({ disabled: true });
     fireEvent.press(screen.getByTestId("zone-D"));
-    expect(screen.queryByTestId("zone-D-selected")).not.toBeOnTheScreen();
+    expect(screen.getByTestId("zone-D").props.accessibilityState).toMatchObject({ checked: false });
+  });
+
+  it("keeps the details link out of the zone radio (one role per control)", async () => {
+    renderWithProviders(<ParkScreen />);
+
+    await screen.findByTestId("zone-A");
+    const details = screen.getByTestId("zone-A-details");
+    expect(details.props.accessibilityRole).toBe("link");
+    // Not a descendant of the radio: pressing it must not select the zone.
+    fireEvent.press(details);
+    expect(screen.getByTestId("zone-A").props.accessibilityState).toMatchObject({ checked: false });
+  });
+});
+
+describe("park screen: least busy zone (redesign)", () => {
+  it("tags only the backend's least-occupied zone, and never calls it a recommendation", async () => {
+    (api.recommendedZone as jest.Mock).mockResolvedValue({
+      recommendedZone: { id: "z1", name: "Zone A", code: "A", capacity: 20, occupiedCount: 15, availableCount: 5, status: "ACTIVE" },
+    });
+    renderWithProviders(<ParkScreen />);
+
+    expect(await screen.findByTestId("zone-A-least-busy")).toHaveTextContent(/Least busy/);
+    expect(screen.queryByTestId("zone-B-least-busy")).not.toBeOnTheScreen();
+    expect(screen.getByTestId("zone-A").props.accessibilityLabel).toMatch(/Least busy zone\./);
+    expect(screen.queryByText(/recommended/i)).not.toBeOnTheScreen();
+  });
+
+  it("shows no tag when the backend has no pick", async () => {
+    renderWithProviders(<ParkScreen />);
+
+    await screen.findByTestId("zone-A");
+    expect(screen.queryByTestId("zone-A-least-busy")).not.toBeOnTheScreen();
+  });
+});
+
+describe("park screen: action labels match their domain effect (redesign)", () => {
+  it("names the two actions by what they do, not 'Park now' / 'Reserve for later'", async () => {
+    renderWithProviders(<ParkScreen />);
+
+    await screen.findByTestId("zone-A");
+    expect(screen.getByTestId("parking-action-assign")).toHaveTextContent("Go to this zone");
+    expect(screen.getByTestId("parking-action-reserve")).toHaveTextContent("Reserve a space");
+    expect(screen.queryByText(/park now/i)).not.toBeOnTheScreen();
+    expect(screen.queryByText(/for later/i)).not.toBeOnTheScreen();
+    // No copy that points at a control on another tab.
+    expect(screen.queryByText(/Current parking|Park tab|Sessions tab/)).toBeNull();
   });
 });
 
@@ -359,5 +405,64 @@ describe("park screen: shares the tab area's vehicle choice", () => {
     } else {
       expect(screen.getByTestId("assignment-vehicle-v2").props.accessibilityState).toMatchObject({ selected: true });
     }
+  });
+});
+
+describe("park screen: reserve for a later arrival (redesign)", () => {
+  const confirmed = {
+    id: "r1",
+    userId: "u1",
+    vehicleId: "v1",
+    zoneId: "z1",
+    startAt: "2026-09-05T09:30:00.000Z",
+    endAt: "2026-09-05T09:45:00.000Z",
+    status: "CONFIRMED",
+    createdAt: "2026-09-05T09:00:00.000Z",
+    updatedAt: "2026-09-05T09:00:00.000Z",
+    zone: { id: "z1", name: "Zone A", code: "A" },
+    vehicle: { id: "v1", plateNumber: "ABC-1234", vehicleType: "CAR" },
+  } as ReservationResponse;
+  const car = {
+    id: "v1", userId: "u1", plateNumber: "ABC-1234", normalizedPlate: "ABC1234", vehicleType: "CAR",
+    make: null, model: null, color: null, status: "ACTIVE", isPrimary: false,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"), updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  };
+
+  it("sends startAt 30 minutes ahead for 'In 30 min' and never sends endAt", async () => {
+    (api.vehicles as jest.Mock).mockResolvedValue([car]);
+    (api.createReservation as jest.Mock).mockResolvedValue(confirmed);
+    renderWithProviders(<ParkScreen />);
+
+    fireEvent.press(await screen.findByTestId("zone-A"));
+    fireEvent.press(await screen.findByTestId("parking-action-reserve"));
+    fireEvent.press(await screen.findByTestId("reservation-start-30"));
+    expect(screen.getByTestId("reservation-start-preview")).toHaveTextContent(/^A space is kept for you from \d{2}:\d{2}\.$/);
+
+    const before = Date.now();
+    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await waitFor(() => expect(api.createReservation).toHaveBeenCalledTimes(1));
+    const input = (api.createReservation as jest.Mock).mock.calls[0][0];
+    expect(input).not.toHaveProperty("endAt");
+    const offsetMin = (new Date(input.startAt).getTime() - before) / 60_000;
+    expect(offsetMin).toBeGreaterThanOrEqual(29.9);
+    expect(offsetMin).toBeLessThanOrEqual(30.1);
+  });
+
+  it("defaults to Now and shows the window the backend returned, with a button to Now", async () => {
+    (api.vehicles as jest.Mock).mockResolvedValue([car]);
+    (api.createReservation as jest.Mock).mockResolvedValue(confirmed);
+    renderWithProviders(<ParkScreen />);
+
+    fireEvent.press(await screen.findByTestId("zone-A"));
+    fireEvent.press(await screen.findByTestId("parking-action-reserve"));
+    expect(screen.getByTestId("reservation-start-now").props.accessibilityState).toMatchObject({ selected: true });
+    const before = Date.now();
+    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await waitFor(() => expect(api.createReservation).toHaveBeenCalledTimes(1));
+    const input = (api.createReservation as jest.Mock).mock.calls[0][0];
+    expect(Math.abs(new Date(input.startAt).getTime() - before)).toBeLessThan(5_000);
+
+    expect(await screen.findByTestId("reservation-confirmed-notice")).toHaveTextContent(/Space kept/);
+    expect(screen.getByTestId("reservation-open-now")).toBeOnTheScreen();
   });
 });

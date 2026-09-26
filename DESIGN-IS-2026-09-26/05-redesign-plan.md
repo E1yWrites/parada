@@ -429,3 +429,9 @@ Deviations from the plan above, with reasons:
 - **Navigate buttons read "Navigate to {zone}"** (visible and spoken) instead of a bare "Navigate" — `NavigateButton` has no separate accessibility-label prop, and adding one was unnecessary.
 - **"Cancel assignment" wording kept** (names the domain object).
 - **Admin connection states:** "Live" / "Reconnecting…" / "Not live"; the dashboard shows "Updated hh:mm:ss" from its own query.
+
+### Phase 4 — Zones tab
+
+- Shipped as planned: "Go to this zone" / "Reserve a space" segments; assignment terms shown before submit ("No space is kept for you. Entering another zone gets a wrong-zone warning, then a fine.", one constant in `lib/assignment.ts`); arrival presets Now / In 30 min / In 1 hour send `startAt` only; one error mapper `lib/parkingErrors.ts`; "Least busy" tag on the backend's pick; the details link is a sibling of the zone radio (no nested control); zone radios expose `checked`; the "Selected for…" row and the "Park your vehicle" heading level are gone; the least-busy card left Now.
+- **Deviation:** success does not auto-switch tabs. The panel shows the backend-confirmed notice plus an "Open Now" button — a navigating button, not cross-tab copy — so the driver is never moved without asking.
+- `ParkingRecommendation` is now unused by the app; it and `recommendation.test.tsx` are deleted in Phase 8 per the cutover rule.

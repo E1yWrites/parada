@@ -412,14 +412,17 @@ describe("parking screen: Phase 9.6 integration", () => {
     expect(screen.queryByTestId("parking-recommendation")).not.toBeOnTheScreen();
   });
 
-  it("shows the empty state and the recommendation when nothing is current", async () => {
+  it("shows 'Nothing planned' with a Find a zone button when nothing is current (no suggestion card on Now)", async () => {
     renderWithProviders(<ParkingScreen />);
 
     await waitFor(() => expect(screen.getByTestId("current-state-empty")).toBeOnTheScreen());
-    await waitFor(() => expect(screen.getByTestId("parking-recommendation")).toBeOnTheScreen());
+    expect(screen.getByTestId("current-state-find-zone")).toBeOnTheScreen();
+    // The least-busy pick lives on Zones now; Now shows only what is current.
+    expect(screen.queryByTestId("parking-recommendation")).not.toBeOnTheScreen();
+    expect(api.recommendedZone).not.toHaveBeenCalled();
   });
 
-  it("excludes an expired assignment from current state and falls back to recommendation", async () => {
+  it("excludes an expired assignment from current state and falls back to the empty state", async () => {
     (api.assignments as jest.Mock).mockResolvedValue([
       { ...assignment, expiresAt: new Date(Date.now() - 60_000).toISOString() },
     ]);
@@ -427,7 +430,7 @@ describe("parking screen: Phase 9.6 integration", () => {
 
     await waitFor(() => expect(screen.getByTestId("current-state-empty")).toBeOnTheScreen());
     expect(screen.queryByTestId("assignment-current")).not.toBeOnTheScreen();
-    await waitFor(() => expect(screen.getByTestId("parking-recommendation")).toBeOnTheScreen());
+    expect(screen.getByTestId("current-state-find-zone")).toBeOnTheScreen();
   });
 
   it("shows the assignment current state and navigates to the assigned zone's own coordinates", async () => {
@@ -480,77 +483,76 @@ describe("parking screen: Phase 9.6 integration", () => {
   });
 });
 
-describe("phase 9.7: recommendation → reservation transition (Phase 9.6 warning)", () => {
-  // Accepting a recommendation creates a capacity-protected reservation
-  // (POST /reservations), never an assignment: Recommendation ≠ Assignment ≠
-  // Reservation ≠ Session. The confirmed reservation must become current state.
+describe("redesign: a reservation made on Zones becomes Now's current state", () => {
+  // Reserving creates a capacity-protected reservation (POST /reservations),
+  // never an assignment: Recommendation ≠ Assignment ≠ Reservation ≠ Session.
+  // Zones and Now are rendered side by side under one query cache, as the tab
+  // layout mounts them, so the backend-confirmed cache write is what Now sees.
   beforeEach(() => {
     jest.clearAllMocks();
     (api.zones as jest.Mock).mockResolvedValue(zones);
     (api.activeSession as jest.Mock).mockResolvedValue(null);
-    (api.recommendedZone as jest.Mock).mockResolvedValue({
-      recommendedZone: {
-        id: "z2",
-        name: "Zone B",
-        code: "B",
-        capacity: 20,
-        occupiedCount: 8,
-        availableCount: 12,
-        status: "ACTIVE",
-      },
-    });
+    (api.recommendedZone as jest.Mock).mockResolvedValue({ recommendedZone: null });
     (api.assignments as jest.Mock).mockResolvedValue([]);
     (api.reservations as jest.Mock).mockResolvedValue([]);
     (api.createReservation as jest.Mock).mockResolvedValue(reservation);
     (api.vehicles as jest.Mock).mockResolvedValue([vehicle]);
+    (api.notifications as jest.Mock).mockResolvedValue({ notifications: [], unreadCount: 0 });
   });
 
-  it("flips to the reservation current state without an empty-state contradiction", async () => {
-    renderWithProviders(<ParkingScreen />);
-    await waitFor(() => expect(screen.getByTestId("accept-recommendation")).toBeOnTheScreen());
+  async function reserveZoneA() {
+    fireEvent.press(await screen.findByTestId("zone-A"));
+    fireEvent.press(await screen.findByTestId("parking-action-reserve"));
+    return screen.findByTestId("reservation-create");
+  }
+
+  it("flips Now to the reservation without an empty-state contradiction", async () => {
+    renderWithProviders(
+      <>
+        <ParkingScreen />
+        <ParkScreen />
+      </>,
+    );
+    await waitFor(() => expect(screen.getByTestId("current-state-empty")).toBeOnTheScreen());
+    const create = await reserveZoneA();
 
     // After the POST, the backend list contains the CONFIRMED reservation, so
     // the invalidation refetch confirms what the mutation cache-write bridged.
     (api.reservations as jest.Mock).mockResolvedValue([reservation]);
-    fireEvent.press(screen.getByTestId("accept-recommendation"));
+    fireEvent.press(create);
 
-    // Exactly one reservation is created, and nothing else is.
     await waitFor(() => expect(api.createReservation).toHaveBeenCalledTimes(1));
-    expect(api.createReservation).toHaveBeenCalledWith(
-      expect.objectContaining({ zoneId: "z2", vehicleId: "v1" }),
-    );
+    expect(api.createReservation).toHaveBeenCalledWith(expect.objectContaining({ zoneId: "z1", vehicleId: "v1" }));
     expect(api.createAssignment).not.toHaveBeenCalled();
 
-    // The confirmed reservation becomes current state; "No active parking" must
-    // never be shown while a backend-confirmed reservation exists, and the
-    // recommendation must stop presenting itself as state.
     await waitFor(() => expect(screen.getByTestId("reservation-current")).toBeOnTheScreen());
     expect(screen.queryByTestId("current-state-empty")).not.toBeOnTheScreen();
-    expect(screen.queryByTestId("parking-recommendation")).not.toBeOnTheScreen();
-    // Exactly one reservation representation: the current-state card only.
+    // Exactly one live reservation representation: Now's card.
     expect(screen.getAllByTestId("reservation-current")).toHaveLength(1);
-    expect(screen.queryByTestId("reservation-confirmed")).not.toBeOnTheScreen();
     expect(screen.queryByTestId("assignment-current")).not.toBeOnTheScreen();
   });
 
-  it("never double-submits while the acceptance request is pending", async () => {
+  it("never double-submits while the reservation request is pending", async () => {
     let resolveReserve!: (value: ReservationResponse) => void;
     (api.createReservation as jest.Mock).mockReturnValue(
       new Promise<ReservationResponse>((resolve) => {
         resolveReserve = resolve;
       }),
     );
-    renderWithProviders(<ParkingScreen />);
-    const accept = await screen.findByTestId("accept-recommendation");
+    renderWithProviders(
+      <>
+        <ParkingScreen />
+        <ParkScreen />
+      </>,
+    );
+    const create = await reserveZoneA();
 
-    fireEvent.press(accept);
+    fireEvent.press(create);
     await waitFor(() => expect(api.createReservation).toHaveBeenCalledTimes(1));
-    // Still pending → a second press must not create a duplicate request.
-    fireEvent.press(accept);
+    fireEvent.press(create);
     await waitFor(() => expect(api.createReservation).toHaveBeenCalledTimes(1));
     expect(api.createAssignment).not.toHaveBeenCalled();
 
-    // Backend now lists the CONFIRMED reservation (refetch confirms cache-write).
     (api.reservations as jest.Mock).mockResolvedValue([reservation]);
     resolveReserve(reservation);
     await waitFor(() => expect(screen.getByTestId("reservation-current")).toBeOnTheScreen());

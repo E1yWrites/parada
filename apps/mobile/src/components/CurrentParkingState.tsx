@@ -14,6 +14,7 @@ import type { SessionDto } from "@/lib/api/client";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { ZONE_NAVIGATION_UNCONFIGURED, type NavigationDestination } from "@/lib/navigation";
 import { ApiError } from "@/lib/api/client";
+import { ASSIGNMENT_TERMS } from "@/lib/assignment";
 import type { ReservationResponse, ZoneAssignmentResponse } from "@parada/types";
 import { radii, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
@@ -52,15 +53,7 @@ type CurrentParkingStateProps = {
 
 const STATE_UNKNOWN_MESSAGE = "We couldn't load your current parking status.";
 
-/**
- * What an assignment does and does not do, stated where the driver acts on it.
- * An assignment keeps no space (only a reservation protects capacity,
- * services/api/src/domain/reservation.ts). At a camera gate, entering another
- * zone records a wrong-zone warning, and a repeat becomes a fined violation
- * (occupancy.ts / violations.ts). The fine is establishment-configured, so no
- * amount is written here.
- */
-const ASSIGNMENT_TERMS = "No space is kept for you. Entering another zone gets a wrong-zone warning, then a fine.";
+
 
 const currentReservationStatus = new Set<ReservationResponse["status"]>([
   "PENDING",

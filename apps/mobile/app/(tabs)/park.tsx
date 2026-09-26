@@ -25,11 +25,11 @@ import { spacing } from "@/src/theme";
 const ZONE_TILE_WIDTH = 208;
 
 /**
- * Zone picker: choose a zone, then park now or reserve for later. Split out
- * of the former single "Parking" screen so Home can show current status
- * without also carrying the zone grid (Figma direction: separate Home/Park
- * tabs). Still gates zone selection and the action panel on the same current
- * parking state as before — that gating logic is unchanged, only relocated.
+ * Zones: choose a zone, then either "Go to this zone" (an assignment — keeps
+ * no space) or "Reserve a space" (a reservation — keeps one space for its
+ * window). The backend's least-occupied zone is tagged "Least busy" in the
+ * list. What the driver has already committed to lives on the Now tab; zone
+ * selection is gated on it (no second plan while one is current).
  */
 export default function ParkScreen() {
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
@@ -40,6 +40,14 @@ export default function ParkScreen() {
     refetchInterval: 30_000,
   });
   const connection = useConnectionLabel(zones.dataUpdatedAt);
+  // Global least-occupied active zone (services/api/src/domain/zones.ts) —
+  // not personal, so it is labelled "Least busy", never "recommended for you".
+  const leastBusy = useQuery({
+    queryKey: queryKeys.recommendation,
+    queryFn: api.recommendedZone,
+    refetchInterval: 30_000,
+  });
+  const leastBusyId = leastBusy.data?.recommendedZone?.id ?? null;
   const active = useQuery({
     queryKey: queryKeys.activeSession,
     queryFn: api.activeSession,
@@ -75,17 +83,14 @@ export default function ParkScreen() {
       refreshing={refreshing}
       onRefresh={refresh}
       testID="park-screen">
-      <SectionHeader
-        title="Zones"
-        caption={
-          zones.data && zones.data.length > 0
-            ? `${zones.data.filter((z) => z.status === "ACTIVE" && z.availableCount > 0).length} of ${plural(zones.data.length, "zone")} open`
-            : undefined
-        }
-        testID="zones-header"
-      />
+      {zones.data && zones.data.length > 0 ? (
+        <SectionHeader
+          title={`${zones.data.filter((z) => z.status === "ACTIVE" && z.availableCount > 0).length} of ${plural(zones.data.length, "zone")} open`}
+          testID="zones-header"
+        />
+      ) : null}
       {zones.isPending ? (
-        <LoadingState label="Loading park availability…" testID="zones-loading" />
+        <LoadingState label="Loading zones…" testID="zones-loading" />
       ) : zones.isError ? (
         <ErrorState
           message={zones.error instanceof ApiError ? zones.error.message : "Couldn't load zone availability."}
@@ -115,6 +120,7 @@ export default function ParkScreen() {
                 zone={zone}
                 onPress={hasCurrentState ? null : () => setSelectedZoneId(zone.id)}
                 selected={selectedZoneId === zone.id}
+                leastBusy={zone.id === leastBusyId}
                 testID={`zone-${zone.code}`}
               />
             </View>
@@ -123,11 +129,6 @@ export default function ParkScreen() {
       )}
       {activeSession ? null : (
         <View style={styles.parkingAction} testID="parking-action">
-          <SectionHeader
-            title="Park your vehicle"
-            caption="Pick how you'd like to use the selected zone"
-            testID="parking-action-header"
-          />
           <View testID="parking-action-toggle">
             <SegmentedControl
               value={actionMode}
@@ -135,14 +136,14 @@ export default function ParkScreen() {
               options={[
                 {
                   value: "assign",
-                  label: "Park now",
-                  accessibilityLabel: "Park now: assign a vehicle to the selected zone",
+                  label: "Go to this zone",
+                  accessibilityLabel: "Go to this zone: no space is kept",
                   testID: "parking-action-assign",
                 },
                 {
                   value: "reserve",
-                  label: "Reserve for later",
-                  accessibilityLabel: "Reserve the selected zone for later",
+                  label: "Reserve a space",
+                  accessibilityLabel: "Reserve a space: keeps one space from your arrival time",
                   testID: "parking-action-reserve",
                 },
               ]}

@@ -142,7 +142,7 @@ describe("reservation panel: zone gating", () => {
   it("hints to pick a zone and disables creation without one", async () => {
     renderWithProviders(<ReservationPanel selectedZone={null} />);
     expect(screen.getByTestId("reservation-zone-hint")).toHaveTextContent(
-      /Select a parking zone above/,
+      /Choose a zone above to reserve a space/,
     );
     const create = await screen.findByTestId("reservation-create");
     expect(create).toHaveTextContent("Select a zone");
@@ -261,7 +261,7 @@ describe("reservation panel: submission", () => {
     );
     renderWithProviders(<Harness />);
     fireEvent.press(await screen.findByTestId("reservation-create"));
-    await waitFor(() => expect(screen.getByTestId("reservation-error")).toHaveTextContent(/no longer available/));
+    await waitFor(() => expect(screen.getByTestId("reservation-error")).toHaveTextContent(/can't take this reservation for that time/));
     expect(screen.queryByTestId("reservation-r1")).not.toBeOnTheScreen();
     expect(screen.queryByTestId("reservation-confirmed")).not.toBeOnTheScreen();
   });
@@ -276,7 +276,7 @@ describe("reservation panel: failures", () => {
     fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() =>
       expect(screen.getByTestId("reservation-error")).toHaveTextContent(
-        "This zone is no longer available for reservation. Please choose another zone.",
+        "Zone A can't take this reservation for that time. Try another time or zone.",
       ),
     );
     expect(screen.getByTestId("reservation-error")).not.toHaveTextContent(

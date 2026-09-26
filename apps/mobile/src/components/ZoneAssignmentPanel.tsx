@@ -1,5 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { FormAlert } from "./FormAlert";
@@ -7,10 +8,11 @@ import { PlateChip } from "./PlateChip";
 import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
 import { VehiclePicker, useVehicleSelection } from "./VehicleSelection";
-import { api, ApiError, type CreateAssignmentInput, type PublicZone } from "@/lib/api/client";
-import { activeAssignmentFrom, upsertAssignment } from "@/lib/assignment";
+import { api, type CreateAssignmentInput, type PublicZone } from "@/lib/api/client";
+import { ASSIGNMENT_TERMS, activeAssignmentFrom, upsertAssignment } from "@/lib/assignment";
 import type { ZoneAssignmentResponse } from "@parada/types";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, plural } from "@/lib/format";
+import { parkingErrorMessage } from "@/lib/parkingErrors";
 import { queryKeys } from "@/lib/query";
 import { spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
@@ -21,14 +23,18 @@ type ZoneAssignmentPanelProps = {
 };
 
 /**
- * Manual zone assignment (Phase 9.3): the user explicitly selects a zone and a
- * registered vehicle, then submits POST /assignments. Selection is local UI
- * state only — an assignment is confirmed exclusively by a backend response.
- * A full zone can never be submitted, and an existing ACTIVE assignment is
- * shown as backend-confirmed without offering another assignment request.
+ * "Go to this zone" (POST /assignments): the driver picks a zone and a vehicle
+ * and the backend records that zone as the car's destination for a short
+ * window. It keeps NO space — only a reservation protects capacity
+ * (services/api/src/domain/reservation.ts) — and at a camera gate, entering
+ * another zone records a wrong-zone warning, then a fined violation
+ * (occupancy.ts / violations.ts; the fine is establishment-configured, so no
+ * amount is written here). Selection is local UI state; the assignment is
+ * confirmed only by the backend response. A full zone can never be submitted.
  */
 export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) {
   const colors = useColors();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const selection = useVehicleSelection();
 
@@ -66,7 +72,7 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
     assign.mutate({ zoneId: selectedZone.id, vehicleId: selectedVehicle.id });
   }
 
-  let buttonTitle = "Assign to Zone";
+  let buttonTitle = "Go here";
   if (selectedZone === null) {
     buttonTitle = "Select a zone";
   } else if (zoneUnavailable) {
@@ -79,26 +85,10 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
   }
 
   const submitLabel = canSubmit
-    ? `Assign ${selectedVehicle?.plateNumber} to ${selectedZone?.name}.`
+    ? `Go to ${selectedZone?.name} with ${selectedVehicle?.plateNumber}. No space is kept.`
     : buttonTitle;
 
-  const assignmentError = (() => {
-    if (!assign.isError || !(assign.error instanceof ApiError)) {
-      return assign.isError ? "We couldn't assign this zone. Please try again." : null;
-    }
-    if (assign.error.code === "NETWORK" || assign.error.code === "TIMEOUT") {
-      return "We couldn't connect to the parking service. Please try again.";
-    }
-    if (assign.error.code === "CONFLICT") {
-      if (assign.error.message.toLowerCase().includes("cannot accept assignments")) {
-        return "This zone is no longer available. Please choose another zone.";
-      }
-      if (assign.error.message.toLowerCase().includes("already has an active zone assignment")) {
-        return "This vehicle already has an assigned zone.";
-      }
-    }
-    return assign.error.message;
-  })();
+  const assignmentError = assign.isError ? parkingErrorMessage(assign.error, "assign", selectedZone?.name) : null;
 
   return (
     <View style={styles.panel} testID="assignment-panel">
@@ -117,24 +107,30 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
         />
       ) : null}
       <SectionHeader
-        title={confirmedAssignment ? "You have an assignment" : "Assign a vehicle"}
-        caption={
-          confirmedAssignment
-            ? "See it under Current parking above"
-            : "Select a zone, then choose a vehicle"
-        }
+        title={confirmedAssignment ? "Assigned zone" : "Go to this zone"}
+        caption={confirmedAssignment ? undefined : "No space is kept for you."}
         testID="assignment-header"
       />
 
       {confirmedAssignment ? (
-        <Text variant="caption" color={colors.muted} testID="assignment-already-assigned">
-          Cancel it from Current parking to choose a different zone.
-        </Text>
+        <View style={styles.assigned}>
+          <Text variant="caption" color={colors.muted} testID="assignment-already-assigned">
+            You already have an assigned zone. Cancel it before choosing another.
+          </Text>
+          <Button
+            variant="secondary"
+            size="sm"
+            title="Open Now"
+            accessibilityLabel="Open Now to see or cancel your assigned zone"
+            onPress={() => router.push("/parking")}
+            testID="assignment-open-now"
+          />
+        </View>
       ) : (
         <Card padding={spacing.xl2} style={styles.body} testID="assignment-body">
           {selectedZone === null ? (
             <Text variant="caption" color={colors.muted} testID="assignment-zone-hint">
-              Select a parking zone above.
+              Choose a zone above.
             </Text>
           ) : zoneUnavailable ? (
             <Text variant="body" color={colors.danger} testID="assignment-zone-full">
@@ -147,10 +143,16 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
                 <Text variant="title" numberOfLines={2}>
                   {selectedZone.name}
                 </Text>
-                <Text variant="caption">{selectedZone.availableCount} spaces available</Text>
+                <Text variant="caption">{plural(selectedZone.availableCount, "space")} available</Text>
               </View>
             </Card>
           )}
+
+          {selectedZone !== null && !zoneUnavailable ? (
+            <Text variant="caption" color={colors.muted} testID="assignment-terms">
+              {ASSIGNMENT_TERMS}
+            </Text>
+          ) : null}
 
           <VehiclePicker
             selection={selection}
@@ -188,6 +190,10 @@ const styles = StyleSheet.create({
   },
   body: {
     gap: spacing.xl,
+  },
+  assigned: {
+    gap: spacing.md,
+    alignItems: "flex-start",
   },
   summary: {
     flexDirection: "row",
