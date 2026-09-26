@@ -443,3 +443,9 @@ Deviations from the plan above, with reasons:
 - Account: removed the static Status row, Sign-in row, about text and the Notifications row (one entry point: the bell on Now); the role pill shows only for ADMIN; "Sign out" casing unified. Phone and App version stay (real data).
 - Accessibility: screen and section titles are headers; the connection line is a polite live region (the per-second timer is not); segments are 44pt; login links have 44pt tap areas; radio chips and zone/appearance radios expose `checked`; `app.json` `userInterfaceStyle: "automatic"`; reduced motion follows OS changes live.
 - Not done (not in the plan's scope): a visible focus style for keyboard focus on mobile Pressables (E-M-V5) — noted for later.
+
+### Phase 6 — Admin shell
+
+- Navigation is flat and always visible: Monitor (Dashboard, Zones, Cameras, Sessions, Reservations), Act (Violations, Appeals, Anomalies, Guest admission), Records (Users, History, Analytics, Notifications), System (Simulator, Settings). Group names are `<h2>` headings labelling their lists; no toggles. `/sessions` is "Sessions" everywhere. One active indicator (the pill + `aria-current`).
+- **Deviation:** instead of an identity *menu*, the header has one identity link to `/account` ("Account: {name}, administrator") and one visible "Log out" button. Same outcome (one identity, one logout) without building a popup menu that would need its own focus management. The sidebar footer (second identity + second logout) and the header bell (second route to Notifications) are gone.
+- Skip link "Skip to content" → `#main`; the drawer is a modal dialog ("Menu") with focus on open, Tab trapped inside, Escape to close and focus returned to the opener; its nav is labelled "Primary (menu)". Login has `<main>` and `<aside>` landmarks and no HttpOnly footnote.

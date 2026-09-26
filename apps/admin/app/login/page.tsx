@@ -40,7 +40,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* Form column */}
-      <div className="flex w-full flex-col items-center justify-center px-4 py-10 lg:w-1/2">
+      <main className="flex w-full flex-col items-center justify-center px-4 py-10 lg:w-1/2">
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center gap-4 lg:hidden">
             {/* The canonical PARADA logo, unmodified, mounted on its own light
@@ -111,14 +111,11 @@ export default function LoginPage() {
             </form>
           </Card>
 
-          <p className="mt-6 text-center text-xs font-semibold text-muted">
-            Sessions are kept in an HttpOnly cookie and end when you sign out.
-          </p>
         </div>
-      </div>
+      </main>
 
       {/* Brand column — hidden below lg, matches the console's desktop-first posture */}
-      <div className="relative hidden w-1/2 flex-col items-center justify-center overflow-hidden border-l border-line bg-card lg:flex">
+      <aside aria-label="PARADA" className="relative hidden w-1/2 flex-col items-center justify-center overflow-hidden border-l border-line bg-card lg:flex">
         <div className="relative z-10 flex flex-col items-center gap-6 px-12 text-center">
           <Image
             src="/mascot/parada-mascot.webp"
@@ -134,7 +131,7 @@ export default function LoginPage() {
             Guiding every vehicle to its zone.
           </p>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

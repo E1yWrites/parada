@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -23,7 +23,6 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronDown,
   ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "./providers/auth-provider";
@@ -53,66 +52,55 @@ interface NavItem {
 
 interface NavGroup {
   label: string;
-  collapsible?: boolean;
   items: NavItem[];
 }
 
+/**
+ * Every operational page is always visible and reachable by Tab — groups are
+ * headings, not collapsible toggles (Zones, Cameras and Violations used to be
+ * hidden inside collapsed groups, even while you were on them). Account lives
+ * in the header identity link, not here.
+ */
 const GROUPS: NavGroup[] = [
   {
-    label: "Overview",
-    items: [{ href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true }],
-  },
-  {
-    label: "Parking Operations",
-    collapsible: true,
+    label: "Monitor",
     items: [
+      { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
       { href: "/zones", label: "Zones", icon: MapPinned },
       { href: "/cameras", label: "Cameras", icon: Camera },
+      { href: "/sessions", label: "Sessions", icon: CarFront },
       { href: "/reservations", label: "Reservations", icon: Clock3 },
-      { href: "/sessions", label: "Vehicles", icon: CarFront },
     ],
   },
   {
-    label: "Management",
-    collapsible: true,
+    label: "Act",
     items: [
-      { href: "/users", label: "Users", icon: Users },
       { href: "/violations", label: "Violations", icon: TriangleAlert },
       { href: "/appeals", label: "Appeals", icon: Scale },
-      { href: "/guest-admit", label: "Guest Admission", icon: UserRoundCheck },
+      { href: "/anomalies", label: "Anomalies", icon: ShieldAlert },
+      { href: "/guest-admit", label: "Guest admission", icon: UserRoundCheck },
     ],
   },
   {
-    label: "Analytics",
-    collapsible: true,
+    label: "Records",
     items: [
-      { href: "/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/users", label: "Users", icon: Users },
       { href: "/history", label: "History", icon: History },
+      { href: "/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/notifications", label: "Notifications", icon: Bell },
     ],
   },
   {
     label: "System",
-    collapsible: true,
-    items: [
-      { href: "/notifications", label: "Notifications", icon: Bell },
-      { href: "/anomalies", label: "Anomalies", icon: TriangleAlert },
-    ],
-  },
-  {
-    label: "Tools",
     items: [
       { href: "/simulator", label: "Simulator", icon: FlaskConical },
       { href: "/settings", label: "Settings", icon: Settings2 },
     ],
   },
-  {
-    label: "Account",
-    items: [{ href: "/account", label: "Account", icon: UserCircle2 }],
-  },
 ];
 
-function groupId(label: string) {
-  return `nav-group-${label.toLowerCase().replace(/\s+/g, "-")}`;
+function groupId(label: string, scope: string) {
+  return `nav-${scope}-${label.toLowerCase().replace(/\s+/g, "-")}`;
 }
 
 function isActive(href: string, exact: boolean | undefined, pathname: string): boolean {
@@ -145,23 +133,18 @@ function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: stri
       >
         <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-brand-ink" : "text-muted"}`} aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate">{item.label}</span>
-        {active ? <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" /> : null}
       </Link>
     </li>
   );
 }
 
-function NavList({ onNavigate }: { onNavigate?: () => void }) {
+function NavList({ label, scope, onNavigate }: { label: string; scope: string; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState<Set<string>>(
-    () => new Set(GROUPS.filter((g) => !g.collapsible).map((g) => g.label))
-  );
   const navRef = useRef<HTMLElement>(null);
   const [pill, setPill] = useState<{ top: number; height: number } | null>(null);
 
   // One active pill that slides between links instead of each link painting
-  // its own background. Measured from the nav's scroll box; hidden when the
-  // active link is inside a collapsed group.
+  // its own background. Measured from the nav's scroll box.
   useLayoutEffect(() => {
     const nav = navRef.current;
     const link = nav?.querySelector<HTMLElement>('a[data-active="true"]');
@@ -176,19 +159,10 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
       return;
     }
     setPill({ top: rect.top - navRect.top + nav.scrollTop, height: rect.height });
-  }, [pathname, open]);
-
-  function toggle(label: string) {
-    setOpen((prev) => {
-      const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      return next;
-    });
-  }
+  }, [pathname]);
 
   return (
-    <nav ref={navRef} className="relative flex-1 overflow-y-auto px-4 py-3" aria-label="Primary">
+    <nav ref={navRef} className="relative flex-1 overflow-y-auto px-4 py-3" aria-label={label}>
       {pill ? (
         <span
           aria-hidden="true"
@@ -197,41 +171,17 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
         />
       ) : null}
       {GROUPS.map((group) => {
-        const id = groupId(group.label);
-        const expanded = open.has(group.label);
+        const id = groupId(group.label, scope);
         return (
           <div key={group.label} className="mb-4">
-            {group.collapsible ? (
-              <button
-                type="button"
-                onClick={() => toggle(group.label)}
-                aria-expanded={expanded}
-                aria-controls={id}
-                className="flex min-h-[34px] w-full items-center gap-2 rounded-control px-3 text-micro font-bold uppercase tracking-[0.08em] text-muted transition-colors duration-150 hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus"
-              >
-                <span>{group.label}</span>
-                <ChevronDown
-                  className={`ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-                  aria-hidden="true"
-                />
-              </button>
-            ) : (
-              <p className="px-3 pb-1 text-micro font-bold uppercase tracking-[0.08em] text-muted">
-                {group.label}
-              </p>
-            )}
-
-            {expanded ? (
-              <ul
-                id={id}
-                className="mt-1 space-y-0.5"
-                aria-label={`${group.label} navigation`}
-              >
-                {group.items.map((item) => (
-                  <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
-                ))}
-              </ul>
-            ) : null}
+            <h2 id={id} className="px-3 pb-1 text-micro font-bold uppercase tracking-[0.08em] text-muted">
+              {group.label}
+            </h2>
+            <ul className="mt-1 space-y-0.5" aria-labelledby={id}>
+              {group.items.map((item) => (
+                <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
+              ))}
+            </ul>
           </div>
         );
       })}
@@ -239,26 +189,68 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarFooter({ name, onLogout }: { name?: string; onLogout: () => void }) {
+/**
+ * Mobile navigation drawer: a modal dialog that takes focus on open, keeps
+ * Tab inside itself, closes on Escape, and hands focus back to the button
+ * that opened it.
+ */
+function Drawer({ onClose, returnFocusTo }: { onClose: () => void; returnFocusTo: React.RefObject<HTMLButtonElement | null> }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const opener = returnFocusTo.current;
+    return () => opener?.focus();
+  }, [returnFocusTo]);
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== "Tab" || !panelRef.current) return;
+    const focusable = Array.from(
+      panelRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])')
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   return (
-    <div className="border-t border-line p-3">
-      <div className="flex items-center gap-3 rounded-control px-3 py-2">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-soft" aria-hidden="true">
-          <UserCircle2 className="h-5 w-5 text-brand-ink" />
-        </div>
-        <div className="min-w-0 leading-tight">
-          <p className="truncate text-sm font-bold text-charcoal">{name ?? "Account"}</p>
-          <p className="text-micro font-semibold text-muted">Administrator</p>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={onLogout}
-        className="mt-1 flex min-h-[40px] w-full items-center gap-3 rounded-control px-3 text-sm font-semibold text-muted transition-colors duration-150 hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:shadow-focus"
+    <div className="fixed inset-0 z-40 lg:hidden">
+      <div className="absolute inset-0 bg-charcoal/40" onClick={onClose} aria-hidden="true" />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+        onKeyDown={onKeyDown}
+        className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-line bg-card shadow-card-hover"
       >
-        <LogOut className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
-        Logout
-      </button>
+        <div className="flex items-center justify-between border-b border-line px-4 py-4">
+          <Brand />
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={onClose}
+            className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus"
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+        <NavList label="Primary (menu)" scope="drawer" onNavigate={onClose} />
+      </div>
     </div>
   );
 }
@@ -266,6 +258,7 @@ function SidebarFooter({ name, onLogout }: { name?: string; onLogout: () => void
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   if (loading) return <FullPageSpinner label="Loading operations console…" />;
 
@@ -303,85 +296,69 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-control focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-charcoal focus:shadow-focus"
+      >
+        Skip to content
+      </a>
+
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-card lg:flex">
         <div className="px-5 pb-3 pt-5">
           <Brand />
         </div>
-        <NavList />
-        <SidebarFooter name={user.name} onLogout={() => signOut()} />
+        <NavList label="Primary" scope="side" />
       </aside>
 
-      {/* Mobile drawer */}
-      {mobileOpen ? (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div
-            className="absolute inset-0 bg-charcoal/40 backdrop-blur-sm"
-            onClick={() => setMobileOpen(false)}
-            aria-hidden="true"
-          />
-          <aside className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-line bg-card shadow-card-hover">
-            <div className="flex items-center justify-between border-b border-line px-4 py-4">
-              <Brand />
-              <button
-                type="button"
-                onClick={() => setMobileOpen(false)}
-                className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus"
-                aria-label="Close menu"
-              >
-                <X className="h-5 w-5" aria-hidden="true" />
-              </button>
-            </div>
-            <NavList onNavigate={() => setMobileOpen(false)} />
-            <SidebarFooter name={user.name} onLogout={() => signOut()} />
-          </aside>
-        </div>
-      ) : null}
+      {mobileOpen ? <Drawer onClose={() => setMobileOpen(false)} returnFocusTo={menuButtonRef} /> : null}
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-line bg-card/85 px-4 backdrop-blur-md sm:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-line bg-card px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button
+              ref={menuButtonRef}
               type="button"
               onClick={() => setMobileOpen(true)}
               className="-ml-1 flex h-11 w-11 items-center justify-center rounded-control text-muted hover:bg-raised hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus lg:hidden"
               aria-label="Open menu"
+              aria-expanded={mobileOpen}
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
             <ConnectionIndicator />
           </div>
 
+          {/* One identity (links to Account) and one Log out — each appeared twice before. */}
           <div className="flex items-center gap-2">
             <Link
-              href="/notifications"
-              className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-raised hover:text-brand-ink focus-visible:outline-none focus-visible:shadow-focus"
-              aria-label="Notifications"
+              href="/account"
+              aria-label={`Account: ${user.name}, administrator`}
+              className="flex min-h-[44px] items-center gap-2.5 rounded-control rounded-tr-control-cut border border-line bg-card py-1.5 pl-1.5 pr-3 transition-colors duration-150 hover:bg-raised focus-visible:outline-none focus-visible:shadow-focus"
             >
-              <Bell className="h-5 w-5" aria-hidden="true" />
-            </Link>
-            <div className="flex items-center gap-2.5 rounded-control rounded-tr-control-cut border border-line bg-card py-1.5 pl-1.5 pr-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft" aria-hidden="true">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft" aria-hidden="true">
                 <UserCircle2 className="h-5 w-5 text-brand-ink" />
-              </div>
-              <div className="hidden min-w-0 leading-tight sm:block">
-                <p className="max-w-[12rem] truncate text-sm font-bold text-charcoal">{user.name}</p>
-                <p className="text-micro font-semibold text-muted">Administrator</p>
-              </div>
-            </div>
+              </span>
+              <span className="hidden min-w-0 leading-tight sm:block">
+                <span className="block max-w-[12rem] truncate text-sm font-bold text-charcoal">{user.name}</span>
+                <span className="block text-micro font-semibold text-muted">Admin</span>
+              </span>
+            </Link>
             <button
               type="button"
               onClick={() => signOut()}
-              className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:shadow-focus"
-              aria-label="Logout"
+              className="flex min-h-[44px] items-center gap-2 rounded-control px-3 text-sm font-semibold text-muted transition-colors duration-150 hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:shadow-focus"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
+              <span>Log out</span>
             </button>
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[88rem] flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[88rem] flex-1 px-4 py-6 focus:outline-none sm:px-6 sm:py-8">
+          {children}
+        </main>
       </div>
     </div>
   );

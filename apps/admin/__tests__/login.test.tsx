@@ -62,3 +62,11 @@ describe("Login page — authentication behavior", () => {
     expect(mockRouter.replace).not.toHaveBeenCalled();
   });
 });
+
+describe("admin login — landmarks and copy", () => {
+  it("puts the form in a main landmark and says nothing about cookie internals", () => {
+    render(<LoginPage />);
+    expect(screen.getByRole("main")).toContainElement(screen.getByRole("button", { name: /sign in/i }));
+    expect(screen.queryByText(/httponly/i)).not.toBeInTheDocument();
+  });
+});
