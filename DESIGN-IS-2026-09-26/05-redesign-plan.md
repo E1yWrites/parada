@@ -465,3 +465,11 @@ Deviations from the plan above, with reasons:
 - Kept on purpose: `GlassCard` + `glass.ts` hero (onboarding only), `ReservationList` / `ReservationCard` (now the read-only History list and row).
 - Final greps: every remaining "Live" string is the CONNECTED branch of a status map; no cross-tab copy; no retired navy/gold glass values; no arbitrary admin text sizes or literal cut corners. One more unconditional claim was found and fixed outside the audited screens: onboarding's "Live zone-level availability" now says availability is counted from gate-camera entries and exits.
 - Verification (automated only): mobile 37 suites / 460 tests, admin 21 / 146, typecheck and lint clean (one pre-existing warning in `realtime.test.ts`), admin `next build` and mobile `expo export` succeed. **Not performed:** a device run of Now/Zones/History in light, dark and System, and a keyboard-only pass of the admin console in both themes.
+
+### Keyboard-only pass — admin console (2026-09-26)
+
+Run in the built-in browser against a local API on a throwaway, freshly seeded database (dropped afterwards), dark and light themes, desktop (1280) and phone (375) widths.
+
+- **Passed:** login by Tab + Enter (`main`/`aside` landmarks); skip link is the first Tab stop and moves focus to `main`; visible focus ring on every control checked, in both themes; Enter opens zone rows; zone card link reads its own content; row actions carry their names ("Deactivate Main Loop", "Edit camera …"); drawer is a modal dialog with focus on Close, Tab wraps inside it, Escape closes it and focus returns to "Open menu"; closing the zone and camera forms returns focus to their trigger; camera labels read "Entry and exit" / "Enabled".
+- **Found and fixed:** (1) opening "New zone" or "Register camera" dropped focus to `<body>`, and "Edit" left it on the row below the form — forms now focus their first field; (2) the sidebar's active pill never appeared if the page first loaded narrower than the sidebar breakpoint — it re-measures on resize; (3) dashboard figure details were truncated at phone width ("0% of 1 active …") — they wrap now. Regression tests added for all three.
+- **Not exercised:** Deactivate / Disable (they open a native `window.confirm`), and the phone device run of the mobile app.

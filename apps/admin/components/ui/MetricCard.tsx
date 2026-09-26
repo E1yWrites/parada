@@ -40,7 +40,7 @@ export function MetricCard({ label, value, detail, accent = "none" }: MetricCard
       <p className={`mt-1 font-display text-3xl font-black leading-none tracking-tight ${ACCENTS[accent]}`}>
         {value}
       </p>
-      {detail ? <p className="mt-1.5 truncate text-xs font-semibold text-muted">{detail}</p> : null}
+      {detail ? <p className="mt-1.5 break-words text-xs font-semibold text-muted">{detail}</p> : null}
     </div>
   );
 }

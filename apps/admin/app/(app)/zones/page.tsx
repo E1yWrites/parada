@@ -23,6 +23,12 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => v
     capacity: 10,
     status: "ACTIVE",
   });
+  const nameRef = useRef<HTMLInputElement>(null);
+  // The "New zone" trigger unmounts while the form is open, so focus would
+  // otherwise fall to <body>; start keyboard users on the first field.
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
   const [navigationLat, setNavigationLat] = useState("");
   const [navigationLng, setNavigationLng] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +78,7 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => v
             Name
           </label>
           <input
+            ref={nameRef}
             id="zone-name"
             className="input"
             value={form.name}

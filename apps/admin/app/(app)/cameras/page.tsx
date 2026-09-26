@@ -62,6 +62,12 @@ function CameraForm({
       : EMPTY
   );
   const [error, setError] = useState<string | null>(null);
+  // Start keyboard users inside the form: Register unmounts while it is open,
+  // and Edit opens it above the row that was pressed. The identifier is fixed
+  // once registered, so an edit starts on the zone.
+  useEffect(() => {
+    document.getElementById(editing ? "camera-zone" : "camera-identifier")?.focus();
+  }, [editing]);
 
   const save = useMutation({
     mutationFn: () => {

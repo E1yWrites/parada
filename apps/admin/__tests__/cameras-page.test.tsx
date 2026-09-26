@@ -167,3 +167,18 @@ describe("Admin cameras page — redesign labels and feedback", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Camera CAM-A01 enabled.");
   });
 });
+
+describe("Admin cameras page — keyboard focus (found in the keyboard pass)", () => {
+  it("starts on the identifier when registering, and on the zone when editing", async () => {
+    mockedApi.cameras.mockResolvedValue([camera]);
+    mockedApi.zones.mockResolvedValue([zone]);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /register camera$/i }));
+    await waitFor(() => expect(screen.getByPlaceholderText("CAM-A01")).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit camera CAM-A01" }));
+    await waitFor(() => expect(zoneSelect()).toHaveFocus());
+  });
+});

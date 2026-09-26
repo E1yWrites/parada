@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -130,8 +130,10 @@ function NavList({ label, scope, onNavigate }: { label: string; scope: string; o
   const [pill, setPill] = useState<{ top: number; height: number } | null>(null);
 
   // One active pill that slides between links instead of each link painting
-  // its own background. Measured from the nav's scroll box.
-  useLayoutEffect(() => {
+  // its own background. Measured from the nav's scroll box — on navigation,
+  // and again whenever the nav is resized: a sidebar that was hidden (0 px)
+  // at first paint on a narrow window has nothing to measure until it shows.
+  const measure = useCallback(() => {
     const nav = navRef.current;
     const link = nav?.querySelector<HTMLElement>('a[data-active="true"]');
     if (!nav || !link) {
@@ -145,7 +147,20 @@ function NavList({ label, scope, onNavigate }: { label: string; scope: string; o
       return;
     }
     setPill({ top: rect.top - navRect.top + nav.scrollTop, height: rect.height });
-  }, [pathname]);
+  }, []);
+
+  useLayoutEffect(measure, [measure, pathname]);
+
+  useEffect(() => {
+    const nav = navRef.current;
+    window.addEventListener("resize", measure);
+    const observer = typeof ResizeObserver === "undefined" || !nav ? null : new ResizeObserver(measure);
+    if (observer && nav) observer.observe(nav);
+    return () => {
+      window.removeEventListener("resize", measure);
+      observer?.disconnect();
+    };
+  }, [measure]);
 
   return (
     <nav ref={navRef} className="relative flex-1 overflow-y-auto px-4 py-3" aria-label={label}>

@@ -155,3 +155,12 @@ function mockFailedCreate(message: string) {
   const { ApiError } = jest.requireActual("@/lib/api/client");
   mockedApi.createZone.mockRejectedValue(new ApiError("CONFLICT", message, 409));
 }
+
+describe("Admin zones page — keyboard focus (found in the keyboard pass)", () => {
+  it("moves focus into the new-zone form when it opens", async () => {
+    mockedApi.zones.mockResolvedValue([]);
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: /new zone/i }));
+    await waitFor(() => expect(screen.getByPlaceholderText("Zone A")).toHaveFocus());
+  });
+});

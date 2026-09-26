@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { AppShell } from "@/components/AppShell";
 
 jest.mock("next/navigation", () => ({
@@ -142,5 +142,28 @@ describe("AppShell — role protection", () => {
     fireEvent.keyDown(dialog, { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(opener).toHaveFocus();
+  });
+
+  it("draws the active pill once a sidebar hidden at first paint becomes visible (window widened)", () => {
+    setAuth({ user: { id: "u1", name: "Ari Admin", email: "admin@parada.local", role: "ADMIN" } as never, loading: false });
+    let visible = false;
+    const spy = jest.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const h = visible && this.tagName === "A" ? 40 : 0;
+      return { top: 0, left: 0, right: 0, bottom: h, width: 0, height: h, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+    });
+    const { container } = render(
+      <AppShell>
+        <div>content</div>
+      </AppShell>
+    );
+    const pill = () => container.querySelector('nav[aria-label="Primary"] span.bg-brand-soft');
+    expect(pill()).toBeNull();
+
+    visible = true;
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(pill()).not.toBeNull();
+    spy.mockRestore();
   });
 });
