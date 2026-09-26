@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -26,22 +25,9 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "./providers/auth-provider";
+import { BrandLogo } from "./BrandLogo";
 import { ConnectionIndicator } from "./ConnectionIndicator";
 import { FullPageSpinner } from "./ui/State";
-
-/** The canonical PARADA logo, unmodified, mounted on its own light plate —
- *  the source asset is black ink on a transparent field and would disappear
- *  directly on the dark nav/ground. The plate is a fixed neutral white by
- *  design (intentionally theme-independent): the mark needs the same
- *  legible ground in both registers, not a themed surface color. */
-function BrandLogo({ height = 15 }: { height?: number }) {
-  const width = Math.round(height * (1500 / 198));
-  return (
-    <div className="inline-flex shrink-0 items-center rounded-lg rounded-tr-panel-cut border border-line bg-white px-2 py-1.5">
-      <Image src="/brand/parada-logo.webp" alt="PARADA" width={width} height={height} priority />
-    </div>
-  );
-}
 
 interface NavItem {
   href: string;
@@ -111,7 +97,7 @@ function isActive(href: string, exact: boolean | undefined, pathname: string): b
 function Brand() {
   return (
     <Link href="/" className="flex items-center gap-3 rounded-control focus-visible:outline-none focus-visible:shadow-focus">
-      <BrandLogo height={14} />
+      <BrandLogo height={14} priority />
       <span className="mt-0.5 block text-micro font-semibold text-muted">Operations console</span>
     </Link>
   );

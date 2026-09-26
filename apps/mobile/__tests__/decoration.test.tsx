@@ -21,7 +21,6 @@ const ROUTINE_SURFACES = [
   "app/zones/[id].tsx",
   "app/violations/[id].tsx",
   "src/components/CurrentParkingState.tsx",
-  "src/components/ParkingRecommendation.tsx",
   "src/components/ActiveSessionBanner.tsx",
   "src/components/ZoneAssignmentPanel.tsx",
   "src/components/ReservationPanel.tsx",

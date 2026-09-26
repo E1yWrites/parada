@@ -701,3 +701,45 @@ describe("phase 9.7: reservation create → current state", () => {
     expect(screen.queryByTestId("reservation-confirmed")).not.toBeOnTheScreen();
   });
 });
+
+describe("reservation on Now: GPS navigation (moved from the retired least-busy card)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (LocationMock as LocationModule).__reset();
+    jest.spyOn(Linking, "canOpenURL").mockResolvedValue(true);
+    jest.spyOn(Linking, "openURL").mockResolvedValue(true as never);
+  });
+
+  it("navigates to the reserved zone's own configured coordinates from the device location", async () => {
+    const destinationFor = jest.fn((zoneId: string) =>
+      zoneId === reservation.zoneId ? { label: "Zone B", latitude: 14.5502, longitude: 121.0402 } : null,
+    );
+    (LocationMock as LocationModule).__setPermission({ granted: true, canAskAgain: true });
+    (LocationMock as LocationModule).__setPosition({ latitude: 14.5995, longitude: 120.9842 });
+    renderState({ reservation, destinationFor, destinationReady: true });
+
+    fireEvent.press(screen.getByTestId("reservation-navigate"));
+    await waitFor(() =>
+      expect(Linking.openURL).toHaveBeenCalledWith(
+        expect.stringContaining("maps://?saddr=14.5995,120.9842&daddr=14.5502,121.0402"),
+      ),
+    );
+    expect(destinationFor).toHaveBeenCalledWith(reservation.zoneId);
+    // GPS is navigation only: nothing is created or cancelled.
+    expect(api.createReservation).not.toHaveBeenCalled();
+    expect(api.cancelReservation).not.toHaveBeenCalled();
+  });
+
+  it("explains that navigation is unavailable when the zone has no coordinates", () => {
+    renderState({ reservation, destinationFor: () => null, destinationReady: true });
+    expect(screen.getByTestId("reservation-navigate")).toBeDisabled();
+    expect(screen.getByTestId("reservation-navigate-unavailable")).toHaveTextContent(
+      "Navigation coordinates for this zone haven't been configured yet.",
+    );
+  });
+
+  it("does not offer navigation while the zones (coordinates) are still loading", () => {
+    renderState({ reservation, destinationFor: () => null, destinationReady: false });
+    expect(screen.queryByTestId("reservation-navigate")).not.toBeOnTheScreen();
+  });
+});

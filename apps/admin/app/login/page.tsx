@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { BrandLogo } from "@/components/BrandLogo";
 import { useRouter } from "next/navigation";
 import { AlertCircle, LockKeyhole, Mail } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -43,13 +44,7 @@ export default function LoginPage() {
       <main className="flex w-full flex-col items-center justify-center px-4 py-10 lg:w-1/2">
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center gap-4 lg:hidden">
-            {/* The canonical PARADA logo, unmodified, mounted on its own light
-                plate — the source asset is black ink on a transparent field
-                and would disappear directly on the dark ground. Fixed neutral
-                white by design (intentionally theme-independent). */}
-            <div className="inline-flex shrink-0 items-center rounded-xl rounded-tr-panel-cut border border-line bg-white px-3 py-2.5 shadow-card">
-              <Image src="/brand/parada-logo.webp" alt="PARADA" width={132} height={17} priority />
-            </div>
+            <BrandLogo height={17} priority />
             <p className="text-xs font-semibold text-muted">Operations console</p>
           </div>
 
@@ -124,9 +119,7 @@ export default function LoginPage() {
             height={168}
             className="h-[168px] w-[168px] object-contain"
           />
-          <div className="inline-flex shrink-0 items-center rounded-xl rounded-tr-panel-cut border border-line bg-white px-4 py-3 shadow-card">
-            <Image src="/brand/parada-logo.webp" alt="PARADA" width={176} height={23} priority />
-          </div>
+          <BrandLogo height={23} />
           <p className="max-w-xs font-display text-xl font-bold leading-snug text-charcoal">
             Guiding every vehicle to its zone.
           </p>

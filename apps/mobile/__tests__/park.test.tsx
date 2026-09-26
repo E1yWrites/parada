@@ -220,6 +220,15 @@ describe("park screen: least busy zone (redesign)", () => {
     expect(screen.queryByText(/recommended/i)).not.toBeOnTheScreen();
   });
 
+  it("still lists every zone when the least-busy lookup fails (409 or network)", async () => {
+    (api.recommendedZone as jest.Mock).mockRejectedValue(new ApiError("CONFLICT", "No suitable zone is currently available.", 409));
+    renderWithProviders(<ParkScreen />);
+
+    expect(await screen.findByTestId("zone-A")).toBeOnTheScreen();
+    expect(screen.queryByTestId("zone-A-least-busy")).not.toBeOnTheScreen();
+    expect(screen.queryByText(/409|CONFLICT|No suitable zone/)).toBeNull();
+  });
+
   it("shows no tag when the backend has no pick", async () => {
     renderWithProviders(<ParkScreen />);
 

@@ -1,4 +1,5 @@
 import { Text as RNText } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import { useQuery } from "@tanstack/react-query";
 import { fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
 import { ReservationPanel } from "@/src/components/ReservationPanel";
@@ -404,4 +405,18 @@ describe("reservation panel: refresh after actions", () => {
     );
   });
 
+});
+
+describe("reservation panel: auth is never revoked by a failed reservation", () => {
+  // Moved here from the retired least-busy card: only an explicit 401 may
+  // invalidate credentials (CLAUDE.md).
+  it("keeps the stored token when the reservation fails with a non-401 error", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-alive");
+    (api.createReservation as jest.Mock).mockRejectedValue(new ApiError("BAD_GATEWAY", "The server is down.", 502));
+    renderWithProviders(<Harness />);
+    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await waitFor(() => expect(screen.getByTestId("reservation-error")).toBeOnTheScreen());
+    expect(await SecureStore.getItemAsync("parada.session.token")).toBe("tok-alive");
+    expect(screen.queryByText(/502|BAD_GATEWAY/)).toBeNull();
+  });
 });

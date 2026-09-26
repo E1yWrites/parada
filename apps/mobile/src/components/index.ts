@@ -40,7 +40,6 @@ export { VehicleCard } from "./VehicleCard";
 export { SessionCard } from "./SessionCard";
 export { ActiveSessionBanner } from "./ActiveSessionBanner";
 export { CurrentParkingState } from "./CurrentParkingState";
-export { ParkingRecommendation } from "./ParkingRecommendation";
 export { ZoneAssignmentPanel } from "./ZoneAssignmentPanel";
 export {
   VehiclePicker,
