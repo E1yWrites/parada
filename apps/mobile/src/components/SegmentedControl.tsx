@@ -66,7 +66,7 @@ function buildStyles(colors: ColorTokens) {
     },
     segment: {
       flex: 1,
-      minHeight: touchTarget - 4,
+      minHeight: touchTarget,
       alignItems: "center",
       justifyContent: "center",
       borderRadius: radii.sm,

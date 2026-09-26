@@ -435,3 +435,11 @@ Deviations from the plan above, with reasons:
 - Shipped as planned: "Go to this zone" / "Reserve a space" segments; assignment terms shown before submit ("No space is kept for you. Entering another zone gets a wrong-zone warning, then a fine.", one constant in `lib/assignment.ts`); arrival presets Now / In 30 min / In 1 hour send `startAt` only; one error mapper `lib/parkingErrors.ts`; "Least busy" tag on the backend's pick; the details link is a sibling of the zone radio (no nested control); zone radios expose `checked`; the "Selected for…" row and the "Park your vehicle" heading level are gone; the least-busy card left Now.
 - **Deviation:** success does not auto-switch tabs. The panel shows the backend-confirmed notice plus an "Open Now" button — a navigating button, not cross-tab copy — so the driver is never moved without asking.
 - `ParkingRecommendation` is now unused by the app; it and `recommendation.test.tsx` are deleted in Phase 8 per the cutover rule.
+
+### Phase 5 — History, Account, accessibility
+
+- Sessions tab renamed **History** (tab, title, subtitle); it now shows completed sessions and past (EXPIRED / CANCELLED) reservations only. The active-session banner and live reservations left it; `ReservationCard` is read-only.
+- The live reservation is cancelled on Now. **Deliberate asymmetry:** reservation cancel asks once more ("The kept space is released"), assignment cancel does not — an assignment keeps nothing, a reservation gives up a space that may not be free again. Driver cancel of an ACTIVE (consumed) reservation is still offered because the backend allows it (`reservation.ts` `cancel()` rejects only CANCELLED/EXPIRED).
+- Account: removed the static Status row, Sign-in row, about text and the Notifications row (one entry point: the bell on Now); the role pill shows only for ADMIN; "Sign out" casing unified. Phone and App version stay (real data).
+- Accessibility: screen and section titles are headers; the connection line is a polite live region (the per-second timer is not); segments are 44pt; login links have 44pt tap areas; radio chips and zone/appearance radios expose `checked`; `app.json` `userInterfaceStyle: "automatic"`; reduced motion follows OS changes live.
+- Not done (not in the plan's scope): a visible focus style for keyboard focus on mobile Pressables (E-M-V5) — noted for later.

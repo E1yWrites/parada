@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
-  ActiveSessionBanner,
   EmptyState,
   ErrorState,
   LoadingState,
@@ -12,10 +11,14 @@ import {
 } from "@/src/components";
 import { api, ApiError, type SessionDto } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
-import { useNow } from "@/src/hooks/useNow";
 import { spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 
+/**
+ * History: completed parking sessions and past reservations, read-only. What
+ * is happening now (an active session, a live reservation or assigned zone)
+ * and its actions live on the Now tab, so nothing here can be cancelled.
+ */
 export default function SessionsScreen() {
   const colors = useColors();
   const sessions = useQuery({
@@ -25,17 +28,15 @@ export default function SessionsScreen() {
   });
 
   const all: SessionDto[] = sessions.data ?? [];
-  const active = all.find((s) => s.status === "ACTIVE") ?? null;
   const history = all.filter((s) => s.status === "COMPLETED");
-  const now = useNow(30_000, active !== null);
   const refreshing = sessions.isFetching;
   const refresh = () => void sessions.refetch();
 
   return (
     <Screen
       scroll={false}
-      title="Sessions"
-      subtitle="Every gate entry and exit for your plates"
+      title="History"
+      subtitle="Completed parking sessions and past reservations"
       testID="sessions-screen">
       <FlatList
         data={history}
@@ -50,8 +51,6 @@ export default function SessionsScreen() {
           <Header
             isLoading={sessions.isPending}
             isError={sessions.isError}
-            active={active}
-            now={now}
             historyCount={history.length}
           />
         }
@@ -67,8 +66,8 @@ export default function SessionsScreen() {
           ) : (
             <EmptyState
               illustration="history"
-              title="No parking sessions"
-              description="Your parking history will appear here."
+              title="No completed sessions yet"
+              description="A session starts when a gate camera records your entry."
               testID="sessions-empty"
             />
           )
@@ -82,24 +81,19 @@ export default function SessionsScreen() {
 function Header({
   isLoading,
   isError,
-  active,
-  now,
   historyCount,
 }: {
   isLoading: boolean;
   isError: boolean;
-  active: SessionDto | null;
-  now: Date;
   historyCount: number;
 }) {
   return (
     <View style={styles.header}>
-      {active ? <ActiveSessionBanner session={active} now={now} testID="active-session" /> : null}
       <ReservationList />
       {/* The list below already renders its own LoadingState; a second bare
           "Loading…" above it read like leftover scaffolding. */}
       {isError || isLoading ? null : (
-        <SectionHeader title="History" caption={`${historyCount} completed`} testID="sessions-history" />
+        <SectionHeader title="Sessions" caption={`${historyCount} completed`} testID="sessions-history" />
       )}
     </View>
   );

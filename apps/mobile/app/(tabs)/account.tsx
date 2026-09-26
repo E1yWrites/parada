@@ -18,7 +18,6 @@ export default function AccountScreen() {
   const router = useRouter();
   const { user, token, signOut } = useSession();
   const account = useQuery({ queryKey: queryKeys.account, queryFn: api.me });
-  const notifications = useQuery({ queryKey: queryKeys.notifications, queryFn: api.notifications });
   const [signingOut, setSigningOut] = useState(false);
 
   const version = Constants.expoConfig?.version ?? "0.1.0";
@@ -37,7 +36,7 @@ export default function AccountScreen() {
   }
 
   return (
-    <Screen title="Account" subtitle="Your profile, alerts and app details" testID="account-screen">
+    <Screen title="Account" testID="account-screen">
       {account.isPending ? (
         <LoadingState label="Loading your profile…" testID="account-loading" />
       ) : account.isError && !profile ? (
@@ -83,7 +82,8 @@ export default function AccountScreen() {
                 </Text>
               ) : null}
             </View>
-            <RolePill role={profile.role} />
+            {/* Every driver account is a driver; only the exception is worth a label. */}
+            {profile.role === "ADMIN" ? <RolePill /> : null}
           </Card>
 
           <AppearanceCard />
@@ -120,15 +120,7 @@ export default function AccountScreen() {
               onPress={() => router.push("/account/password")}
               testID="account-change-password"
             />
-            <View style={styles.linkDivider} />
-            <AccountLink
-              icon="notifications-outline"
-              label="Notifications"
-              caption="Zone alerts, reservations, violations"
-              badge={notifications.data?.unreadCount}
-              onPress={() => router.push("/notifications")}
-              testID="account-notifications"
-            />
+
             <View style={styles.linkDivider} />
             <AccountLink
               icon="alert-circle-outline"
@@ -140,24 +132,15 @@ export default function AccountScreen() {
           </Card>
 
           <Card style={styles.infoCard} padding={0}>
-            <InfoRow label="Status" value="Active driver account" />
-            <View style={styles.linkDivider} />
             <InfoRow label="Phone" value={profile.phone ?? "Not set"} testID="account-phone" />
             <View style={styles.linkDivider} />
             <InfoRow label="App version" value={version} testID="account-version" />
-            <View style={styles.linkDivider} />
-            <InfoRow label="Sign-in" value="Kept securely on this device" testID="account-security" />
           </Card>
-
-          <Text variant="caption" style={styles.about}>
-            PARADA lets you check zone capacity and track your parking sessions in real time. Camera gate
-            signs in select zones accept your registered plates automatically.
-          </Text>
 
           <View style={styles.signOut}>
             <Button
               testID="logout-button"
-              title={signingOut ? "Signing out…" : "Sign Out"}
+              title={signingOut ? "Signing out…" : "Sign out"}
               variant="danger"
               loading={signingOut}
               icon={<Ionicons name="log-out-outline" size={18} color={colors.danger} />}
@@ -192,7 +175,7 @@ function AppearanceCard() {
             <Pressable
               key={option.value}
               accessibilityRole="radio"
-              accessibilityState={{ selected }}
+              accessibilityState={{ checked: selected, selected }}
               accessibilityLabel={`${option.label} appearance`}
               onPress={() => setMode(option.value)}
               style={[styles.appearanceOption, selected ? styles.appearanceOptionSelected : undefined]}
@@ -209,14 +192,13 @@ function AppearanceCard() {
   );
 }
 
-function RolePill({ role }: { role: string }) {
+function RolePill() {
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
-  const label = role === "ADMIN" ? "ADMIN" : "DRIVER";
   return (
     <View style={styles.pill} testID="account-role">
-      <Text variant="micro" color={colors.primaryDeep}>
-        {label}
+      <Text variant="micro" color={colors.primaryInk}>
+        ADMIN
       </Text>
     </View>
   );
@@ -226,14 +208,12 @@ function AccountLink({
   icon,
   label,
   caption,
-  badge,
   onPress,
   testID,
 }: {
   icon: ComponentProps<typeof Ionicons>["name"];
   label: string;
   caption: string;
-  badge?: number;
   onPress: () => void;
   testID?: string;
 }) {
@@ -242,7 +222,7 @@ function AccountLink({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={badge ? `${label}, ${badge} unread` : label}
+      accessibilityLabel={label}
       onPress={onPress}
       style={({ pressed }) => [styles.linkRow, pressed ? styles.linkPressed : undefined]}
       testID={testID}>
@@ -253,13 +233,6 @@ function AccountLink({
           {caption}
         </Text>
       </View>
-      {badge ? (
-        <View style={styles.linkBadge} testID={testID ? `${testID}-badge` : undefined}>
-          <Text variant="micro" color={colors.onAccent} style={styles.linkBadgeText}>
-            {badge > 9 ? "9+" : String(badge)}
-          </Text>
-        </View>
-      ) : null}
       <Ionicons name="chevron-forward" size={18} color={colors.muted} />
     </Pressable>
   );
@@ -366,18 +339,6 @@ function buildStyles(colors: ColorTokens) {
       minWidth: 0,
       gap: spacing.xs,
     },
-    linkBadge: {
-      minWidth: 22,
-      height: 22,
-      borderRadius: radii.full,
-      backgroundColor: colors.danger,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: spacing.sm + 2,
-    },
-    linkBadgeText: {
-      letterSpacing: 0,
-    },
     infoCard: {
       overflow: "hidden",
     },
@@ -397,9 +358,6 @@ function buildStyles(colors: ColorTokens) {
       textAlign: "right",
       flexShrink: 1,
       color: colors.foreground,
-    },
-    about: {
-      paddingHorizontal: spacing.sm,
     },
     signOut: {
       marginTop: spacing.xl,

@@ -8,7 +8,7 @@ import {
   Screen,
 } from "@/src/components";
 import { api, ApiError, avatarUrl } from "@/lib/api/client";
-import type { ZoneAssignmentResponse } from "@parada/types";
+import type { ReservationResponse, ZoneAssignmentResponse } from "@parada/types";
 import { activeAssignmentFrom } from "@/lib/assignment";
 import { currentReservationFrom } from "@/lib/current";
 import { resolveZoneDestination } from "@/lib/navigation";
@@ -81,6 +81,28 @@ export default function ParkingScreen() {
     [cancelAssignment],
   );
 
+  // PATCH /reservations/:id/cancel. The backend response replaces the cached
+  // entry, so Now stops showing the reservation in the same commit; zones are
+  // refetched because the released space changes availability.
+  const cancelReservation = useMutation({
+    mutationFn: (reservationId: string) => api.cancelReservation(reservationId),
+    onSuccess: (cancelled) => {
+      queryClient.setQueryData(queryKeys.reservations, (old: ReservationResponse[] | undefined) =>
+        (old ?? []).map((item) => (item.id === cancelled.id ? cancelled : item)),
+      );
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reservations });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.zones });
+    },
+  });
+  const onCancelReservation = useCallback(
+    async (reservationId: string) => {
+      await cancelReservation.mutateAsync(reservationId);
+    },
+    [cancelReservation],
+  );
+
   // Directions always target the zone's own admin-configured coordinates.
   const destinationFor = useCallback(
     (zoneId: string) => resolveZoneDestination(zones.data?.find((zone) => zone.id === zoneId) ?? null),
@@ -117,6 +139,7 @@ export default function ParkingScreen() {
         destinationFor={destinationFor}
         destinationReady={zones.status === "success"}
         onCancelAssignment={onCancelAssignment}
+        onCancelReservation={onCancelReservation}
         now={now}
         activePending={active.isPending}
         activeError={active.isError}

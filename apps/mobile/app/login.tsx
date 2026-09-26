@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import { useSession } from "@/src/providers/SessionProvider";
 import { ApiError } from "@/lib/api/client";
-import { fonts, spacing } from "@/src/theme";
+import { fonts, spacing, touchTarget } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 
 export default function LoginScreen() {
@@ -106,28 +106,30 @@ export default function LoginScreen() {
         />
       </View>
       <View style={styles.links}>
-        <Text variant="caption" align="center">
-          <Link href="/forgot-password" testID="login-goto-forgot">
+        <Link href="/forgot-password" asChild testID="login-goto-forgot">
+          <Pressable accessibilityRole="link" style={styles.linkHit}>
             <Text variant="caption" color={colors.primaryDeep} style={styles.linkText}>
               Forgot your password?
             </Text>
+          </Pressable>
+        </Link>
+        <View style={styles.linkRow}>
+          <Text variant="caption">New here?</Text>
+          <Link href="/register" asChild testID="login-goto-register">
+            <Pressable accessibilityRole="link" style={styles.linkHit}>
+              <Text variant="caption" color={colors.primaryDeep} style={styles.linkText}>
+                Create an account
+              </Text>
+            </Pressable>
           </Link>
-        </Text>
-        <Text variant="caption" align="center">
-          New here?{" "}
-          <Link href="/register" testID="login-goto-register">
-            <Text variant="caption" color={colors.primaryDeep} style={styles.linkText}>
-              Create an account
-            </Text>
-          </Link>
-        </Text>
-        <Text variant="caption" align="center">
-          <Link href="/onboarding" testID="login-goto-onboarding">
+        </View>
+        <Link href="/onboarding" asChild testID="login-goto-onboarding">
+          <Pressable accessibilityRole="link" style={styles.linkHit}>
             <Text variant="caption" color={colors.primaryDeep} style={styles.linkText}>
               How PARADA works
             </Text>
-          </Link>
-        </Text>
+          </Pressable>
+        </Link>
       </View>
     </Screen>
   );
@@ -146,8 +148,18 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   links: {
-    gap: spacing.lg,
+    alignItems: "center",
     marginTop: spacing.md,
+  },
+  linkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  linkHit: {
+    minHeight: touchTarget,
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
   },
   linkText: {
     fontFamily: fonts.bodyBold,

@@ -483,6 +483,60 @@ describe("parking screen: Phase 9.6 integration", () => {
   });
 });
 
+describe("redesign: the live reservation is cancelled from Now", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (api.zones as jest.Mock).mockResolvedValue(zones);
+    (api.activeSession as jest.Mock).mockResolvedValue(null);
+    (api.assignments as jest.Mock).mockResolvedValue([]);
+    (api.reservations as jest.Mock).mockResolvedValue([reservation]);
+    (api.vehicles as jest.Mock).mockResolvedValue([vehicle]);
+    (api.notifications as jest.Mock).mockResolvedValue({ notifications: [], unreadCount: 0 });
+  });
+
+  it("asks once more, then cancels through the API and falls back to 'Nothing planned'", async () => {
+    (api.cancelReservation as jest.Mock).mockImplementation(async (id: string) => {
+      (api.reservations as jest.Mock).mockResolvedValue([{ ...reservation, status: "CANCELLED" }]);
+      return { ...reservation, id, status: "CANCELLED" };
+    });
+    renderWithProviders(<ParkingScreen />);
+    await waitFor(() => expect(screen.getByTestId("reservation-current")).toBeOnTheScreen());
+
+    fireEvent.press(screen.getByTestId("reservation-cancel"));
+    // Releasing a kept space is confirmed first (an assignment keeps nothing, so it isn't).
+    expect(screen.getByTestId("reservation-cancel-confirm")).toHaveTextContent(/kept space is released/);
+    expect(api.cancelReservation).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByTestId("reservation-cancel-confirm-btn"));
+
+    await waitFor(() => expect(api.cancelReservation).toHaveBeenCalledWith("r1"));
+    await waitFor(() => expect(screen.queryByTestId("reservation-current")).toBeNull());
+    expect(screen.getByTestId("current-state-empty")).toBeOnTheScreen();
+  });
+
+  it("can back out of the confirmation without calling the API", async () => {
+    renderWithProviders(<ParkingScreen />);
+    await waitFor(() => expect(screen.getByTestId("reservation-current")).toBeOnTheScreen());
+    fireEvent.press(screen.getByTestId("reservation-cancel"));
+    fireEvent.press(screen.getByTestId("reservation-cancel-keep"));
+    expect(screen.getByTestId("reservation-cancel")).toBeOnTheScreen();
+    expect(api.cancelReservation).not.toHaveBeenCalled();
+  });
+
+  it("keeps the reservation and shows the server's reason when cancelling fails", async () => {
+    (api.cancelReservation as jest.Mock).mockRejectedValue(
+      new ApiError("FORBIDDEN", "This reservation can no longer be cancelled.", 403),
+    );
+    renderWithProviders(<ParkingScreen />);
+    await waitFor(() => expect(screen.getByTestId("reservation-current")).toBeOnTheScreen());
+    fireEvent.press(screen.getByTestId("reservation-cancel"));
+    fireEvent.press(screen.getByTestId("reservation-cancel-confirm-btn"));
+    await waitFor(() =>
+      expect(screen.getByTestId("reservation-cancel-error")).toHaveTextContent("This reservation can no longer be cancelled."),
+    );
+    expect(screen.getByTestId("reservation-current")).toBeOnTheScreen();
+  });
+});
+
 describe("redesign: a reservation made on Zones becomes Now's current state", () => {
   // Reserving creates a capacity-protected reservation (POST /reservations),
   // never an assignment: Recommendation ≠ Assignment ≠ Reservation ≠ Session.

@@ -34,6 +34,8 @@ type CurrentParkingStateProps = {
   destinationReady: boolean;
   /** Cancels the accepted assignment (backend-enforced; only before entry). */
   onCancelAssignment?: (assignmentId: string) => Promise<void>;
+  /** Cancels the live reservation (PATCH /reservations/:id/cancel). */
+  onCancelReservation?: (reservationId: string) => Promise<void>;
   /** Injectable clock for live elapsed rendering. */
   now: Date;
   /** Active-session query still loading. */
@@ -79,6 +81,7 @@ export function CurrentParkingState({
   destinationFor,
   destinationReady,
   onCancelAssignment,
+  onCancelReservation,
   now,
   activePending,
   activeError,
@@ -168,6 +171,7 @@ export function CurrentParkingState({
           reservation={currentReservation}
           destination={destinationFor(currentReservation.zoneId)}
           destinationReady={destinationReady}
+          onCancel={onCancelReservation}
         />
       ) : null}
       {assignmentError ? (
@@ -364,11 +368,36 @@ type ReservationStateProps = {
   reservation: ReservationResponse;
   destination: NavigationDestination | null;
   destinationReady: boolean;
+  onCancel?: (reservationId: string) => Promise<void>;
 };
 
-function ReservationState({ reservation, destination, destinationReady }: ReservationStateProps) {
+/**
+ * The live reservation, with its actions. Cancelling asks once more because,
+ * unlike an assignment (which keeps nothing), it gives up a kept space that
+ * may not be free again.
+ */
+function ReservationState({ reservation, destination, destinationReady, onCancel }: ReservationStateProps) {
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
+  const [confirming, setConfirming] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  async function handleCancel() {
+    if (!onCancel || cancelling) {
+      return;
+    }
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await onCancel(reservation.id);
+    } catch (err) {
+      setCancelError(err instanceof ApiError ? err.message : "We couldn't cancel this reservation. Please try again.");
+      setConfirming(false);
+    } finally {
+      setCancelling(false);
+    }
+  }
   const summary = [
     `Reserved ${reservation.zone.name}.`,
     `Vehicle ${reservation.vehicle.plateNumber}.`,
@@ -403,6 +432,49 @@ function ReservationState({ reservation, destination, destinationReady }: Reserv
           unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
           testID="reservation-navigate"
         />
+      ) : null}
+      {onCancel ? (
+        <View style={styles.cancelBlock}>
+          {confirming ? (
+            <>
+              <Text variant="caption" testID="reservation-cancel-confirm">
+                Cancel this reservation? The kept space is released.
+              </Text>
+              <View style={styles.inlineRow}>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  title={cancelling ? "Cancelling…" : "Yes, cancel"}
+                  loading={cancelling}
+                  onPress={() => void handleCancel()}
+                  accessibilityLabel={`Confirm cancelling the reservation in ${reservation.zone.name}`}
+                  testID="reservation-cancel-confirm-btn"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  title="Keep it"
+                  onPress={() => setConfirming(false)}
+                  testID="reservation-cancel-keep"
+                />
+              </View>
+            </>
+          ) : (
+            <Button
+              variant="danger"
+              size="sm"
+              title="Cancel reservation"
+              onPress={() => setConfirming(true)}
+              accessibilityLabel={`Cancel reservation in ${reservation.zone.name}`}
+              testID="reservation-cancel"
+            />
+          )}
+          {cancelError ? (
+            <Text variant="caption" color={colors.danger} accessibilityRole="alert" testID="reservation-cancel-error">
+              {cancelError}
+            </Text>
+          ) : null}
+        </View>
       ) : null}
     </Card>
   );

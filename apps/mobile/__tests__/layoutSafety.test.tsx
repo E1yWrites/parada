@@ -104,8 +104,7 @@ describe("ReservationCard: long content", () => {
     render(<ReservationCard reservation={reservation} testID="reservation" />);
     expect(screen.getByText(LONG_ZONE_NAME)).toBeOnTheScreen();
     expect(screen.getByText("ABC-1234-XG")).toBeOnTheScreen();
-    expect(screen.getByText(/Start/)).toBeOnTheScreen();
-    expect(screen.getByText(/End/)).toBeOnTheScreen();
+    expect(screen.getByTestId("reservation-window")).toHaveTextContent(/2026-09-06 .* – 2026-09-06 /);
     expect(screen.getByText("Confirmed")).toBeOnTheScreen();
   });
 });

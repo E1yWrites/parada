@@ -37,7 +37,7 @@ export function ChoiceChip({
     <Pressable
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ selected }}
+      accessibilityState={accessibilityRole === "radio" ? { checked: selected, selected } : { selected }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.chip,

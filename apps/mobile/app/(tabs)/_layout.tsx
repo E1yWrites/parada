@@ -100,7 +100,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="sessions"
-        options={{ title: "Sessions", tabBarAccessibilityLabel: "Sessions", tabBarIcon: SessionsIcon }}
+        options={{ title: "History", tabBarAccessibilityLabel: "History", tabBarIcon: SessionsIcon }}
       />
       <Tabs.Screen
         name="account"

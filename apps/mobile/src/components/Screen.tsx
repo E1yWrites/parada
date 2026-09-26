@@ -70,12 +70,18 @@ export function Screen({
               <Text
                 variant={back ? "section" : "hero"}
                 numberOfLines={back ? 1 : 2}
+                accessibilityRole="header"
                 testID={testID ? `${testID}-title` : undefined}>
                 {title}
               </Text>
             ) : null}
             {subtitle && !back ? (
-              <Text variant="caption" testID={testID ? `${testID}-subtitle` : undefined}>
+              // Polite live region: the connection line ("Live" / "Reconnecting…")
+              // is announced when it changes, not on every render.
+              <Text
+                variant="caption"
+                accessibilityLiveRegion="polite"
+                testID={testID ? `${testID}-subtitle` : undefined}>
                 {subtitle}
               </Text>
             ) : null}

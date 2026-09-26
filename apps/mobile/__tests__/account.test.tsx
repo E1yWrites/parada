@@ -86,7 +86,13 @@ describe("account screen", () => {
     await waitFor(() => expect(screen.getByTestId("account-profile")).toBeOnTheScreen());
     expect(screen.getByTestId("account-name")).toHaveTextContent("Alex Driver");
     expect(screen.getByTestId("account-email")).toHaveTextContent("alex@parada.test");
-    expect(screen.getByTestId("account-role")).toHaveTextContent("DRIVER");
+    // Every driver is a driver: no static role pill, status row, sign-in row or about text.
+    expect(screen.queryByTestId("account-role")).not.toBeOnTheScreen();
+    expect(screen.queryByText("Active driver account")).not.toBeOnTheScreen();
+    expect(screen.queryByTestId("account-security")).not.toBeOnTheScreen();
+    expect(screen.queryByText(/real time/i)).not.toBeOnTheScreen();
+    // One notifications entry point: the bell on Now.
+    expect(screen.queryByTestId("account-notifications")).not.toBeOnTheScreen();
     expect(screen.getByTestId("account-version")).toBeOnTheScreen();
     expect(screen.queryByTestId("account-cache-note")).not.toBeOnTheScreen();
   });
@@ -126,7 +132,6 @@ describe("account screen", () => {
     expect(screen.getByTestId("account-cache-retry")).toBeOnTheScreen();
     expect(screen.getByTestId("account-name")).toHaveTextContent("Alex Driver");
     expect(screen.getByTestId("account-email")).toHaveTextContent("alex@parada.test");
-    expect(screen.getByTestId("account-role")).toHaveTextContent("DRIVER");
     expect(screen.getByTestId("logout-button")).toBeOnTheScreen();
     expect(screen.queryByTestId("account-error")).not.toBeOnTheScreen();
   });
