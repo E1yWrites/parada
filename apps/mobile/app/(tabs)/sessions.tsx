@@ -5,7 +5,6 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  MascotCallout,
   ReservationList,
   Screen,
   SectionHeader,
@@ -96,19 +95,6 @@ function Header({
   return (
     <View style={styles.header}>
       {active ? <ActiveSessionBanner session={active} now={now} testID="active-session" /> : null}
-      {/* Skip the callout when actively parked — the banner above already
-          carries its own mascot accent; two at once reads cluttered. */}
-      {isError || isLoading || active ? null : (
-        <MascotCallout
-          variant="history"
-          text={
-            historyCount > 0
-              ? `${historyCount} completed ${historyCount === 1 ? "trip" : "trips"} logged!`
-              : "Your parking journey starts here."
-          }
-          testID="sessions-greeting"
-        />
-      )}
       <ReservationList />
       {/* The list below already renders its own LoadingState; a second bare
           "Loading…" above it read like leftover scaffolding. */}

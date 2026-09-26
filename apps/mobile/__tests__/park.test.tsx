@@ -272,8 +272,9 @@ describe("park screen: reservations (phase 9.4)", () => {
         expect.objectContaining({ zoneId: "z1", vehicleId: "v1" }),
       ),
     );
-    expect(await screen.findByTestId("reservation-confirmed-mascot")).toHaveTextContent(
-      "Reserved Zone A for you!",
+    // Plain confirmation of what the backend did (no mascot, no "for you!").
+    expect(await screen.findByTestId("reservation-confirmed-notice")).toHaveTextContent(
+      /Reserved Zone A\. Space kept .+ – .+\./,
     );
   });
 

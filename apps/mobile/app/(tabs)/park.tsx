@@ -5,7 +5,6 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  MascotCallout,
   ReservationPanel,
   Screen,
   SectionHeader,
@@ -16,6 +15,7 @@ import {
 import { api, ApiError, type PublicZone } from "@/lib/api/client";
 import { activeAssignmentFrom } from "@/lib/assignment";
 import { currentReservationFrom } from "@/lib/current";
+import { plural } from "@/lib/format";
 import { queryKeys } from "@/lib/query";
 import { useConnectionLabel } from "@/src/providers/RealtimeStatusProvider";
 import { spacing } from "@/src/theme";
@@ -75,16 +75,15 @@ export default function ParkScreen() {
       refreshing={refreshing}
       onRefresh={refresh}
       testID="park-screen">
-      <MascotCallout
-        variant="park"
-        text={
+      <SectionHeader
+        title="Zones"
+        caption={
           zones.data && zones.data.length > 0
-            ? `${zones.data.filter((z) => z.status === "ACTIVE" && z.availableCount > 0).length} of ${zones.data.length} zones open right now!`
-            : "Let's find you a spot!"
+            ? `${zones.data.filter((z) => z.status === "ACTIVE" && z.availableCount > 0).length} of ${plural(zones.data.length, "zone")} open`
+            : undefined
         }
-        testID="park-greeting"
+        testID="zones-header"
       />
-      <SectionHeader title="Zones" testID="zones-header" />
       {zones.isPending ? (
         <LoadingState label="Loading park availability…" testID="zones-loading" />
       ) : zones.isError ? (

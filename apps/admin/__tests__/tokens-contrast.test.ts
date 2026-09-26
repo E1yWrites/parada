@@ -42,9 +42,38 @@ function contrast(a: RGB, b: RGB): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+/** Every declaration in a block, comments and indentation stripped. */
+function declarations(body: string): string[] {
+  return body
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 describe("admin light theme blocks", () => {
   it("the no-JS prefers-color-scheme block matches the [data-theme=light] block exactly", () => {
     expect(lightMedia).toEqual(lightExplicit);
+    // Not just the colour channels: shadows, chevron, colour-scheme too.
+    expect(declarations(block(/:root:not\(\[data-theme\]\)\s*\{([^}]*)\}/))).toEqual(
+      declarations(block(/:root\[data-theme="light"\]\s*\{([^}]*)\}/))
+    );
+  });
+});
+
+describe("admin ambient decoration", () => {
+  it("has no drifting background wash", () => {
+    expect(css).not.toMatch(/parada-drift/);
+    expect(css).not.toMatch(/radial-gradient/);
+  });
+
+  it("uses theme-aware card shadows, never black ones on the light theme", () => {
+    const tailwind = readFileSync(join(ROOT, "tailwind.config.ts"), "utf8");
+    expect(tailwind).toMatch(/card: "var\(--shadow-card\)"/);
+    expect(tailwind).not.toMatch(/rgb\(0 0 0/);
+    const light = block(/:root\[data-theme="light"\]\s*\{([^}]*)\}/);
+    expect(light).toMatch(/--shadow-card:/);
+    expect(light).not.toMatch(/rgb\(0 0 0/);
   });
 });
 

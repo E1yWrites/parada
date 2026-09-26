@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Button } from "./Button";
 import { CapacityBar } from "./CapacityBar";
-import { GlassCard } from "./GlassCard";
+import { Card } from "./Card";
 import { Metric } from "./Metric";
 import { NavigateButton } from "./NavigateButton";
 import { PlateChip } from "./PlateChip";
@@ -135,7 +135,7 @@ export function ParkingRecommendation({
       />
 
       {confirmedReservation ? (
-        <GlassCard style={styles.card} wash={colors.success} testID="reservation-confirmed">
+        <Card padding={spacing.xl2} style={styles.card} testID="reservation-confirmed">
           <View style={styles.headerRow}>
             <Stamp label="RESERVED" icon="calendar" color={colors.success} />
             <ReservationBadge status={confirmedReservation.status} testID="reservation-confirmed-badge" />
@@ -164,7 +164,7 @@ export function ParkingRecommendation({
               testID="reservation-confirmed-navigate"
             />
           )}
-        </GlassCard>
+        </Card>
       ) : recommendation.isPending ? (
         <LoadingState label="Loading…" testID="recommendation-loading" />
       ) : recommendation.isError && !isUnavailable ? (
@@ -192,7 +192,7 @@ export function ParkingRecommendation({
           />
         </EmptyState>
       ) : (
-        <GlassCard style={styles.card} wash={colors.success} testID="recommendation-card">
+        <Card padding={spacing.xl2} style={styles.card} testID="recommendation-card">
           <View accessible accessibilityLabel={summary} testID="recommendation-zone" style={styles.zoneBlock}>
             <View style={styles.zoneRow}>
               <View style={styles.zoneText}>
@@ -251,7 +251,7 @@ export function ParkingRecommendation({
               />
             </View>
           ) : null}
-        </GlassCard>
+        </Card>
       )}
     </View>
   );

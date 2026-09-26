@@ -2,8 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
-import { GlassCard } from "./GlassCard";
-import { Mascot } from "./Mascot";
+import { Card } from "./Card";
 import { PlateChip } from "./PlateChip";
 import { Stamp } from "./Stamp";
 import { Text } from "./Text";
@@ -60,7 +59,7 @@ export function ActiveSessionBanner({ session, now, children, testID }: ActiveSe
   }, [pulse, reducedMotion]);
 
   return (
-    <GlassCard style={styles.card} testID={testID}>
+    <Card padding={spacing.xl2} style={styles.card} testID={testID}>
       <View style={styles.headerRow}>
         <View style={styles.liveRow}>
           <View style={styles.dotWrap}>
@@ -77,7 +76,6 @@ export function ActiveSessionBanner({ session, now, children, testID }: ActiveSe
         </View>
         <View style={styles.rightGroup}>
           <PlateChip value={session.zone.code} tone="soft" />
-          <Mascot variant="park" size={48} testID={testID ? `${testID}-mascot` : undefined} />
         </View>
       </View>
 
@@ -102,7 +100,7 @@ export function ActiveSessionBanner({ session, now, children, testID }: ActiveSe
         </View>
       </View>
       {children}
-    </GlassCard>
+    </Card>
   );
 }
 

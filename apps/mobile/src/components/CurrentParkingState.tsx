@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ActiveSessionBanner } from "./ActiveSessionBanner";
 import { Button } from "./Button";
-import { GlassCard } from "./GlassCard";
+import { Card } from "./Card";
 import { Mascot } from "./Mascot";
 import { PlateChip } from "./PlateChip";
 import { Stamp } from "./Stamp";
@@ -143,7 +143,7 @@ export function CurrentParkingState({
 
   if (currentAssignment === null && currentReservation === null) {
     return (
-      <GlassCard wash={colors.muted} style={styles.emptyPass} testID="current-state-empty">
+      <Card padding={spacing.xl2} style={styles.emptyPass} testID="current-state-empty">
         <Mascot accentIcon="car-outline" accentColor={colors.muted} size={92} />
         <View style={styles.emptyBody}>
           <Text variant="title" align="center" accessibilityRole="header">
@@ -156,7 +156,7 @@ export function CurrentParkingState({
         {onFindZone ? (
           <Button variant="secondary" title="Find a zone" onPress={onFindZone} testID="current-state-find-zone" />
         ) : null}
-      </GlassCard>
+      </Card>
     );
   }
 
@@ -308,7 +308,7 @@ function AssignmentState({ assignment, destination, destinationReady, onCancel }
     .join(" ");
 
   return (
-    <GlassCard style={styles.pass} testID="assignment-current">
+    <Card padding={spacing.xl2} style={styles.pass} testID="assignment-current">
       <Stamp label="ASSIGNED ZONE" icon="location" color={colors.primaryDeep} />
       <View accessible accessibilityLabel={summary} testID="assignment-summary" style={styles.passBody}>
         <Text variant="hero" numberOfLines={2} testID="assignment-current-zone">
@@ -363,7 +363,7 @@ function AssignmentState({ assignment, destination, destinationReady, onCancel }
           )}
         </View>
       ) : null}
-    </GlassCard>
+    </Card>
   );
 }
 
@@ -383,7 +383,7 @@ function ReservationState({ reservation, destination, destinationReady }: Reserv
   ].join(" ");
 
   return (
-    <GlassCard style={styles.pass} wash={colors.success} testID="reservation-current">
+    <Card padding={spacing.xl2} style={styles.pass} testID="reservation-current">
       <Stamp label="RESERVED" icon="calendar" color={colors.success} />
       <View accessible accessibilityLabel={summary} testID="reservation-summary" style={styles.passBody}>
         <Text variant="hero" numberOfLines={2} testID="reservation-current-zone">
@@ -411,7 +411,7 @@ function ReservationState({ reservation, destination, destinationReady }: Reserv
           testID="reservation-navigate"
         />
       ) : null}
-    </GlassCard>
+    </Card>
   );
 }
 

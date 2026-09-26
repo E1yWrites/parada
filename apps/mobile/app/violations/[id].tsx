@@ -7,7 +7,6 @@ import {
   Card,
   EmptyState,
   ErrorState,
-  GlassCard,
   Input,
   LoadingState,
   PlateChip,
@@ -81,7 +80,7 @@ export default function ViolationDetailScreen() {
         />
       ) : (
         <>
-          <GlassCard wash={violationColor} style={styles.summary} testID="violation-summary">
+          <Card padding={spacing.xl2} style={styles.summary} testID="violation-summary">
             <View style={styles.summaryRow}>
               <Text variant="micro">FINE</Text>
               <ViolationBadge status={violation.status} testID="violation-summary-status" />
@@ -92,7 +91,7 @@ export default function ViolationDetailScreen() {
             <Text variant="body" color={colors.muted}>
               {violation.violationType === "WRONG_ZONE" ? "Fine for a wrong-zone entry." : "Establishment violation fine."}
             </Text>
-          </GlassCard>
+          </Card>
 
           <Text variant="section">What happened</Text>
           <Card testID="violation-details-card" style={styles.details}>

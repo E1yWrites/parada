@@ -5,7 +5,6 @@ import {
   Avatar,
   CurrentParkingState,
   IconButton,
-  MascotCallout,
   ParkingRecommendation,
   Screen,
 } from "@/src/components";
@@ -29,8 +28,6 @@ export default function ParkingScreen() {
   const queryClient = useQueryClient();
   const user = useSessionUser();
   const sessionToken = useSessionToken();
-  const firstName = user?.name?.trim().split(/\s+/)[0];
-  const greeting = firstName ? `Hey ${firstName}, let's find your spot.` : "Let's find your spot.";
   const zones = useQuery({
     queryKey: queryKeys.zones,
     queryFn: api.zones,
@@ -122,7 +119,6 @@ export default function ParkingScreen() {
       refreshing={refreshing}
       onRefresh={refresh}
       testID="parking-screen">
-      <MascotCallout variant="home" text={greeting} size={100} testID="parking-greeting" />
       <CurrentParkingState
         session={activeSession}
         assignment={assignment}

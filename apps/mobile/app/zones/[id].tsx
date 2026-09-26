@@ -3,11 +3,11 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   AvailabilityBadge,
+  Card,
   Button,
   CapacityBar,
   EmptyState,
   ErrorState,
-  GlassCard,
   LoadingState,
   Metric,
   NavigateButton,
@@ -51,7 +51,7 @@ export default function ZoneDetailScreen() {
         />
       ) : zoneData && status ? (
         <>
-          <GlassCard wash={status.color} style={styles.hero} testID="zone-detail-card">
+          <Card padding={spacing.xl2} style={styles.hero} testID="zone-detail-card">
             <View style={styles.headerRow}>
               <PlateChip value={zoneData.code} />
               <AvailabilityBadge status={zoneData.availability} testID="zone-detail-availability" />
@@ -81,7 +81,7 @@ export default function ZoneDetailScreen() {
               unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
               testID="zone-detail-navigate"
             />
-          </GlassCard>
+          </Card>
 
           {zoneData.description ? (
             <View style={styles.description}>

@@ -32,7 +32,6 @@ export { AvatarEditor } from "./AvatarEditor";
 export { BrandMark } from "./BrandMark";
 export { Illustration } from "./Illustration";
 export { Mascot } from "./Mascot";
-export { MascotCallout } from "./MascotCallout";
 export { LoadingState, ErrorState, EmptyState } from "./StateComponents";
 export { FullScreenLoading } from "./FullScreenLoading";
 export { CapacityBar } from "./CapacityBar";

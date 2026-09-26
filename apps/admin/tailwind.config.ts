@@ -68,8 +68,9 @@ const config: Config = {
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       boxShadow: {
-        card: "0 12px 32px -12px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.3)",
-        "card-hover": "0 18px 44px -12px rgb(0 0 0 / 0.6), 0 1px 2px rgb(0 0 0 / 0.3)",
+        /* Theme-aware: defined per theme in globals.css (no black shadows on light paper). */
+        card: "var(--shadow-card)",
+        "card-hover": "var(--shadow-card-hover)",
         primary: "0 8px 20px -8px rgb(var(--brand) / 0.55)",
         /* Solid ring with a paper-coloured gap: >=3:1 against card and paper
            in both themes (was a 35% brand wash at 2.0:1 dark, 1.33:1 light). */

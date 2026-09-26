@@ -34,6 +34,10 @@
   --brand-hover: 234 88 12;
   /* Focus ring colour: solid, >=3:1 against card and paper (7.34 / 8.09). */
   --focus: 247 147 26;
+  /* Card elevation. Dark grounds take a black shadow; light ones a warm,
+     much lighter one (a black 50% shadow read as a smudge on paper). */
+  --shadow-card: 0 12px 32px -12px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-card-hover: 0 18px 44px -12px rgb(0 0 0 / 0.6), 0 1px 2px rgb(0 0 0 / 0.3);
   --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2390949e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
   --success: 61 220 132;
   --success-soft: 21 41 29;
@@ -71,6 +75,8 @@
   --brand-ink: 178 58 10;
   --brand-hover: 232 131 15;
   --focus: 178 58 10;
+  --shadow-card: 0 12px 32px -16px rgb(24 19 16 / 0.14), 0 1px 2px rgb(24 19 16 / 0.08);
+  --shadow-card-hover: 0 18px 44px -16px rgb(24 19 16 / 0.2), 0 1px 2px rgb(24 19 16 / 0.1);
   --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23655d53' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
   --success: 23 112 71;
   --success-soft: 225 240 232;
@@ -103,6 +109,8 @@
     --brand-ink: 178 58 10;
     --brand-hover: 232 131 15;
     --focus: 178 58 10;
+    --shadow-card: 0 12px 32px -16px rgb(24 19 16 / 0.14), 0 1px 2px rgb(24 19 16 / 0.08);
+    --shadow-card-hover: 0 18px 44px -16px rgb(24 19 16 / 0.2), 0 1px 2px rgb(24 19 16 / 0.1);
     --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23655d53' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
     --success: 23 112 71;
     --success-soft: 225 240 232;
@@ -153,38 +161,12 @@
   }
 }
 
-/* ---- Ground: asphalt dark (or warm paper light) with two soft orange/mint washes ---- */
+/* ---- Ground: a flat paper colour. The ambient washes and their drift
+   animation were removed (Rams #10: decoration only where it carries meaning). ---- */
 .parada-background {
   position: relative;
   min-height: 100vh;
   background-color: rgb(var(--paper));
-}
-
-.parada-background::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(720px 400px at 92% -10%, rgb(var(--brand) / 0.06), transparent 70%),
-    radial-gradient(640px 360px at -6% 104%, rgb(var(--success) / 0.05), transparent 70%);
-  animation: parada-drift 28s ease-in-out infinite;
-}
-
-/* Slow ambient drift + breathe, mirroring the mobile app's GradientMesh —
-   ambient life without competing for attention. Reduced-motion media query
-   below zeroes the animation duration, so this freezes on its resting frame. */
-@keyframes parada-drift {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-    opacity: 1;
-  }
-  50% {
-    transform: translate3d(-1.5%, 1.5%, 0);
-    opacity: 0.88;
-  }
 }
 
 @layer components {

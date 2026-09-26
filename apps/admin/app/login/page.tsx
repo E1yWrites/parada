@@ -119,20 +119,6 @@ export default function LoginPage() {
 
       {/* Brand column — hidden below lg, matches the console's desktop-first posture */}
       <div className="relative hidden w-1/2 flex-col items-center justify-center overflow-hidden border-l border-line bg-card lg:flex">
-        {/* The two ambient washes from `.parada-background::before`, inlined
-            rather than reusing that class — `.parada-background` itself sets
-            `position: relative` as an unlayered rule, which beats the
-            `absolute` utility in the cascade and turns this into an in-flow
-            box (min-height: 100vh) that pushed all real content down a full
-            viewport height. */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(720px 400px at 92% -10%, rgb(var(--brand) / 0.06), transparent 70%), radial-gradient(640px 360px at -6% 104%, rgb(var(--success) / 0.05), transparent 70%)",
-          }}
-          aria-hidden="true"
-        />
         <div className="relative z-10 flex flex-col items-center gap-6 px-12 text-center">
           <Image
             src="/mascot/parada-mascot.webp"

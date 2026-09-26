@@ -2,7 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./Button";
 import { Card } from "./Card";
-import { MascotCallout } from "./MascotCallout";
+import { FormAlert } from "./FormAlert";
 import { PlateChip } from "./PlateChip";
 import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
@@ -10,6 +10,7 @@ import { VehiclePicker, useVehicleSelection } from "./VehicleSelection";
 import { api, ApiError, type PublicZone } from "@/lib/api/client";
 import { upsertReservation } from "@/lib/current";
 import type { ReservationResponse } from "@parada/types";
+import { formatDateTime } from "@/lib/format";
 import { queryKeys } from "@/lib/query";
 import { spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
@@ -96,10 +97,10 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
   return (
     <View style={styles.panel} testID="reservation-panel">
       {create.isSuccess && create.data ? (
-        <MascotCallout
-          variant="park"
-          text={`Reserved ${create.data.zone.name} for you!`}
-          testID="reservation-confirmed-mascot"
+        <FormAlert
+          tone="notice"
+          message={`Reserved ${create.data.zone.name}. Space kept ${formatDateTime(create.data.startAt)} – ${formatDateTime(create.data.endAt)}.`}
+          testID="reservation-confirmed-notice"
         />
       ) : null}
       <SectionHeader

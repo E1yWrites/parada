@@ -2,7 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./Button";
 import { Card } from "./Card";
-import { MascotCallout } from "./MascotCallout";
+import { FormAlert } from "./FormAlert";
 import { PlateChip } from "./PlateChip";
 import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
@@ -10,6 +10,7 @@ import { VehiclePicker, useVehicleSelection } from "./VehicleSelection";
 import { api, ApiError, type CreateAssignmentInput, type PublicZone } from "@/lib/api/client";
 import { activeAssignmentFrom, upsertAssignment } from "@/lib/assignment";
 import type { ZoneAssignmentResponse } from "@parada/types";
+import { formatDateTime } from "@/lib/format";
 import { queryKeys } from "@/lib/query";
 import { spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
@@ -102,10 +103,17 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
   return (
     <View style={styles.panel} testID="assignment-panel">
       {confirmedAssignment ? (
-        <MascotCallout
-          variant="park"
-          text={`You're all set in ${confirmedAssignment.zone.name}!`}
-          testID="assignment-confirmed-mascot"
+        // An assignment is not parking and keeps no space: say exactly that.
+        <FormAlert
+          tone="notice"
+          message={[
+            `Assigned to ${confirmedAssignment.zone.name}.`,
+            confirmedAssignment.expiresAt ? `Enter by ${formatDateTime(confirmedAssignment.expiresAt)}.` : null,
+            "No space is kept for you.",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          testID="assignment-confirmed-notice"
         />
       ) : null}
       <SectionHeader

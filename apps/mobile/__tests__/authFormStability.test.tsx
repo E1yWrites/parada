@@ -7,7 +7,6 @@
  */
 import { Platform, ScrollView, StyleSheet, TextInput } from "react-native";
 import { render, renderWithAppProviders, renderWithProviders, screen } from "@/src/test/utils";
-import { GradientMesh } from "@/src/components/GradientMesh";
 import { Input } from "@/src/components/Input";
 import { Screen } from "@/src/components/Screen";
 import LoginScreen from "@/app/login";
@@ -21,21 +20,6 @@ jest.mock("@/lib/api/client", () => {
 function flatten(style: unknown): Record<string, unknown> {
   return (StyleSheet.flatten(style as never) ?? {}) as Record<string, unknown>;
 }
-
-describe("GradientMesh keyboard stability", () => {
-  it("anchors every wash from the top of the window, never from the bottom edge", () => {
-    render(<GradientMesh testID="mesh" />);
-    const mesh = screen.getByTestId("mesh");
-    const blobs = mesh.children as unknown as { props: { style: unknown } }[];
-    expect(blobs.length).toBeGreaterThan(0);
-    for (const blob of blobs) {
-      const style = flatten(blob.props.style);
-      expect(typeof style.top).toBe("number");
-      expect(style.bottom).toBeUndefined();
-    }
-    expect(flatten(mesh.props.style).overflow).toBe("hidden");
-  });
-});
 
 describe("Screen keyboard handling", () => {
   const originalOS = Platform.OS;
