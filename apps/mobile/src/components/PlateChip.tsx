@@ -53,7 +53,7 @@ function buildStyles(colors: ColorTokens) {
       borderRadius: radii.sm - 4,
     },
     compact: {
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.md + 2,
       paddingVertical: 2,
     },
     ink: {

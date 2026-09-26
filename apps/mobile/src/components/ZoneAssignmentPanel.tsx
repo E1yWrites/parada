@@ -123,7 +123,7 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
           Cancel it from Current parking to choose a different zone.
         </Text>
       ) : (
-        <Card style={styles.body} testID="assignment-body">
+        <Card padding={spacing.xl2} style={styles.body} testID="assignment-body">
           {selectedZone === null ? (
             <Text variant="caption" color={colors.muted} testID="assignment-zone-hint">
               Select a parking zone above.
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
   },
   body: {
-    gap: spacing.lg,
+    gap: spacing.xl,
   },
   summary: {
     flexDirection: "row",

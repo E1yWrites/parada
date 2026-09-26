@@ -1,5 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-import { Linking } from "react-native";
+import { Linking, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import * as LocationMock from "expo-location";
 import { fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
@@ -121,6 +121,13 @@ describe("parking recommendation: states", () => {
     expect(screen.getByText("Zone B")).toBeOnTheScreen();
     expect(screen.getByTestId("recommendation-available")).toHaveTextContent("12");
     expect(screen.getByTestId("recommendation-occupancy-percent")).toHaveTextContent("8 of 20 · 40%");
+  });
+
+  it("separates the section header from its card instead of rendering them flush", async () => {
+    renderWithProviders(<ParkingRecommendation />);
+
+    await waitFor(() => expect(screen.getByTestId("recommendation-card")).toBeOnTheScreen());
+    expect(StyleSheet.flatten(screen.getByTestId("parking-recommendation").props.style)).toMatchObject({ gap: 20 });
   });
 
   it("exposes an accessible recommendation summary", async () => {

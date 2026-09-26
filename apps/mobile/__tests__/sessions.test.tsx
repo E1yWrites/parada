@@ -1,3 +1,4 @@
+import { FlatList, StyleSheet } from "react-native";
 import { renderWithProviders, screen, waitFor } from "@/src/test/utils";
 import SessionsScreen from "@/app/(tabs)/sessions";
 import { api, ApiError, type SessionDto } from "@/lib/api/client";
@@ -60,6 +61,16 @@ beforeEach(() => {
 });
 
 describe("sessions screen", () => {
+  it("spaces history cards by the list gap alone (no separator doubling it)", async () => {
+    renderWithProviders(<SessionsScreen />);
+    await waitFor(() => expect(screen.getByText("1 completed")).toBeOnTheScreen());
+    const list = screen.UNSAFE_getByType(FlatList);
+    // contentContainerStyle's gap already separates cells; a separator on top
+    // of it rendered 24pt between cards instead of the 12pt design step.
+    expect(list.props.ItemSeparatorComponent).toBeUndefined();
+    expect(StyleSheet.flatten(list.props.contentContainerStyle)).toMatchObject({ gap: 12 });
+  });
+
   it("shows the active session banner plus history", async () => {
     renderWithProviders(<SessionsScreen />);
 

@@ -169,7 +169,7 @@ function buildStyles(colors: ColorTokens) {
       flexShrink: 0,
     },
     content: {
-      gap: spacing.xl,
+      gap: spacing.xl2,
     },
     contentFill: {
       flex: 1,
