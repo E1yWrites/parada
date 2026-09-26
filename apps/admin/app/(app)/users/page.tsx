@@ -35,16 +35,16 @@ export default function UsersPage() {
               />
             ) : (
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-brand-soft">
-                <Users className="h-4 w-4 text-brand-dark" aria-hidden="true" />
+                <Users className="h-4 w-4 text-brand-ink" aria-hidden="true" />
               </div>
             )}
             <div className="min-w-0">
               <p className="truncate text-sm font-bold text-charcoal">{u.name}</p>
-              <p className="truncate text-[11px] text-muted">
+              <p className="truncate text-micro text-muted">
                 {u.email}
                 {u.username ? <span className="text-muted"> · @{u.username}</span> : null}
               </p>
-              {u.phone ? <p className="truncate font-mono text-[11px] text-muted">{u.phone}</p> : null}
+              {u.phone ? <p className="truncate font-mono text-micro text-muted">{u.phone}</p> : null}
             </div>
           </div>
         );

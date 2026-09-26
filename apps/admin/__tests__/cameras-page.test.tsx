@@ -58,7 +58,18 @@ describe("Admin cameras page — Phase 11A configuration", () => {
     expect(await screen.findByText("CAM-A01")).toBeInTheDocument();
     expect(screen.getByText("A")).toBeInTheDocument();
     expect(screen.getByText("Entry")).toBeInTheDocument();
-    expect(screen.getByText("Online")).toBeInTheDocument();
+    // ONLINE is an admin on/off switch, not a health signal: it reads "Enabled".
+    expect(screen.getByText("Enabled")).toBeInTheDocument();
+    expect(screen.queryByText(/online|health/i)).not.toBeInTheDocument();
+  });
+
+  it("labels a switched-off camera Disabled, never Offline", async () => {
+    mockedApi.cameras.mockResolvedValue([{ ...camera, status: "OFFLINE" }]);
+    mockedApi.zones.mockResolvedValue([zone]);
+    renderPage();
+    expect(await screen.findByText("CAM-A01")).toBeInTheDocument();
+    expect(screen.getByText("Disabled")).toBeInTheDocument();
+    expect(screen.queryByText(/offline/i)).not.toBeInTheDocument();
   });
 
   it("shows an empty state when no cameras are configured", async () => {
@@ -132,5 +143,42 @@ describe("Admin cameras page — Phase 11A configuration", () => {
       expect(mockedApi.updateCamera).toHaveBeenCalledWith("c2", { status: "ONLINE" });
     });
     expect(confirm).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Admin cameras page — redesign labels and feedback", () => {
+  it("says 'Entry and exit', not 'Bidirectional', and names row actions", async () => {
+    mockedApi.cameras.mockResolvedValue([{ ...camera, gateType: "BIDIRECTIONAL" }]);
+    mockedApi.zones.mockResolvedValue([zone]);
+    renderPage();
+    expect(await screen.findByText("Entry and exit")).toBeInTheDocument();
+    expect(screen.queryByText(/bidirectional/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit camera CAM-A01" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Disable camera CAM-A01" })).toBeInTheDocument();
+  });
+
+  it("confirms enabling a camera with a status message", async () => {
+    mockedApi.cameras.mockResolvedValue([{ ...camera, status: "OFFLINE" }]);
+    mockedApi.zones.mockResolvedValue([zone]);
+    mockedApi.updateCamera.mockResolvedValue({ ...camera, status: "ONLINE" });
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Enable camera CAM-A01" }));
+    await waitFor(() => expect(mockedApi.updateCamera).toHaveBeenCalledWith("c1", { status: "ONLINE" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Camera CAM-A01 enabled.");
+  });
+});
+
+describe("Admin cameras page — keyboard focus (found in the keyboard pass)", () => {
+  it("starts on the identifier when registering, and on the zone when editing", async () => {
+    mockedApi.cameras.mockResolvedValue([camera]);
+    mockedApi.zones.mockResolvedValue([zone]);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /register camera$/i }));
+    await waitFor(() => expect(screen.getByPlaceholderText("CAM-A01")).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit camera CAM-A01" }));
+    await waitFor(() => expect(zoneSelect()).toHaveFocus());
   });
 });

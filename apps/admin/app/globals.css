@@ -28,6 +28,17 @@
   --brand: 247 147 26;
   --brand-dark: 234 88 12;
   --brand-soft: 42 32 21;
+  /* Text-safe brand: brand-dark on brand-soft is only 4.48:1 here; brand is 6.95:1. */
+  --brand-ink: 247 147 26;
+  /* Primary-button hover fill (on-accent text 5.53:1). */
+  --brand-hover: 234 88 12;
+  /* Focus ring colour: solid, >=3:1 against card and paper (7.34 / 8.09). */
+  --focus: 247 147 26;
+  /* Card elevation. Dark grounds take a black shadow; light ones a warm,
+     much lighter one (a black 50% shadow read as a smudge on paper). */
+  --shadow-card: 0 12px 32px -12px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-card-hover: 0 18px 44px -12px rgb(0 0 0 / 0.6), 0 1px 2px rgb(0 0 0 / 0.3);
+  --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2390949e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
   --success: 61 220 132;
   --success-soft: 21 41 29;
   --warning: 255 214 0;
@@ -54,12 +65,19 @@
   --line-strong: 217 208 192;
   --brand: 247 147 26;
   /* Deliberately darker than dark mode's brand-dark: raw brand orange only
-     reaches ~2.3:1 as text on this warm-white surface, and #EA580C still
-     falls short at ~3.5:1. #C2410C clears 4.5:1 against both card and
-     paper, so every `text-brand-dark` / `bg-brand-dark` call site stays
-     AA-compliant here without touching the many components that use it. */
-  --brand-dark: 194 65 12;
+     reaches ~2.3:1 as text on this warm-white surface. #B23A0A clears 4.5:1
+     on card (5.90), paper (5.37) and brand-soft (5.14; the old #C2410C was
+     4.44 there). This block is duplicated in the prefers-color-scheme
+     block below ON PURPOSE (no-JS fallback) — edit both; a test asserts
+     they match. */
+  --brand-dark: 178 58 10;
   --brand-soft: 253 235 211;
+  --brand-ink: 178 58 10;
+  --brand-hover: 232 131 15;
+  --focus: 178 58 10;
+  --shadow-card: 0 12px 32px -16px rgb(24 19 16 / 0.14), 0 1px 2px rgb(24 19 16 / 0.08);
+  --shadow-card-hover: 0 18px 44px -16px rgb(24 19 16 / 0.2), 0 1px 2px rgb(24 19 16 / 0.1);
+  --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23655d53' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
   --success: 23 112 71;
   --success-soft: 225 240 232;
   --warning: 138 106 0;
@@ -86,8 +104,14 @@
     --line: 228 221 207;
     --line-strong: 217 208 192;
     --brand: 247 147 26;
-    --brand-dark: 194 65 12;
+    --brand-dark: 178 58 10;
     --brand-soft: 253 235 211;
+    --brand-ink: 178 58 10;
+    --brand-hover: 232 131 15;
+    --focus: 178 58 10;
+    --shadow-card: 0 12px 32px -16px rgb(24 19 16 / 0.14), 0 1px 2px rgb(24 19 16 / 0.08);
+    --shadow-card-hover: 0 18px 44px -16px rgb(24 19 16 / 0.2), 0 1px 2px rgb(24 19 16 / 0.1);
+    --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23655d53' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
     --success: 23 112 71;
     --success-soft: 225 240 232;
     --warning: 138 106 0;
@@ -137,38 +161,12 @@
   }
 }
 
-/* ---- Ground: asphalt dark (or warm paper light) with two soft orange/mint washes ---- */
+/* ---- Ground: a flat paper colour. The ambient washes and their drift
+   animation were removed (Rams #10: decoration only where it carries meaning). ---- */
 .parada-background {
   position: relative;
   min-height: 100vh;
   background-color: rgb(var(--paper));
-}
-
-.parada-background::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(720px 400px at 92% -10%, rgb(var(--brand) / 0.06), transparent 70%),
-    radial-gradient(640px 360px at -6% 104%, rgb(var(--success) / 0.05), transparent 70%);
-  animation: parada-drift 28s ease-in-out infinite;
-}
-
-/* Slow ambient drift + breathe, mirroring the mobile app's GradientMesh —
-   ambient life without competing for attention. Reduced-motion media query
-   below zeroes the animation duration, so this freezes on its resting frame. */
-@keyframes parada-drift {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-    opacity: 1;
-  }
-  50% {
-    transform: translate3d(-1.5%, 1.5%, 0);
-    opacity: 0.88;
-  }
 }
 
 @layer components {
@@ -198,7 +196,7 @@
   }
 
   .btn-primary {
-    @apply btn bg-brand text-on-accent shadow-primary hover:bg-brand-dark;
+    @apply btn bg-brand text-on-accent shadow-primary hover:bg-brand-hover;
   }
 
   .btn-secondary {
@@ -206,11 +204,11 @@
   }
 
   .btn-ghost {
-    @apply btn border border-transparent text-brand-dark hover:bg-brand-soft;
+    @apply btn border border-transparent text-brand-ink hover:bg-brand-soft;
   }
 
   .btn-success {
-    @apply btn border border-success/30 bg-success-soft text-success hover:bg-success hover:text-on-accent;
+    @apply btn border border-success/30 bg-success-soft text-success hover:bg-success hover:text-paper;
   }
 
   .btn-danger {
@@ -219,12 +217,12 @@
 
   /* ---- Inputs ---- */
   .input {
-    @apply min-h-[44px] w-full rounded-control rounded-tr-control-cut border-[1.5px] border-line bg-card px-4 py-2 text-[15px] font-medium text-charcoal placeholder:font-normal placeholder:text-faint transition-[border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:border-brand focus-visible:shadow-focus disabled:bg-raised disabled:text-muted;
+    @apply min-h-[44px] w-full rounded-control rounded-tr-control-cut border-[1.5px] border-line bg-card px-4 py-2 text-base font-medium text-charcoal placeholder:font-normal placeholder:text-muted transition-[border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:border-brand focus-visible:shadow-focus disabled:bg-raised disabled:text-muted;
   }
 
   select.input {
     @apply cursor-pointer appearance-none bg-no-repeat pr-10;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239c9ca6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+    background-image: var(--chevron);
     background-position: right 0.9rem center;
   }
 
@@ -238,11 +236,11 @@
 
   /* ---- Field labels (form labels, not kickers) ---- */
   .label {
-    @apply mb-1.5 block text-[12px] font-bold text-charcoal;
+    @apply mb-1.5 block text-xs font-bold text-charcoal;
   }
 
   .label-tech {
-    @apply text-[11px] font-bold uppercase tracking-[0.08em] text-muted;
+    @apply text-micro font-bold uppercase tracking-[0.08em] text-muted;
   }
 
   .field-help {
@@ -251,16 +249,16 @@
 
   /* ---- Status pill: tinted fill, icon + text (chips/badges stay full-pill) ---- */
   .status-pill {
-    @apply inline-flex min-h-[26px] items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold;
+    @apply inline-flex min-h-[26px] items-center gap-1.5 rounded-full px-2.5 py-0.5 text-micro font-bold;
   }
 
   /* ---- Identifier plate chip (zone codes, plates, camera ids) ---- */
   .plate-chip {
-    @apply inline-flex items-center rounded-chip bg-charcoal px-2 py-0.5 font-mono text-[12px] font-bold tracking-[0.08em] text-paper;
+    @apply inline-flex items-center rounded-chip bg-charcoal px-2 py-0.5 font-mono text-xs font-bold tracking-[0.08em] text-paper;
   }
 
   .plate-chip-soft {
-    @apply inline-flex items-center rounded-chip bg-brand-soft px-2 py-0.5 font-mono text-[12px] font-bold tracking-[0.08em] text-brand-dark;
+    @apply inline-flex items-center rounded-chip bg-brand-soft px-2 py-0.5 font-mono text-xs font-bold tracking-[0.08em] text-brand-ink;
   }
 
   /* ---- Tables: dense registry rows with hairline seams ---- */
@@ -273,7 +271,7 @@
   }
 
   .table-base thead th {
-    @apply sticky top-0 z-[1] bg-card px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted;
+    @apply sticky top-0 z-[1] bg-card px-4 py-2.5 text-micro font-bold uppercase tracking-[0.08em] text-muted;
   }
 
   .table-base tbody tr {
@@ -304,11 +302,11 @@
 
   /* ---- Segmented filter ---- */
   .segmented {
-    @apply inline-flex items-center gap-1 rounded-control border border-line bg-card p-1;
+    @apply inline-flex items-center gap-1 rounded-control rounded-tr-control-cut border border-line bg-card p-1;
   }
 
   .segmented-item {
-    @apply min-h-[34px] rounded-[0.6rem] px-3.5 text-xs font-bold text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus aria-pressed:bg-brand-soft aria-pressed:text-brand-dark;
+    @apply min-h-[34px] rounded-chip rounded-tr-control-cut px-3.5 text-xs font-bold text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus aria-pressed:bg-brand-soft aria-pressed:text-brand-ink;
   }
 
   /* ---- Scrollbar ---- */

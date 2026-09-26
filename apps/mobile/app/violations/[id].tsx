@@ -7,7 +7,6 @@ import {
   Card,
   EmptyState,
   ErrorState,
-  GlassCard,
   Input,
   LoadingState,
   PlateChip,
@@ -19,7 +18,7 @@ import {
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { radii, spacing } from "@/src/theme";
+import { fontSizes, lineHeights, radii, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 
@@ -81,7 +80,7 @@ export default function ViolationDetailScreen() {
         />
       ) : (
         <>
-          <GlassCard wash={violationColor} style={styles.summary} testID="violation-summary">
+          <Card padding={spacing.xl2} style={styles.summary} testID="violation-summary">
             <View style={styles.summaryRow}>
               <Text variant="micro">FINE</Text>
               <ViolationBadge status={violation.status} testID="violation-summary-status" />
@@ -92,7 +91,7 @@ export default function ViolationDetailScreen() {
             <Text variant="body" color={colors.muted}>
               {violation.violationType === "WRONG_ZONE" ? "Fine for a wrong-zone entry." : "Establishment violation fine."}
             </Text>
-          </GlassCard>
+          </Card>
 
           <Text variant="section">What happened</Text>
           <Card testID="violation-details-card" style={styles.details}>
@@ -273,7 +272,7 @@ function buildStyles(colors: ColorTokens) {
     timelineDot: {
       width: 11,
       height: 11,
-      borderRadius: 999,
+      borderRadius: radii.full,
       marginTop: 4,
     },
     timelineLine: {
@@ -287,8 +286,8 @@ function buildStyles(colors: ColorTokens) {
       paddingBottom: spacing.xl,
     },
     timelineLabel: {
-      fontSize: 13,
-      lineHeight: 18,
+      fontSize: fontSizes.caption,
+      lineHeight: lineHeights.caption,
     },
     appealBox: {
       gap: spacing.lg,
@@ -299,6 +298,7 @@ function buildStyles(colors: ColorTokens) {
       borderLeftColor: colors.border,
       paddingLeft: spacing.lg,
       borderRadius: radii.sm,
+      borderTopRightRadius: radii.cut,
     },
   });
 }

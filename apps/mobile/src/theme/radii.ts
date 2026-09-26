@@ -19,6 +19,6 @@ export const radii = {
   xl: 28,
   /** The sharp corner on cards/panels/inputs (the "PARADA cut"). */
   cut: 3,
-  /** Pills/badges/buttons/tab bar. */
+  /** Pills: chips, badges/stamps, tab bar, avatars, dots and tracks. Never buttons (buttons are cut). */
   full: 999,
 } as const;

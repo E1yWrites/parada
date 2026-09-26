@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "@/src/providers/SessionProvider";
 import { FullScreenLoading } from "@/src/components/FullScreenLoading";
 import { TabBarBackground } from "@/src/components/TabBarBackground";
+import { VehicleSelectionProvider } from "@/src/components/VehicleSelection";
 import { fonts, fontSizes, layout, radii } from "@/src/theme";
 import { useColors, useThemeShadows } from "@/src/providers/ThemeProvider";
 
@@ -59,6 +60,10 @@ export default function TabsLayout() {
   }
 
   return (
+    // One vehicle choice for the whole signed-in tab area: a plate picked on
+    // Now is the plate Zones uses (it used to be one provider per tab). It
+    // unmounts on sign-out with the tabs, so the choice never leaks across users.
+    <VehicleSelectionProvider>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -87,15 +92,15 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen
         name="parking"
-        options={{ title: "Home", tabBarAccessibilityLabel: "Home", tabBarIcon: HomeIcon }}
+        options={{ title: "Now", tabBarAccessibilityLabel: "Now", tabBarIcon: HomeIcon }}
       />
       <Tabs.Screen
         name="park"
-        options={{ title: "Park", tabBarAccessibilityLabel: "Park", tabBarIcon: ParkIcon }}
+        options={{ title: "Zones", tabBarAccessibilityLabel: "Zones", tabBarIcon: ParkIcon }}
       />
       <Tabs.Screen
         name="sessions"
-        options={{ title: "Sessions", tabBarAccessibilityLabel: "Sessions", tabBarIcon: SessionsIcon }}
+        options={{ title: "History", tabBarAccessibilityLabel: "History", tabBarIcon: SessionsIcon }}
       />
       <Tabs.Screen
         name="account"
@@ -105,5 +110,6 @@ export default function TabsLayout() {
           at /vehicles, e.g. from the Account screen's "My Vehicles" link. */}
       <Tabs.Screen name="vehicles" options={{ href: null }} />
     </Tabs>
+    </VehicleSelectionProvider>
   );
 }

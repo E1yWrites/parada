@@ -41,7 +41,7 @@ function buildVariantColors(colors: ColorTokens): Record<
       foreground: colors.danger,
       borderColor: colors.danger,
     },
-    ghost: { background: "transparent", pressed: colors.primarySoft, foreground: colors.primary },
+    ghost: { background: "transparent", pressed: colors.primarySoft, foreground: colors.primaryDeep },
   };
 }
 

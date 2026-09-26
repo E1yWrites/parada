@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
 import { radii, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
-import type { ColorTokens } from "@/src/theme/colors";
+import { inkColor, type ColorTokens } from "@/src/theme/colors";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -26,7 +26,8 @@ export function FormAlert({ tone, message, icon, testID }: FormAlertProps) {
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
   const isError = tone === "error";
-  const color = isError ? colors.danger : colors.success;
+  // Text on a soft tint uses the matching ink token (>=4.5:1; the raw hue is not).
+  const color = inkColor(isError ? colors.danger : colors.success, colors);
   return (
     <View
       style={[styles.banner, isError ? styles.error : styles.notice]}

@@ -5,19 +5,19 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  MascotCallout,
   ReservationPanel,
   Screen,
   SectionHeader,
   SegmentedControl,
-  VehicleSelectionProvider,
   ZoneAssignmentPanel,
   ZoneCard,
 } from "@/src/components";
 import { api, ApiError, type PublicZone } from "@/lib/api/client";
 import { activeAssignmentFrom } from "@/lib/assignment";
 import { currentReservationFrom } from "@/lib/current";
+import { plural } from "@/lib/format";
 import { queryKeys } from "@/lib/query";
+import { useConnectionLabel } from "@/src/providers/RealtimeStatusProvider";
 import { spacing } from "@/src/theme";
 
 /** Tile width for the horizontal zone rail — wide enough for a 2-line zone
@@ -25,11 +25,11 @@ import { spacing } from "@/src/theme";
 const ZONE_TILE_WIDTH = 208;
 
 /**
- * Zone picker: choose a zone, then park now or reserve for later. Split out
- * of the former single "Parking" screen so Home can show current status
- * without also carrying the zone grid (Figma direction: separate Home/Park
- * tabs). Still gates zone selection and the action panel on the same current
- * parking state as before — that gating logic is unchanged, only relocated.
+ * Zones: choose a zone, then either "Go to this zone" (an assignment — keeps
+ * no space) or "Reserve a space" (a reservation — keeps one space for its
+ * window). The backend's least-occupied zone is tagged "Least busy" in the
+ * list. What the driver has already committed to lives on the Now tab; zone
+ * selection is gated on it (no second plan while one is current).
  */
 export default function ParkScreen() {
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
@@ -39,6 +39,15 @@ export default function ParkScreen() {
     queryFn: api.zones,
     refetchInterval: 30_000,
   });
+  const connection = useConnectionLabel(zones.dataUpdatedAt);
+  // Global least-occupied active zone (services/api/src/domain/zones.ts) —
+  // not personal, so it is labelled "Least busy", never "recommended for you".
+  const leastBusy = useQuery({
+    queryKey: queryKeys.recommendation,
+    queryFn: api.recommendedZone,
+    refetchInterval: 30_000,
+  });
+  const leastBusyId = leastBusy.data?.recommendedZone?.id ?? null;
   const active = useQuery({
     queryKey: queryKeys.activeSession,
     queryFn: api.activeSession,
@@ -68,96 +77,86 @@ export default function ParkScreen() {
   const hasCurrentState = activeSession !== null || assignment !== null || reservation !== null;
 
   return (
-    <VehicleSelectionProvider>
-      <Screen
-        title="Park"
-        subtitle="Pick a zone from live gate-camera availability"
-        refreshing={refreshing}
-        onRefresh={refresh}
-        testID="park-screen">
-        <MascotCallout
-          variant="park"
-          text={
-            zones.data && zones.data.length > 0
-              ? `${zones.data.filter((z) => z.status === "ACTIVE" && z.availableCount > 0).length} of ${zones.data.length} zones open right now!`
-              : "Let's find you a spot!"
-          }
-          testID="park-greeting"
+    <Screen
+      title="Zones"
+      subtitle={connection}
+      refreshing={refreshing}
+      onRefresh={refresh}
+      testID="park-screen">
+      {zones.data && zones.data.length > 0 ? (
+        <SectionHeader
+          title={`${zones.data.filter((z) => z.status === "ACTIVE" && z.availableCount > 0).length} of ${plural(zones.data.length, "zone")} open`}
+          testID="zones-header"
         />
-        <SectionHeader title="Zones" caption="Updated every 30 seconds" testID="zones-header" />
-        {zones.isPending ? (
-          <LoadingState label="Loading park availability…" testID="zones-loading" />
-        ) : zones.isError ? (
-          <ErrorState
-            message={zones.error instanceof ApiError ? zones.error.message : "Couldn't load live availability."}
-            onRetry={refresh}
-            testID="zones-error"
-          />
-        ) : zones.data && zones.data.length === 0 ? (
-          <EmptyState
-            illustration="zones"
-            title="No zones yet"
-            description="There are no parking zones configured."
-            testID="zones-empty"
-          />
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            snapToInterval={ZONE_TILE_WIDTH + spacing.lg}
-            snapToAlignment="start"
-            style={styles.railScroller}
-            contentContainerStyle={styles.rail}
-            testID="zones-grid">
-            {(zones.data ?? []).map((zone: PublicZone) => (
-              <View key={zone.id} style={styles.tile}>
-                <ZoneCard
-                  zone={zone}
-                  onPress={hasCurrentState ? null : () => setSelectedZoneId(zone.id)}
-                  selected={selectedZoneId === zone.id}
-                  testID={`zone-${zone.code}`}
-                />
-              </View>
-            ))}
-          </ScrollView>
-        )}
-        {activeSession ? null : (
-          <View style={styles.parkingAction} testID="parking-action">
-            <SectionHeader
-              title="Park your vehicle"
-              caption="Pick how you'd like to use the selected zone"
-              testID="parking-action-header"
-            />
-            <View testID="parking-action-toggle">
-              <SegmentedControl
-                value={actionMode}
-                onChange={(mode) => setActionMode(mode as "assign" | "reserve")}
-                options={[
-                  {
-                    value: "assign",
-                    label: "Park now",
-                    accessibilityLabel: "Park now: assign a vehicle to the selected zone",
-                    testID: "parking-action-assign",
-                  },
-                  {
-                    value: "reserve",
-                    label: "Reserve for later",
-                    accessibilityLabel: "Reserve the selected zone for later",
-                    testID: "parking-action-reserve",
-                  },
-                ]}
+      ) : null}
+      {zones.isPending ? (
+        <LoadingState label="Loading zones…" testID="zones-loading" />
+      ) : zones.isError ? (
+        <ErrorState
+          message={zones.error instanceof ApiError ? zones.error.message : "Couldn't load zone availability."}
+          onRetry={refresh}
+          testID="zones-error"
+        />
+      ) : zones.data && zones.data.length === 0 ? (
+        <EmptyState
+          illustration="zones"
+          title="No zones yet"
+          description="There are no parking zones configured."
+          testID="zones-empty"
+        />
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          snapToInterval={ZONE_TILE_WIDTH + spacing.lg}
+          snapToAlignment="start"
+          style={styles.railScroller}
+          contentContainerStyle={styles.rail}
+          testID="zones-grid">
+          {(zones.data ?? []).map((zone: PublicZone) => (
+            <View key={zone.id} style={styles.tile}>
+              <ZoneCard
+                zone={zone}
+                onPress={hasCurrentState ? null : () => setSelectedZoneId(zone.id)}
+                selected={selectedZoneId === zone.id}
+                leastBusy={zone.id === leastBusyId}
+                testID={`zone-${zone.code}`}
               />
             </View>
-            {actionMode === "assign" ? (
-              <ZoneAssignmentPanel selectedZone={selectedZone} />
-            ) : (
-              <ReservationPanel selectedZone={selectedZone} />
-            )}
+          ))}
+        </ScrollView>
+      )}
+      {activeSession ? null : (
+        <View style={styles.parkingAction} testID="parking-action">
+          <View testID="parking-action-toggle">
+            <SegmentedControl
+              value={actionMode}
+              onChange={(mode) => setActionMode(mode as "assign" | "reserve")}
+              options={[
+                {
+                  value: "assign",
+                  label: "Go to this zone",
+                  accessibilityLabel: "Go to this zone: no space is kept",
+                  testID: "parking-action-assign",
+                },
+                {
+                  value: "reserve",
+                  label: "Reserve a space",
+                  accessibilityLabel: "Reserve a space: keeps one space from your arrival time",
+                  testID: "parking-action-reserve",
+                },
+              ]}
+            />
           </View>
-        )}
-      </Screen>
-    </VehicleSelectionProvider>
+          {actionMode === "assign" ? (
+            <ZoneAssignmentPanel selectedZone={selectedZone} />
+          ) : (
+            <ReservationPanel selectedZone={selectedZone} />
+          )}
+        </View>
+      )}
+    </Screen>
   );
 }
 

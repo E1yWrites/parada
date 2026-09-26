@@ -16,7 +16,7 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="font-display text-[1.75rem] font-black leading-tight tracking-[-0.02em] text-charcoal sm:text-3xl">
+        <h1 className="font-display text-3xl font-black leading-tight tracking-[-0.02em] text-charcoal sm:text-3xl">
           {title}
         </h1>
         {description ? <p className="mt-1.5 max-w-2xl text-sm text-muted">{description}</p> : null}

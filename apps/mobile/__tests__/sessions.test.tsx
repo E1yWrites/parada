@@ -71,13 +71,13 @@ describe("sessions screen", () => {
     expect(StyleSheet.flatten(list.props.contentContainerStyle)).toMatchObject({ gap: 12 });
   });
 
-  it("shows the active session banner plus history", async () => {
+  it("is history only: completed sessions, and no active-session banner (that lives on Now)", async () => {
     renderWithProviders(<SessionsScreen />);
 
-    await waitFor(() => expect(screen.getByTestId("active-session")).toBeOnTheScreen());
-    expect(screen.getByTestId("active-session-plate")).toHaveTextContent("ACT-100");
-    expect(screen.getByText("History")).toBeOnTheScreen();
-    expect(screen.getByText("1 completed")).toBeOnTheScreen();
+    await waitFor(() => expect(screen.getByText("1 completed")).toBeOnTheScreen());
+    expect(screen.queryByTestId("active-session")).not.toBeOnTheScreen();
+    expect(screen.queryByText("ACT-100")).not.toBeOnTheScreen();
+    expect(screen.getByTestId("sessions-screen-title")).toHaveTextContent("History");
     expect(screen.getByText("Completed")).toBeOnTheScreen();
   });
 
@@ -94,7 +94,7 @@ describe("sessions screen", () => {
     (api.sessions as jest.Mock).mockResolvedValue([]);
     renderWithProviders(<SessionsScreen />);
 
-    expect(await screen.findByText("No parking sessions")).toBeOnTheScreen();
+    expect(await screen.findByText("No completed sessions yet")).toBeOnTheScreen();
   });
 
   it("shows a single primary error state when loading fails", async () => {

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { motion, radii, spacing, touchTarget } from "@/src/theme";
+import { fontSizes, motion, radii, spacing, touchTarget } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 import { Text } from "./Text";
@@ -37,7 +37,7 @@ export function ChoiceChip({
     <Pressable
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ selected }}
+      accessibilityState={accessibilityRole === "radio" ? { checked: selected, selected } : { selected }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.chip,
@@ -85,7 +85,7 @@ function buildStyles(colors: ColorTokens) {
     },
     mono: {
       letterSpacing: 1,
-      fontSize: 14,
+      fontSize: fontSizes.body,
     },
   });
 }

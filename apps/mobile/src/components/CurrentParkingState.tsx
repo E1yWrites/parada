@@ -3,11 +3,10 @@ import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ActiveSessionBanner } from "./ActiveSessionBanner";
 import { Button } from "./Button";
-import { GlassCard } from "./GlassCard";
+import { Card } from "./Card";
 import { Mascot } from "./Mascot";
 import { PlateChip } from "./PlateChip";
 import { Stamp } from "./Stamp";
-import { AssignmentBadge, ReservationBadge } from "./StatusBadge";
 import { ErrorState, LoadingState } from "./StateComponents";
 import { NavigateButton } from "./NavigateButton";
 import { Text } from "./Text";
@@ -15,6 +14,7 @@ import type { SessionDto } from "@/lib/api/client";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { ZONE_NAVIGATION_UNCONFIGURED, type NavigationDestination } from "@/lib/navigation";
 import { ApiError } from "@/lib/api/client";
+import { ASSIGNMENT_TERMS } from "@/lib/assignment";
 import type { ReservationResponse, ZoneAssignmentResponse } from "@parada/types";
 import { radii, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
@@ -34,6 +34,8 @@ type CurrentParkingStateProps = {
   destinationReady: boolean;
   /** Cancels the accepted assignment (backend-enforced; only before entry). */
   onCancelAssignment?: (assignmentId: string) => Promise<void>;
+  /** Cancels the live reservation (PATCH /reservations/:id/cancel). */
+  onCancelReservation?: (reservationId: string) => Promise<void>;
   /** Injectable clock for live elapsed rendering. */
   now: Date;
   /** Active-session query still loading. */
@@ -47,9 +49,13 @@ type CurrentParkingStateProps = {
   assignmentError: boolean;
   reservationError: boolean;
   onRetry: () => void;
+  /** Idle state's way to the zone list (a button, never "see the other tab" copy). */
+  onFindZone?: () => void;
 };
 
 const STATE_UNKNOWN_MESSAGE = "We couldn't load your current parking status.";
+
+
 
 const currentReservationStatus = new Set<ReservationResponse["status"]>([
   "PENDING",
@@ -75,6 +81,7 @@ export function CurrentParkingState({
   destinationFor,
   destinationReady,
   onCancelAssignment,
+  onCancelReservation,
   now,
   activePending,
   activeError,
@@ -83,12 +90,13 @@ export function CurrentParkingState({
   assignmentError,
   reservationError,
   onRetry,
+  onFindZone,
 }: CurrentParkingStateProps) {
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
 
   if (activePending) {
-    return <LoadingState label="Checking your parking state…" testID="current-state-loading" />;
+    return <LoadingState label="Loading…" testID="current-state-loading" />;
   }
 
   if (activeError) {
@@ -119,7 +127,7 @@ export function CurrentParkingState({
   }
 
   if (statePending) {
-    return <LoadingState label="Checking your parking state…" testID="current-state-loading" />;
+    return <LoadingState label="Loading…" testID="current-state-loading" />;
   }
 
   const stateUnknown = !currentAssignment && !currentReservation && (assignmentError || reservationError);
@@ -131,17 +139,20 @@ export function CurrentParkingState({
 
   if (currentAssignment === null && currentReservation === null) {
     return (
-      <GlassCard wash={colors.muted} style={styles.emptyPass} testID="current-state-empty">
+      <Card padding={spacing.xl2} style={styles.emptyPass} testID="current-state-empty">
         <Mascot accentIcon="car-outline" accentColor={colors.muted} size={92} />
         <View style={styles.emptyBody}>
-          <Text variant="title" align="center">
-            No active parking
+          <Text variant="title" align="center" accessibilityRole="header">
+            Nothing planned
           </Text>
           <Text variant="body" color={colors.muted} align="center">
-            Assign a zone, reserve ahead, or check today's recommendation.
+            No parking session, reservation or assigned zone.
           </Text>
         </View>
-      </GlassCard>
+        {onFindZone ? (
+          <Button variant="secondary" title="Find a zone" onPress={onFindZone} testID="current-state-find-zone" />
+        ) : null}
+      </Card>
     );
   }
 
@@ -160,6 +171,7 @@ export function CurrentParkingState({
           reservation={currentReservation}
           destination={destinationFor(currentReservation.zoneId)}
           destinationReady={destinationReady}
+          onCancel={onCancelReservation}
         />
       ) : null}
       {assignmentError ? (
@@ -195,11 +207,11 @@ function SessionState({
 }: SessionStateProps) {
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
-  const plate = session.vehicle?.plateNumber ?? "guest";
+  const plate = session.vehicle?.plateNumber ?? "Guest";
   const summary = [
-    `Active parking in ${session.zone.name}.`,
+    `Parked in ${session.zone.name}.`,
     `Vehicle ${plate}.`,
-    `Started ${formatDateTime(session.enteredAt)}.`,
+    `Parked since ${formatDateTime(session.enteredAt)}.`,
     assignment ? `Assigned zone ${assignment.zone.name}.` : null,
   ]
     .filter((part): part is string => part !== null)
@@ -212,7 +224,7 @@ function SessionState({
           <View accessible accessibilityLabel={summary} testID="session-summary" style={styles.facts}>
             <View style={styles.factRow}>
               <View style={styles.fact}>
-                <Text variant="micro">SESSION STARTED</Text>
+                <Text variant="micro">PARKED SINCE</Text>
                 <Text variant="bodySemi" testID="session-started">
                   {formatDateTime(session.enteredAt)}
                 </Text>
@@ -243,7 +255,7 @@ function SessionState({
           {destinationReady ? (
             <NavigateButton
               destination={destination}
-              label="Navigate to parking"
+              label={`Navigate to ${session.zone.name}`}
               primary
               unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
               testID="current-state-navigate"
@@ -284,19 +296,17 @@ function AssignmentState({ assignment, destination, destinationReady, onCancel }
   }
 
   const summary = [
-    `Assigned to ${assignment.zone.name}.`,
+    `Assigned zone ${assignment.zone.name}.`,
     `Vehicle ${assignment.vehicle.plateNumber}.`,
-    assignment.expiresAt ? `Valid until ${formatDateTime(assignment.expiresAt)}.` : null,
+    assignment.expiresAt ? `Enter by ${formatDateTime(assignment.expiresAt)}.` : null,
+    ASSIGNMENT_TERMS,
   ]
     .filter((part): part is string => part !== null)
     .join(" ");
 
   return (
-    <GlassCard style={styles.pass} testID="assignment-current">
-      <View style={styles.headerRow}>
-        <Stamp label="ZONE ASSIGNED" icon="location" color={colors.primaryDeep} />
-        <AssignmentBadge status={assignment.status} testID="assignment-current-badge" />
-      </View>
+    <Card padding={spacing.xl2} style={styles.pass} testID="assignment-current">
+      <Stamp label="ASSIGNED ZONE" icon="location" color={colors.primaryDeep} />
       <View accessible accessibilityLabel={summary} testID="assignment-summary" style={styles.passBody}>
         <Text variant="hero" numberOfLines={2} testID="assignment-current-zone">
           {assignment.zone.name}
@@ -311,15 +321,18 @@ function AssignmentState({ assignment, destination, destinationReady, onCancel }
           <View style={styles.inlineRow}>
             <Ionicons name="time-outline" size={14} color={colors.muted} />
             <Text variant="caption" testID="assignment-current-validity">
-              Valid until {formatDateTime(assignment.expiresAt)}
+              Enter by {formatDateTime(assignment.expiresAt)}
             </Text>
           </View>
         ) : null}
+        <Text variant="caption" color={colors.muted} testID="assignment-current-terms">
+          {ASSIGNMENT_TERMS}
+        </Text>
       </View>
       {destinationReady ? (
         <NavigateButton
           destination={destination}
-          label="Navigate to assigned zone"
+          label={`Navigate to ${assignment.zone.name}`}
           primary
           unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
           testID="assignment-navigate"
@@ -347,7 +360,7 @@ function AssignmentState({ assignment, destination, destinationReady, onCancel }
           )}
         </View>
       ) : null}
-    </GlassCard>
+    </Card>
   );
 }
 
@@ -355,23 +368,45 @@ type ReservationStateProps = {
   reservation: ReservationResponse;
   destination: NavigationDestination | null;
   destinationReady: boolean;
+  onCancel?: (reservationId: string) => Promise<void>;
 };
 
-function ReservationState({ reservation, destination, destinationReady }: ReservationStateProps) {
+/**
+ * The live reservation, with its actions. Cancelling asks once more because,
+ * unlike an assignment (which keeps nothing), it gives up a kept space that
+ * may not be free again.
+ */
+function ReservationState({ reservation, destination, destinationReady, onCancel }: ReservationStateProps) {
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
+  const [confirming, setConfirming] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  async function handleCancel() {
+    if (!onCancel || cancelling) {
+      return;
+    }
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await onCancel(reservation.id);
+    } catch (err) {
+      setCancelError(err instanceof ApiError ? err.message : "We couldn't cancel this reservation. Please try again.");
+      setConfirming(false);
+    } finally {
+      setCancelling(false);
+    }
+  }
   const summary = [
     `Reserved ${reservation.zone.name}.`,
     `Vehicle ${reservation.vehicle.plateNumber}.`,
-    `Start ${formatDateTime(reservation.startAt)}. End ${formatDateTime(reservation.endAt)}.`,
+    `Space kept from ${formatDateTime(reservation.startAt)} to ${formatDateTime(reservation.endAt)}.`,
   ].join(" ");
 
   return (
-    <GlassCard style={styles.pass} wash={colors.success} testID="reservation-current">
-      <View style={styles.headerRow}>
-        <Stamp label="RESERVED" icon="calendar" color={colors.success} />
-        <ReservationBadge status={reservation.status} testID="reservation-current-badge" />
-      </View>
+    <Card padding={spacing.xl2} style={styles.pass} testID="reservation-current">
+      <Stamp label="RESERVED" icon="calendar" color={colors.success} />
       <View accessible accessibilityLabel={summary} testID="reservation-summary" style={styles.passBody}>
         <Text variant="hero" numberOfLines={2} testID="reservation-current-zone">
           {reservation.zone.name}
@@ -385,20 +420,63 @@ function ReservationState({ reservation, destination, destinationReady }: Reserv
         <View style={styles.windowBox}>
           <Ionicons name="time-outline" size={14} color={colors.success} />
           <Text variant="caption" color={colors.foreground} style={styles.inlineText} testID="reservation-current-window">
-            Start {formatDateTime(reservation.startAt)} · End {formatDateTime(reservation.endAt)}
+            Space kept {formatDateTime(reservation.startAt)} – {formatDateTime(reservation.endAt)}
           </Text>
         </View>
       </View>
       {destinationReady ? (
         <NavigateButton
           destination={destination}
-          label="Navigate to parking"
+          label={`Navigate to ${reservation.zone.name}`}
           primary
           unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
           testID="reservation-navigate"
         />
       ) : null}
-    </GlassCard>
+      {onCancel ? (
+        <View style={styles.cancelBlock}>
+          {confirming ? (
+            <>
+              <Text variant="caption" testID="reservation-cancel-confirm">
+                Cancel this reservation? The kept space is released.
+              </Text>
+              <View style={styles.inlineRow}>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  title={cancelling ? "Cancelling…" : "Yes, cancel"}
+                  loading={cancelling}
+                  onPress={() => void handleCancel()}
+                  accessibilityLabel={`Confirm cancelling the reservation in ${reservation.zone.name}`}
+                  testID="reservation-cancel-confirm-btn"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  title="Keep it"
+                  onPress={() => setConfirming(false)}
+                  testID="reservation-cancel-keep"
+                />
+              </View>
+            </>
+          ) : (
+            <Button
+              variant="danger"
+              size="sm"
+              title="Cancel reservation"
+              onPress={() => setConfirming(true)}
+              accessibilityLabel={`Cancel reservation in ${reservation.zone.name}`}
+              testID="reservation-cancel"
+            />
+          )}
+          {cancelError ? (
+            <Text variant="caption" color={colors.danger} accessibilityRole="alert" testID="reservation-cancel-error">
+              {cancelError}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+    </Card>
   );
 }
 
@@ -422,12 +500,6 @@ function buildStyles(colors: ColorTokens) {
     passBody: {
       gap: spacing.lg,
     },
-    headerRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: spacing.md,
-    },
     plateRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -447,6 +519,7 @@ function buildStyles(colors: ColorTokens) {
       gap: spacing.md,
       backgroundColor: withAlpha(colors.surface, 0.7),
       borderRadius: radii.sm,
+      borderTopRightRadius: radii.cut,
       padding: spacing.lg,
     },
     contextBlock: {

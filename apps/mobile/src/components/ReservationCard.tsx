@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Button } from "./Button";
 import { Card } from "./Card";
 import { PlateChip } from "./PlateChip";
 import { ReservationBadge } from "./StatusBadge";
@@ -14,35 +13,16 @@ import type { ColorTokens } from "@/src/theme/colors";
 
 type ReservationCardProps = {
   reservation: ReservationResponse;
-  /** Explicit cancel callback; omit to hide cancellation. */
-  onCancel?: () => void;
-  /** True while a cancel request is in flight. */
-  cancelling?: boolean;
   testID?: string;
 };
 
 /**
- * Presentational reservation card. Displays the backend-confirmed fields
- * (zone, vehicle/plate, status, start/end). Cancellation is explicit: the user
- * taps "Cancel reservation" and then confirms in a second tap before the
- * `onCancel` callback fires — no optimistic state mutation. The destructive
- * control sits alone under a seam, away from the content.
+ * One past reservation in History: zone, plate, backend status and the window
+ * it covered. Read-only — a live reservation is shown and cancelled on Now.
  */
-export function ReservationCard({
-  reservation,
-  onCancel,
-  cancelling = false,
-  testID,
-}: ReservationCardProps) {
+export function ReservationCard({ reservation, testID }: ReservationCardProps) {
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
-  const [confirming, setConfirming] = useState(false);
-  const cancellable =
-    onCancel != null &&
-    !cancelling &&
-    (reservation.status === "CONFIRMED" ||
-      reservation.status === "PENDING" ||
-      reservation.status === "ACTIVE");
 
   return (
     <Card style={styles.card} testID={testID}>
@@ -64,43 +44,10 @@ export function ReservationCard({
         <View style={styles.windowIcon}>
           <Ionicons name="time-outline" size={16} color={colors.primaryDeep} />
         </View>
-        <View style={styles.windowText}>
-          <Text variant="caption" color={colors.foreground}>
-            Start {formatDateTime(reservation.startAt)}
-          </Text>
-          <Text variant="caption" color={colors.foreground}>
-            End {formatDateTime(reservation.endAt)}
-          </Text>
-        </View>
+        <Text variant="caption" color={colors.foreground} style={styles.windowText} testID={testID ? `${testID}-window` : undefined}>
+          {formatDateTime(reservation.startAt)} – {formatDateTime(reservation.endAt)}
+        </Text>
       </View>
-
-      {cancellable ? (
-        <View style={styles.cancel}>
-          {confirming ? (
-            <View style={styles.confirmRow}>
-              <Text variant="caption" style={styles.confirmText} testID={testID ? `${testID}-cancel-confirm` : undefined}>
-                Cancel this reservation?
-              </Text>
-              <Button
-                variant="danger"
-                size="sm"
-                title="Confirm"
-                loading={cancelling}
-                onPress={onCancel}
-                testID={testID ? `${testID}-cancel-confirm-btn` : undefined}
-              />
-            </View>
-          ) : (
-            <Button
-              variant="danger"
-              size="sm"
-              title="Cancel reservation"
-              onPress={() => setConfirming(true)}
-              testID={testID ? `${testID}-cancel` : undefined}
-            />
-          )}
-        </View>
-      ) : null}
     </Card>
   );
 }
@@ -130,6 +77,7 @@ function buildStyles(colors: ColorTokens) {
       gap: spacing.lg,
       backgroundColor: colors.surfaceElevated,
       borderRadius: radii.sm,
+      borderTopRightRadius: radii.cut,
       padding: spacing.lg,
     },
     windowIcon: {
@@ -144,24 +92,6 @@ function buildStyles(colors: ColorTokens) {
     windowText: {
       flex: 1,
       gap: spacing.xs,
-    },
-    cancel: {
-      marginTop: spacing.sm,
-      paddingTop: spacing.lg,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      alignItems: "flex-start",
-    },
-    confirmRow: {
-      alignSelf: "stretch",
-      flexDirection: "row",
-      flexWrap: "wrap",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: spacing.md,
-    },
-    confirmText: {
-      flexShrink: 1,
     },
   });
 }

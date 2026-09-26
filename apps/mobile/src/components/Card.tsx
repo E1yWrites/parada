@@ -121,7 +121,7 @@ function buildStyles(colors: ColorTokens, shadows: ShadowTokens) {
     accent: {
       width: 28,
       height: 4,
-      borderRadius: 2,
+      borderRadius: radii.full,
       marginBottom: spacing.lg,
     },
   });

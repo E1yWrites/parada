@@ -9,7 +9,7 @@ import { api, ApiError } from "@/lib/api/client";
 import { Card, SavedNote, SectionHeader } from "@/components/ui/Card";
 import { FacilityStrip, MetricCard } from "@/components/ui/MetricCard";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { AvailabilityBadge, OnlineBadge, Pill, PlateChip, AVAILABILITY_BAR } from "@/components/ui/Badge";
+import { AvailabilityBadge, CameraEnabledBadge, Pill, PlateChip, AVAILABILITY_BAR } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatDateTime, formatPct } from "@/lib/format";
 import type { AdminZoneDetail, AdminSlot } from "@/lib/api/types";
@@ -287,7 +287,7 @@ function PhysicalInventory({ zoneId, zoneCode, capacity }: { zoneId: string; zon
                 >
                   <div className="min-w-0">
                     <p className="font-mono text-sm font-bold text-charcoal">{slot.slotCode}</p>
-                    <Pill tone={slot.status === "ACTIVE" ? "success" : "neutral"} className="mt-1 min-h-[22px] text-[10.5px]">
+                    <Pill tone={slot.status === "ACTIVE" ? "success" : "neutral"} className="mt-1 min-h-[22px] text-micro">
                       {slot.status === "ACTIVE" ? "Active" : "Unavailable"}
                     </Pill>
                   </div>
@@ -348,7 +348,7 @@ export default function ZoneDetailPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
                   <PlateChip>{zone.code}</PlateChip>
-                  <h1 className="font-display text-[1.75rem] font-black leading-tight tracking-tight text-charcoal">{zone.name}</h1>
+                  <h1 className="font-display text-3xl font-black leading-tight tracking-tight text-charcoal">{zone.name}</h1>
                 </div>
                 {zone.description ? <p className="mt-1.5 text-sm text-muted">{zone.description}</p> : null}
                 <p className="mt-1.5 font-mono text-xs font-semibold text-muted" data-testid="zone-navigation-summary">
@@ -361,7 +361,7 @@ export default function ZoneDetailPage() {
             </div>
 
             <FacilityStrip label="Zone occupancy">
-              <MetricCard label="Capacity" value={zone.capacity} detail="Authoritative total" />
+              <MetricCard label="Capacity" value={zone.capacity} detail="Cars this zone accepts" />
               <MetricCard
                 label="Occupied"
                 value={zone.occupiedCount}
@@ -394,7 +394,7 @@ export default function ZoneDetailPage() {
                         <div className="flex min-w-0 items-center gap-3">
                           <span
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control ${
-                              isEntry ? "bg-success-soft text-success" : "bg-brand-soft text-brand-dark"
+                              isEntry ? "bg-success-soft text-success" : "bg-brand-soft text-brand-ink"
                             }`}
                             aria-hidden="true"
                           >
@@ -402,10 +402,10 @@ export default function ZoneDetailPage() {
                           </span>
                           <div className="min-w-0">
                             <p className="font-mono text-sm font-bold text-charcoal">{cam!.identifier}</p>
-                            <p className="text-[11px] font-semibold text-muted">{isEntry ? "Entry" : "Exit"} gate</p>
+                            <p className="text-micro font-semibold text-muted">{isEntry ? "Entry" : "Exit"} gate</p>
                           </div>
                         </div>
-                        <OnlineBadge online={camStatus === "ONLINE"} />
+                        <CameraEnabledBadge enabled={camStatus === "ONLINE"} />
                       </div>
                     );
                   })}

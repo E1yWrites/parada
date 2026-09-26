@@ -3,12 +3,7 @@ import { AppState, type AppStateStatus } from "react-native";
 import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { SessionProvider, useSession } from "./SessionProvider";
 import { queryClient } from "@/lib/query";
-import { useRealtime } from "@/src/lib/realtime";
-
-function RealtimeConnection() {
-  useRealtime();
-  return null;
-}
+import { RealtimeConnection, RealtimeStatusProvider } from "./RealtimeStatusProvider";
 
 /**
  * The realtime stream is a bearer-authenticated connection, so it must follow
@@ -45,8 +40,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
-        <RealtimeMount />
-        {children}
+        <RealtimeStatusProvider>
+          <RealtimeMount />
+          {children}
+        </RealtimeStatusProvider>
       </SessionProvider>
     </QueryClientProvider>
   );

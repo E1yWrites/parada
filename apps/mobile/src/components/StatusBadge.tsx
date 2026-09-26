@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
 import { fonts, radii, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
-import { softColor, type ColorTokens } from "@/src/theme/colors";
+import { inkColor, softColor, type ColorTokens } from "@/src/theme/colors";
 import { Text } from "./Text";
 import type { NotificationType, ViolationStatus } from "@parada/types";
 
@@ -25,7 +25,7 @@ export function parkingStatusMeta(status: ZoneAvailability, colors: ColorTokens)
     case "AVAILABLE":
       return { label: "Available", icon: "checkmark-circle", color: colors.success };
     case "LOW_AVAILABILITY":
-      return { label: "Low", icon: "alert-circle", color: colors.warning };
+      return { label: "Few spaces", icon: "alert-circle", color: colors.warning };
     case "FULL":
       return { label: "Full", icon: "ban", color: colors.danger };
     case "OFFLINE":
@@ -133,8 +133,8 @@ export function StatusBadge({ meta, size = "md", testID }: StatusBadgeProps) {
       testID={testID}
       accessibilityLabel={meta.label}
       style={[styles.badge, { backgroundColor: softColor(meta.color, colors) }, compact ? styles.badgeSm : undefined]}>
-      <Ionicons name={meta.icon} size={compact ? 12 : 14} color={meta.color} />
-      <Text variant={compact ? "micro" : "caption"} color={meta.color} style={compact ? styles.labelSm : styles.label}>
+      <Ionicons name={meta.icon} size={compact ? 12 : 14} color={inkColor(meta.color, colors)} />
+      <Text variant={compact ? "micro" : "caption"} color={inkColor(meta.color, colors)} style={compact ? styles.labelSm : styles.label}>
         {meta.label}
       </Text>
     </View>
@@ -205,13 +205,13 @@ function buildStyles() {
       alignItems: "center",
       gap: spacing.sm,
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm + 1,
+      paddingVertical: spacing.sm,
       borderRadius: radii.full,
       alignSelf: "flex-start",
     },
     badgeSm: {
-      paddingHorizontal: spacing.md + 2,
-      paddingVertical: 3,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
     },
     label: {
       fontFamily: fonts.bodyBold,

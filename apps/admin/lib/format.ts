@@ -27,6 +27,11 @@ export function formatDuration(seconds: number | null | undefined): string {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
+/** "1 zone" / "3 zones" — a count with its correctly pluralised noun. */
+export function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
+}
+
 export function formatPct(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return "—";
   return `${Math.round(value)}%`;

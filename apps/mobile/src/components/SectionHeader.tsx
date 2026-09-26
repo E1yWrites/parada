@@ -15,7 +15,7 @@ export function SectionHeader({ title, caption, right, testID }: SectionHeaderPr
   return (
     <View style={styles.row}>
       <View style={styles.textGroup}>
-        <Text testID={testID ? `${testID}-title` : undefined} variant="section">
+        <Text testID={testID ? `${testID}-title` : undefined} variant="section" accessibilityRole="header">
           {title}
         </Text>
         {caption ? (

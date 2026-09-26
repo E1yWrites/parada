@@ -34,6 +34,9 @@ const config: Config = {
           DEFAULT: withOpacity("--brand"),
           dark: withOpacity("--brand-dark"),
           soft: withOpacity("--brand-soft"),
+          /** Text/icon-safe brand (>=4.5:1 on card, paper and brand-soft). */
+          ink: withOpacity("--brand-ink"),
+          hover: withOpacity("--brand-hover"),
         },
         success: {
           DEFAULT: withOpacity("--success"),
@@ -54,16 +57,24 @@ const config: Config = {
         "data-3": withOpacity("--data-3"),
         "data-4": withOpacity("--data-4"),
       },
+      /* Type ramp. Arbitrary text-[Npx] sizes are not allowed; a test fails on them. */
+      fontSize: {
+        micro: ["11px", { lineHeight: "16px" }],
+        display: ["48px", { lineHeight: "1" }],
+      },
       fontFamily: {
         display: ["var(--font-display)", "sans-serif"],
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       boxShadow: {
-        card: "0 12px 32px -12px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.3)",
-        "card-hover": "0 18px 44px -12px rgb(0 0 0 / 0.6), 0 1px 2px rgb(0 0 0 / 0.3)",
+        /* Theme-aware: defined per theme in globals.css (no black shadows on light paper). */
+        card: "var(--shadow-card)",
+        "card-hover": "var(--shadow-card-hover)",
         primary: "0 8px 20px -8px rgb(var(--brand) / 0.55)",
-        focus: "0 0 0 3px rgb(var(--brand) / 0.35)",
+        /* Solid ring with a paper-coloured gap: >=3:1 against card and paper
+           in both themes (was a 35% brand wash at 2.0:1 dark, 1.33:1 light). */
+        focus: "0 0 0 2px rgb(var(--paper)), 0 0 0 4px rgb(var(--focus))",
       },
       borderRadius: {
         panel: "1.25rem",

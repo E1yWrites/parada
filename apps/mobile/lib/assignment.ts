@@ -36,3 +36,14 @@ export function upsertAssignment(
 ): ZoneAssignmentResponse[] {
   return [confirmed, ...(list ?? []).filter((assignment) => assignment.id !== confirmed.id)];
 }
+
+/**
+ * What an assignment does NOT do, stated wherever the driver acts on one.
+ * It keeps no space — only a reservation protects capacity
+ * (services/api/src/domain/reservation.ts) — and at a camera gate, entering
+ * another zone records a wrong-zone warning, then a fined violation
+ * (occupancy.ts / violations.ts). The fine is establishment-configured, so no
+ * amount is written here.
+ */
+export const ASSIGNMENT_TERMS =
+  "No space is kept for you. Entering another zone gets a wrong-zone warning, then a fine.";

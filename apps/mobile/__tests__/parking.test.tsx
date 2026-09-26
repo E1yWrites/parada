@@ -88,3 +88,11 @@ describe("home screen: active session banner", () => {
     expect(screen.queryByTestId("active-banner")).not.toBeOnTheScreen();
   });
 });
+
+describe("home screen: connection honesty", () => {
+  it("does not claim live availability when no realtime stream is connected", async () => {
+    renderWithProviders(<ParkingScreen />);
+    await waitFor(() => expect(screen.getByTestId("parking-screen-subtitle")).toHaveTextContent(/^Not live/));
+    expect(screen.queryByText(/live zone availability/i)).not.toBeOnTheScreen();
+  });
+});

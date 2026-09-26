@@ -5,7 +5,7 @@ import type { ComponentProps } from "react";
 import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
 import { motion, radii, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
-import { softColor } from "@/src/theme/colors";
+import { inkColor, softColor } from "@/src/theme/colors";
 import { Text } from "./Text";
 
 type StampProps = {
@@ -44,8 +44,8 @@ export function Stamp({ label, icon, color, testID }: StampProps) {
       testID={testID}
       accessibilityLabel={label}
       style={[styles.stamp, { backgroundColor: softColor(resolvedColor, colors), transform: [{ scale }] }]}>
-      <Ionicons name={icon} size={13} color={resolvedColor} />
-      <Text variant="micro" color={resolvedColor}>
+      <Ionicons name={icon} size={13} color={inkColor(resolvedColor, colors)} />
+      <Text variant="micro" color={inkColor(resolvedColor, colors)}>
         {label}
       </Text>
     </Animated.View>
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     alignSelf: "flex-start",
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm + 1,
+    paddingVertical: spacing.sm,
     borderRadius: radii.full,
   },
 });

@@ -1,4 +1,5 @@
 import { Text as RNText } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import { useQuery } from "@tanstack/react-query";
 import { fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
 import { ReservationPanel } from "@/src/components/ReservationPanel";
@@ -142,7 +143,7 @@ describe("reservation panel: zone gating", () => {
   it("hints to pick a zone and disables creation without one", async () => {
     renderWithProviders(<ReservationPanel selectedZone={null} />);
     expect(screen.getByTestId("reservation-zone-hint")).toHaveTextContent(
-      /Select a parking zone above/,
+      /Choose a zone above to reserve a space/,
     );
     const create = await screen.findByTestId("reservation-create");
     expect(create).toHaveTextContent("Select a zone");
@@ -238,20 +239,22 @@ describe("reservation panel: submission", () => {
     fireEvent.press(create);
     expect(api.createReservation).toHaveBeenCalledTimes(1);
     resolveCreate(reservation());
-    await waitFor(() => expect(screen.getByTestId("reservation-r1")).toBeOnTheScreen());
+    await waitFor(() => expect(screen.getByTestId("reservation-confirmed-notice")).toBeOnTheScreen());
   });
 
-  it("renders backend-confirmed state only after success (single list rendering)", async () => {
+  it("confirms from the backend response only after success, and keeps the live reservation out of History", async () => {
     (api.reservations as jest.Mock)
       .mockResolvedValueOnce([])
       .mockResolvedValue([reservation()]);
     renderWithProviders(<Harness />);
-    expect(screen.queryByTestId("reservation-r1")).not.toBeOnTheScreen();
+    expect(screen.queryByTestId("reservation-confirmed-notice")).not.toBeOnTheScreen();
     fireEvent.press(await screen.findByTestId("reservation-create"));
-    await waitFor(() => expect(screen.getByTestId("reservation-r1")).toBeOnTheScreen());
-    expect(screen.getByTestId("reservation-r1")).toHaveTextContent(/Zone A/);
-    expect(screen.getByTestId("reservation-r1")).toHaveTextContent(/ABC-1234/);
-    // The confirmed hold renders exactly once — no duplicate confirmation card.
+    await waitFor(() =>
+      expect(screen.getByTestId("reservation-confirmed-notice")).toHaveTextContent(/Reserved Zone A\. Space kept/),
+    );
+    // A live reservation is shown once, on Now — never also in the History list.
+    await waitFor(() => expect(api.reservations).toHaveBeenCalledTimes(2));
+    expect(screen.queryByTestId("reservation-r1")).not.toBeOnTheScreen();
     expect(screen.queryByTestId("reservation-confirmed")).not.toBeOnTheScreen();
   });
 
@@ -261,7 +264,7 @@ describe("reservation panel: submission", () => {
     );
     renderWithProviders(<Harness />);
     fireEvent.press(await screen.findByTestId("reservation-create"));
-    await waitFor(() => expect(screen.getByTestId("reservation-error")).toHaveTextContent(/no longer available/));
+    await waitFor(() => expect(screen.getByTestId("reservation-error")).toHaveTextContent(/can't take this reservation for that time/));
     expect(screen.queryByTestId("reservation-r1")).not.toBeOnTheScreen();
     expect(screen.queryByTestId("reservation-confirmed")).not.toBeOnTheScreen();
   });
@@ -276,7 +279,7 @@ describe("reservation panel: failures", () => {
     fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() =>
       expect(screen.getByTestId("reservation-error")).toHaveTextContent(
-        "This zone is no longer available for reservation. Please choose another zone.",
+        "Zone A can't take this reservation for that time. Try another time or zone.",
       ),
     );
     expect(screen.getByTestId("reservation-error")).not.toHaveTextContent(
@@ -340,20 +343,33 @@ describe("reservation panel: reservation list", () => {
     resolveList([]);
   });
 
-  it("shows an empty state when there are no reservations", async () => {
+  it("shows an empty state when there are no past reservations", async () => {
     renderWithProviders(<Harness />);
     await waitFor(() => expect(screen.getByTestId("reservations-empty")).toBeOnTheScreen());
-    expect(screen.getByText("No reservations yet")).toBeOnTheScreen();
+    expect(screen.getByText("No past reservations")).toBeOnTheScreen();
+    // No pointer to a control on another tab.
+    expect(screen.queryByText(/above|Switch to/)).toBeNull();
   });
 
-  it("renders reservations from backend data with status and times", async () => {
-    (api.reservations as jest.Mock).mockResolvedValue([listReservation]);
+  it("renders past reservations from backend data with status and window", async () => {
+    (api.reservations as jest.Mock).mockResolvedValue([{ ...listReservation, status: "CANCELLED" }]);
     renderWithProviders(<Harness />);
     const card = await screen.findByTestId("reservation-r1");
     expect(card).toHaveTextContent(/Zone A/);
     expect(card).toHaveTextContent(/ABC-1234/);
-    expect(screen.getByTestId("reservation-r1-status")).toHaveTextContent(/Confirmed/);
+    expect(screen.getByTestId("reservation-r1-status")).toHaveTextContent(/Cancelled/);
+    expect(screen.getByTestId("reservation-r1-window")).toHaveTextContent(/ – /);
   });
+
+  it.each(["PENDING", "CONFIRMED", "ACTIVE"] as const)(
+    "keeps a live %s reservation out of History (it is shown on Now)",
+    async (status) => {
+      (api.reservations as jest.Mock).mockResolvedValue([{ ...listReservation, status }]);
+      renderWithProviders(<Harness />);
+      await waitFor(() => expect(screen.getByTestId("reservations-empty")).toBeOnTheScreen());
+      expect(screen.queryByTestId("reservation-r1")).not.toBeOnTheScreen();
+    },
+  );
 
   it("shows an Expired status badge for a backend-expired reservation", async () => {
     (api.reservations as jest.Mock).mockResolvedValue([
@@ -364,35 +380,6 @@ describe("reservation panel: reservation list", () => {
     expect(screen.getByTestId("reservation-r1-status")).toHaveTextContent(/Expired/);
     // Expired reservations cannot be cancelled.
     expect(screen.queryByTestId("reservation-r1-cancel")).not.toBeOnTheScreen();
-  });
-
-  it("offers cancellation for a backend-ACTIVE reservation", async () => {
-    (api.reservations as jest.Mock).mockResolvedValue([
-      { ...listReservation, status: "ACTIVE" },
-    ]);
-    renderWithProviders(<Harness />);
-    await screen.findByTestId("reservation-r1");
-    expect(screen.getByTestId("reservation-r1-status")).toHaveTextContent(/Active/);
-    expect(screen.getByTestId("reservation-r1-cancel")).toBeOnTheScreen();
-  });
-
-  it("renders a cancellable reservation and hides cancellation once cancelled", async () => {
-    (api.reservations as jest.Mock).mockResolvedValue([listReservation]);
-    (api.cancelReservation as jest.Mock).mockResolvedValue({
-      ...listReservation,
-      status: "CANCELLED",
-    });
-    renderWithProviders(<Harness />);
-    await screen.findByTestId("reservation-r1");
-    expect(screen.getByTestId("reservation-r1-cancel")).toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId("reservation-r1-cancel"));
-    expect(screen.getByTestId("reservation-r1-cancel-confirm")).toHaveTextContent(
-      "Cancel this reservation?",
-    );
-    expect(api.cancelReservation).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByTestId("reservation-r1-cancel-confirm-btn"));
-    await waitFor(() => expect(api.cancelReservation).toHaveBeenCalledWith("r1"));
-    await waitFor(() => expect(screen.queryByTestId("reservation-r1-cancel")).not.toBeOnTheScreen());
   });
 
   it("does not offer cancellation when onCancel is unsupported", async () => {
@@ -412,18 +399,24 @@ describe("reservation panel: refresh after actions", () => {
     const zonesCalls = (api.zones as jest.Mock).mock.calls.length;
     fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() => expect(screen.getByTestId("harness-count")).toHaveTextContent("1"));
-    await waitFor(() => expect(screen.getByTestId("reservation-r1")).toBeOnTheScreen());
+    await waitFor(() => expect(screen.getByTestId("reservation-confirmed-notice")).toBeOnTheScreen());
     await waitFor(() =>
       expect((api.zones as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(zonesCalls + 1),
     );
   });
 
-  it("refreshes the list after cancellation", async () => {
-    (api.reservations as jest.Mock).mockResolvedValue([reservation()]);
+});
+
+describe("reservation panel: auth is never revoked by a failed reservation", () => {
+  // Moved here from the retired least-busy card: only an explicit 401 may
+  // invalidate credentials (CLAUDE.md).
+  it("keeps the stored token when the reservation fails with a non-401 error", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-alive");
+    (api.createReservation as jest.Mock).mockRejectedValue(new ApiError("BAD_GATEWAY", "The server is down.", 502));
     renderWithProviders(<Harness />);
-    await screen.findByTestId("reservation-r1");
-    fireEvent.press(screen.getByTestId("reservation-r1-cancel"));
-    fireEvent.press(screen.getByTestId("reservation-r1-cancel-confirm-btn"));
-    await waitFor(() => expect(api.reservations).toHaveBeenCalledTimes(2));
+    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await waitFor(() => expect(screen.getByTestId("reservation-error")).toBeOnTheScreen());
+    expect(await SecureStore.getItemAsync("parada.session.token")).toBe("tok-alive");
+    expect(screen.queryByText(/502|BAD_GATEWAY/)).toBeNull();
   });
 });

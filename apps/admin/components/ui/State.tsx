@@ -22,7 +22,7 @@ export function LoadingState({
   return (
     <div aria-busy="true" aria-live="polite" className="card p-5">
       <div className="flex items-center gap-2 text-muted">
-        <Loader2 className="h-4 w-4 animate-spin text-brand-dark" aria-hidden="true" />
+        <Loader2 className="h-4 w-4 animate-spin text-brand-ink" aria-hidden="true" />
         <span className="text-sm font-semibold">{label}</span>
       </div>
       <div className="mt-4 space-y-2.5" role="status">
@@ -43,10 +43,10 @@ export function LoadingState({
  */
 function Scene({ Icon, tone = "brand" }: { Icon: LucideIcon; tone?: "brand" | "danger" }) {
   const disc = tone === "danger" ? "bg-danger-soft" : "bg-brand-soft";
-  const glyph = tone === "danger" ? "text-danger" : "text-brand-dark";
+  const glyph = tone === "danger" ? "text-danger" : "text-brand-ink";
   return (
     <div className={`relative flex h-24 w-24 items-center justify-center rounded-full ${disc}`} aria-hidden="true">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl rounded-tr-[3px] border border-line bg-card shadow-card">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl rounded-tr-panel-cut border border-line bg-card shadow-card">
         <Icon className={`h-6 w-6 ${glyph}`} />
       </div>
       <span className="absolute -right-1 top-1 h-6 w-6 rounded-lg border border-line bg-card shadow-card" />
@@ -124,10 +124,10 @@ export function FullPageSpinner({ label = "Loading…" }: { label?: string }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-3">
       <div
-        className="flex h-14 w-14 items-center justify-center rounded-xl rounded-tr-[3px] border border-line bg-card shadow-card"
+        className="flex h-14 w-14 items-center justify-center rounded-xl rounded-tr-panel-cut border border-line bg-card shadow-card"
         aria-hidden="true"
       >
-        <Loader2 className="h-6 w-6 animate-spin text-brand-dark" />
+        <Loader2 className="h-6 w-6 animate-spin text-brand-ink" />
       </div>
       <p className="text-sm font-semibold text-muted">{label}</p>
     </div>

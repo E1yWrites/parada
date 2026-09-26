@@ -5,8 +5,8 @@ import { api } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionHeader } from "@/components/ui/Card";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { PlateChip, StatCard } from "@/components/ui/Badge";
-import { FacilityStrip } from "@/components/ui/MetricCard";
+import { PlateChip } from "@/components/ui/Badge";
+import { FacilityStrip, MetricCard } from "@/components/ui/MetricCard";
 
 export default function AnalyticsPage() {
   const analytics = useQuery({ queryKey: ["analytics"], queryFn: () => api.analytics(), refetchInterval: 60_000 });
@@ -21,10 +21,10 @@ export default function AnalyticsPage() {
         {analytics.data ? (
           <div className="space-y-6">
             <FacilityStrip label="Facility totals">
-              <StatCard label="Current occupancy" value={`${analytics.data.current.occupied} / ${analytics.data.current.capacity}`} detail="All zones" />
-              <StatCard label="Sessions" value={analytics.data.sessions.total} detail={`${analytics.data.sessions.active} active now`} tone="info" />
-              <StatCard label="Revenue" value={`₱${analytics.data.revenue.total.toFixed(2)}`} detail={`${analytics.data.revenue.fees} fee records`} tone="success" />
-              <StatCard label="Violations" value={analytics.data.violations} detail={`${analytics.data.reservations} reservations`} tone={analytics.data.violations > 0 ? "warn" : "neutral"} />
+              <MetricCard label="Current occupancy" value={`${analytics.data.current.occupied} / ${analytics.data.current.capacity}`} detail="All zones" />
+              <MetricCard label="Sessions" value={analytics.data.sessions.total} detail={`${analytics.data.sessions.active} active now`} accent="info" />
+              <MetricCard label="Revenue" value={`₱${analytics.data.revenue.total.toFixed(2)}`} detail={`${analytics.data.revenue.fees} fee records`} accent="green" />
+              <MetricCard label="Violations" value={analytics.data.violations} detail={`${analytics.data.reservations} reservations`} accent={analytics.data.violations > 0 ? "amber" : "none"} />
             </FacilityStrip>
 
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.4fr_1fr]">
@@ -41,7 +41,7 @@ export default function AnalyticsPage() {
                           <div className="occupancy-bar" aria-hidden="true">
                             <div className={`h-full rounded-full ${fill}`} style={{ width: `${Math.min(100, pct)}%` }} />
                           </div>
-                          <p className="mt-1.5 text-[11px] font-semibold text-muted">{zone.availableCount} open · {pct}%</p>
+                          <p className="mt-1.5 text-micro font-semibold text-muted">{zone.availableCount} open · {pct}%</p>
                         </div>
                         <p className="font-display text-sm font-black tabular-nums text-charcoal">
                           {zone.occupiedCount} <span className="font-bold text-muted">/ {zone.capacity}</span>

@@ -151,7 +151,7 @@ describe("zone assignment: zone selection gating", () => {
     renderWithProviders(<ZoneAssignmentPanel selectedZone={null} />);
 
     expect(screen.getByTestId("assignment-zone-hint")).toHaveTextContent(
-      "Select a parking zone above.",
+      "Choose a zone above.",
     );
     const submit = await screen.findByTestId("assignment-submit");
     expect(submit).toHaveTextContent("Select a zone");
@@ -166,8 +166,12 @@ describe("zone assignment: zone selection gating", () => {
     const submit = await screen.findByTestId("assignment-submit");
     expect(screen.getByTestId("assignment-summary")).toHaveTextContent(/Zone A/);
     expect(screen.getByTestId("assignment-summary")).toHaveTextContent(/8 spaces available/);
-    expect(submit).toHaveTextContent("Assign to Zone");
-    expect(submit.props.accessibilityLabel).toBe("Assign ABC-1234 to Zone A.");
+    expect(submit).toHaveTextContent("Go here");
+    // What an assignment does not do is stated before the driver commits.
+    expect(screen.getByTestId("assignment-terms")).toHaveTextContent(
+      "No space is kept for you. Entering another zone gets a wrong-zone warning, then a fine.",
+    );
+    expect(submit.props.accessibilityLabel).toBe("Go to Zone A with ABC-1234. No space is kept.");
     expect(submit.props.accessibilityState).toMatchObject({ disabled: false });
   });
 
@@ -342,7 +346,7 @@ describe("zone assignment: failures", () => {
     fireEvent.press(await screen.findByTestId("assignment-submit"));
 
     await waitFor(() => expect(screen.getByTestId("assignment-error")).toBeOnTheScreen());
-    expect(screen.getByText("This zone is no longer available. Please choose another zone.")).toBeOnTheScreen();
+    expect(screen.getByTestId("assignment-error")).toHaveTextContent(/can't take this car right now\. Choose another zone\./);
     expect(screen.queryByTestId("assignment-confirmed")).not.toBeOnTheScreen();
     expect(screen.queryByText(/409|CONFLICT|z1|cannot accept/)).not.toBeOnTheScreen();
   });
@@ -356,7 +360,7 @@ describe("zone assignment: failures", () => {
     fireEvent.press(await screen.findByTestId("assignment-submit"));
 
     await waitFor(() => expect(screen.getByTestId("assignment-error")).toBeOnTheScreen());
-    expect(screen.getByText("This vehicle already has an assigned zone.")).toBeOnTheScreen();
+    expect(screen.getByText("This car already has an assigned zone.")).toBeOnTheScreen();
     expect(screen.queryByText(/409|CONFLICT/)).not.toBeOnTheScreen();
   });
 

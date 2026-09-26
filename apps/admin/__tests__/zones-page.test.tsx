@@ -114,6 +114,25 @@ describe("Admin zones page — Phase 11A configuration", () => {
     await waitFor(() => {
       expect(mockedApi.updateZone).toHaveBeenCalledWith("z1", { status: "INACTIVE" });
     });
+    // Success is confirmed, not silent.
+    expect(await screen.findByRole("status")).toHaveTextContent("Zone A deactivated.");
+  });
+
+  it("names the zone in the toggle's accessible name and shows occupancy once", async () => {
+    mockedApi.zones.mockResolvedValue([zone]);
+    renderPage();
+    expect(await screen.findByRole("button", { name: "Deactivate Zone A" })).toBeInTheDocument();
+    // Available zones carry no status pill; the count and bar say it.
+    expect(screen.queryByText("Available")).not.toBeInTheDocument();
+    expect(screen.queryByText(/available ·/)).not.toBeInTheDocument();
+  });
+
+  it("returns focus to New zone when the form closes", async () => {
+    mockedApi.zones.mockResolvedValue([]);
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: /new zone/i }));
+    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /new zone/i })).toHaveFocus());
   });
 
   it("displays validation/API errors returned by the backend", async () => {
@@ -136,3 +155,12 @@ function mockFailedCreate(message: string) {
   const { ApiError } = jest.requireActual("@/lib/api/client");
   mockedApi.createZone.mockRejectedValue(new ApiError("CONFLICT", message, 409));
 }
+
+describe("Admin zones page — keyboard focus (found in the keyboard pass)", () => {
+  it("moves focus into the new-zone form when it opens", async () => {
+    mockedApi.zones.mockResolvedValue([]);
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: /new zone/i }));
+    await waitFor(() => expect(screen.getByPlaceholderText("Zone A")).toHaveFocus());
+  });
+});

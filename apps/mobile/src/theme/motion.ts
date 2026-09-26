@@ -13,8 +13,6 @@ export const motion = {
     base: 220,
     /** Live pulse cycle. */
     slow: 1200,
-    /** One leg of the ambient background drift (GradientMesh). Ongoing, not a one-shot moment. */
-    ambient: 18000,
   },
   easing: {
     out: Easing.out(Easing.cubic),

@@ -1,23 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Camera, Plus, Save, Power, Play, Pencil, X, AlertCircle } from "lucide-react";
 import { api, ApiError } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { OnlineBadge, Pill, PlateChip } from "@/components/ui/Badge";
-import { Card, SectionHeader } from "@/components/ui/Card";
+import { CameraEnabledBadge, Pill, PlateChip } from "@/components/ui/Badge";
+import { Card, SavedNote, SectionHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { formatDateTime } from "@/lib/format";
+import { EVENT_LABEL, GATE_LABEL, labelFor } from "@/lib/labels";
 import type { AdminCamera, AdminCameraEvent } from "@/lib/api/types";
 import type { AdminZoneDetail } from "@/lib/api/types";
 
-const GATE_META: Record<string, { label: string; tone: "neutral" | "info" | "success" }> = {
-  ENTRY: { label: "Entry", tone: "success" },
-  EXIT: { label: "Exit", tone: "info" },
-  BIDIRECTIONAL: { label: "Bidirectional", tone: "neutral" },
+const GATE_TONE: Record<string, "neutral" | "info" | "success"> = {
+  ENTRY: "success",
+  EXIT: "info",
+  BIDIRECTIONAL: "neutral",
 };
 
 interface FormState {
@@ -45,7 +46,7 @@ function CameraForm({
 }: {
   zones: AdminZoneDetail[];
   editing?: AdminCamera | null;
-  onDone: () => void;
+  onDone: (saved?: string) => void;
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState>(
@@ -61,6 +62,12 @@ function CameraForm({
       : EMPTY
   );
   const [error, setError] = useState<string | null>(null);
+  // Start keyboard users inside the form: Register unmounts while it is open,
+  // and Edit opens it above the row that was pressed. The identifier is fixed
+  // once registered, so an edit starts on the zone.
+  useEffect(() => {
+    document.getElementById(editing ? "camera-zone" : "camera-identifier")?.focus();
+  }, [editing]);
 
   const save = useMutation({
     mutationFn: () => {
@@ -83,7 +90,7 @@ function CameraForm({
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["cameras"] });
       queryClient.invalidateQueries({ queryKey: ["zones"] });
-      onDone();
+      onDone(editing ? `Camera ${editing.identifier} saved.` : `Camera ${form.identifier} registered.`);
     },
     onError: (err) => {
       setError(err instanceof ApiError ? err.message : "Unable to save this camera.");
@@ -102,9 +109,8 @@ function CameraForm({
     <Card className="mb-6 animate-fade-in">
       <SectionHeader
         title={editing ? `Edit ${editing.identifier}` : "Register camera"}
-        description="Direction and operational status are backend-authoritative."
         actions={
-          <Button variant="ghost" size="sm" onClick={onDone} disabled={save.isPending}>
+          <Button variant="ghost" size="sm" onClick={() => onDone()} disabled={save.isPending}>
             <X className="h-4 w-4" aria-hidden="true" />
             Close
           </Button>
@@ -151,7 +157,7 @@ function CameraForm({
           >
             <option value="ENTRY">Entry gate</option>
             <option value="EXIT">Exit gate</option>
-            <option value="BIDIRECTIONAL">Bidirectional gate</option>
+            <option value="BIDIRECTIONAL">Entry and exit gate</option>
           </select>
         </div>
         <div>
@@ -162,8 +168,8 @@ function CameraForm({
             value={form.status}
             onChange={(e) => setForm({ ...form, status: e.target.value as FormState["status"] })}
           >
-            <option value="ONLINE">Online (operational)</option>
-            <option value="OFFLINE">Offline (disabled)</option>
+            <option value="ONLINE">Enabled</option>
+            <option value="OFFLINE">Disabled</option>
           </select>
         </div>
         <div>
@@ -203,7 +209,7 @@ function CameraForm({
   );
 }
 
-function ToggleStatus({ camera }: { camera: AdminCamera }) {
+function ToggleStatus({ camera, onDone }: { camera: AdminCamera; onDone: (message: string) => void }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -213,6 +219,7 @@ function ToggleStatus({ camera }: { camera: AdminCamera }) {
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["cameras"] });
       queryClient.invalidateQueries({ queryKey: ["zones"] });
+      onDone(`Camera ${camera.identifier} ${camera.status === "ONLINE" ? "disabled" : "enabled"}.`);
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Unable to update this camera."),
   });
@@ -234,7 +241,8 @@ function ToggleStatus({ camera }: { camera: AdminCamera }) {
         size="sm"
         variant={camera.status === "ONLINE" ? "danger" : "success"}
         onClick={handleToggle}
-        disabled={toggle.isPending}
+        loading={toggle.isPending}
+        aria-label={`${camera.status === "ONLINE" ? "Disable" : "Enable"} camera ${camera.identifier}`}
       >
         {camera.status === "ONLINE" ? (
           <>
@@ -249,7 +257,7 @@ function ToggleStatus({ camera }: { camera: AdminCamera }) {
         )}
       </Button>
       {error ? (
-        <span role="alert" className="flex items-center gap-1 text-[11px] font-semibold text-danger">
+        <span role="alert" className="flex items-center gap-1 text-micro font-semibold text-danger">
           <AlertCircle className="h-3 w-3" aria-hidden="true" />
           {error}
         </span>
@@ -261,6 +269,18 @@ function ToggleStatus({ camera }: { camera: AdminCamera }) {
 export default function CamerasPage() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<AdminCamera | null>(null);
+  const [notice, setNotice] = useState<{ id: number; text: string } | null>(null);
+  const announce = (text: string) => setNotice((prev) => ({ id: (prev?.id ?? 0) + 1, text }));
+  // The trigger (Register or a row's Edit) unmounts or scrolls away while the
+  // form is open; return focus to it when the form closes.
+  const returnFocusTo = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!creating && returnFocusTo.current) {
+      const target = returnFocusTo.current;
+      returnFocusTo.current = null;
+      (document.contains(target) ? target : document.getElementById("register-camera"))?.focus();
+    }
+  }, [creating]);
 
   const cameras = useQuery({
     queryKey: ["cameras"],
@@ -273,16 +293,19 @@ export default function CamerasPage() {
   });
 
   const openCreate = () => {
+    returnFocusTo.current = document.activeElement as HTMLElement | null;
     setEditing(null);
     setCreating(true);
   };
   const openEdit = (camera: AdminCamera) => {
+    returnFocusTo.current = document.activeElement as HTMLElement | null;
     setCreating(true);
     setEditing(camera);
   };
-  const close = () => {
+  const close = (saved?: string) => {
     setCreating(false);
     setEditing(null);
+    if (saved) announce(saved);
   };
 
   const columns: Column<AdminCamera>[] = [
@@ -292,11 +315,11 @@ export default function CamerasPage() {
       cell: (c) => (
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-brand-soft">
-            <Camera className="h-4 w-4 text-brand-dark" aria-hidden="true" />
+            <Camera className="h-4 w-4 text-brand-ink" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <p className="font-mono text-sm font-bold text-charcoal">{c.identifier}</p>
-            <p className="truncate text-[11px] font-semibold text-muted">{c.name}</p>
+            <p className="truncate text-micro font-semibold text-muted">{c.name}</p>
           </div>
         </div>
       ),
@@ -309,15 +332,12 @@ export default function CamerasPage() {
     {
       key: "gate",
       header: "Gate",
-      cell: (c) => {
-        const meta = GATE_META[c.gateType] ?? GATE_META.BIDIRECTIONAL;
-        return <Pill tone={meta.tone}>{meta.label}</Pill>;
-      },
+      cell: (c) => <Pill tone={GATE_TONE[c.gateType] ?? "neutral"}>{labelFor(GATE_LABEL, c.gateType)}</Pill>,
     },
     {
       key: "status",
       header: "Status",
-      cell: (c) => <OnlineBadge online={c.status === "ONLINE"} />,
+      cell: (c) => <CameraEnabledBadge enabled={c.status === "ONLINE"} />,
     },
     {
       key: "lastEvent",
@@ -327,8 +347,8 @@ export default function CamerasPage() {
         return last ? (
           <div>
             <p className="font-mono text-xs font-bold text-charcoal">{last.detectedPlate ?? "Unknown"}</p>
-            <p className="text-[11px] font-semibold text-muted">
-              {last.eventType} · {formatDateTime(last.detectedAt)}
+            <p className="text-micro font-semibold text-muted">
+              {labelFor(EVENT_LABEL, last.eventType)} · {formatDateTime(last.detectedAt)}
             </p>
           </div>
         ) : (
@@ -343,11 +363,11 @@ export default function CamerasPage() {
       className: "text-right",
       cell: (c) => (
         <div className="flex items-center justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
+          <Button size="sm" variant="ghost" onClick={() => openEdit(c)} aria-label={`Edit camera ${c.identifier}`}>
             <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
             Edit
           </Button>
-          <ToggleStatus camera={c} />
+          <ToggleStatus camera={c} onDone={announce} />
         </div>
       ),
     },
@@ -360,13 +380,19 @@ export default function CamerasPage() {
         description="Register and configure the zone-gate cameras that count entries and exits."
         actions={
           creating ? null : (
-            <Button variant="primary" onClick={openCreate}>
+            <Button id="register-camera" variant="primary" onClick={openCreate}>
               <Plus className="h-4 w-4" aria-hidden="true" />
               Register camera
             </Button>
           )
         }
       />
+
+      {notice ? (
+        <p className="mb-4">
+          <SavedNote key={notice.id}>{notice.text}</SavedNote>
+        </p>
+      ) : null}
 
       {creating ? (
         <CameraForm zones={zones.data ?? []} editing={editing} onDone={close} />

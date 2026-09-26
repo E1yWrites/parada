@@ -7,7 +7,6 @@ import { spacing, tabClearance } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 import { Text } from "./Text";
-import { GradientMesh } from "./GradientMesh";
 import { IconButton } from "./IconButton";
 
 type ScreenProps = {
@@ -71,12 +70,18 @@ export function Screen({
               <Text
                 variant={back ? "section" : "hero"}
                 numberOfLines={back ? 1 : 2}
+                accessibilityRole="header"
                 testID={testID ? `${testID}-title` : undefined}>
                 {title}
               </Text>
             ) : null}
             {subtitle && !back ? (
-              <Text variant="caption" testID={testID ? `${testID}-subtitle` : undefined}>
+              // Polite live region: the connection line ("Live" / "Reconnecting…")
+              // is announced when it changes, not on every render.
+              <Text
+                variant="caption"
+                accessibilityLiveRegion="polite"
+                testID={testID ? `${testID}-subtitle` : undefined}>
                 {subtitle}
               </Text>
             ) : null}
@@ -96,15 +101,14 @@ export function Screen({
 
   const scrollView = (
     <SafeAreaView edges={["top"]} style={styles.safe}>
-      <GradientMesh testID={testID ? `${testID}-mesh` : undefined} />
       <ScrollView
         style={styles.flex}
         contentContainerStyle={[styles.padding, { paddingBottom: tabClearance(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         // Keyboard handling for forms: on iOS the scroll view adjusts its own
-        // content inset so only the content scrolls; the safe area, ambient
-        // background and header never resize. (A KeyboardAvoidingView with
+        // content inset so only the content scrolls; the safe area and
+        // header never resize. (A KeyboardAvoidingView with
         // `padding` shrank the whole screen on every keyboard-height change —
         // the QuickType / password bar toggles while typing — which made the
         // auth forms jump on each keystroke.) Android uses the window's
@@ -131,7 +135,6 @@ export function Screen({
       <SafeAreaView
         edges={["top"]}
         style={[styles.safe, styles.padding, { paddingBottom: tabClearance(insets.bottom) }]}>
-        <GradientMesh testID={testID ? `${testID}-mesh` : undefined} />
         {body}
       </SafeAreaView>
     );

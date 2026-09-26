@@ -11,8 +11,13 @@ export function usePrefersReducedMotion(): boolean {
         setReduced(value);
       }
     });
+    // Follow the OS toggle while the app runs (it used to be read once).
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", (value: boolean) => {
+      setReduced(value);
+    });
     return () => {
       active = false;
+      subscription?.remove();
     };
   }, []);
   return reduced;

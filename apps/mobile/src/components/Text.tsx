@@ -30,6 +30,8 @@ type TextProps = {
   numberOfLines?: number;
   accessibilityLabel?: string;
   accessibilityRole?: AccessibilityRole;
+  /** Announce changes to this text (Android live region; e.g. a connection line). */
+  accessibilityLiveRegion?: "none" | "polite" | "assertive";
   /** Cap font scaling so fixed layouts (plates, badges, heros) never blow out.
    *  Defaults to 1.8. Pass a larger value (e.g. 2) on screens that must scale
    *  further for accessibility. */
@@ -128,6 +130,7 @@ export function Text({
   numberOfLines,
   accessibilityLabel,
   accessibilityRole,
+  accessibilityLiveRegion,
   maxFontSizeMultiplier = 1.8,
   style,
   testID,
@@ -139,6 +142,7 @@ export function Text({
       testID={testID}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={accessibilityRole}
+      accessibilityLiveRegion={accessibilityLiveRegion}
       numberOfLines={numberOfLines}
       maxFontSizeMultiplier={maxFontSizeMultiplier}
       style={[

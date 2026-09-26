@@ -5,7 +5,7 @@ import { Text } from "./Text";
 import { ViolationBadge } from "./StatusBadge";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import type { ViolationResponse } from "@parada/types";
-import { spacing } from "@/src/theme";
+import { fontSizes, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 
 type ViolationCardProps = {
@@ -71,6 +71,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   fine: {
-    fontSize: 15,
+    fontSize: fontSizes.body,
   },
 });

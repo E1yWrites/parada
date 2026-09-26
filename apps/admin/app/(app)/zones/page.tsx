@@ -1,31 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, DoorOpen, DoorClosed, Plus, Power, Play, Save, AlertCircle, X } from "lucide-react";
+import { LogIn, LogOut, Plus, Power, Play, Save, AlertCircle, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api/client";
 import { parseCoordinates } from "@/lib/coordinates";
 import { PageHeader } from "@/components/PageHeader";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { AvailabilityBadge, PlateChip, AVAILABILITY_BAR } from "@/components/ui/Badge";
+import { AvailabilityBadge, PlateChip } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Card, SectionHeader } from "@/components/ui/Card";
-import { formatPct } from "@/lib/format";
+import { Card, SavedNote, SectionHeader } from "@/components/ui/Card";
+import { OccupancyBar } from "@/components/ui/OccupancyBar";
 import type { AdminZoneCreateInput, AdminZoneDetail } from "@/lib/api/types";
 
-function OccupancyBar({ pct, availability }: { pct: number; availability: AdminZoneDetail["availability"] }) {
-  return (
-    <div className="occupancy-bar" aria-hidden="true">
-      <div
-        className={`h-full rounded-full ${AVAILABILITY_BAR[availability]} transition-[width] duration-500 ease-out`}
-        style={{ width: `${Math.min(100, pct)}%` }}
-      />
-    </div>
-  );
-}
-
-function CreateZoneForm({ onCreated, onClose }: { onCreated: () => void; onClose: () => void }) {
+function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => void; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<AdminZoneCreateInput>({
     name: "",
@@ -34,6 +23,12 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: () => void; onClose
     capacity: 10,
     status: "ACTIVE",
   });
+  const nameRef = useRef<HTMLInputElement>(null);
+  // The "New zone" trigger unmounts while the form is open, so focus would
+  // otherwise fall to <body>; start keyboard users on the first field.
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
   const [navigationLat, setNavigationLat] = useState("");
   const [navigationLng, setNavigationLng] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -46,13 +41,13 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: () => void; onClose
       }
       return api.createZone({ ...form, ...navigation });
     },
-    onSuccess: () => {
+    onSuccess: (created) => {
       setForm({ name: "", code: "", description: "", capacity: 10, status: "ACTIVE" });
       setNavigationLat("");
       setNavigationLng("");
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["zones"] });
-      onCreated();
+      onCreated(created?.name ?? form.name);
     },
     onError: (err) => {
       setError(err instanceof ApiError ? err.message : "Unable to save this zone.");
@@ -69,7 +64,7 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: () => void; onClose
     <Card className="mb-6 animate-fade-in">
       <SectionHeader
         title="New zone"
-        description="Capacity is the authoritative availability number for this zone."
+        description="Capacity sets how many cars this zone accepts."
         actions={
           <Button variant="ghost" size="sm" onClick={onClose} disabled={create.isPending}>
             <X className="h-4 w-4" aria-hidden="true" />
@@ -83,6 +78,7 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: () => void; onClose
             Name
           </label>
           <input
+            ref={nameRef}
             id="zone-name"
             className="input"
             value={form.name}
@@ -176,16 +172,17 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: () => void; onClose
   );
 }
 
-function ZoneStatusToggle({ zone }: { zone: AdminZoneDetail }) {
+function ZoneStatusToggle({ zone, onDone }: { zone: AdminZoneDetail; onDone: (message: string) => void }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
   const toggle = useMutation({
     mutationFn: () =>
       api.updateZone(zone.id, { status: zone.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" }),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["zones"] });
+      onDone(`${zone.name} ${updated?.status === "INACTIVE" || zone.status === "ACTIVE" ? "deactivated" : "activated"}.`);
     },
     onError: (err) => {
       setError(err instanceof ApiError ? err.message : "Unable to update this zone.");
@@ -214,9 +211,9 @@ function ZoneStatusToggle({ zone }: { zone: AdminZoneDetail }) {
       <Button
         variant={zone.status === "ACTIVE" ? "danger" : "success"}
         size="sm"
-        title={zone.status === "ACTIVE" ? "Deactivate zone" : "Activate zone"}
+        aria-label={zone.status === "ACTIVE" ? `Deactivate ${zone.name}` : `Activate ${zone.name}`}
         onClick={handleToggle}
-        disabled={toggle.isPending}
+        loading={toggle.isPending}
       >
         {zone.status === "ACTIVE" ? (
           <>
@@ -236,6 +233,16 @@ function ZoneStatusToggle({ zone }: { zone: AdminZoneDetail }) {
 
 export default function ZonesPage() {
   const [creating, setCreating] = useState(false);
+  const [notice, setNotice] = useState<{ id: number; text: string } | null>(null);
+  const newZoneRef = useRef<HTMLButtonElement>(null);
+  const wasCreating = useRef(false);
+  // The "New zone" button unmounts while the form is open; hand focus back
+  // to it when the form closes instead of dropping it on <body>.
+  useEffect(() => {
+    if (wasCreating.current && !creating) newZoneRef.current?.focus();
+    wasCreating.current = creating;
+  }, [creating]);
+  const announce = (text: string) => setNotice((prev) => ({ id: (prev?.id ?? 0) + 1, text }));
   const zones = useQuery({
     queryKey: ["zones"],
     queryFn: () => api.zones(),
@@ -246,10 +253,10 @@ export default function ZonesPage() {
     <div>
       <PageHeader
         title="Zones"
-        description="Zones define the authoritative capacity. Physical spaces are layout only and never drive occupancy."
+        description="Capacity sets how many cars each zone accepts. Physical spaces are layout only."
         actions={
           creating ? null : (
-            <Button variant="primary" onClick={() => setCreating(true)}>
+            <Button ref={newZoneRef} variant="primary" onClick={() => setCreating(true)}>
               <Plus className="h-4 w-4" aria-hidden="true" />
               New zone
             </Button>
@@ -257,7 +264,21 @@ export default function ZonesPage() {
         }
       />
 
-      {creating ? <CreateZoneForm onCreated={() => setCreating(false)} onClose={() => setCreating(false)} /> : null}
+      {notice ? (
+        <p className="mb-4">
+          <SavedNote key={notice.id}>{notice.text}</SavedNote>
+        </p>
+      ) : null}
+
+      {creating ? (
+        <CreateZoneForm
+          onCreated={(name) => {
+            setCreating(false);
+            announce(`Zone ${name} created.`);
+          }}
+          onClose={() => setCreating(false)}
+        />
+      ) : null}
 
       <QueryBoundary
         status={zones.status}
@@ -271,9 +292,9 @@ export default function ZonesPage() {
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
           {zones.data?.map((z) => (
             <Card key={z.id} className="flex flex-col">
+              {/* No aria-label: the link's own text (name, count, status, cameras) is its name. */}
               <Link
                 href={`/zones/${z.id}`}
-                aria-label={`View zone ${z.name}`}
                 className="card-hover block rounded-t-panel p-5 focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -281,34 +302,27 @@ export default function ZonesPage() {
                     <PlateChip>{z.code}</PlateChip>
                     <p className="truncate font-display text-base font-black text-charcoal">{z.name}</p>
                   </div>
-                  <AvailabilityBadge value={z.availability} />
+                  {z.availability !== "AVAILABLE" ? <AvailabilityBadge value={z.availability} /> : null}
                 </div>
 
-                <div className="mt-5 flex items-end justify-between gap-3">
-                  <p className="font-display text-3xl font-black leading-none tabular-nums text-charcoal">
-                    <span>{z.occupiedCount}</span>
-                    <span className="text-base font-bold text-muted"> / {z.capacity}</span>
-                  </p>
-                  <p className="text-xs font-semibold text-muted">
-                    {z.availableCount} available · {formatPct(z.occupancyPct)}
-                  </p>
-                </div>
-                <div className="mt-2.5">
+                {/* Occupancy once: the count, and the bar that draws it. */}
+                <p className="mt-5 font-display text-3xl font-black leading-none tabular-nums text-charcoal">
+                  <span>{z.occupiedCount}</span>
+                  <span className="text-base font-bold text-muted"> / {z.capacity} occupied</span>
+                </p>
+                <div className="mt-3">
                   <OccupancyBar pct={z.occupancyPct} availability={z.availability} />
                 </div>
 
-                <div className="mt-4 flex items-center justify-between gap-3 text-xs font-semibold text-muted">
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
-                    <span className="flex items-center gap-1.5">
-                      <DoorClosed className="h-4 w-4 text-charcoal" aria-hidden="true" />
-                      {z.entryCamera ? <span className="font-mono">{z.entryCamera.identifier}</span> : "No entry cam"}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <DoorOpen className="h-4 w-4 text-charcoal" aria-hidden="true" />
-                      {z.exitCamera ? <span className="font-mono">{z.exitCamera.identifier}</span> : "No exit cam"}
-                    </span>
-                  </div>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+                <div className="mt-4 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-muted">
+                  <span className="flex items-center gap-1.5">
+                    <LogIn className="h-4 w-4 text-charcoal" aria-hidden="true" />
+                    {z.entryCamera ? <span className="font-mono">{z.entryCamera.identifier}</span> : "No entry camera"}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <LogOut className="h-4 w-4 text-charcoal" aria-hidden="true" />
+                    {z.exitCamera ? <span className="font-mono">{z.exitCamera.identifier}</span> : "No exit camera"}
+                  </span>
                 </div>
               </Link>
 
@@ -316,7 +330,7 @@ export default function ZonesPage() {
                 <p className="text-xs font-semibold text-muted">
                   {z.physicalInventory.active} of {z.physicalInventory.total} physical spaces active
                 </p>
-                <ZoneStatusToggle zone={z} />
+                <ZoneStatusToggle zone={z} onDone={announce} />
               </div>
             </Card>
           ))}

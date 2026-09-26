@@ -82,7 +82,7 @@ export function Input({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={colors.faint}
+          placeholderTextColor={colors.muted}
           secureTextEntry={secure}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -218,7 +218,7 @@ function buildStyles(colors: ColorTokens) {
       minHeight: touchTarget,
       color: colors.foreground,
       fontFamily: fonts.bodyMedium,
-      fontSize: fontSizes.body + 1,
+      fontSize: fontSizes.section,
       paddingVertical: spacing.lg,
     },
     inputDisabled: {

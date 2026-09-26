@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { radii } from "@/src/theme";
 import { useColors, useThemeShadows } from "@/src/providers/ThemeProvider";
-import { GradientMesh } from "./GradientMesh";
 
 /** Full-viewport centered loader (used while fonts / session bootstrap). */
 export function FullScreenLoading({ testID }: { testID?: string }) {
@@ -34,7 +33,6 @@ export function FullScreenLoading({ testID }: { testID?: string }) {
   );
   return (
     <View style={styles.container} testID={testID}>
-      <GradientMesh />
       <View style={styles.tile}>
         <ActivityIndicator color={colors.primary} size="large" />
       </View>

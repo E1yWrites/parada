@@ -23,7 +23,7 @@ function buildSlides(colors: ColorTokens): Slide[] {
       illustration: "zones",
       wash: colors.primary,
       title: "See what's open before you drive in.",
-      body: "Live zone-level availability from gate cameras — no guessing, no circling the lot.",
+      body: "Zone availability counted from gate-camera entries and exits — no guessing, no circling the lot.",
     },
     {
       illustration: "reserve",

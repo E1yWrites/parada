@@ -4,7 +4,7 @@
     "slug": "parada-mobile",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "platforms": ["ios", "android"],
     "scheme": "parada",
     "icon": "./assets/brand/icon-1024.png",

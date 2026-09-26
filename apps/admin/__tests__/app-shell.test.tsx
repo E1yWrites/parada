@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { AppShell } from "@/components/AppShell";
 
 jest.mock("next/navigation", () => ({
@@ -64,7 +64,8 @@ describe("AppShell — role protection", () => {
     );
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
     expect(screen.getByText("Simulator")).toBeInTheDocument();
-    expect(screen.getByText("Logout")).toBeInTheDocument();
+    // Exactly one way out (it used to appear twice at once).
+    expect(screen.getAllByRole("button", { name: /log ?out/i })).toHaveLength(1);
   });
 
   it("marks the active route with aria-current on the soft active container", () => {
@@ -77,23 +78,92 @@ describe("AppShell — role protection", () => {
     expect(screen.getByRole("link", { name: /dashboard/i })).toHaveAttribute("aria-current", "page");
   });
 
-  it("expands and collapses navigation groups with aria-expanded state", () => {
-    setAuth({ user: { id: "u1", email: "admin@parada.local", role: "ADMIN" } as never, loading: false });
+  it("shows every operational page without expanding anything", () => {
+    setAuth({ user: { id: "u1", name: "Ari Admin", email: "admin@parada.local", role: "ADMIN" } as never, loading: false });
     render(
       <AppShell>
         <div>content</div>
       </AppShell>
     );
-    const toggle = screen.getByRole("button", { name: /parking operations/i });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("link", { name: /zones/i })).not.toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    for (const name of ["Dashboard", "Zones", "Cameras", "Sessions", "Reservations", "Violations", "Appeals", "Anomalies"]) {
+      expect(within(nav).getByRole("link", { name })).toBeInTheDocument();
+    }
+    // Groups are headings, not toggles.
+    expect(within(nav).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(nav).getByRole("heading", { name: "Monitor" })).toBeInTheDocument();
+    // One name for /sessions.
+    expect(within(nav).getByRole("link", { name: "Sessions" })).toHaveAttribute("href", "/sessions");
+    expect(within(nav).queryByRole("link", { name: "Vehicles" })).not.toBeInTheDocument();
+  });
 
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("link", { name: /zones/i })).toBeInTheDocument();
+  it("has one identity (linking to Account) and one Log out", () => {
+    const signOut = jest.fn();
+    setAuth({ user: { id: "u1", name: "Ari Admin", email: "admin@parada.local", role: "ADMIN" } as never, loading: false, signOut });
+    render(
+      <AppShell>
+        <div>content</div>
+      </AppShell>
+    );
+    expect(screen.getAllByRole("link", { name: /account: ari admin/i })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: /account: ari admin/i })).toHaveAttribute("href", "/account");
+    expect(screen.getAllByText("Ari Admin")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Log out" }));
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
 
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("link", { name: /zones/i })).not.toBeInTheDocument();
+  it("offers a skip link to the main content as the first focusable element", () => {
+    setAuth({ user: { id: "u1", name: "Ari Admin", email: "admin@parada.local", role: "ADMIN" } as never, loading: false });
+    const { container } = render(
+      <AppShell>
+        <div>content</div>
+      </AppShell>
+    );
+    const first = container.querySelector("a[href], button");
+    expect(first).toHaveTextContent("Skip to content");
+    expect(first).toHaveAttribute("href", "#main");
+    expect(screen.getByRole("main")).toHaveAttribute("id", "main");
+  });
+
+  it("opens the menu as a dialog that closes on Escape and returns focus", () => {
+    setAuth({ user: { id: "u1", name: "Ari Admin", email: "admin@parada.local", role: "ADMIN" } as never, loading: false });
+    render(
+      <AppShell>
+        <div>content</div>
+      </AppShell>
+    );
+    const opener = screen.getByRole("button", { name: "Open menu" });
+    opener.focus();
+    fireEvent.click(opener);
+    const dialog = screen.getByRole("dialog", { name: "Menu" });
+    expect(within(dialog).getByRole("navigation", { name: "Primary (menu)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close menu" })).toHaveFocus();
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
+  it("draws the active pill once a sidebar hidden at first paint becomes visible (window widened)", () => {
+    setAuth({ user: { id: "u1", name: "Ari Admin", email: "admin@parada.local", role: "ADMIN" } as never, loading: false });
+    let visible = false;
+    const spy = jest.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const h = visible && this.tagName === "A" ? 40 : 0;
+      return { top: 0, left: 0, right: 0, bottom: h, width: 0, height: h, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+    });
+    const { container } = render(
+      <AppShell>
+        <div>content</div>
+      </AppShell>
+    );
+    const pill = () => container.querySelector('nav[aria-label="Primary"] span.bg-brand-soft');
+    expect(pill()).toBeNull();
+
+    visible = true;
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(pill()).not.toBeNull();
+    spy.mockRestore();
   });
 });

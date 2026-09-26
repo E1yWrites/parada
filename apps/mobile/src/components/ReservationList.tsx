@@ -1,36 +1,28 @@
 import { StyleSheet, View } from "react-native";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ErrorState, LoadingState } from "./StateComponents";
 import { SectionHeader } from "./SectionHeader";
 import { ReservationCard } from "./ReservationCard";
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
+import type { ReservationResponse } from "@parada/types";
 import { spacing } from "@/src/theme";
 
+/** Reservations that are over: they no longer keep a space. */
+const PAST: ReadonlySet<ReservationResponse["status"]> = new Set(["EXPIRED", "CANCELLED"]);
+
 /**
- * Status list for the driver's reservations — independent of which parking
- * action (assign/reserve) is currently selected above, so a live reservation
- * never disappears just because the driver switched to "Park now".
- * Cancellation is an explicit two-tap acknowledgement against
- * PATCH /reservations/:id/cancel.
+ * Past reservations for the History tab — read-only. A live reservation
+ * (PENDING / CONFIRMED / ACTIVE) is shown once, on the Now tab, with its
+ * Navigate and Cancel actions; it never appears here too.
  */
 export function ReservationList() {
-  const queryClient = useQueryClient();
   const reservations = useQuery({ queryKey: queryKeys.reservations, queryFn: api.reservations });
-
-  const cancel = useMutation({
-    mutationFn: (id: string) => api.cancelReservation(id),
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.reservations });
-      // Cancelling releases the zone's protected capacity, so the availability
-      // the zones grid shows moved.
-      void queryClient.invalidateQueries({ queryKey: queryKeys.zones });
-    },
-  });
+  const past = (reservations.data ?? []).filter((reservation) => PAST.has(reservation.status));
 
   return (
     <View style={styles.section} testID="reservation-list-section">
-      <SectionHeader title="My reservations" caption="Status from the parking service" testID="reservations-header" />
+      <SectionHeader title="Past reservations" testID="reservations-header" />
 
       {reservations.isPending ? (
         <LoadingState label="Loading your reservations…" testID="reservations-loading" />
@@ -44,28 +36,19 @@ export function ReservationList() {
           onRetry={() => void reservations.refetch()}
           testID="reservations-error"
         />
-      ) : reservations.data && reservations.data.length === 0 ? (
+      ) : past.length === 0 ? (
         <EmptyState
           compact
           illustration="reserve"
-          title="No reservations yet"
-          description="Switch to Reserve above to hold a spot for your arrival."
+          title="No past reservations"
+          description="Expired and cancelled reservations appear here."
           testID="reservations-empty"
         />
       ) : (
         <View style={styles.list} testID="reservations-list">
-          {(reservations.data ?? []).map((reservation) => {
-            const isCancelling = cancel.variables === reservation.id && cancel.isPending;
-            return (
-              <ReservationCard
-                key={reservation.id}
-                reservation={reservation}
-                cancelling={isCancelling}
-                onCancel={() => cancel.mutate(reservation.id)}
-                testID={`reservation-${reservation.id}`}
-              />
-            );
-          })}
+          {past.map((reservation) => (
+            <ReservationCard key={reservation.id} reservation={reservation} testID={`reservation-${reservation.id}`} />
+          ))}
         </View>
       )}
     </View>
