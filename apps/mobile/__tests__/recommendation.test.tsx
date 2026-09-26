@@ -135,17 +135,28 @@ describe("parking recommendation: states", () => {
 
     await waitFor(() => expect(screen.getByTestId("recommendation-zone")).toBeOnTheScreen());
     expect(screen.getByTestId("recommendation-zone").props.accessibilityLabel).toBe(
-      "Recommended Zone B. 12 spaces available. 40 percent occupied.",
+      // The pick is the global lowest-occupancy zone, so it is named that — not "recommended for you".
+      "Least busy zone: Zone B. 12 spaces available. 40 percent occupied.",
     );
   });
 
-  it("labels the accept button with the recommended zone", async () => {
+  it("labels the accept button with its domain effect and the zone", async () => {
     renderWithProviders(<ParkingRecommendation />);
 
     await waitFor(() => expect(screen.getByTestId("accept-recommendation")).toBeOnTheScreen());
     expect(screen.getByTestId("accept-recommendation").props.accessibilityLabel).toBe(
-      "Reserve recommended Zone B.",
+      "Reserve a space in Zone B",
     );
+  });
+
+  it("makes no personal or misleading suggestion claims", async () => {
+    renderWithProviders(<ParkingRecommendation />);
+
+    await waitFor(() => expect(screen.getByTestId("recommendation-card")).toBeOnTheScreen());
+    expect(screen.getByText("Least busy zone")).toBeOnTheScreen();
+    expect(screen.queryByText(/recommended for you/i)).not.toBeOnTheScreen();
+    expect(screen.queryByText(/suggestion only/i)).not.toBeOnTheScreen();
+    expect(screen.queryByText(/Park tab/)).not.toBeOnTheScreen();
   });
 
   it("offers a way to choose a different zone on the Park tab", async () => {
@@ -162,7 +173,7 @@ describe("parking recommendation: states", () => {
     renderWithProviders(<ParkingRecommendation />);
 
     await waitFor(() => expect(screen.getByTestId("recommendation-empty")).toBeOnTheScreen());
-    expect(screen.getByText("No suitable parking zone is currently available.")).toBeOnTheScreen();
+    expect(screen.getByText("Every active zone is full, or no zone is open.")).toBeOnTheScreen();
     expect(screen.queryByTestId("accept-recommendation")).not.toBeOnTheScreen();
   });
 
@@ -173,7 +184,7 @@ describe("parking recommendation: states", () => {
     renderWithProviders(<ParkingRecommendation />);
 
     await waitFor(() => expect(screen.getByTestId("recommendation-empty")).toBeOnTheScreen());
-    expect(screen.getByText("No suitable parking zone is currently available.")).toBeOnTheScreen();
+    expect(screen.getByText("Every active zone is full, or no zone is open.")).toBeOnTheScreen();
     expect(screen.queryByText(/409|CONFLICT|No suitable zone is currently available\./)).not.toBeOnTheScreen();
   });
 

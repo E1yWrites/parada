@@ -156,6 +156,7 @@ function buildStyles(colors: ColorTokens) {
       gap: spacing.md,
       paddingHorizontal: spacing.xl2,
       borderRadius: radii.md,
+      borderTopRightRadius: radii.cut,
       backgroundColor: colors.primarySoft,
     },
     retryPressed: {

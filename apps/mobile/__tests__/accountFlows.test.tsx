@@ -526,7 +526,7 @@ describe("vehicle edit / unregister screen", () => {
 });
 
 describe("accepted recommendation: cancel from the parking screen", () => {
-  it("cancels through the API and the current state falls back to 'No active parking'", async () => {
+  it("cancels through the API and the current state falls back to 'Nothing planned'", async () => {
     (api.assignments as jest.Mock).mockResolvedValue([assignment]);
     (api.cancelAssignment as jest.Mock).mockImplementation(async (id: string) => {
       (api.assignments as jest.Mock).mockResolvedValue([{ ...assignment, status: "CANCELLED" }]);

@@ -17,7 +17,7 @@ import { VehiclePicker, useVehicleSelection } from "./VehicleSelection";
 import { api, ApiError, type CreateReservationInput } from "@/lib/api/client";
 import { currentReservationFrom, upsertReservation } from "@/lib/current";
 import type { ReservationResponse } from "@parada/types";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, plural } from "@/lib/format";
 import { ZONE_NAVIGATION_UNCONFIGURED, type NavigationDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
 import { radii, spacing } from "@/src/theme";
@@ -104,8 +104,8 @@ export function ParkingRecommendation({
       ? Math.round((recommended.occupiedCount / recommended.capacity) * 100)
       : 0;
   const summary = recommended
-    ? `Recommended ${recommended.name}. ${recommended.availableCount} spaces available. ${percent} percent occupied.`
-    : "Recommended parking zone unavailable.";
+    ? `Least busy zone: ${recommended.name}. ${plural(recommended.availableCount, "space")} available. ${percent} percent occupied.`
+    : "Least busy zone unavailable.";
 
   const retryRecommendation = () => {
     void recommendation.refetch();
@@ -127,12 +127,10 @@ export function ParkingRecommendation({
   return (
     <View style={styles.section} testID="parking-recommendation">
       <SectionHeader
-        title={confirmedReservation ? "Your reservation" : "Recommended for you"}
-        caption={
-          confirmedReservation
-            ? "Confirmed by the parking service"
-            : "Suggestion only - does not reserve a spot"
-        }
+        // The pick is global — the active zone with the lowest occupied/capacity
+        // ratio (services/api/src/domain/zones.ts) — not personal, not daily.
+        title={confirmedReservation ? "Your reservation" : "Least busy zone"}
+        caption={confirmedReservation ? "Confirmed by the parking service" : "Lowest occupancy right now"}
         testID="recommendation-header"
       />
 
@@ -154,13 +152,13 @@ export function ParkingRecommendation({
           <View style={[styles.windowBox, { backgroundColor: withAlpha(colors.surface, 0.7) }]}>
             <Ionicons name="time-outline" size={14} color={colors.success} />
             <Text variant="caption" color={colors.foreground} style={styles.inlineText} testID="reservation-confirmed-window">
-              Start {formatDateTime(confirmedReservation.startAt)} · End {formatDateTime(confirmedReservation.endAt)}
+              Space kept {formatDateTime(confirmedReservation.startAt)} – {formatDateTime(confirmedReservation.endAt)}
             </Text>
           </View>
           {!destinationReady ? null : (
             <NavigateButton
               destination={navigationDestination}
-              label="Navigate to reserved zone"
+              label={`Navigate to ${confirmedReservation.zone.name}`}
               primary
               unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
               testID="reservation-confirmed-navigate"
@@ -168,13 +166,13 @@ export function ParkingRecommendation({
           )}
         </GlassCard>
       ) : recommendation.isPending ? (
-        <LoadingState label="Finding the best zone…" testID="recommendation-loading" />
+        <LoadingState label="Loading…" testID="recommendation-loading" />
       ) : recommendation.isError && !isUnavailable ? (
         <ErrorState
           message={
             recommendation.error instanceof ApiError
               ? recommendation.error.message
-              : "Couldn't load a parking recommendation."
+              : "Couldn't load zone availability."
           }
           onRetry={retryRecommendation}
           testID="recommendation-error"
@@ -183,12 +181,12 @@ export function ParkingRecommendation({
         <EmptyState
           illustration="zones"
           title="No zones available"
-          description="No suitable parking zone is currently available."
+          description="Every active zone is full, or no zone is open."
           testID="recommendation-empty">
           <Button
             variant="secondary"
             title="Retry"
-            accessibilityLabel="Retry loading parking recommendation."
+            accessibilityLabel="Retry loading zone availability."
             onPress={retryRecommendation}
             testID="recommendation-empty-retry"
           />
@@ -196,7 +194,6 @@ export function ParkingRecommendation({
       ) : (
         <GlassCard style={styles.card} wash={colors.success} testID="recommendation-card">
           <View accessible accessibilityLabel={summary} testID="recommendation-zone" style={styles.zoneBlock}>
-            <Stamp label="Recommended" icon="sparkles" color={colors.success} />
             <View style={styles.zoneRow}>
               <View style={styles.zoneText}>
                 <Text variant="hero" numberOfLines={2}>
@@ -224,8 +221,8 @@ export function ParkingRecommendation({
             selection={selection}
             testIDPrefix="recommendation"
             chooseLabel="CHOOSE VEHICLE"
-            chooseHint="Choose a vehicle to accept."
-            emptyPrompt="Add a vehicle first to accept a recommendation."
+            chooseHint="Choose a vehicle to reserve with."
+            emptyPrompt="Add a vehicle first to reserve a space."
             chipTestID={(vehicleId) => `vehicle-choice-${vehicleId}`}
           />
 
@@ -240,8 +237,7 @@ export function ParkingRecommendation({
           {activeVehicles.length > 0 ? (
             <View style={styles.actions}>
               <Button
-                title="Reserve Recommended Zone"
-                accessibilityLabel={`Reserve recommended ${recommended.name}.`}
+                title={`Reserve a space in ${recommended.name}`}
                 onPress={handleAccept}
                 loading={create.isPending}
                 disabled={selectedVehicle === null}
@@ -249,8 +245,7 @@ export function ParkingRecommendation({
               />
               <Button
                 variant="ghost"
-                title="Choose Another Zone"
-                accessibilityLabel="Choose a different zone on the Park tab."
+                title="See all zones"
                 onPress={handleChooseAnother}
                 testID="recommendation-choose-other"
               />
@@ -299,6 +294,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     borderRadius: radii.sm,
+    borderTopRightRadius: radii.cut,
     padding: spacing.lg,
   },
   inlineText: {

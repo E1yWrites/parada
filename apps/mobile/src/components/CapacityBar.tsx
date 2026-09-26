@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { Text } from "./Text";
-import { radii, spacing } from "@/src/theme";
+import { fontSizes, radii, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 
@@ -75,7 +75,7 @@ function buildStyles(colors: ColorTokens) {
     value: {
       flexShrink: 1,
       textAlign: "right",
-      fontSize: 12,
+      fontSize: fontSizes.micro,
     },
     track: {
       height: 8,

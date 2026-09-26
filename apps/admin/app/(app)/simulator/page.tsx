@@ -166,7 +166,7 @@ export default function SimulatorPage() {
             ) : null}
 
             {activeScenario.needsVehicles ? (
-              <p className="text-[11px] font-semibold text-muted">
+              <p className="text-micro font-semibold text-muted">
                 Will use {vehicles.data?.length ?? 0} registered active vehicles.
               </p>
             ) : null}
@@ -233,7 +233,7 @@ export default function SimulatorPage() {
                     <div className="surface-panel flex items-center justify-between gap-3 px-4 py-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-card" aria-hidden="true">
-                          <History className="h-4 w-4 text-brand-dark" />
+                          <History className="h-4 w-4 text-brand-ink" />
                         </div>
                         <div className="min-w-0">
                           <PlateChip>{result.zone.code}</PlateChip>
@@ -245,7 +245,7 @@ export default function SimulatorPage() {
                           {result.occupancy?.occupiedCount}
                           <span className="text-muted"> / {result.zone.capacity}</span>
                         </p>
-                        <p className="text-[11px] font-semibold text-muted">Occupied</p>
+                        <p className="text-micro font-semibold text-muted">Occupied</p>
                       </div>
                     </div>
                   ) : null}
@@ -264,7 +264,7 @@ export default function SimulatorPage() {
                             className="flex items-center gap-3 rounded-control bg-raised px-3.5 py-2"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
-                            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
+                            <span className="text-micro font-bold uppercase tracking-[0.06em] text-muted">
                               {String(e.kind).replace(/_/g, " ")}
                             </span>
                             <span className="truncate font-mono text-xs font-bold text-charcoal">
@@ -291,7 +291,7 @@ export default function SimulatorPage() {
                           >
                             <Ban className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger" aria-hidden="true" />
                             <div className="min-w-0">
-                              <p className="font-mono text-[11px] font-bold text-danger">{r.sourceEventId}</p>
+                              <p className="font-mono text-micro font-bold text-danger">{r.sourceEventId}</p>
                               <p className="text-xs font-semibold text-danger">{r.message}</p>
                             </div>
                           </li>
@@ -313,7 +313,7 @@ function StatusMetric({ label, value, icon: Icon }: { label: string; value: stri
   return (
     <div className="surface-panel flex items-center gap-3 p-4">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-card" aria-hidden="true">
-        <Icon className="h-4 w-4 text-brand-dark" />
+        <Icon className="h-4 w-4 text-brand-ink" />
       </span>
       <div className="min-w-0">
         <p className="text-xs font-bold text-muted">{label}</p>

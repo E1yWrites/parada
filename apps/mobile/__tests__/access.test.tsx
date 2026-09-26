@@ -51,8 +51,10 @@ describe("access control", () => {
     renderWithAppProviders(<TabsLayout />);
 
     await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
-    expect(screen.getByText("Home")).toBeOnTheScreen();
-    expect(screen.getByText("Park")).toBeOnTheScreen();
+    expect(screen.getByText("Now")).toBeOnTheScreen();
+    expect(screen.getByText("Zones")).toBeOnTheScreen();
+    expect(screen.queryByText("Home")).not.toBeOnTheScreen();
+    expect(screen.queryByText("Park")).not.toBeOnTheScreen();
     expect(screen.getByText("Sessions")).toBeOnTheScreen();
     expect(screen.getByText("Account")).toBeOnTheScreen();
   });
@@ -74,7 +76,7 @@ describe("access control", () => {
     renderWithAppProviders(<TabsLayout />);
 
     await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
-    for (const label of ["Home", "Park", "Sessions", "Account"]) {
+    for (const label of ["Now", "Zones", "Sessions", "Account"]) {
       expect(screen.getByText(label).props.accessibilityLabel).toBe(label);
     }
   });

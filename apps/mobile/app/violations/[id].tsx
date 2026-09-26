@@ -19,7 +19,7 @@ import {
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { radii, spacing } from "@/src/theme";
+import { fontSizes, lineHeights, radii, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 
@@ -273,7 +273,7 @@ function buildStyles(colors: ColorTokens) {
     timelineDot: {
       width: 11,
       height: 11,
-      borderRadius: 999,
+      borderRadius: radii.full,
       marginTop: 4,
     },
     timelineLine: {
@@ -287,8 +287,8 @@ function buildStyles(colors: ColorTokens) {
       paddingBottom: spacing.xl,
     },
     timelineLabel: {
-      fontSize: 13,
-      lineHeight: 18,
+      fontSize: fontSizes.caption,
+      lineHeight: lineHeights.caption,
     },
     appealBox: {
       gap: spacing.lg,
@@ -299,6 +299,7 @@ function buildStyles(colors: ColorTokens) {
       borderLeftColor: colors.border,
       paddingLeft: spacing.lg,
       borderRadius: radii.sm,
+      borderTopRightRadius: radii.cut,
     },
   });
 }

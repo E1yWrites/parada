@@ -5,12 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/query-client";
 import { AuthProvider, useAuth } from "./auth-provider";
 import { ThemeProvider } from "./theme-provider";
-import { useRealtime } from "@/lib/realtime";
-
-function RealtimeConnection() {
-  useRealtime();
-  return null;
-}
+import { RealtimeConnection, RealtimeStatusProvider } from "./realtime-status";
 
 /**
  * The relay (`/api/realtime`) answers 401/403 until an admin session cookie
@@ -31,8 +26,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <RealtimeMount />
-          {children}
+          <RealtimeStatusProvider>
+            <RealtimeMount />
+            {children}
+          </RealtimeStatusProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>

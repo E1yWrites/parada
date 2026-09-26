@@ -90,6 +90,7 @@ function buildStyles(colors: ColorTokens) {
       gap: spacing.lg,
       padding: spacing.lg,
       borderRadius: radii.lg,
+      borderTopRightRadius: radii.cut,
       minHeight: 64,
     },
     unread: {
@@ -128,7 +129,7 @@ function buildStyles(colors: ColorTokens) {
     unreadDot: {
       width: 8,
       height: 8,
-      borderRadius: 4,
+      borderRadius: radii.full,
     },
   });
 }

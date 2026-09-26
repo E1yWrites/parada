@@ -130,6 +130,7 @@ function buildStyles(colors: ColorTokens) {
       gap: spacing.lg,
       backgroundColor: colors.surfaceElevated,
       borderRadius: radii.sm,
+      borderTopRightRadius: radii.cut,
       padding: spacing.lg,
     },
     windowIcon: {

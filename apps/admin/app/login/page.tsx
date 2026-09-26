@@ -47,7 +47,7 @@ export default function LoginPage() {
                 plate — the source asset is black ink on a transparent field
                 and would disappear directly on the dark ground. Fixed neutral
                 white by design (intentionally theme-independent). */}
-            <div className="inline-flex shrink-0 items-center rounded-xl rounded-tr-[3px] border border-line bg-white px-3 py-2.5 shadow-card">
+            <div className="inline-flex shrink-0 items-center rounded-xl rounded-tr-panel-cut border border-line bg-white px-3 py-2.5 shadow-card">
               <Image src="/brand/parada-logo.webp" alt="PARADA" width={132} height={17} priority />
             </div>
             <p className="text-xs font-semibold text-muted">Operations console</p>
@@ -141,7 +141,7 @@ export default function LoginPage() {
             height={168}
             className="h-[168px] w-[168px] object-contain"
           />
-          <div className="inline-flex shrink-0 items-center rounded-xl rounded-tr-[3px] border border-line bg-white px-4 py-3 shadow-card">
+          <div className="inline-flex shrink-0 items-center rounded-xl rounded-tr-panel-cut border border-line bg-white px-4 py-3 shadow-card">
             <Image src="/brand/parada-logo.webp" alt="PARADA" width={176} height={23} priority />
           </div>
           <p className="max-w-xs font-display text-xl font-bold leading-snug text-charcoal">

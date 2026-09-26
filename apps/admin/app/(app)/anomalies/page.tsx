@@ -23,7 +23,7 @@ export default function AnomaliesPage() {
       cell: (a) => (
         <div>
           <AnomalyTypeBadge type={a.anomalyType} />
-          {a.description ? <p className="mt-1 max-w-xs whitespace-normal break-words text-[11px] text-muted">{a.description}</p> : null}
+          {a.description ? <p className="mt-1 max-w-xs whitespace-normal break-words text-micro text-muted">{a.description}</p> : null}
         </div>
       ),
     },
@@ -33,7 +33,7 @@ export default function AnomaliesPage() {
       cell: (a) => (
         <div>
           <p className="text-sm font-semibold text-charcoal">{a.zoneCode ? <PlateChip>{a.zoneCode}</PlateChip> : "—"}</p>
-          {a.cameraIdentifier ? <p className="mt-1 font-mono text-[11px] font-semibold text-muted">{a.cameraIdentifier}</p> : null}
+          {a.cameraIdentifier ? <p className="mt-1 font-mono text-micro font-semibold text-muted">{a.cameraIdentifier}</p> : null}
         </div>
       ),
     },

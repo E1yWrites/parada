@@ -58,7 +58,18 @@ describe("Admin cameras page — Phase 11A configuration", () => {
     expect(await screen.findByText("CAM-A01")).toBeInTheDocument();
     expect(screen.getByText("A")).toBeInTheDocument();
     expect(screen.getByText("Entry")).toBeInTheDocument();
-    expect(screen.getByText("Online")).toBeInTheDocument();
+    // ONLINE is an admin on/off switch, not a health signal: it reads "Enabled".
+    expect(screen.getByText("Enabled")).toBeInTheDocument();
+    expect(screen.queryByText(/online|health/i)).not.toBeInTheDocument();
+  });
+
+  it("labels a switched-off camera Disabled, never Offline", async () => {
+    mockedApi.cameras.mockResolvedValue([{ ...camera, status: "OFFLINE" }]);
+    mockedApi.zones.mockResolvedValue([zone]);
+    renderPage();
+    expect(await screen.findByText("CAM-A01")).toBeInTheDocument();
+    expect(screen.getByText("Disabled")).toBeInTheDocument();
+    expect(screen.queryByText(/offline/i)).not.toBeInTheDocument();
   });
 
   it("shows an empty state when no cameras are configured", async () => {

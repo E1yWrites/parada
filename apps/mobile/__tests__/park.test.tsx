@@ -1,5 +1,7 @@
 import { fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
 import ParkScreen from "@/app/(tabs)/park";
+import { useEffect } from "react";
+import { useVehicleSelection } from "@/src/components/VehicleSelection";
 import { api, ApiError, type PublicZone } from "@/lib/api/client";
 import type { ReservationResponse } from "@parada/types";
 
@@ -311,3 +313,50 @@ function flattenStyle(style: unknown): Record<string, unknown> {
   visit(style);
   return out;
 }
+
+describe("park screen: connection honesty", () => {
+  it("shows the real connection state instead of a live or 30-second claim", async () => {
+    renderWithProviders(<ParkScreen />);
+    await waitFor(() => expect(screen.getByTestId("park-screen-subtitle")).toHaveTextContent(/^Not live · Updated \d{2}:\d{2}$/));
+    expect(screen.queryByText(/live gate-camera availability/i)).not.toBeOnTheScreen();
+    expect(screen.queryByText(/every 30 seconds/i)).not.toBeOnTheScreen();
+  });
+});
+
+describe("park screen: shares the tab area's vehicle choice", () => {
+  /** Stands in for the Now tab: picks a plate in the shared (layout-level) selection. */
+  function PickOnAnotherTab({ vehicleId }: { vehicleId: string }) {
+    const { select } = useVehicleSelection();
+    useEffect(() => select(vehicleId), [select, vehicleId]);
+    return null;
+  }
+
+  it("uses a plate picked elsewhere instead of mounting its own selection", async () => {
+    const v1 = {
+      id: "v1", userId: "u1", plateNumber: "ABC-1234", normalizedPlate: "ABC1234", vehicleType: "CAR",
+      make: null, model: null, color: null, status: "ACTIVE", isPrimary: false,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"), updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    };
+    (api.vehicles as jest.Mock).mockResolvedValue([v1, { ...v1, id: "v2", plateNumber: "XYZ-5678", normalizedPlate: "XYZ5678" }]);
+
+    // renderWithProviders supplies the one VehicleSelectionProvider, as (tabs)/_layout does.
+    renderWithProviders(
+      <>
+        <PickOnAnotherTab vehicleId="v2" />
+        <ParkScreen />
+      </>,
+    );
+
+    fireEvent.press(await screen.findByTestId("zone-A"));
+    // The Zones panel already knows the plate: no "choose a vehicle" nag, and
+    // the plate it will submit is the one picked on the other tab.
+    await waitFor(() => expect(screen.getByTestId("assignment-vehicles")).toBeOnTheScreen());
+    expect(screen.queryByTestId("assignment-vehicle-hint")).not.toBeOnTheScreen();
+    const compact = screen.queryByTestId("assignment-vehicle-compact");
+    if (compact) {
+      expect(compact).toHaveTextContent(/XYZ-5678/);
+    } else {
+      expect(screen.getByTestId("assignment-vehicle-v2").props.accessibilityState).toMatchObject({ selected: true });
+    }
+  });
+});

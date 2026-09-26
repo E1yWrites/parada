@@ -6,12 +6,10 @@ import { useQuery } from "@tanstack/react-query";
 import {
   CarFront,
   ArrowRight,
-  Wifi,
-  WifiOff,
+  Camera,
   DoorClosed,
   DoorOpen,
   Gauge,
-  ShieldAlert,
   TriangleAlert,
   Bell,
   type LucideIcon,
@@ -20,9 +18,9 @@ import { api } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionHeader } from "@/components/ui/Card";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { AvailabilityBadge, PlateChip, AVAILABILITY_BAR } from "@/components/ui/Badge";
+import { ANOMALY_LABEL, AvailabilityBadge, PlateChip, AVAILABILITY_BAR } from "@/components/ui/Badge";
 import { NumberTicker } from "@/components/ui/NumberTicker";
-import { formatDateTime, formatPct } from "@/lib/format";
+import { formatDate, formatDateTime, formatPct } from "@/lib/format";
 import type { AdminAnomaly, AdminNotification } from "@/lib/api/types";
 
 function OccupancyBar({ pct, availability }: { pct: number; availability: keyof typeof AVAILABILITY_BAR }) {
@@ -80,7 +78,7 @@ function OccupancyTrendChart({ trend }: { trend: { at: string; totalOccupied: nu
           vectorEffect="non-scaling-stroke"
         />
       </svg>
-      <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-muted">
+      <div className="mt-2 flex items-center justify-between text-micro font-semibold text-muted">
         <span>{first ? formatDateTime(first.at) : ""}</span>
         <span>{last ? formatDateTime(last.at) : ""}</span>
       </div>
@@ -89,7 +87,7 @@ function OccupancyTrendChart({ trend }: { trend: { at: string; totalOccupied: nu
 }
 
 const STAT_ACCENTS = {
-  info: { icon: "text-brand-dark", ring: "bg-brand-soft", bar: "bg-brand" },
+  info: { icon: "text-brand-ink", ring: "bg-brand-soft", bar: "bg-brand" },
   green: { icon: "text-success", ring: "bg-success-soft", bar: "bg-success" },
   amber: { icon: "text-warning", ring: "bg-warning-soft", bar: "bg-warning" },
   red: { icon: "text-danger", ring: "bg-danger-soft", bar: "bg-danger" },
@@ -159,10 +157,11 @@ type AlertItem =
   | { kind: "anomaly"; id: string; createdAt: string; anomaly: AdminAnomaly }
   | { kind: "notification"; id: string; createdAt: string; notification: AdminNotification };
 
-/** Merges real anomalies + notifications (both genuine alert-shaped records)
- * into one time-sorted feed, matching the Figma "Live Alerts" panel. Recent
- * entry/exit events are left out — they aren't anomalous, so folding them in
- * here would misrepresent them as alerts. */
+/** Merges the latest anomalies + notifications (both genuine alert-shaped
+ * records) into one time-sorted feed. The backend returns the newest 8 of each
+ * whether resolved/read or not (services/api/src/routes/admin.ts), so this is
+ * "Recent alerts", not "active" ones — resolved anomalies are labelled as such.
+ * Entry/exit events are left out — they aren't anomalous. */
 function buildAlertFeed(anomalies: AdminAnomaly[], notifications: AdminNotification[]): AlertItem[] {
   const items: AlertItem[] = [
     ...anomalies.map((a) => ({ kind: "anomaly" as const, id: `a-${a.id}`, createdAt: a.createdAt, anomaly: a })),
@@ -182,7 +181,10 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <PageHeader title="Dashboard" description="Real-time parking management overview" />
+      <PageHeader
+        title="Dashboard"
+        description={dashboard.dataUpdatedAt ? `Updated ${formatDate(dashboard.dataUpdatedAt)}` : undefined}
+      />
 
       <QueryBoundary
         status={dashboard.status}
@@ -230,12 +232,19 @@ export default function DashboardPage() {
                 icon={DoorOpen}
               />
               <div className="lg:col-span-2">
+                {/* ONLINE/OFFLINE is an admin on/off switch (zoneConfig.ts), not a
+                    health signal — there is no camera heartbeat — so this says
+                    "enabled", never "online". */}
                 <StatPanel
-                  label="Camera Status"
+                  label="Cameras enabled"
                   value={`${data.summary.onlineCameras}/${data.summary.onlineCameras + data.summary.offlineCameras}`}
-                  detail="gate cameras online"
+                  detail={
+                    data.summary.offlineCameras > 0
+                      ? `${data.summary.offlineCameras} disabled — those gates do not count`
+                      : "all gate cameras switched on"
+                  }
                   accent={data.summary.offlineCameras > 0 ? "amber" : "green"}
-                  icon={ShieldAlert}
+                  icon={Camera}
                 />
               </div>
             </div>
@@ -248,7 +257,7 @@ export default function DashboardPage() {
               </Card>
               <Card>
                 <SectionHeader
-                  title="Live Alerts"
+                  title="Recent alerts"
                   actions={
                     <Link href="/anomalies" className="btn-ghost btn-sm">
                       View all <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -258,7 +267,7 @@ export default function DashboardPage() {
                 {(() => {
                   const alerts = buildAlertFeed(data.recentAnomalies, data.recentNotifications);
                   if (alerts.length === 0) {
-                    return <p className="p-5 text-sm text-muted">No active alerts.</p>;
+                    return <p className="p-5 text-sm text-muted">No recent alerts.</p>;
                   }
                   return (
                     <ul className="divide-y divide-line">
@@ -267,16 +276,20 @@ export default function DashboardPage() {
                         const AlertIcon = item.kind === "anomaly" ? TriangleAlert : Bell;
                         const message =
                           item.kind === "anomaly"
-                            ? `${item.anomaly.anomalyType.replace(/_/g, " ").toLowerCase()} in ${
+                            ? `${ANOMALY_LABEL[item.anomaly.anomalyType] ?? item.anomaly.anomalyType} in ${
                                 item.anomaly.zoneCode ? `Zone ${item.anomaly.zoneCode}` : "an unassigned zone"
                               }`
                             : item.notification.message;
+                        const resolved = item.kind === "anomaly" && item.anomaly.resolved;
                         return (
                           <li key={item.id} className="flex gap-3 px-4 py-3">
                             <AlertIcon className={`mt-0.5 h-4 w-4 shrink-0 ${tone}`} aria-hidden="true" />
                             <div className="min-w-0">
                               <p className="text-sm text-charcoal">{message}</p>
-                              <p className="mt-1 text-[11px] font-semibold text-muted">{formatDateTime(item.createdAt)}</p>
+                              <p className="mt-1 text-micro font-semibold text-muted">
+                                {formatDateTime(item.createdAt)}
+                                {resolved ? " · Resolved" : null}
+                              </p>
                             </div>
                           </li>
                         );
@@ -306,7 +319,7 @@ export default function DashboardPage() {
                     <li key={z.id}>
                       <Link
                         href={`/zones/${z.id}`}
-                        className="grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors duration-100 hover:bg-raised/60 focus-visible:outline-none focus-visible:bg-raised sm:grid-cols-[auto_minmax(0,1.4fr)_minmax(8rem,1fr)_auto_auto]"
+                        className="grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors duration-100 hover:bg-raised/60 focus-visible:outline-none focus-visible:bg-raised focus-visible:shadow-focus sm:grid-cols-[auto_minmax(0,1.4fr)_minmax(8rem,1fr)_auto_auto]"
                       >
                         <PlateChip>{z.code}</PlateChip>
                         <div className="min-w-0">
@@ -332,7 +345,7 @@ export default function DashboardPage() {
               )}
             </Card>
 
-            <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <section>
               {/* Recent activity */}
               <Card>
                 <SectionHeader
@@ -355,7 +368,7 @@ export default function DashboardPage() {
                           <div className="flex min-w-0 items-center gap-3">
                             <span
                               className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control ${
-                                entry ? "bg-success-soft text-success" : "bg-brand-soft text-brand-dark"
+                                entry ? "bg-success-soft text-success" : "bg-brand-soft text-brand-ink"
                               }`}
                               aria-hidden="true"
                             >
@@ -363,7 +376,7 @@ export default function DashboardPage() {
                             </span>
                             <div className="min-w-0">
                               <p className="font-mono text-sm font-bold text-charcoal">{ev.detectedPlate ?? "Unknown plate"}</p>
-                              <p className="text-[11px] font-semibold text-muted">
+                              <p className="text-micro font-semibold text-muted">
                                 {entry ? "Entry" : "Exit"} · {ev.source}
                               </p>
                             </div>
@@ -374,44 +387,6 @@ export default function DashboardPage() {
                     })}
                   </ul>
                 )}
-              </Card>
-
-              {/* Cameras */}
-              <Card>
-                <SectionHeader
-                  title="Gate cameras"
-                  description="Vision pipeline health"
-                  actions={
-                    <Link href="/cameras" className="btn-ghost btn-sm">
-                      Cameras <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </Link>
-                  }
-                />
-                <div className="grid grid-cols-2 divide-x divide-line">
-                  <div className="flex items-center gap-3 px-5 py-5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-control bg-success-soft" aria-hidden="true">
-                      <Wifi className="h-5 w-5 text-success" />
-                    </div>
-                    <div>
-                      <p className="font-display text-2xl font-black leading-none text-charcoal">{data.summary.onlineCameras}</p>
-                      <p className="mt-1 text-xs font-bold text-muted">Online</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 px-5 py-5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-control bg-raised" aria-hidden="true">
-                      <WifiOff className="h-5 w-5 text-muted" />
-                    </div>
-                    <div>
-                      <p className="font-display text-2xl font-black leading-none text-charcoal">{data.summary.offlineCameras}</p>
-                      <p className="mt-1 text-xs font-bold text-muted">Offline</p>
-                    </div>
-                  </div>
-                </div>
-                {data.summary.offlineCameras > 0 ? (
-                  <p className="border-t border-line px-5 py-3 text-xs font-semibold text-warning">
-                    Offline cameras stop counting at their gate. Check them from the Cameras page.
-                  </p>
-                ) : null}
               </Card>
             </section>
 

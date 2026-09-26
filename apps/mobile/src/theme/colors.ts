@@ -10,8 +10,11 @@
  * reading `colors.X`; only the source of `colors` changes (see `useColors()`
  * in `@/src/providers/ThemeProvider`).
  *
- * Every text/icon token is verified ≥4.5:1 against its paired surface.
- * `*Soft` values are fills only and never carry text of their own color.
+ * Text tokens (`foreground`, `muted`, `primaryDeep`, the `*Ink` tokens) are
+ * ≥4.5:1 on `background`, `surface` and `surfaceElevated`; the ratios are
+ * asserted in `__tests__/themeContrast.test.ts`. `faint` is NOT a text-safe
+ * token (≈3:1) — dividers, decorative icons and disabled glyphs only.
+ * `*Soft` values are fills only; text on a soft fill uses `inkColor()`.
  */
 export type ColorScheme = "dark" | "light";
 
@@ -28,7 +31,7 @@ export type ColorTokens = {
   foreground: string;
   /** Secondary/muted text (≥4.5:1). */
   muted: string;
-  /** Tertiary text — captions-on-captions, disabled labels. Not for body text. */
+  /** Non-text only: dividers, decorative icons. Fails 4.5:1 — never text or placeholders. */
   faint: string;
   /** Hairline borders and dividers. */
   border: string;
@@ -54,6 +57,16 @@ export type ColorTokens = {
   /** Azure — active/assigned/"yours right now" (the mascot's own P-sign blue). */
   info: string;
   infoSoft: string;
+  /** Text/icon on `primarySoft` (≥4.5:1 over every ground). */
+  primaryInk: string;
+  /** Text/icon on `dangerSoft`. */
+  dangerInk: string;
+  /** Text/icon on `successSoft`. */
+  successInk: string;
+  /** Text/icon on `warningSoft`. */
+  warningInk: string;
+  /** Text/icon on `infoSoft`. */
+  infoInk: string;
   /** Disabled control fill/text. */
   disabledSurface: string;
   disabledForeground: string;
@@ -93,6 +106,11 @@ const dark: ColorTokens = {
   highlight: "#FFC65C",
   info: "#82ACFF",
   infoSoft: "rgba(130, 172, 255, 0.16)",
+  primaryInk: "#FDB69B",
+  dangerInk: "#FFB2AA",
+  successInk: "#62E39B",
+  warningInk: "#FFC65C",
+  infoInk: "#B2CCFF",
   disabledSurface: "#38455F",
   disabledForeground: "#A79D8E",
   onAccent: "#15111C",
@@ -126,6 +144,11 @@ const light: ColorTokens = {
   highlight: "#8A4B00",
   info: "#1D4ED8",
   infoSoft: "rgba(29, 78, 216, 0.12)",
+  primaryInk: "#805A1F",
+  dangerInk: "#B3261E",
+  successInk: "#146C43",
+  warningInk: "#874A00",
+  infoInk: "#1D4ED8",
   disabledSurface: "#E7EBF7",
   disabledForeground: "#9BA0BE",
   onAccent: "#15111C",
@@ -163,6 +186,30 @@ export function softColor(color: string, tokens: ColorTokens = colors): string {
       return tokens.surfaceElevated;
     default:
       return withAlpha(color, 0.14);
+  }
+}
+
+/**
+ * Text/icon color for content drawn on `softColor(color)`. A status hue on its
+ * own soft tint falls below 4.5:1 (e.g. dark danger 3.83, light primary 1.75),
+ * so pills and stamps use the matching `*Ink` token instead.
+ */
+export function inkColor(color: string, tokens: ColorTokens = colors): string {
+  switch (color) {
+    case tokens.primary:
+    case tokens.primaryDeep:
+      return tokens.primaryInk;
+    case tokens.danger:
+      return tokens.dangerInk;
+    case tokens.success:
+      return tokens.successInk;
+    case tokens.warning:
+    case tokens.highlight:
+      return tokens.warningInk;
+    case tokens.info:
+      return tokens.infoInk;
+    default:
+      return color;
   }
 }
 

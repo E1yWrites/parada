@@ -44,7 +44,7 @@ export default function ReservationsPage() {
       cell: (r) => (
         <div>
           <p className="text-sm font-semibold text-charcoal">{r.user.name}</p>
-          <p className="text-[11px] text-muted">{r.user.email}</p>
+          <p className="text-micro text-muted">{r.user.email}</p>
         </div>
       ),
     },

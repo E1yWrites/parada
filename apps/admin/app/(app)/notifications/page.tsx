@@ -80,7 +80,7 @@ export default function NotificationsPage() {
             >
               {f}
               {f === "UNREAD" && unreadCount > 0 ? (
-                <span className="ml-1.5 rounded-full bg-brand px-2 py-0.5 font-display text-[11px] font-black text-on-accent">
+                <span className="ml-1.5 rounded-full bg-brand px-2 py-0.5 font-display text-micro font-black text-on-accent">
                   {unreadCount}
                 </span>
               ) : null}
@@ -123,7 +123,7 @@ export default function NotificationsPage() {
                     </div>
                     <div className="min-w-0">
                       <p className={`whitespace-normal break-words text-sm ${n.read ? "text-muted" : "font-bold text-charcoal"}`}>{n.message}</p>
-                      <p className="mt-0.5 text-[11px] text-muted">
+                      <p className="mt-0.5 text-micro text-muted">
                         <span className="font-semibold text-charcoal">{n.zone ? `Zone ${n.zone.code}` : "All zones"}</span>
                         {" · "}{n.type} · {formatDateTime(n.createdAt)}
                       </p>

@@ -60,6 +60,7 @@ function buildStyles(colors: ColorTokens) {
       flexDirection: "row",
       backgroundColor: colors.surfaceElevated,
       borderRadius: radii.md,
+      borderTopRightRadius: radii.cut,
       padding: spacing.xs,
       gap: spacing.xs,
     },
@@ -68,7 +69,8 @@ function buildStyles(colors: ColorTokens) {
       minHeight: touchTarget - 4,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: radii.md - 4,
+      borderRadius: radii.sm,
+      borderTopRightRadius: radii.cut,
     },
     segmentSelected: {
       backgroundColor: colors.primary,

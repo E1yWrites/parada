@@ -408,3 +408,23 @@ No feature flag at any point: each phase replaces the screen it touches.
 
 ## Preserve checklist (verify at every phase review)
 Mobile tokens (hues), state primitives, Button loading/disabled, a11y props asserted in `__tests__`, backend-confirmed cache writes (`ParkingRecommendation.tsx`, `ZoneAssignmentPanel.tsx`, `ReservationPanel.tsx` patterns), SSE invalidation tables, reduced-motion gating, SecureStore session, admin HttpOnly auth, theme provider no-flash script, QueryBoundary/State, DataTable caption + `th scope`, PARADA logo, mascot (onboarding + empty/error only), cut shape.
+
+---
+
+## Implementation log
+
+### Phases 1–3 (2026-09-26, branch `feat/rams-redesign`, uncommitted at time of writing)
+
+Deviations from the plan above, with reasons:
+
+- **E.1 ink values are stricter than the table.** The table's `dangerInk` #FFA197 / `infoInk` #A5C2FF pass on `surface` but fail on `surfaceElevated` (4.08 / 4.17). Shipped: a full `*Ink` set that passes on `background`, `surface` and `surfaceElevated` — dark `primaryInk` #FDB69B, `dangerInk` #FFB2AA, `successInk` #62E39B, `warningInk` #FFC65C, `infoInk` #B2CCFF; light `primaryInk` #805A1F, `warningInk` #874A00, others equal to the base hue. `inkColor()` maps a status hue to its ink; asserted in `apps/mobile/__tests__/themeContrast.test.tsx`.
+- **Admin `text-brand-dark` replaced everywhere by `text-brand-ink`** (dark = brand, light = #B23A0A) rather than only on soft fills; `--brand-dark` stays for fills/hover.
+- **Deferred to Phases 6/7:** admin half-step spacing (61 uses) — it changes layout, and those screens are rebuilt there.
+- **Deferred pending the owner's decision on the PR #8 look:** mesh/glass/mascot removal (mobile), `parada-drift` and light-mode black shadows (admin). Glass values are re-derived from the palette (no stale navy/gold) but glass is still used.
+- **Admin logo plate keeps `bg-white`** — it is the logo's own ground, not a theme surface.
+- **Least-busy card stays on Now (idle) until Phase 4** moves it to Zones; removing it in Phase 3 would drop the one-tap reserve path for a phase. Its copy is fixed now ("Least busy zone", "Reserve a space in {zone}", "See all zones").
+- **Sessions → History rename moves to Phase 5**, when that tab becomes history-only; renaming earlier would label live reservations as history.
+- **Now card keeps assignment and reservation side by side** when both exist (both carry live actions; hiding one hides a cancel path). Session still takes over the card.
+- **Navigate buttons read "Navigate to {zone}"** (visible and spoken) instead of a bare "Navigate" — `NavigateButton` has no separate accessibility-label prop, and adding one was unnecessary.
+- **"Cancel assignment" wording kept** (names the domain object).
+- **Admin connection states:** "Live" / "Reconnecting…" / "Not live"; the dashboard shows "Updated hh:mm:ss" from its own query.

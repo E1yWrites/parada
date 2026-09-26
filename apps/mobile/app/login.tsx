@@ -61,7 +61,7 @@ export default function LoginScreen() {
       <View style={styles.heading}>
         <Text variant="hero">Welcome back</Text>
         <Text variant="body" color={colors.muted}>
-          Sign in to see live zone availability and your parking.
+          Sign in to find and reserve parking.
         </Text>
       </View>
       {notice && !error ? (

@@ -1,4 +1,4 @@
-export { colors, palettes, softColor, withAlpha } from "./colors";
+export { colors, inkColor, palettes, softColor, withAlpha } from "./colors";
 export type { ColorToken, ColorScheme, ColorTokens } from "./colors";
 export { fonts, fontAssets, fontSizes, lineHeights, letterSpacing } from "./typography";
 export type { FontToken } from "./typography";

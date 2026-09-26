@@ -190,9 +190,9 @@ describe("current parking state: active session", () => {
   it("exposes an accessible current-parking summary", () => {
     renderState({ session, assignment });
     const label = screen.getByTestId("session-summary").props.accessibilityLabel;
-    expect(label).toMatch(/Active parking in Zone A\./);
+    expect(label).toMatch(/Parked in Zone A\./);
     expect(label).toMatch(/Vehicle ABC-1234\./);
-    expect(label).toMatch(/Started /);
+    expect(label).toMatch(/Parked since /);
     expect(label).toMatch(/Assigned zone Zone B\./);
   });
 });
@@ -243,16 +243,29 @@ describe("current parking state: assignment", () => {
     expect(screen.getByTestId("assignment-current")).toBeOnTheScreen();
     expect(screen.getByTestId("assignment-current-zone")).toHaveTextContent("Zone B");
     expect(screen.getByTestId("assignment-current-vehicle")).toHaveTextContent(/ABC-1234/);
-    expect(screen.getByTestId("assignment-current-validity")).toHaveTextContent(/^Valid until /);
-    expect(screen.getByTestId("assignment-current-badge")).toBeOnTheScreen();
+    expect(screen.getByTestId("assignment-current-validity")).toHaveTextContent(/^Enter by /);
+    // One label per state: the stamp alone, no duplicate status badge beside it.
+    expect(screen.getByText("ASSIGNED ZONE")).toBeOnTheScreen();
+    expect(screen.queryByTestId("assignment-current-badge")).not.toBeOnTheScreen();
+  });
+
+  it("states that an assignment keeps no space and what entering another zone costs", () => {
+    renderState({ assignment, destinationReady: false });
+    // Only a reservation protects capacity; the camera path warns, then fines.
+    expect(screen.getByTestId("assignment-current-terms")).toHaveTextContent(
+      "No space is kept for you. Entering another zone gets a wrong-zone warning, then a fine.",
+    );
+    expect(screen.queryByText(/all set/i)).not.toBeOnTheScreen();
+    expect(screen.queryByText(/₱/)).not.toBeOnTheScreen();
   });
 
   it("exposes an accessible assignment summary", () => {
     renderState({ assignment });
     const label = screen.getByTestId("assignment-summary").props.accessibilityLabel;
-    expect(label).toMatch(/Assigned to Zone B\./);
+    expect(label).toMatch(/Assigned zone Zone B\./);
     expect(label).toMatch(/Vehicle ABC-1234\./);
-    expect(label).toMatch(/Valid until /);
+    expect(label).toMatch(/Enter by /);
+    expect(label).toMatch(/No space is kept for you\./);
   });
 
   it("does not treat a REVOKED assignment as current", () => {
@@ -270,14 +283,15 @@ describe("current parking state: reservation", () => {
     expect(screen.getByTestId("reservation-current")).toBeOnTheScreen();
     expect(screen.getByTestId("reservation-current-zone")).toHaveTextContent("Zone B");
     expect(screen.getByTestId("reservation-current-vehicle")).toHaveTextContent(/ABC-1234/);
-    expect(screen.getByTestId("reservation-current-badge")).toBeOnTheScreen();
     expect(screen.getByText("RESERVED")).toBeOnTheScreen();
-    expect(screen.queryByText("ZONE ASSIGNED")).not.toBeOnTheScreen();
+    expect(screen.queryByTestId("reservation-current-badge")).not.toBeOnTheScreen();
+    expect(screen.queryByText("ASSIGNED ZONE")).not.toBeOnTheScreen();
   });
 
   it("shows the reservation start/end window", () => {
     renderState({ reservation });
-    expect(screen.getByTestId("reservation-current-window")).toHaveTextContent(/^Start .* · End /);
+    // A reservation protects capacity for its window, so the window is named as that.
+    expect(screen.getByTestId("reservation-current-window")).toHaveTextContent(/^Space kept .* – /);
   });
 
   it("does not treat an EXPIRED reservation as current", () => {
@@ -291,15 +305,23 @@ describe("current parking state: combinations", () => {
     renderState({ assignment, reservation });
     expect(screen.getByTestId("assignment-current")).toBeOnTheScreen();
     expect(screen.getByTestId("reservation-current")).toBeOnTheScreen();
-    expect(screen.getByText("ZONE ASSIGNED")).toBeOnTheScreen();
+    expect(screen.getByText("ASSIGNED ZONE")).toBeOnTheScreen();
     expect(screen.getByText("RESERVED")).toBeOnTheScreen();
   });
 
   it("suppresses suggestion-state blocks when nothing is current, showing an empty state", () => {
     renderState();
-    expect(screen.getByTestId("current-state-empty")).toHaveTextContent(/No active parking/);
+    expect(screen.getByTestId("current-state-empty")).toHaveTextContent(/Nothing planned/);
     expect(screen.queryByTestId("assignment-current")).not.toBeOnTheScreen();
     expect(screen.queryByTestId("reservation-current")).not.toBeOnTheScreen();
+    expect(screen.queryByText(/recommendation/i)).not.toBeOnTheScreen();
+  });
+
+  it("offers a Find a zone button (not cross-tab copy) when idle", () => {
+    const onFindZone = jest.fn();
+    renderState({ onFindZone });
+    fireEvent.press(screen.getByTestId("current-state-find-zone"));
+    expect(onFindZone).toHaveBeenCalledTimes(1);
   });
 
   it("shows a loading state while the session is unknown", () => {

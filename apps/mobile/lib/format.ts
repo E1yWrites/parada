@@ -52,6 +52,20 @@ export function formatDateTime(iso: string | Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** "1 space" / "12 spaces" — a count with its correctly pluralised noun. */
+export function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
+}
+
+/** Local wall-clock "11:19" (24-hour), for "Updated 11:19". */
+export function formatClockTime(value: number | string | Date): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    return "--:--";
+  }
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /** Human-friendly vehicle-type labels for PARADA enum values. */
 export function formatVehicleType(type: string): string {
   switch (type) {

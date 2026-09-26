@@ -7,7 +7,7 @@ import { api, ApiError } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { OnlineBadge, Pill, PlateChip } from "@/components/ui/Badge";
+import { CameraEnabledBadge, Pill, PlateChip } from "@/components/ui/Badge";
 import { Card, SectionHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { formatDateTime } from "@/lib/format";
@@ -162,8 +162,8 @@ function CameraForm({
             value={form.status}
             onChange={(e) => setForm({ ...form, status: e.target.value as FormState["status"] })}
           >
-            <option value="ONLINE">Online (operational)</option>
-            <option value="OFFLINE">Offline (disabled)</option>
+            <option value="ONLINE">Enabled</option>
+            <option value="OFFLINE">Disabled</option>
           </select>
         </div>
         <div>
@@ -249,7 +249,7 @@ function ToggleStatus({ camera }: { camera: AdminCamera }) {
         )}
       </Button>
       {error ? (
-        <span role="alert" className="flex items-center gap-1 text-[11px] font-semibold text-danger">
+        <span role="alert" className="flex items-center gap-1 text-micro font-semibold text-danger">
           <AlertCircle className="h-3 w-3" aria-hidden="true" />
           {error}
         </span>
@@ -292,11 +292,11 @@ export default function CamerasPage() {
       cell: (c) => (
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-brand-soft">
-            <Camera className="h-4 w-4 text-brand-dark" aria-hidden="true" />
+            <Camera className="h-4 w-4 text-brand-ink" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <p className="font-mono text-sm font-bold text-charcoal">{c.identifier}</p>
-            <p className="truncate text-[11px] font-semibold text-muted">{c.name}</p>
+            <p className="truncate text-micro font-semibold text-muted">{c.name}</p>
           </div>
         </div>
       ),
@@ -317,7 +317,7 @@ export default function CamerasPage() {
     {
       key: "status",
       header: "Status",
-      cell: (c) => <OnlineBadge online={c.status === "ONLINE"} />,
+      cell: (c) => <CameraEnabledBadge enabled={c.status === "ONLINE"} />,
     },
     {
       key: "lastEvent",
@@ -327,7 +327,7 @@ export default function CamerasPage() {
         return last ? (
           <div>
             <p className="font-mono text-xs font-bold text-charcoal">{last.detectedPlate ?? "Unknown"}</p>
-            <p className="text-[11px] font-semibold text-muted">
+            <p className="text-micro font-semibold text-muted">
               {last.eventType} · {formatDateTime(last.detectedAt)}
             </p>
           </div>

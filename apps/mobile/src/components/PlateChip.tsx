@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { radii, spacing } from "@/src/theme";
+import { fontSizes, lineHeights, radii, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 import { Text } from "./Text";
@@ -48,13 +48,13 @@ function buildStyles(colors: ColorTokens) {
   return StyleSheet.create({
     base: {
       alignSelf: "flex-start",
-      paddingHorizontal: spacing.md + 2,
-      paddingVertical: spacing.sm + 1,
-      borderRadius: radii.sm - 4,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.sm,
     },
     compact: {
-      paddingHorizontal: spacing.md + 2,
-      paddingVertical: 2,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
     },
     ink: {
       backgroundColor: colors.foreground,
@@ -67,8 +67,8 @@ function buildStyles(colors: ColorTokens) {
     },
     textSm: {
       letterSpacing: 0.8,
-      fontSize: 11,
-      lineHeight: 16,
+      fontSize: fontSizes.micro,
+      lineHeight: lineHeights.micro,
     },
   });
 }

@@ -174,6 +174,7 @@ function buildStyles(colors: ColorTokens) {
     selectedRow: {
       backgroundColor: colors.surface,
       borderRadius: radii.sm,
+      borderTopRightRadius: radii.cut,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,
     },

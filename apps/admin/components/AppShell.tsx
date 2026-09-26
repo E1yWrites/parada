@@ -27,6 +27,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "./providers/auth-provider";
+import { ConnectionIndicator } from "./ConnectionIndicator";
 import { FullPageSpinner } from "./ui/State";
 
 /** The canonical PARADA logo, unmodified, mounted on its own light plate —
@@ -37,7 +38,7 @@ import { FullPageSpinner } from "./ui/State";
 function BrandLogo({ height = 15 }: { height?: number }) {
   const width = Math.round(height * (1500 / 198));
   return (
-    <div className="inline-flex shrink-0 items-center rounded-lg rounded-tr-[3px] border border-line bg-white px-2 py-1.5">
+    <div className="inline-flex shrink-0 items-center rounded-lg rounded-tr-panel-cut border border-line bg-white px-2 py-1.5">
       <Image src="/brand/parada-logo.webp" alt="PARADA" width={width} height={height} priority />
     </div>
   );
@@ -123,7 +124,7 @@ function Brand() {
   return (
     <Link href="/" className="flex items-center gap-3 rounded-control focus-visible:outline-none focus-visible:shadow-focus">
       <BrandLogo height={14} />
-      <span className="mt-0.5 block text-[11px] font-semibold text-muted">Operations console</span>
+      <span className="mt-0.5 block text-micro font-semibold text-muted">Operations console</span>
     </Link>
   );
 }
@@ -139,10 +140,10 @@ function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: stri
         aria-current={active ? "page" : undefined}
         data-active={active ? "true" : undefined}
         className={`relative z-[1] flex min-h-[40px] items-center gap-3 rounded-control px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:shadow-focus ${
-          active ? "text-brand-dark" : "text-muted hover:bg-raised hover:text-charcoal"
+          active ? "text-brand-ink" : "text-muted hover:bg-raised hover:text-charcoal"
         }`}
       >
-        <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-brand-dark" : "text-muted"}`} aria-hidden="true" />
+        <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-brand-ink" : "text-muted"}`} aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate">{item.label}</span>
         {active ? <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" /> : null}
       </Link>
@@ -206,7 +207,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                 onClick={() => toggle(group.label)}
                 aria-expanded={expanded}
                 aria-controls={id}
-                className="flex min-h-[34px] w-full items-center gap-2 rounded-control px-3 text-[11px] font-bold uppercase tracking-[0.08em] text-muted transition-colors duration-150 hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus"
+                className="flex min-h-[34px] w-full items-center gap-2 rounded-control px-3 text-micro font-bold uppercase tracking-[0.08em] text-muted transition-colors duration-150 hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <span>{group.label}</span>
                 <ChevronDown
@@ -215,7 +216,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                 />
               </button>
             ) : (
-              <p className="px-3 pb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
+              <p className="px-3 pb-1 text-micro font-bold uppercase tracking-[0.08em] text-muted">
                 {group.label}
               </p>
             )}
@@ -243,11 +244,11 @@ function SidebarFooter({ name, onLogout }: { name?: string; onLogout: () => void
     <div className="border-t border-line p-3">
       <div className="flex items-center gap-3 rounded-control px-3 py-2">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-soft" aria-hidden="true">
-          <UserCircle2 className="h-5 w-5 text-brand-dark" />
+          <UserCircle2 className="h-5 w-5 text-brand-ink" />
         </div>
         <div className="min-w-0 leading-tight">
           <p className="truncate text-sm font-bold text-charcoal">{name ?? "Account"}</p>
-          <p className="text-[11px] font-semibold text-muted">Administrator</p>
+          <p className="text-micro font-semibold text-muted">Administrator</p>
         </div>
       </div>
       <button
@@ -349,30 +350,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-60 animate-pulse-dot" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
-              </span>
-              <p className="truncate text-sm font-semibold text-muted">Live facility state</p>
-            </div>
+            <ConnectionIndicator />
           </div>
 
           <div className="flex items-center gap-2">
             <Link
               href="/notifications"
-              className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-raised hover:text-brand-dark focus-visible:outline-none focus-visible:shadow-focus"
+              className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-raised hover:text-brand-ink focus-visible:outline-none focus-visible:shadow-focus"
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5" aria-hidden="true" />
             </Link>
             <div className="flex items-center gap-2.5 rounded-control rounded-tr-control-cut border border-line bg-card py-1.5 pl-1.5 pr-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft" aria-hidden="true">
-                <UserCircle2 className="h-5 w-5 text-brand-dark" />
+                <UserCircle2 className="h-5 w-5 text-brand-ink" />
               </div>
               <div className="hidden min-w-0 leading-tight sm:block">
                 <p className="max-w-[12rem] truncate text-sm font-bold text-charcoal">{user.name}</p>
-                <p className="text-[11px] font-semibold text-muted">Administrator</p>
+                <p className="text-micro font-semibold text-muted">Administrator</p>
               </div>
             </div>
             <button

@@ -41,7 +41,7 @@ export default function AnalyticsPage() {
                           <div className="occupancy-bar" aria-hidden="true">
                             <div className={`h-full rounded-full ${fill}`} style={{ width: `${Math.min(100, pct)}%` }} />
                           </div>
-                          <p className="mt-1.5 text-[11px] font-semibold text-muted">{zone.availableCount} open · {pct}%</p>
+                          <p className="mt-1.5 text-micro font-semibold text-muted">{zone.availableCount} open · {pct}%</p>
                         </div>
                         <p className="font-display text-sm font-black tabular-nums text-charcoal">
                           {zone.occupiedCount} <span className="font-bold text-muted">/ {zone.capacity}</span>

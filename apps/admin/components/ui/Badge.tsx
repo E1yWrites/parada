@@ -3,7 +3,6 @@ import {
   CheckCircle2,
   Circle,
   OctagonAlert,
-  Signal,
   CircleDot,
   Clock,
   Armchair,
@@ -24,7 +23,7 @@ const TONES: Record<Tone, string> = {
   success: "bg-success-soft text-success",
   warn: "bg-warning-soft text-warning",
   danger: "bg-danger-soft text-danger",
-  info: "bg-brand-soft text-brand-dark",
+  info: "bg-brand-soft text-brand-ink",
 };
 
 const DOTS: Record<Tone, string> = {
@@ -93,16 +92,21 @@ export function AvailabilityBadge({ value }: { value: Availability }) {
   );
 }
 
-export function OnlineBadge({ online }: { online: boolean }) {
-  return online ? (
+/**
+ * Camera on/off state as set by an admin (ONLINE/OFFLINE in the API is a
+ * switch, services/api/src/domain/zoneConfig.ts). There is no heartbeat, so
+ * this never claims a camera is "online" or healthy.
+ */
+export function CameraEnabledBadge({ enabled }: { enabled: boolean }) {
+  return enabled ? (
     <Pill tone="success">
-      <Signal className="h-3.5 w-3.5" aria-hidden="true" />
-      Online
+      <Power className="h-3.5 w-3.5" aria-hidden="true" />
+      Enabled
     </Pill>
   ) : (
     <Pill tone="neutral">
       <CircleOff className="h-3.5 w-3.5" aria-hidden="true" />
-      Offline
+      Disabled
     </Pill>
   );
 }
@@ -217,12 +221,12 @@ export function StatCard({
     success: "text-success",
     warn: "text-warning",
     danger: "text-danger",
-    info: "text-brand-dark",
+    info: "text-brand-ink",
   };
   return (
     <div className="min-w-0 px-5 py-4">
       <p className="text-xs font-bold text-muted">{label}</p>
-      <p className={`mt-1 font-display text-[1.75rem] font-black leading-none tracking-tight ${valueClass[tone]}`}>
+      <p className={`mt-1 font-display text-3xl font-black leading-none tracking-tight ${valueClass[tone]}`}>
         {value}
       </p>
       {detail ? <p className="mt-1.5 truncate text-xs font-semibold text-muted">{detail}</p> : null}

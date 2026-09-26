@@ -294,6 +294,7 @@ function buildStyles(colors: ColorTokens) {
       gap: spacing.md,
       backgroundColor: colors.warningSoft,
       borderRadius: radii.md,
+      borderTopRightRadius: radii.cut,
       paddingLeft: spacing.lg,
       paddingRight: spacing.sm,
       paddingVertical: spacing.sm,
@@ -317,7 +318,7 @@ function buildStyles(colors: ColorTokens) {
       backgroundColor: colors.primarySoft,
       borderRadius: radii.full,
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm + 2,
+      paddingVertical: spacing.md,
       flexShrink: 0,
     },
     appearanceCard: {

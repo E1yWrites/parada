@@ -41,7 +41,7 @@ export default function SessionsPage() {
       cell: (s) => (
         <div>
           <p className="font-mono text-sm font-bold text-charcoal">{s.vehicle?.plateNumber ?? "GUEST"}</p>
-          <p className="text-[11px] font-semibold text-muted">{s.vehicle?.vehicleType ?? "ACCOUNT-LESS"}</p>
+          <p className="text-micro font-semibold text-muted">{s.vehicle?.vehicleType ?? "ACCOUNT-LESS"}</p>
         </div>
       ),
     },
@@ -51,7 +51,7 @@ export default function SessionsPage() {
       cell: (s) => (
         <div>
           <p className="text-sm font-semibold text-charcoal">{s.user?.name ?? "Guest session"}</p>
-          <p className="text-[11px] text-muted">{s.user?.email ?? "No account attached"}</p>
+          <p className="text-micro text-muted">{s.user?.email ?? "No account attached"}</p>
         </div>
       ),
     },

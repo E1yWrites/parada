@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import { motion, radii, touchTarget } from "@/src/theme";
+import { lineHeights, motion, radii, spacing, touchTarget } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 import { Text } from "./Text";
@@ -91,11 +91,11 @@ function buildStyles(colors: ColorTokens) {
       borderColor: colors.background,
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 3,
+      paddingHorizontal: spacing.sm,
     },
     badgeText: {
       letterSpacing: 0,
-      lineHeight: 13,
+      lineHeight: lineHeights.micro,
     },
   });
 }

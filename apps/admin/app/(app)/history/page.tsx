@@ -195,7 +195,7 @@ function ZoneTimeline({ data }: { data: ZoneHistory }) {
             })}
           </div>
         </div>
-        <div className="mt-3 flex items-center justify-between font-mono text-[11px] font-semibold text-muted">
+        <div className="mt-3 flex items-center justify-between font-mono text-micro font-semibold text-muted">
           <span>{formatDateTime(entries[0]?.occurredAt)}</span>
           <span>{formatDateTime(entries[entries.length - 1]?.occurredAt)}</span>
         </div>
