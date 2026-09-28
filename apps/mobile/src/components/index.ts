@@ -31,7 +31,7 @@ export { Avatar, initialsOf } from "./Avatar";
 export { AvatarEditor } from "./AvatarEditor";
 export { BrandMark } from "./BrandMark";
 export { Illustration } from "./Illustration";
-export { Mascot } from "./Mascot";
+export { Lottie } from "./Lottie";
 export { LoadingState, ErrorState, EmptyState } from "./StateComponents";
 export { FullScreenLoading } from "./FullScreenLoading";
 export { CapacityBar } from "./CapacityBar";

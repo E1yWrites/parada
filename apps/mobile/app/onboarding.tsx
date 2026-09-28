@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Button, GlassCard, Illustration, Screen, Text } from "@/src/components";
+import { Button, GlassCard, Illustration, Lottie, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import type { IllustrationName } from "@/src/components/Illustration";
 import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
@@ -12,6 +12,8 @@ import type { ColorTokens } from "@/src/theme/colors";
 
 type Slide = {
   illustration: IllustrationName;
+  /** Slide 1 introduces Lottie in place of the topic icon. */
+  greeting?: string;
   wash: string;
   title: string;
   body: string;
@@ -21,6 +23,7 @@ function buildSlides(colors: ColorTokens): Slide[] {
   return [
     {
       illustration: "zones",
+      greeting: "Hi, I'm Lottie.",
       wash: colors.primary,
       title: "See what's open before you drive in.",
       body: "Zone availability counted from gate-camera entries and exits — no guessing, no circling the lot.",
@@ -104,9 +107,18 @@ export default function OnboardingScreen() {
           }}>
           <GlassCard wash={slide.wash} style={styles.hero} padding={spacing.xl3}>
             <View style={styles.art}>
-              <Illustration name={slide.illustration} size={168} />
+              {slide.greeting ? (
+                <Lottie size={160} interactive testID="onboarding-lottie" />
+              ) : (
+                <Illustration name={slide.illustration} size={168} />
+              )}
             </View>
             <View style={styles.copy}>
+              {slide.greeting ? (
+                <Text variant="bodySemi" color={colors.primaryInk} testID="onboarding-greeting">
+                  {slide.greeting}
+                </Text>
+              ) : null}
               <Text variant="hero" testID="onboarding-title">
                 {slide.title}
               </Text>

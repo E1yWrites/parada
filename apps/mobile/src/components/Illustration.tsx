@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { ComponentProps } from "react";
+import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Mascot, type MascotVariant } from "./Mascot";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 
@@ -18,25 +18,22 @@ export type IllustrationName =
   | "offline"
   | "navigate";
 
-type Spec = { icon: IconName; color: string; variant?: MascotVariant };
+type Spec = { icon: IconName; ground: string; ink: string };
 
-/**
- * Scene-per-name mapping onto the mascot: one canonical image (a specific
- * head crop where one already exists for the context), a single accent
- * badge naming the situation — replaces the old icon-in-disc-with-two-
- * satellites scene, which repeated everywhere and read as generic.
- */
+/** One icon per situation, on a soft disc of its status tone. */
 function buildSpecs(colors: ColorTokens): Record<IllustrationName, Spec> {
+  const brand = { ground: colors.primarySoft, ink: colors.primaryInk };
+  const neutral = { ground: colors.surfaceElevated, ink: colors.muted };
   return {
-    parking: { icon: "location", color: colors.success },
-    zones: { icon: "grid", color: colors.primaryDeep },
-    reserve: { icon: "calendar", color: colors.warning },
-    shield: { icon: "shield-checkmark", color: colors.success },
-    bell: { icon: "notifications", color: colors.primaryDeep, variant: "notifications" },
-    vehicle: { icon: "car-sport", color: colors.primaryDeep },
-    history: { icon: "hourglass", color: colors.muted, variant: "history" },
-    offline: { icon: "cloud-offline", color: colors.danger },
-    navigate: { icon: "navigate", color: colors.primaryDeep },
+    parking: { icon: "location", ground: colors.successSoft, ink: colors.successInk },
+    zones: { icon: "grid", ...brand },
+    reserve: { icon: "calendar", ground: colors.warningSoft, ink: colors.warningInk },
+    shield: { icon: "shield-checkmark", ground: colors.successSoft, ink: colors.successInk },
+    bell: { icon: "notifications", ...brand },
+    vehicle: { icon: "car-sport", ...brand },
+    history: { icon: "time-outline", ...neutral },
+    offline: { icon: "cloud-offline", ground: colors.dangerSoft, ink: colors.dangerInk },
+    navigate: { icon: "navigate", ...brand },
   };
 }
 
@@ -47,12 +44,25 @@ type IllustrationProps = {
   testID?: string;
 };
 
-/** Scene illustration for empty/error/onboarding moments — a mascot pose named by situation. */
+/** Icon for empty/error/onboarding moments, named by situation. Decorative: the text beside it carries the meaning. */
 export function Illustration({ name, size = 120, testID }: IllustrationProps) {
   const colors = useColors();
   const specs = useMemo(() => buildSpecs(colors), [colors]);
   const spec = specs[name];
   return (
-    <Mascot variant={spec.variant} accentIcon={spec.icon} accentColor={spec.color} size={size} testID={testID} />
+    <View
+      testID={testID}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: spec.ground,
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+      <Ionicons name={spec.icon} size={Math.round(size * 0.42)} color={spec.ink} />
+    </View>
   );
 }

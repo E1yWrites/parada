@@ -3,6 +3,7 @@ import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
+import { Lottie } from "@/src/components/Lottie";
 import { useSession } from "@/src/providers/SessionProvider";
 import { ApiError } from "@/lib/api/client";
 import { fonts, spacing, touchTarget } from "@/src/theme";
@@ -57,6 +58,12 @@ export default function LoginScreen() {
     <Screen keyboard testID="login-screen">
       <View style={styles.brand}>
         <BrandMark />
+      </View>
+      <View style={styles.lottie}>
+        <Lottie size={112} interactive testID="login-lottie" />
+        <Text variant="bodySemi" color={colors.muted} testID="login-greeting">
+          {"Lottie's on duty."}
+        </Text>
       </View>
       <View style={styles.heading}>
         <Text variant="hero">Welcome back</Text>
@@ -138,6 +145,11 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   brand: {
     paddingTop: spacing.xl2,
+  },
+  lottie: {
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.lg,
   },
   heading: {
     gap: spacing.md,

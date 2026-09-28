@@ -4,8 +4,8 @@
 
 /**
  * PARADA "operations console" world — deliberately its own atmosphere, not
- * the mobile app's palette carried over. Mobile draws its identity from the
- * mascot (warm navy + badge-gold); admin draws from the logo mark and the
+ * the mobile app's palette carried over. Mobile is warm navy + badge-gold;
+ * admin draws from the logo mark and the
  * job of the surface: a true-neutral graphite control room with PARADA
  * orange as the one brand accent, so status color (success/warning/danger)
  * reads instantly against a hue-neutral ground instead of competing with a

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { BrandLogo } from "@/components/BrandLogo";
+import { Lottie } from "@/components/Lottie";
 import { useRouter } from "next/navigation";
 import { AlertCircle, LockKeyhole, Mail } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -112,13 +112,10 @@ export default function LoginPage() {
       {/* Brand column — hidden below lg, matches the console's desktop-first posture */}
       <aside aria-label="PARADA" className="relative hidden w-1/2 flex-col items-center justify-center overflow-hidden border-l border-line bg-card lg:flex">
         <div className="relative z-10 flex flex-col items-center gap-6 px-12 text-center">
-          <Image
-            src="/mascot/parada-mascot.webp"
-            alt=""
-            width={168}
-            height={168}
-            className="h-[168px] w-[168px] object-contain"
-          />
+          <div className="flex flex-col items-center gap-2">
+            <Lottie size={168} />
+            <p className="text-sm font-semibold text-muted">Lottie&apos;s on duty.</p>
+          </div>
           <BrandLogo height={23} />
           <p className="max-w-xs font-display text-xl font-bold leading-snug text-charcoal">
             Guiding every vehicle to its zone.

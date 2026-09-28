@@ -98,11 +98,16 @@ const config: Config = {
           "80%": { opacity: "1" },
           "100%": { opacity: "0" },
         },
+        "lottie-float": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-4px)" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both",
         "pulse-dot": "pulse-dot 2s ease-in-out infinite",
         "saved-fade": "saved-fade 3.2s ease-out both",
+        "lottie-float": "lottie-float 4.8s ease-in-out infinite",
       },
     },
   },

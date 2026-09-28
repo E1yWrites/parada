@@ -81,3 +81,13 @@ describe("Notifications page — mark-read flow", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Notification service unavailable.");
   });
 });
+describe("Notifications page — empty state", () => {
+  it("shows an icon, not a mascot image, when there are no notifications", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    mockedApi.notifications.mockResolvedValue({ notifications: [], unreadCount: 0 });
+    const { container } = renderPage(queryClient);
+    expect(await screen.findByText("No notifications.")).toBeInTheDocument();
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
+});

@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ActiveSessionBanner } from "./ActiveSessionBanner";
 import { Button } from "./Button";
 import { Card } from "./Card";
-import { Mascot } from "./Mascot";
+import { Lottie } from "./Lottie";
 import { PlateChip } from "./PlateChip";
 import { Stamp } from "./Stamp";
 import { ErrorState, LoadingState } from "./StateComponents";
@@ -140,7 +140,7 @@ export function CurrentParkingState({
   if (currentAssignment === null && currentReservation === null) {
     return (
       <Card padding={spacing.xl2} style={styles.emptyPass} testID="current-state-empty">
-        <Mascot accentIcon="car-outline" accentColor={colors.muted} size={92} />
+        <Lottie size={96} interactive testID="current-state-lottie" />
         <View style={styles.emptyBody}>
           <Text variant="title" align="center" accessibilityRole="header">
             Nothing planned

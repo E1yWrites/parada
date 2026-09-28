@@ -145,7 +145,7 @@ export default function HistoryPage() {
         >
           {!history.data || history.data.entries.length === 0 ? (
             <EmptyState
-              mascot="history"
+              icon={Clock3}
               title="No occupancy history"
               message={history.isFetching || navigating ? "Loading…" : "No occupancy history for this period."}
             />

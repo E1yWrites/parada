@@ -23,7 +23,7 @@ export const motion = {
     friction: 6,
     tension: 120,
   },
-  /** Bouncier spring for the mascot's entrance — more overshoot than the stamp's landing. */
+  /** Bouncier spring for button and card press release — more overshoot than the stamp's landing. */
   springPlayful: {
     friction: 5,
     tension: 160,
