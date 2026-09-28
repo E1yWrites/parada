@@ -70,3 +70,22 @@ describe("admin login — landmarks and copy", () => {
     expect(screen.queryByText(/httponly/i)).not.toBeInTheDocument();
   });
 });
+
+describe("Login page — old mascot removed", () => {
+  it("no longer loads the old mascot image", () => {
+    const { container } = render(<LoginPage />);
+    const srcs = Array.from(container.querySelectorAll("img")).map((img) => img.getAttribute("src") ?? "");
+    expect(srcs.some((src) => /mascot/i.test(src))).toBe(false);
+    expect(screen.getByText("Guiding every vehicle to its zone.")).toBeInTheDocument();
+  });
+});
+
+describe("Login page — Lottie", () => {
+  it("shows Lottie in the brand panel with a greeting, hidden from screen readers and not focusable", () => {
+    const { container } = render(<LoginPage />);
+    expect(screen.getByText("Lottie's on duty.")).toBeInTheDocument();
+    const lottie = container.querySelector('[data-testid="lottie"]');
+    expect(lottie).toHaveAttribute("aria-hidden", "true");
+    expect(lottie?.querySelector("button, a, [tabindex]")).toBeNull();
+  });
+});

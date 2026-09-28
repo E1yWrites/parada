@@ -101,7 +101,7 @@ export default function NotificationsPage() {
         error={notifications.error}
         isEmpty={!notifications.data || notifications.data.notifications.length === 0}
         emptyTitle="No notifications."
-        emptyMascot="notifications"
+        emptyIcon={Bell}
         loadingRows={4}
         onRetry={() => notifications.refetch()}
       >

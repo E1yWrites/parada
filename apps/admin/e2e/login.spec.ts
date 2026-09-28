@@ -3,12 +3,12 @@ import { test, expect } from "@playwright/test";
 /**
  * Unauthenticated checks only — no seeded admin credentials are available
  * to this test (PARADA_SEED_ADMIN_PASSWORD is not committed). Covers the
- * login page's split layout + mascot and the auth-guard redirect, both of
+ * login page's split layout and the auth-guard redirect, both of
  * which don't require signing in.
  */
 
 test.describe("Login page", () => {
-  test("renders the split layout with brand panel and mascot on desktop", async ({ page }) => {
+  test("renders the split layout with brand panel on desktop", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/login");
 

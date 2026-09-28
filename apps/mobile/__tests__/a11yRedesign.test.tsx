@@ -90,3 +90,11 @@ describe("system settings are followed", () => {
     expect(remove).toHaveBeenCalled();
   });
 });
+
+describe("login: Lottie", () => {
+  it("shows Lottie with a plain-text greeting that names her", () => {
+    renderWithAppProviders(<LoginScreen />);
+    expect(screen.getByTestId("login-greeting")).toHaveTextContent("Lottie's on duty.");
+    expect(screen.getByTestId("login-lottie", { includeHiddenElements: true })).toBeTruthy();
+  });
+});

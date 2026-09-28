@@ -1,16 +1,6 @@
-import Image from "next/image";
 import { Loader2, AlertTriangle, RotateCcw, Inbox, type LucideIcon } from "lucide-react";
 import { Card } from "./Card";
 import { Button } from "./Button";
-
-/** Canonical PARADA mascot assets — fixed images, never redrawn or recolored. */
-const MASCOT_SRC = {
-  body: "/mascot/parada-mascot.webp",
-  notifications: "/mascot/head_notifications.png",
-  history: "/mascot/head_history.png",
-} as const;
-
-type MascotVariant = keyof typeof MASCOT_SRC;
 
 export function LoadingState({
   rows = 4,
@@ -55,35 +45,18 @@ function Scene({ Icon, tone = "brand" }: { Icon: LucideIcon; tone?: "brand" | "d
   );
 }
 
-/**
- * The canonical mascot standing in for the icon-disc scene — used only where
- * a head variant genuinely matches the situation (notifications, history).
- * Most empty states keep the icon scene; this is deliberate, not a blanket
- * replacement.
- */
-function MascotScene({ variant }: { variant: MascotVariant }) {
-  return (
-    <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-brand-soft" aria-hidden="true">
-      <Image src={MASCOT_SRC[variant]} alt="" width={72} height={72} className="h-[72px] w-[72px] object-contain" />
-    </div>
-  );
-}
-
 export function EmptyState({
   title,
   message,
   icon,
-  mascot,
 }: {
   title?: string;
   message?: string;
   icon?: LucideIcon;
-  /** Render the canonical mascot instead of the icon-disc scene, for contexts it genuinely fits. */
-  mascot?: MascotVariant;
 }) {
   return (
     <Card className="flex flex-col items-center justify-center px-6 py-14 text-center">
-      {mascot ? <MascotScene variant={mascot} /> : <Scene Icon={icon ?? Inbox} />}
+      <Scene Icon={icon ?? Inbox} />
       <h3 className="mt-5 font-display text-lg font-black tracking-tight text-charcoal">
         {title ?? "No records."}
       </h3>

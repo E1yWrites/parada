@@ -743,3 +743,16 @@ describe("reservation on Now: GPS navigation (moved from the retired least-busy 
     expect(screen.queryByTestId("reservation-navigate")).not.toBeOnTheScreen();
   });
 });
+
+describe("current parking state: Lottie on the idle card only", () => {
+  it("shows Lottie, unnamed, when nothing is planned", () => {
+    renderState();
+    expect(screen.getByTestId("current-state-lottie", { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.getByTestId("current-state-empty")).not.toHaveTextContent(/Lottie/);
+  });
+
+  it("hides Lottie once something is current", () => {
+    renderState({ assignment });
+    expect(screen.queryByTestId("current-state-lottie", { includeHiddenElements: true })).toBeNull();
+  });
+});

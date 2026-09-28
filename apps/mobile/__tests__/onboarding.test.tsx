@@ -48,3 +48,15 @@ describe("onboarding screen", () => {
     expect(await isOnboardingCompleted()).toBe(true);
   });
 });
+
+describe("onboarding: Lottie introduces herself on slide 1 only", () => {
+  it("shows Lottie and her greeting on slide 1, the topic icon on slide 2", () => {
+    renderWithProviders(<OnboardingScreen />);
+    expect(screen.getByTestId("onboarding-greeting")).toHaveTextContent("Hi, I'm Lottie.");
+    expect(screen.getByTestId("onboarding-lottie", { includeHiddenElements: true })).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId("onboarding-next"));
+    expect(screen.queryByTestId("onboarding-greeting")).toBeNull();
+    expect(screen.queryByTestId("onboarding-lottie", { includeHiddenElements: true })).toBeNull();
+  });
+});
