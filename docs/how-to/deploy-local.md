@@ -29,7 +29,7 @@ build as ONLINE with a different `.env`.
 - Linux (Ubuntu 22.04/24.04 verified via WSL for the build path), or the
   Windows development setup from
   [run-and-test-locally.md](./run-and-test-locally.md).
-- Node.js 20+, npm 9+, Python 3.11, PostgreSQL 16+ — or Docker for the
+- Node.js 24 LTS (20.19.4+ minimum), npm 9+, Python 3.11, PostgreSQL 16+ — or Docker for the
   database only (`docker-compose.yml`).
 - A **static LAN address** for the host (DHCP reservation on the router).
   Phones and cameras must find it at the same address every day.

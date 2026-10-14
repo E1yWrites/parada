@@ -5,6 +5,11 @@
 // so the mobile app and Metro bundler stay reachable when the dev machine
 // switches networks (home Wi-Fi, hotspot, another office, etc).
 //
+// EXPO_PUBLIC_API_URL is only rewritten while it is missing or a plain-http
+// loopback/private-LAN address (a value this script could have written). An
+// https:// URL or a public host was set on purpose (ONLINE / HYBRID / tunnel)
+// and is kept.
+//
 // Usage: node scripts/set-lan-ip.js [ip-override]
 "use strict";
 
@@ -12,8 +17,23 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const ENV_PATH = path.join(__dirname, "..", ".env");
-const ENV_LOCAL_PATH = path.join(__dirname, "..", ".env.local");
+// localhost, 127/8, [::1], and the RFC 1918 + link-local IPv4 ranges
+// (10.0.2.2, the Android emulator alias, is inside 10/8).
+const LOCAL_HOST_RE =
+  /^(localhost|\[::1\]|127(\.\d{1,3}){3}|10(\.\d{1,3}){3}|192\.168(\.\d{1,3}){2}|172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2}|169\.254(\.\d{1,3}){2})$/i;
+
+/** True for a plain-http loopback/LAN API base URL, e.g. http://192.168.1.5:4100 */
+function isLocalDevApiUrl(value) {
+  const match = /^http:\/\/(\[[^\]]+\]|[^/:]+)(:\d+)?\/?$/i.exec(value.trim());
+  return match !== null && LOCAL_HOST_RE.test(match[1]);
+}
+
+/** Value of `KEY=value` in dotenv text (quotes stripped), or null. Comment lines never match. */
+function readEnvValue(content, key) {
+  const match = new RegExp(`^\\s*${key}\\s*=(.*)$`, "m").exec(content);
+  if (!match) return null;
+  return match[1].trim().replace(/^(["'])(.*)\1$/, "$2");
+}
 
 const VIRTUAL_NAME_RE = /virtualbox|vethernet|hyper-v|loopback|wsl|tailscale|zerotier|docker|vmware/i;
 const LINK_LOCAL_RE = /^169\.254\./;
@@ -83,17 +103,26 @@ function updateEnvFile(filePath, key, newValue, { createIfMissing = false } = {}
   return true;
 }
 
-function main() {
-  const override = process.argv[2];
+function main({ dir = path.join(__dirname, ".."), override = process.argv[2] } = {}) {
+  const envPath = path.join(dir, ".env");
+  const envLocalPath = path.join(dir, ".env.local");
   const { name, address } = pickAddress(override);
   console.log(`[set-lan-ip] using ${address} (${name})`);
 
-  const envContent = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, "utf8") : "";
-  const portMatch = envContent.match(/EXPO_PUBLIC_API_URL=https?:\/\/[^:/\s]+(:\d+)?/);
-  const port = portMatch && portMatch[1] ? portMatch[1] : ":4100";
-
-  updateEnvFile(ENV_PATH, "EXPO_PUBLIC_API_URL", `http://${address}${port}`);
-  updateEnvFile(ENV_LOCAL_PATH, "REACT_NATIVE_PACKAGER_HOSTNAME", address, { createIfMissing: true });
+  const envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
+  const current = readEnvValue(envContent, "EXPO_PUBLIC_API_URL");
+  if (current && !isLocalDevApiUrl(current)) {
+    console.log(`[set-lan-ip] keeping EXPO_PUBLIC_API_URL=${current} (not a plain-http loopback/LAN address)`);
+  } else {
+    const portMatch = current ? /:(\d+)\/?$/.exec(current) : null;
+    const port = portMatch ? `:${portMatch[1]}` : ":4100";
+    updateEnvFile(envPath, "EXPO_PUBLIC_API_URL", `http://${address}${port}`);
+  }
+  updateEnvFile(envLocalPath, "REACT_NATIVE_PACKAGER_HOSTNAME", address, { createIfMissing: true });
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = { isLocalDevApiUrl, readEnvValue, main };

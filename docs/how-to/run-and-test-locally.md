@@ -2,7 +2,8 @@
 
 ## Prerequisites
 
-- Node.js 18+ and npm 9+
+- Node.js 20.19.4+, 22.13+ or 24.3+ (`.nvmrc`: 24) and npm 9+. The mobile
+  toolchain (React Native 0.86 / Metro 0.84) refuses Node 18
 - Python 3.11 — only needed for the vision/OCR service
 - No PostgreSQL install and no Docker required for development:
   `packages/database` runs an embedded PostgreSQL 18 cluster on port `5442`,
@@ -14,8 +15,15 @@
 npm install
 ```
 
-Copy each package's `.env.example` to `.env` and fill in real values. Never
-commit real secrets. When seeding the database, set unique credentials first:
+```bash
+cp services/api/.env.example services/api/.env      # then set JWT_SECRET
+cp apps/admin/.env.example apps/admin/.env.local
+cp apps/mobile/.env.example apps/mobile/.env
+```
+
+Never commit real secrets. Which file each process reads, and the values for
+every run case, are in [configure-environments.md](configure-environments.md).
+When seeding the database, set unique credentials first:
 
 ```text
 PARADA_SEED_ADMIN_PASSWORD=<strong-admin-password>
@@ -49,6 +57,11 @@ npm run dev -w @parada/vision      # FastAPI on port 8001
 npm run camera -w @parada/vision   # camera runtime CLI (USB / RTSP / video file)
 ```
 
+No internet on the demo PC? On Windows, `run-offline.cmd` (repository root)
+starts, simulates, tests and stops the whole stack offline after a one-time
+`run-offline.cmd prepare` while online — see
+[configure-environments.md §3.3](configure-environments.md#33-offline-one-windows-pc-no-internet).
+
 ### Ports
 
 | Service | Port |
@@ -75,7 +88,10 @@ REACT_NATIVE_PACKAGER_HOSTNAME=<your-LAN-IP>
 
 On Windows, allow inbound `node.exe` on the **active** network profile for
 that adapter — a Public-profile-only rule blocks a Private-profile adapter.
-`npm run dev` warns at startup if `EXPO_PUBLIC_API_URL` is still loopback.
+`npm run dev` writes both values for you before Expo starts
+(`apps/mobile/scripts/set-lan-ip.js`) and warns if `EXPO_PUBLIC_API_URL` is
+still loopback. If it picks the wrong adapter, see
+[configure-environments.md §3.2](configure-environments.md#32-local-development-with-a-physical-phone-same-wi-fi).
 
 ## Running tests
 
@@ -95,6 +111,12 @@ npm run test                                 # all workspaces
   ```
 - Individual workspaces: `npm run test -w @parada/api`, `-w @parada/admin`,
   `-w @parada/mobile`, `-w @parada/database`, `-w @parada/types`.
+- Two vision tests send real OCR results into a running API. They are skipped
+  unless `PARADA_TEST_API_URL`, `PARADA_TEST_ZONE_ID`,
+  `PARADA_TEST_CAMERA_IDENTIFIER` (and `PARADA_TEST_CAMERA_API_KEY` when the
+  API has a key) are set — see
+  [configure-environments.md §3.4](configure-environments.md#34-automated-tests).
+  Point them at a throwaway database: they create real events.
 
 ## Checks before committing
 

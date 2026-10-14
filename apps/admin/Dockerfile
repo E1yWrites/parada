@@ -7,7 +7,7 @@
 # never bundled for the browser), so it is supplied at run time, not here.
 
 # ---- build -----------------------------------------------------------------
-FROM node:20-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 WORKDIR /app
 
 COPY package.json package-lock.json turbo.json ./
@@ -33,7 +33,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx turbo run build --filter=@parada/admin
 
 # ---- run -------------------------------------------------------------------
-FROM node:20-bookworm-slim AS run
+FROM node:24-bookworm-slim AS run
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

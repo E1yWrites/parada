@@ -53,7 +53,7 @@ systemd `EnvironmentFile=` / container env at it:
 | `CAMERA_DEVICE_INDEX` | USB device index, if `CAMERA_SOURCE=usb` |
 | `VIDEO_SOURCE` | `rtsp://...` URL, if `CAMERA_SOURCE=rtsp` |
 | `CAMERA_FILE_PATH` | path to a video fixture, if `CAMERA_SOURCE=file` |
-| `PARADA_API_URL` | API base URL (default `http://localhost:4100`) |
+| `PARADA_API_URL` | API base URL (default `http://127.0.0.1:4100`) |
 | `CAMERA_API_KEY` | shared `X-API-Key` credential, must match the API's `CAMERA_API_KEY` |
 
 Plus tuning/resilience variables (`VISION_PROCESS_FPS`,
@@ -68,7 +68,7 @@ Example (USB, bash/WSL):
 ```bash
 CAMERA_SOURCE=usb CAMERA_DEVICE_INDEX=0 CAMERA_IDENTIFIER=CAM-A01 \
   CAMERA_ZONE_ID=<zoneId> \
-  PARADA_API_URL=http://localhost:4100 CAMERA_API_KEY=<key> \
+  PARADA_API_URL=http://127.0.0.1:4100 CAMERA_API_KEY=<key> \
   npm run camera -w @parada/vision -- run
 ```
 

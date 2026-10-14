@@ -183,7 +183,8 @@ and never enter the database, an API response, or a log.
 | `MAX_CAMERA_RECONNECTS` | `100` | reconnect ceiling; beyond this the camera stops (no crash) |
 
 The API connection uses the existing `PARADA_API_URL` (default
-`http://localhost:4100`) and `CAMERA_API_KEY` (`X-API-Key` header). **No user or
+`http://127.0.0.1:4100`; `localhost` costs ~2 s per event on Windows, see
+`docs/vision/phase14-evaluation.md`) and `CAMERA_API_KEY` (`X-API-Key` header). **No user or
 admin JWT is used.**
 
 ## USB development
@@ -200,21 +201,21 @@ admin JWT is used.**
    ```bash
    CAMERA_SOURCE=usb CAMERA_DEVICE_INDEX=0 CAMERA_IDENTIFIER=CAM-A01 \
      CAMERA_ZONE_ID=<zoneId> \
-     PARADA_API_URL=http://localhost:4100 CAMERA_API_KEY=<key> \
+     PARADA_API_URL=http://127.0.0.1:4100 CAMERA_API_KEY=<key> \
      npm run camera -w @parada/vision -- test
    ```
    PowerShell (native Windows) — set env vars first, then run:
    ```powershell
    $env:CAMERA_SOURCE="usb"; $env:CAMERA_DEVICE_INDEX="0"; $env:CAMERA_IDENTIFIER="CAM-A01"
    $env:CAMERA_ZONE_ID="<zoneId>"
-   $env:PARADA_API_URL="http://localhost:4100"; $env:CAMERA_API_KEY="<key>"
+   $env:PARADA_API_URL="http://127.0.0.1:4100"; $env:CAMERA_API_KEY="<key>"
    npm run camera -w @parada/vision -- test
    ```
 3. Start the full loop (bash/WSL):
    ```bash
    CAMERA_SOURCE=usb CAMERA_DEVICE_INDEX=0 CAMERA_IDENTIFIER=CAM-A01 \
      CAMERA_ZONE_ID=<zoneId> \
-     PARADA_API_URL=http://localhost:4100 CAMERA_API_KEY=<key> \
+     PARADA_API_URL=http://127.0.0.1:4100 CAMERA_API_KEY=<key> \
      npm run camera -w @parada/vision -- run
    ```
    PowerShell equivalent: set the same `$env:...` variables as above (omit
@@ -238,7 +239,7 @@ admin JWT is used.**
 
 CAMERA_SOURCE=file CAMERA_FILE_PATH=tests/fixtures/videos/clear_plate.mp4 \
   CAMERA_IDENTIFIER=CAM-A01 CAMERA_ZONE_ID=<zoneId> \
-  PARADA_API_URL=http://localhost:4100 CAMERA_API_KEY=<key> \
+  PARADA_API_URL=http://127.0.0.1:4100 CAMERA_API_KEY=<key> \
   npm run camera -w @parada/vision -- run
 ```
 
@@ -253,7 +254,7 @@ the loop cleanly.
 ```bash
 CAMERA_SOURCE=rtsp VIDEO_SOURCE=rtsp://10.0.0.15:554/stream1 CAMERA_IDENTIFIER=CAM-A01 \
   CAMERA_ZONE_ID=<zoneId> \
-  PARADA_API_URL=http://localhost:4100 CAMERA_API_KEY=<key> \
+  PARADA_API_URL=http://127.0.0.1:4100 CAMERA_API_KEY=<key> \
   npm run camera -w @parada/vision -- test
 ```
 

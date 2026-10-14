@@ -5,9 +5,9 @@
 Requires (all real processes, nothing mocked):
   * the PARADA API running with a seeded dev database
     (`npm run dev:api` from the repo root; seed = packages/database `npm run seed`),
-    reachable at PARADA_API_URL (default http://localhost:4100);
+    reachable at PARADA_API_URL (default http://127.0.0.1:4100);
   * this Vision service running (`npm run dev -w @parada/vision`), reachable at
-    VISION_URL (default http://localhost:8001);
+    VISION_URL (default http://127.0.0.1:8001);
   * CAMERA_API_KEY exported for this process if the API enforces one.
 
 What is measured (wall clock, from this client, per event):
@@ -52,7 +52,7 @@ from app.pipeline.service import process_image
 from evaluation import dataset as ds
 from evaluation.metrics import latency_summary
 
-VISION_URL = os.environ.get("VISION_URL", "http://localhost:8001")
+VISION_URL = os.environ.get("VISION_URL", "http://127.0.0.1:8001")
 API_URL = config.PARADA_API_URL
 PLATE_TEXT = "ABC 1234"  # seeded registered vehicle ABC-1234 (packages/database/src/seed)
 ZONE_CODE = os.environ.get("E2E_ZONE_CODE", "A")

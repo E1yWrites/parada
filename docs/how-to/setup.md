@@ -10,15 +10,16 @@ production/online deployment see [deploy.md](deploy.md).
 
 | Tool | Version | Needed for |
 |---|---|---|
-| Node.js | 18+ | everything (npm workspaces) |
-| npm | 9+ | dependency install (`packageManager: npm@9.2.0`) |
+| Node.js | 20.19.4+, 22.13+ or 24.3+ (`.nvmrc`: 24; last full verification on 24.15.0) | everything. `apps/mobile` (React Native 0.86 / Metro 0.84) refuses older versions; API and Admin alone run on 18.18+ |
+| npm | 9+ | dependency install (`packageManager: npm@9.2.0`; verified with npm 12.0.2) |
 | Python | 3.11 | `services/vision` only |
 | Git | any | clone |
 
 No PostgreSQL install and no Docker are required for local development.
 `packages/database` runs an embedded PostgreSQL 18 cluster on port `5442`,
 persisted under `packages/database/.embedded-pg/` (gitignored). Docker is only
-used by the `capstone-online` deployment profiles (see
+used by the optional `docker-compose.yml` PostgreSQL container and the online
+deployment profiles (see
 [deploy-online-free.md](deploy-online-free.md) /
 [deploy-online-paid.md](deploy-online-paid.md)).
 
@@ -35,22 +36,25 @@ Expo config for `apps/mobile`).
 
 ## 3. Configure environment files
 
-Every workspace has its own `.env`, copied from a checked-in `.env.example`.
+Every process reads its own file, copied from a checked-in template.
 **Never commit a real `.env` — only the `.example` templates are tracked.**
+Values for the other run cases (phone on LAN, offline, tests, LOCAL, ONLINE,
+HYBRID) are in [configure-environments.md](configure-environments.md).
 
 | Copy this | To this | Used by |
 |---|---|---|
-| [`.env.example`](../../.env.example) | `.env` (repo root) | shared dev defaults (`DATABASE_URL`, Postgres creds, ports) — read by `npm run dev` orchestration |
-| [`services/api/.env.example`](../../services/api/.env.example) | `services/api/.env` | API (Express) |
-| [`services/vision/.env.example`](../../services/vision/.env.example) | `services/vision/.env` | Vision/OCR camera runtime |
+| [`services/api/.env.example`](../../services/api/.env.example) | `services/api/.env` | API (Express, `dotenv`) |
+| [`apps/admin/.env.example`](../../apps/admin/.env.example) | `apps/admin/.env.local` | Next.js admin (`API_BASE_URL`, server-only) |
 | [`apps/mobile/.env.example`](../../apps/mobile/.env.example) | `apps/mobile/.env` | Expo mobile app (`EXPO_PUBLIC_*` vars are bundled into the client — no secrets here) |
-| `apps/admin` | reads `services/api`'s `API_BASE_URL` / root `.env` | Next.js admin — no separate admin `.env.example` exists; it uses the root file |
+| [`services/vision/.env.example`](../../services/vision/.env.example) | `services/vision/.env` | Vision/OCR camera runtime — no loader, export it first ([how](configure-environments.md#2-exporting-the-vision-environment)) |
+| [`packages/database/.env.example`](../../packages/database/.env.example) | `packages/database/.env` | optional: Prisma CLI commands without a built-in URL, and the seed passwords |
+| [`.env.example`](../../.env.example) | `.env` (repo root) | optional: only `docker-compose.yml` (PostgreSQL container) reads it |
 
 ```bash
-cp .env.example .env
 cp services/api/.env.example services/api/.env
-cp services/vision/.env.example services/vision/.env
+cp apps/admin/.env.example apps/admin/.env.local
 cp apps/mobile/.env.example apps/mobile/.env
+cp services/vision/.env.example services/vision/.env
 ```
 
 Two more root-level templates exist for other run profiles — **do not use
@@ -145,6 +149,13 @@ npm run dev -w @parada/vision        # FastAPI on port 8001
 npm run camera -w @parada/vision     # camera runtime CLI (USB / RTSP / video file)
 ```
 
+Export `services/vision/.env` into that shell first; vision has no env-file
+loader ([bash and PowerShell commands](configure-environments.md#2-exporting-the-vision-environment)).
+
+No internet on the demo PC? On Windows, `run-offline.cmd` at the repository
+root runs the whole stack offline after a one-time `run-offline.cmd prepare`
+while online ([details](configure-environments.md#33-offline-one-windows-pc-no-internet)).
+
 ### Ports
 
 | Service | Port |
@@ -178,7 +189,10 @@ REACT_NATIVE_PACKAGER_HOSTNAME=<your-LAN-IP>
 
 On Windows, allow inbound `node.exe` on the **active** network profile for
 that adapter — a Public-profile-only rule blocks a Private-profile adapter.
-`npm run dev` warns at startup if `EXPO_PUBLIC_API_URL` is still loopback.
+`npm run dev` writes both values for you before Expo starts
+(`apps/mobile/scripts/set-lan-ip.js`) and warns if `EXPO_PUBLIC_API_URL` is
+still loopback. If it picks the wrong adapter, see
+[configure-environments.md §3.2](configure-environments.md#32-local-development-with-a-physical-phone-same-wi-fi).
 
 ## 6. Reset the database to a clean state
 

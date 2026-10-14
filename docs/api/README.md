@@ -6,10 +6,13 @@ Backend HTTP API (`services/api`). Node.js + Express + TypeScript, backed by the
 ## Running
 
 ```bash
-cp .env.example .env   # set DATABASE_URL, PORT, NODE_ENV, JWT_SECRET
-npm run build
-npm start              # or: npm run dev
+cp services/api/.env.example services/api/.env   # set JWT_SECRET; DATABASE_URL already targets the embedded DB
+npm run dev:api        # from the repo root: starts the DB, migrates, builds the API and its packages, starts it
 ```
+
+`npm run dev -w @parada/api` only runs `tsc --watch`; it does not start a
+server. Values for each run case (local, LAN phone, offline, LOCAL, ONLINE,
+HYBRID): [configure-environments.md](../how-to/configure-environments.md).
 
 Health check: `GET /health` returns `{ "data": { "status": "ok", "database": "connected" } }`.
 

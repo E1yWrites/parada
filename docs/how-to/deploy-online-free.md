@@ -12,7 +12,7 @@ without paying for hosting. Two routes; pick one.
 Free-tier terms quoted here are as understood at the time of writing
 (2026). Confirm them on each provider's pricing page before relying on them
 for a scheduled demonstration. Nothing below requires a specific vendor; the
-application only needs a Node 20 server, a Next.js server, PostgreSQL 16 and
+application only needs a Node 24 server, a Next.js server, PostgreSQL 16 and
 HTTPS.
 
 Everything in this guide is an **operator action** on the operator's own

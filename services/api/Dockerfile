@@ -9,9 +9,10 @@
 # Single stage on purpose: the runtime keeps the Prisma CLI so the same image
 # can apply migrations (`npm run migrate:deploy -w @parada/database`) before
 # the API starts. The install/build steps below are the ones verified on a
-# Linux host for the capstone-online branch (see docs/how-to/deploy.md).
+# Linux host (see docs/how-to/deploy.md). Node 24 LTS: Node 20 reached end of
+# life in April 2026, and the mobile toolchain already requires 20.19.4+.
 
-FROM node:20-bookworm-slim
+FROM node:24-bookworm-slim
 
 # openssl: Prisma's query engine links against libssl.
 RUN apt-get update \

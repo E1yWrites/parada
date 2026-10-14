@@ -29,7 +29,9 @@ MAX_IMAGE_BYTES = 8 * 1024 * 1024
 # Where the normalized event gets forwarded when a caller opts in via
 # POST /detect?forward=true. Vision never talks to Prisma/PostgreSQL directly;
 # this is the one and only downstream call it is allowed to make.
-PARADA_API_URL = os.environ.get("PARADA_API_URL", "http://localhost:4100")
+# 127.0.0.1, not localhost: on Windows localhost resolves to ::1 first while the
+# API listens on IPv4, costing ~2 s per fresh connection (phase14-evaluation.md).
+PARADA_API_URL = os.environ.get("PARADA_API_URL", "http://127.0.0.1:4100")
 CAMERA_API_KEY = os.environ.get("CAMERA_API_KEY")
 
 # ---------------------------------------------------------------------------

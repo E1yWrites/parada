@@ -190,8 +190,9 @@ Zone A occupancy before = after = 0/20 in every run (each ENTRY was closed by it
 
 `results/e2e_latency.json` (with `PARADA_API_URL=http://127.0.0.1:4100`).
 
-**Finding — `localhost` costs 2 s per event.** With the default
-`PARADA_API_URL=http://localhost:4100` (`results/e2e_latency_localhost.json`) the same
+**Finding — `localhost` costs 2 s per event.** With the then-default
+`PARADA_API_URL=http://localhost:4100` (the default is `http://127.0.0.1:4100` since
+2026-10-14) (`results/e2e_latency_localhost.json`) the same
 full chain measured **median 2428.9 ms, p95 2489.9 ms** (40 × 201). Diagnosis:
 `localhost` resolves to `::1` first on this Windows host, the API binds `0.0.0.0`
 (IPv4 only), and `app/api_client.py` opens a fresh `httpx.Client` per event, so every

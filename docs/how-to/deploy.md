@@ -17,8 +17,9 @@ variables already separate the profiles cleanly (`NODE_ENV`, the URLs, and
 `TRUST_PROXY`), so a mode switch would only duplicate them.
 
 **Status.** Phase 15 (Deployment) is still PENDING in
-[`docs/architecture/roadmap.md`](../architecture/roadmap.md): this branch
-(`capstone-online`) makes every profile *deployable* and verifies the build,
+[`docs/architecture/roadmap.md`](../architecture/roadmap.md): the repository
+(the `capstone-online` work, now merged into `main`) makes every profile
+*deployable* and verifies the build,
 migration and start-up path on Linux, but no hosting account, domain, DNS,
 TLS certificate, production database, SMTP account, camera placement or EAS
 project has been created — those are operator steps listed in each guide.
@@ -62,7 +63,7 @@ on-site Vision ──HTTPS + X-API-Key
   Vision; a Node/Python host without Docker works equally (§5–§7).
 - `TRUST_PROXY` is set to the proxy hop count (normally `1`) because a TLS
   proxy or load balancer always sits in front online.
-- Provider-neutral: any host that runs a Node 20 server, a Next.js server, a
+- Provider-neutral: any host that runs a Node 24 server, a Next.js server, a
   PostgreSQL 16 database and a persistent Python process. Provider examples
   live only in the guides.
 
@@ -166,7 +167,7 @@ Facts that constrain the layout (all from code, none optional):
 
 | Requirement | Evidence / notes |
 |---|---|
-| Node.js 20 LTS or newer, npm 9+ | `package.json` declares `packageManager: npm@9.2.0`; the release candidate was built and tested with Node 24.15.0 / npm 12.0.2 |
+| Node.js 24 LTS (20.19.4+ minimum; Node 20 reached end of life in April 2026), npm 9+ | `package.json` declares `packageManager: npm@9.2.0`; the release candidate was built and tested with Node 24.15.0 / npm 12.0.2. The API and Admin Dockerfiles use `node:24-bookworm-slim` |
 | Python 3.11 | `docs/how-to/run-and-test-locally.md`; the vision venv used for Phase 14 is 3.11.9 |
 | PostgreSQL 16 or newer | `docker-compose.yml` uses `postgres:16-alpine`; development ran on embedded PostgreSQL 18.4. Only the default `plpgsql` extension is required (verified on a fully migrated database) |
 | Outbound internet from the vision host, once | EasyOCR downloads `craft_mlt_25k.pth` + `english_g2.pth` (~94 MB) to `~/.EasyOCR/model` on first run; copy that directory instead if the host is offline |
@@ -182,7 +183,9 @@ workstation for a Linux server.
 ## 3. Environment variables
 
 Names only. Never commit a `.env`; `.gitignore` already excludes every
-`.env*` except `.env.example`. Generate secrets with
+`.env*` except the `*.example` templates. Which file each process reads, and
+the values for every case side by side:
+[configure-environments.md](configure-environments.md). Generate secrets with
 `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"`.
 
 ### API (`services/api/.env` or the process environment)
@@ -480,9 +483,10 @@ Build-time configuration only; the same app serves every profile.
   ```
   or set the variable in `apps/mobile/.env` on the build machine (the file
   is gitignored and is not uploaded to EAS).
-- Do **not** run `npm run dev`/`npm run start` in `apps/mobile` on the build
-  machine first: their `predev`/`prestart` hooks (`scripts/set-lan-ip.js`)
-  overwrite `apps/mobile/.env` with the machine's LAN address.
+- The `predev`/`prestart` hooks of `npm run dev`/`npm run start` in
+  `apps/mobile` (`scripts/set-lan-ip.js`) rewrite `EXPO_PUBLIC_API_URL` only
+  while it is missing or a plain-http loopback/LAN address; an `https://`
+  value is kept. Check `apps/mobile/.env` before building anyway.
 - `npm run build -w @parada/mobile` only runs `expo export` (a JS bundle); it
   is a build-verification step, not an installable app.
 - Verify a build by watching its first request: the login screen must call
@@ -580,7 +584,7 @@ deferred improvement, not present in this release.
 | Admin shows "Unable to reach the PARADA API." | `API_BASE_URL` wrong or the API is down; it is the server-side URL, not the public one. |
 | Everyone gets 429 on login after a few attempts | `TRUST_PROXY` unset behind a proxy: all clients share the proxy's address. Set `TRUST_PROXY=1`. |
 | Zone figures only update on reload; `/api/realtime` keeps reconnecting | Proxy buffering or idle timeout below 25 s on the SSE routes. |
-| Mobile release build cannot log in but the dev build can | `EXPO_PUBLIC_API_URL` is `http://` (cleartext blocked) or was overwritten by `set-lan-ip.js`. Rebuild with the HTTPS URL. |
+| Mobile release build cannot log in but the dev build can | `EXPO_PUBLIC_API_URL` is `http://` (cleartext blocked), e.g. the LAN value `set-lan-ip.js` writes for development. Rebuild with the HTTPS URL. |
 | Vision: `api rejected event status=409 reason=...` on every event | `CAMERA_ZONE_ID` does not match the zone the camera is registered under, gate direction mismatch, or the camera is OFFLINE in Admin. |
 | Vision: every event gets 401 | `CAMERA_API_KEY` differs between the API and the runtime, or is blank on one side. |
 | `prisma migrate deploy` errors with P3009 | An earlier migration failed; see §11 "Migration failed midway". |
