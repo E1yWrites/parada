@@ -38,21 +38,6 @@
       "port": 4100
     },
     {
-      "name": "showreel",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev",
-        "--prefix",
-        "showreel",
-        "--",
-        "--no-open",
-        "--port",
-        "3123"
-      ],
-      "port": 3123
-    },
-    {
       "name": "admin-prod",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
