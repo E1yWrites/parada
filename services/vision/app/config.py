@@ -67,6 +67,11 @@ CAMERA_IDENTIFIER = os.environ.get("CAMERA_IDENTIFIER", "CAM-A01")
 # so the mapping stays authoritative in the database.
 CAMERA_ZONE_ID = os.environ.get("CAMERA_ZONE_ID", "")
 
+# Direction this runtime reports: ENTRY or EXIT (default ENTRY). One runtime
+# feeds one gate camera, so it must match the gate type set in Admin ->
+# Cameras; the API still rejects a direction the camera does not allow.
+CAMERA_EVENT_TYPE = os.environ.get("CAMERA_EVENT_TYPE", "ENTRY").strip().upper()
+
 # Frame-rate ceiling. A webcam may deliver 30-60 FPS but we must not run
 # OCR at that rate; process at most this many frames per second.
 VISION_PROCESS_FPS = float(os.environ.get("VISION_PROCESS_FPS", "2"))

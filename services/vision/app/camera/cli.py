@@ -143,6 +143,12 @@ def main(argv: list[str] | None = None) -> int:
             f"must know which zone camera '{vision_config.CAMERA_IDENTIFIER}' belongs to."
         )
         return 2
+    if vision_config.CAMERA_EVENT_TYPE not in ("ENTRY", "EXIT"):
+        print(
+            f"configuration error: CAMERA_EVENT_TYPE must be ENTRY or EXIT "
+            f"(got '{vision_config.CAMERA_EVENT_TYPE}')."
+        )
+        return 2
     return _run(source, vision_config.CAMERA_IDENTIFIER, zone_id)
 
 

@@ -61,7 +61,8 @@ class CameraRuntime:
     max_consecutive_failures: int = field(default_factory=lambda: config.MAX_CONSECUTIVE_READ_FAILURES)
     max_reconnects: int = field(default_factory=lambda: config.MAX_CAMERA_RECONNECTS)
     max_forward_attempts: int = field(default_factory=lambda: config.MAX_FORWARD_ATTEMPTS)
-    event_type: str = "ENTRY"  # fixed for a single-camera runtime; the API enforces direction
+    # ENTRY or EXIT, from CAMERA_EVENT_TYPE (default ENTRY); must match the gate set in Admin -> Cameras.
+    event_type: str = field(default_factory=lambda: config.CAMERA_EVENT_TYPE)
 
     def __post_init__(self) -> None:
         # The only ingestion contract the API exposes is
@@ -74,6 +75,10 @@ class CameraRuntime:
                 "POST /zones/:zoneId/events. Set CAMERA_ZONE_ID (or pass --zone-id) "
                 f"to the zone that camera '{self.camera_identifier}' is configured under."
             )
+        # The API accepts only ENTRY/EXIT; a typo would be rejected (400) on
+        # every event, so refuse to start instead.
+        if self.event_type not in ("ENTRY", "EXIT"):
+            raise ValueError(f"CAMERA_EVENT_TYPE must be ENTRY or EXIT, got '{self.event_type}'.")
         if self.process_fps <= 0:
             self.process_fps = 1.0
         self._stop_flag = False

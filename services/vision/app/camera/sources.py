@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from typing import Optional
 
 import cv2
@@ -56,7 +57,8 @@ class UsbCameraSource(CameraSource):
         logger.info("USB camera device=%d opened", self.device_index)
 
     def read_frame(self) -> np.ndarray:
-        assert self._cap is not None
+        if self._cap is None:
+            raise FrameReadError("USB camera is not open.")
         ok, frame = self._cap.read()
         if not ok or frame is None or frame.size == 0:
             raise FrameReadError(f"USB device {self.device_index} returned no frame.")
@@ -89,18 +91,32 @@ class RtspCameraSource(CameraSource):
 
     Credentials embedded in the URL are used ONLY at open() time and are never
     included in describe()/status_text()/exceptions/logs.
+
+    A live camera pushes frames at its own rate (e.g. 25 fps) while the runtime
+    only reads at VISION_PROCESS_FPS. Read that slowly, the stream backs up and
+    the camera drops the session within ~30 s. A background reader therefore
+    drains the stream continuously and keeps only the newest frame;
+    read_frame() hands that frame out.
     """
 
     source_type = SourceType.RTSP
 
-    def __init__(self, url: str) -> None:
+    def __init__(self, url: str, frame_timeout_seconds: float = 2.0) -> None:
         super().__init__()
         if not isinstance(url, str) or not url.strip():
             raise CameraSourceError("RTSP URL is required.")
         if not url.startswith(("rtsp://", "rtsps://")):
             raise CameraSourceError("RTSP source must use an rtsp:// or rtsps:// URL.")
         self.url = url
+        self.frame_timeout_seconds = frame_timeout_seconds
         self._cap: Optional[cv2.VideoCapture] = None
+        self._resolution: tuple[int, int] = (0, 0)
+        self._reader: Optional[threading.Thread] = None
+        self._stop = threading.Event()
+        self._frame_cond = threading.Condition()
+        self._latest: Optional[np.ndarray] = None
+        self._latest_seq = 0
+        self._returned_seq = 0
 
     def open(self) -> None:
         self.close()
@@ -114,30 +130,74 @@ class RtspCameraSource(CameraSource):
                 pass
             self._opened = False
             raise CameraSourceError("RTSP stream could not be opened (unreachable or refused).")
+        # Read once here: the reader thread owns the capture from now on.
+        self._resolution = (
+            int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0),
+            int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0),
+        )
         self._cap = cap
+        self._stop = threading.Event()
+        self._latest = None
+        self._latest_seq = 0
+        self._returned_seq = 0
+        self._reader = threading.Thread(
+            target=self._read_loop, args=(cap, self._stop), name="rtsp-reader", daemon=True
+        )
+        self._reader.start()
         self._opened = True
 
+    def _read_loop(self, cap: cv2.VideoCapture, stop: threading.Event) -> None:
+        # The thread releases its own capture, so close() never releases one
+        # mid-read (a blocked FFMPEG read can outlive the join timeout).
+        try:
+            while not stop.is_set():
+                ok, frame = cap.read()
+                if not ok or frame is None or frame.size == 0:
+                    # No frame: read_frame() times out and the runtime reconnects.
+                    stop.wait(0.05)
+                    continue
+                with self._frame_cond:
+                    if stop.is_set():
+                        break
+                    self._latest = frame
+                    self._latest_seq += 1
+                    self._frame_cond.notify_all()
+        finally:
+            try:
+                cap.release()
+            except Exception:  # pragma: no cover - defensive
+                pass
+
     def read_frame(self) -> np.ndarray:
-        assert self._cap is not None
-        ok, frame = self._cap.read()
-        if not ok or frame is None or frame.size == 0:
-            raise FrameReadError("RTSP stream returned no frame.")
-        return frame
+        # Closed (e.g. a reconnect whose open() failed): a read failure, so the
+        # runtime keeps retrying within MAX_CAMERA_RECONNECTS instead of crashing.
+        if self._cap is None:
+            raise FrameReadError("RTSP stream is not open.")
+        with self._frame_cond:
+            # Only hand out a frame newer than the last one returned; a stalled
+            # stream must surface as a read failure, not a repeated stale frame.
+            got = self._frame_cond.wait_for(
+                lambda: self._latest_seq > self._returned_seq, timeout=self.frame_timeout_seconds
+            )
+            if not got or self._latest is None:
+                raise FrameReadError("RTSP stream returned no frame.")
+            self._returned_seq = self._latest_seq
+            return self._latest
 
     def resolution(self) -> tuple[int, int]:
         if self._cap is None:
             return (0, 0)
-        w = int(self._cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
-        h = int(self._cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
-        return (w, h)
+        return self._resolution
 
     def close(self) -> None:
-        if self._cap is not None:
-            try:
-                self._cap.release()
-            except Exception:  # pragma: no cover - defensive
-                pass
-            self._cap = None
+        self._stop.set()
+        if self._reader is not None:
+            self._reader.join(timeout=5.0)
+            self._reader = None
+        self._cap = None
+        with self._frame_cond:
+            self._latest = None
+        self._resolution = (0, 0)
         self._opened = False
 
     def describe(self) -> dict:
@@ -193,7 +253,8 @@ class FileCameraSource(CameraSource):
         self._frames_read = 0
 
     def read_frame(self) -> np.ndarray:
-        assert self._cap is not None
+        if self._cap is None:
+            raise FrameReadError("Video file is not open.")
         ok, frame = self._cap.read()
         if not ok or frame is None or frame.size == 0:
             if self.is_finished():

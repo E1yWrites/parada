@@ -121,6 +121,18 @@ requirement.
 **Multiple plate candidates:** the detector returns candidates sorted by
 detection confidence; OCR is attempted on the strongest candidate first, and
 the first one that yields readable text (≥2 normalized characters) wins.
+
+**Plate format filter (`PLATE_PATTERN`):** a reading is only reported as
+`DETECTED` if it matches `PLATE_PATTERN`, a regex over the normalized A-Z0-9
+text. The default, `[A-Z]{3}[0-9]{3,4}`, is the Philippine format (`ABC 123` /
+`ABC 1234`). Stray characters next to the plate are dropped (`IABC1234` →
+`ABC1234`), and for the default pattern only, common OCR mix-ups are corrected
+by position: letters in the first three characters, digits after
+(`ABCI234` → `ABC1234`). A custom pattern is matched as written, with no
+corrections. When text is found but isn't a whole plate, the candidate is
+re-read once more with a wider crop, at most twice per frame. Set
+`PLATE_PATTERN=""` to turn the filter off. Without the filter, a live camera
+reports signs, posters and on-screen timestamps as plates.
 This is deterministic (same image → same result every time) and never
 blends text across candidates.
 
@@ -176,6 +188,8 @@ and never enter the database, an API response, or a log.
 | `VIDEO_SOURCE` | (empty) | `rtsp://` URL for `rtsp` |
 | `CAMERA_IDENTIFIER` | `CAM-A01` | the LOGICAL camera this source feeds (join key to the API) |
 | `CAMERA_ZONE_ID` | (empty) | **required for `run`** — the zone the camera is configured under. The API's only ingestion route is `POST /zones/:zoneId/events`; it then verifies the camera really belongs to that zone (409 otherwise). `run` refuses to start without it |
+| `CAMERA_EVENT_TYPE` | `ENTRY` | `ENTRY` \| `EXIT` — the direction this runtime reports. Run one runtime per gate camera and match its gate type in Admin (an `EXIT` camera rejects `ENTRY` events). Any other value refuses to start |
+| `PLATE_PATTERN` | `[A-Z]{3}[0-9]{3,4}` | plate format filter (see "Plate format filter" above); `""` turns it off |
 | `VISION_PROCESS_FPS` | `2` | processing ceiling — frames above this are not OCR'd |
 | `OBSERVATION_COOLDOWN_SECONDS` | `5` | same camera + same plate + same direction within this window = one observation |
 | `CAMERA_RECONNECT_DELAY_SECONDS` | `2` | backoff between reconnect attempts |
@@ -264,9 +278,18 @@ CAMERA_SOURCE=rtsp VIDEO_SOURCE=rtsp://10.0.0.15:554/stream1 CAMERA_IDENTIFIER=C
   response/log.
 - An unreachable stream raises a clean error (`RTSP stream could not be
   opened (unreachable or refused).`) and the runtime backs off and retries up
-  to `MAX_CAMERA_RECONNECTS` rather than crashing.
-- No real RTSP hardware was available for testing; behavior is unit-tested
-  against the OpenCV API contract + redaction tests.
+  to `MAX_CAMERA_RECONNECTS` rather than crashing. A reconnect whose open
+  fails leaves the source closed; reading a closed source is a read failure
+  (`FrameReadError`), so retries continue up to the cap.
+- A background reader drains the stream continuously and keeps only the
+  newest frame. Reading only at `VISION_PROCESS_FPS` let the stream back up,
+  and a live camera dropped the session after ~30 s. If no new frame arrives
+  within 2 s, the read fails and the normal reconnect logic takes over.
+- For an exit-gate camera, run a second runtime with `CAMERA_EVENT_TYPE=EXIT`.
+- Real-hardware checks so far: two TP-Link VIGI C320I cameras opened in `test`
+  mode (1920x1080), and the ~30 s session drop above was reproduced against
+  them. The background reader itself is unit-tested against a fake capture;
+  a long-running live session with it has not been verified yet.
 
 ## Camera registration (logical mapping)
 
@@ -301,6 +324,9 @@ zone/camera/direction/status itself (no duplication in Vision).
 | `api unreachable (ConnectError); backing off` | The API is down or `PARADA_API_URL` is wrong. The runtime keeps reading frames and retries each new observation after `CAMERA_RECONNECT_DELAY_SECONDS`; it never crashes on a transport failure. |
 | `api rejected event status=409 reason=Duplicate camera event` | Normal: the same physical observation was re-sent; the API's idempotency key absorbed it. Not an error. |
 | `api throttled event (429)` | The API's camera rate limit was hit; runtime backs off automatically (bounded). |
+| `configuration error: CAMERA_EVENT_TYPE must be ENTRY or EXIT` | Set `CAMERA_EVENT_TYPE` to `ENTRY` or `EXIT`, matching the camera's gate type in Admin. |
+| `api rejected event status=409 reason=Camera '...' is a EXIT gate and cannot accept a ENTRY event.` | `CAMERA_EVENT_TYPE` doesn't match the camera's gate type in Admin (e.g. `ENTRY` sent from an `EXIT` camera). |
+| Real plates are never reported | `PLATE_PATTERN` doesn't fit your plate format. Adjust it, or set `PLATE_PATTERN=""` to disable the filter. |
 | Camera stops after `MAX_CAMERA_RECONNECTS` | The source is genuinely gone; the runtime isolates it (does not crash) and exits cleanly. Check the physical connection. |
 
 ## Tests added (Phase 11C)

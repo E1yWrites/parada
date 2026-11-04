@@ -334,6 +334,98 @@ def test_close_stops_loop_cleanly(mock_forward, fake):
     assert rt.stats.frames_read > 0
 
 
+class _StallingCapture:
+    """cv2.VideoCapture stand-in: the first capture streams a few frames then
+    stalls; every later open (a reconnect) is refused."""
+
+    opens = 0
+
+    def __init__(self, url, backend=None):
+        type(self).opens += 1
+        self._opened = type(self).opens == 1
+        self.frames_left = 3
+
+    def isOpened(self):
+        return self._opened
+
+    def read(self):
+        import numpy as np
+
+        time.sleep(0.005)
+        if self.frames_left <= 0:
+            return False, None
+        self.frames_left -= 1
+        return True, np.zeros((48, 64, 3), dtype=np.uint8)
+
+    def get(self, prop):
+        return 0
+
+    def release(self):
+        pass
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))
+def test_failed_reconnect_keeps_retrying_instead_of_crashing(mock_forward, monkeypatch):
+    # Regression: after a reconnect whose open() failed, the loop read from the
+    # closed RTSP source and crashed on `assert self._cap is not None`. A closed
+    # source must report a read failure so retries continue up to the cap.
+    from app.camera.sources import RtspCameraSource
+
+    _StallingCapture.opens = 0
+    monkeypatch.setattr("app.camera.sources.cv2.VideoCapture", _StallingCapture)
+    source = RtspCameraSource("rtsp://10.0.0.5:554/stream1", frame_timeout_seconds=0.05)
+    rt = _runtime(source, max_consecutive_failures=2, max_reconnects=3, process_fps=100.0)
+    rt.run()  # must return cleanly, not raise AssertionError
+    assert rt.stats.reconnects == 3
+    assert _StallingCapture.opens == 4  # initial open + 3 refused reconnects
+    assert source.opened is False
+
+
+def test_event_type_defaults_to_entry(monkeypatch):
+    import importlib
+
+    import app.config as config
+
+    monkeypatch.delenv("CAMERA_EVENT_TYPE", raising=False)
+    try:
+        importlib.reload(config)
+        assert config.CAMERA_EVENT_TYPE == "ENTRY"
+        assert _runtime(FakeSource(1)).event_type == "ENTRY"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+
+
+def test_event_type_env_exit_is_normalized(monkeypatch):
+    import importlib
+
+    import app.config as config
+
+    monkeypatch.setenv("CAMERA_EVENT_TYPE", " exit ")
+    try:
+        importlib.reload(config)
+        assert config.CAMERA_EVENT_TYPE == "EXIT"
+        assert _runtime(FakeSource(1)).event_type == "EXIT"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))
+def test_exit_runtime_forwards_exit_events(mock_forward, fake, monkeypatch):
+    monkeypatch.setattr("app.config.CAMERA_EVENT_TYPE", "EXIT")
+    fake.n_frames = 2
+    rt = _runtime(fake)
+    rt.run()
+    assert mock_forward.call_count >= 1
+    assert all(c[0][1]["eventType"] == "EXIT" for c in mock_forward.call_args_list)
+
+
+def test_runtime_rejects_unknown_event_type():
+    with pytest.raises(ValueError, match="CAMERA_EVENT_TYPE"):
+        _runtime(FakeSource(1), event_type="BIDIRECTIONAL")
+
+
 def test_open_failure_isolates_and_does_not_crash_process(fake):
     fake.fail_open = True
     rt = _runtime(fake, reconnect_delay=0.01)
