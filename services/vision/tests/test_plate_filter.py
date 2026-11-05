@@ -34,6 +34,29 @@ def test_non_plate_text_is_rejected(reading):
     assert match_plate(reading) is None
 
 
+@pytest.mark.parametrize(
+    "reading, expected",
+    [
+        # Night test 2: the I of CDI 6227 was missed (or read as "]", "[", "L").
+        # Correction used to pull the 6 into the letters: "CD 6227" -> "CDG227".
+        ("CD 6227", None),
+        ("CD] 6227", None),
+        ("CD ] 6227", None),
+        ("CD[ 6227", None),
+        ("CD L 6227", None),
+        ("CDI 6227", "CDI6227"),
+        ("CDI 62271", "CDI6227"),  # stray character after the number
+        ("CDI-6227", "CDI6227"),
+        ("CD1 6227", "CDI6227"),  # corrected inside the letter group only
+        ("CDI 62Z7", "CDI6227"),  # corrected inside the digit group only
+        ("CDI 62", None),  # too few digits
+        ("ABCD 1234", None),  # letter group must be exactly 3
+    ],
+)
+def test_group_structure_is_kept(reading, expected):
+    assert match_plate(reading) == expected
+
+
 def test_custom_pattern_skips_ph_corrections(monkeypatch):
     # Corrections assume the default 3-letters-then-digits layout; any other
     # pattern is matched exactly as configured.

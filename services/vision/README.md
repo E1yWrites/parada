@@ -136,6 +136,25 @@ reports signs, posters and on-screen timestamps as plates.
 This is deterministic (same image → same result every time) and never
 blends text across candidates.
 
+**Plate-number line only:** Philippine plates carry small text around the
+number (`NCR`, `PILIPINAS`, slogans). `read_plate_text` drops known
+region/sticker words (`NCR`, `PILIPINAS`, `PHILIPPINES`, `LTO`, `REGION` +
+number), drops fragments under half the height of the tallest one, groups the
+rest into lines by vertical position, and reads only the line with the tallest
+characters, left to right. `ocrConfidence` is the mean over that line.
+
+**Low-confidence readings (`VISION_MIN_OCR_CONFIDENCE`, default `0.4`):** a
+plate-format reading below this is dropped inside vision (mostly background
+text). This is a noise floor only; the API's `OCR_PLATE_CONFIDENCE_THRESHOLD`
+trust decision still applies to everything above it.
+
+**Debug dump (`VISION_DEBUG_DIR`):** when set, every frame with plate
+candidates writes a folder there holding each OCR input crop
+(`candidate1.png`, `candidate1_padded.png`, …) and `ocr.txt`, which lists
+every EasyOCR fragment (text, confidence, height, kept/dropped) and why the
+candidate was accepted or rejected. It writes several files per processed
+frame, so turn it off once you've seen what you need.
+
 ## Architecture boundary
 
 ```
@@ -191,7 +210,10 @@ and never enter the database, an API response, or a log.
 | `CAMERA_EVENT_TYPE` | `ENTRY` | `ENTRY` \| `EXIT` — the direction this runtime reports. Run one runtime per gate camera and match its gate type in Admin (an `EXIT` camera rejects `ENTRY` events). Any other value refuses to start |
 | `PLATE_PATTERN` | `[A-Z]{3}[0-9]{3,4}` | plate format filter (see "Plate format filter" above); `""` turns it off |
 | `VISION_PROCESS_FPS` | `2` | processing ceiling — frames above this are not OCR'd |
-| `OBSERVATION_COOLDOWN_SECONDS` | `5` | same camera + same plate + same direction within this window = one observation |
+| `OBSERVATION_COOLDOWN_SECONDS` | `60` | same camera + same plate + same direction within this window = one observation (one car waiting at the gate is counted once) |
+| `PLATE_CONFIRM_WINDOW` / `PLATE_CONFIRM_MIN_READS` | `3` / `2` | a plate is forwarded only after it was read the same way in at least `MIN_READS` of the last `WINDOW` processed frames (one-off misreads never reach the API); `PLATE_CONFIRM_MIN_READS=1` turns this off. The cooldown above applies after confirmation |
+| `VISION_MIN_OCR_CONFIDENCE` | `0.4` | readings below this OCR confidence are dropped (see "Low-confidence readings" above) |
+| `VISION_DEBUG_DIR` | (empty) | save candidate crops + OCR text per frame here (see "Debug dump" above) |
 | `CAMERA_RECONNECT_DELAY_SECONDS` | `2` | backoff between reconnect attempts |
 | `MAX_FORWARD_ATTEMPTS` | `3` | total HTTP attempts per event on `429`/`5xx`/transport failure, re-sending the same `sourceEventId`; `1` disables retries |
 | `MAX_CAMERA_RECONNECTS` | `100` | reconnect ceiling; beyond this the camera stops (no crash) |
@@ -326,7 +348,8 @@ zone/camera/direction/status itself (no duplication in Vision).
 | `api throttled event (429)` | The API's camera rate limit was hit; runtime backs off automatically (bounded). |
 | `configuration error: CAMERA_EVENT_TYPE must be ENTRY or EXIT` | Set `CAMERA_EVENT_TYPE` to `ENTRY` or `EXIT`, matching the camera's gate type in Admin. |
 | `api rejected event status=409 reason=Camera '...' is a EXIT gate and cannot accept a ENTRY event.` | `CAMERA_EVENT_TYPE` doesn't match the camera's gate type in Admin (e.g. `ENTRY` sent from an `EXIT` camera). |
-| Real plates are never reported | `PLATE_PATTERN` doesn't fit your plate format. Adjust it, or set `PLATE_PATTERN=""` to disable the filter. |
+| Real plates are never reported | `PLATE_PATTERN` doesn't fit your plate format. Adjust it, or set `PLATE_PATTERN=""` to disable the filter. Set `VISION_DEBUG_DIR` to see what OCR actually reads, and its confidence. |
+| `unconfirmed reads` is high and the plate is never forwarded | The plate is read differently from frame to frame (or only in one frame). Check the crops in `VISION_DEBUG_DIR`; camera angle/focus usually needs fixing. Lowering `PLATE_CONFIRM_MIN_READS` trades this for more false positives. |
 | Camera stops after `MAX_CAMERA_RECONNECTS` | The source is genuinely gone; the runtime isolates it (does not crash) and exits cleanly. Check the physical connection. |
 
 ## Tests added (Phase 11C)

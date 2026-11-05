@@ -103,7 +103,7 @@ def test_run_forwards_detected_plate_and_stops_at_eof(mock_forward, fake):
     first = mock_forward.call_args_list[0][0][1]
     assert first["cameraIdentifier"] == "CAM-A01"
     assert first["eventType"] == "ENTRY"
-    assert first["detectedPlate"] == "ABC1234"
+    assert first["detectedPlate"] == "ABC 1234"
     assert "sourceEventId" in first
     assert "zoneId" in first or "zoneId" in str(first)  # zone pinned by runtime
 
@@ -168,10 +168,13 @@ def test_api_409_is_not_treated_as_failure_and_not_retried(mock_forward, fake):
 @patch("app.camera.runtime.api_client.forward_event", return_value=(500, {"error": {"message": "boom"}}))
 def test_api_5xx_is_bounded(mock_forward, fake):
     fake.n_frames = 10
-    rt = _runtime(fake, cooldown_seconds=0.0, reconnect_delay=0.0, max_forward_attempts=1)
+    rt = _runtime(
+        fake, cooldown_seconds=0.0, reconnect_delay=0.0, max_forward_attempts=1, plate_confirm_min_reads=1
+    )
     rt.run()
-    # Every non-duplicate event attempt fails with 500; debounce is disabled so
-    # each distinct processed frame attempts forwarding once. Bounded by n_frames.
+    # Every non-duplicate event attempt fails with 500; debounce and plate
+    # confirmation are disabled so each processed frame attempts forwarding
+    # once. Bounded by n_frames.
     assert rt.stats.api_error == fake.n_frames
 
 
@@ -181,7 +184,10 @@ def test_api_transport_failure_is_isolated_and_the_camera_keeps_running(mock_for
     is counted, the runtime backs off, and it keeps reading frames until the
     source ends — then shuts the source down cleanly."""
     fake.n_frames = 4
-    rt = _runtime(fake, cooldown_seconds=0.0, reconnect_delay=0.0, max_forward_attempts=1)
+    # Confirmation off, so every frame's handoff is attempted (and fails).
+    rt = _runtime(
+        fake, cooldown_seconds=0.0, reconnect_delay=0.0, max_forward_attempts=1, plate_confirm_min_reads=1
+    )
     rt.run()  # must not raise
     assert rt.stats.api_error == fake.n_frames
     assert rt.stats.frames_read == fake.n_frames
@@ -426,6 +432,169 @@ def test_runtime_rejects_unknown_event_type():
         _runtime(FakeSource(1), event_type="BIDIRECTIONAL")
 
 
+# ---------------------------------------------------------- confirmation
+
+
+def _reads(*plates):
+    """process_image results, one per processed frame (None = no plate)."""
+    from app.pipeline.service import VisionResult
+
+    def result(plate):
+        if plate is None:
+            return VisionResult(DetectionStatus.NO_DETECTION, None, None, None, None, 0)
+        # OCR confidence below PLATE_CONFIRM_SKIP_CONFIDENCE (0.9), so these
+        # reads go through confirmation.
+        return VisionResult(DetectionStatus.DETECTED, plate, plate, 0.8, 0.8, 1)
+
+    return [result(p) for p in plates]
+
+
+def _forwarded_plates(mock_forward):
+    return [c[0][1]["detectedPlate"] for c in mock_forward.call_args_list]
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))
+def test_a_single_read_is_not_forwarded(mock_forward):
+    with patch("app.camera.runtime.process_image", side_effect=_reads("LMA777", None, None)):
+        rt = _runtime(FakeSource(3))
+        rt.run()
+    assert mock_forward.call_count == 0
+    assert rt.stats.detections == 1
+    assert rt.stats.unconfirmed == 1
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))
+def test_a_single_high_confidence_read_is_forwarded_at_once(mock_forward):
+    from app.pipeline.service import VisionResult
+
+    clear = VisionResult(DetectionStatus.DETECTED, "ZMT 553", "ZMT553", 0.96, None, 0)
+    with patch("app.camera.runtime.process_image", side_effect=[clear, *_reads(None, None)]):
+        rt = _runtime(FakeSource(3))
+        rt.run()
+    assert _forwarded_plates(mock_forward) == ["ZMT 553"]
+    assert rt.stats.unconfirmed == 0
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))
+def test_high_confidence_shortcut_can_be_turned_off(mock_forward):
+    from app.pipeline.service import VisionResult
+
+    clear = VisionResult(DetectionStatus.DETECTED, "ZMT 553", "ZMT553", 0.96, None, 0)
+    with patch("app.camera.runtime.process_image", side_effect=[clear, *_reads(None, None)]):
+        rt = _runtime(FakeSource(3), plate_confirm_skip_confidence=0.0)
+        rt.run()
+    assert mock_forward.call_count == 0
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))
+def test_two_of_three_frames_confirm_a_plate(mock_forward):
+    with patch("app.camera.runtime.process_image", side_effect=_reads("ABC1234", None, "ABC1234")):
+        rt = _runtime(FakeSource(3), cooldown_seconds=60.0)
+        rt.run()
+    assert _forwarded_plates(mock_forward) == ["ABC1234"]
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))
+def test_different_readings_do_not_confirm_each_other(mock_forward):
+    with patch("app.camera.runtime.process_image", side_effect=_reads("ABC1234", "ABC1284", "ABG1234")):
+        rt = _runtime(FakeSource(3))
+        rt.run()
+    assert mock_forward.call_count == 0
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))
+def test_reads_outside_the_window_do_not_count(mock_forward):
+    # The two reads are 3 frames apart, so never 2 within the last 3 frames.
+    with patch("app.camera.runtime.process_image", side_effect=_reads("ABC1234", None, None, "ABC1234")):
+        rt = _runtime(FakeSource(4))
+        rt.run()
+    assert mock_forward.call_count == 0
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))
+def test_cooldown_still_applies_after_confirmation(mock_forward):
+    with patch("app.camera.runtime.process_image", side_effect=_reads(*["ABC1234"] * 6)):
+        rt = _runtime(FakeSource(6), cooldown_seconds=60.0)
+        rt.run()
+    assert _forwarded_plates(mock_forward) == ["ABC1234"]
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))
+def test_confirmation_is_configurable(mock_forward):
+    # 3 of the last 4 frames.
+    with patch("app.camera.runtime.process_image", side_effect=_reads("ABC1234", "ABC1234", None, "ABC1234")):
+        rt = _runtime(FakeSource(4), plate_confirm_window=4, plate_confirm_min_reads=3)
+        rt.run()
+    assert mock_forward.call_count == 1
+    assert rt.stats.unconfirmed == 2
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))
+def test_min_reads_of_one_turns_confirmation_off(mock_forward):
+    with patch("app.camera.runtime.process_image", side_effect=_reads("ABC1234")):
+        rt = _runtime(FakeSource(1), plate_confirm_min_reads=1)
+        rt.run()
+    assert mock_forward.call_count == 1
+
+
+def test_min_reads_larger_than_the_window_is_capped():
+    rt = _runtime(FakeSource(1), plate_confirm_window=3, plate_confirm_min_reads=5)
+    assert rt.plate_confirm_min_reads == 3
+
+
+def test_confirmation_defaults_come_from_env(monkeypatch):
+    import importlib
+
+    import app.config as config
+
+    monkeypatch.setenv("PLATE_CONFIRM_WINDOW", "5")
+    monkeypatch.setenv("PLATE_CONFIRM_MIN_READS", "3")
+    try:
+        importlib.reload(config)
+        rt = _runtime(FakeSource(1))
+        assert (rt.plate_confirm_window, rt.plate_confirm_min_reads) == (5, 3)
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+    rt = _runtime(FakeSource(1))
+    assert (rt.plate_confirm_window, rt.plate_confirm_min_reads) == (3, 2)
+
+
+@patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}}))
+def test_exit_runtime_confirms_and_forwards_exit(mock_forward):
+    with patch("app.camera.runtime.process_image", side_effect=_reads("ABC1234", "ABC1234")):
+        rt = _runtime(FakeSource(2), event_type="EXIT")
+        rt.run()
+    assert [c[0][1]["eventType"] for c in mock_forward.call_args_list] == ["EXIT"]
+
+
+def test_cooldown_defaults_to_60_seconds(monkeypatch):
+    import importlib
+
+    import app.config as config
+
+    monkeypatch.delenv("OBSERVATION_COOLDOWN_SECONDS", raising=False)
+    try:
+        importlib.reload(config)
+        assert config.OBSERVATION_COOLDOWN_SECONDS == 60.0
+        rt = CameraRuntime(source=FakeSource(1), camera_identifier="CAM-A01", zone_id="zone-1")
+        assert rt.cooldown_seconds == 60.0
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+
+
+def test_car_waiting_at_the_gate_is_counted_once():
+    # Night test 2: a car read for ~10 s at the gate was counted 2-3 times
+    # with the old 5 s default.
+    rt = CameraRuntime(source=FakeSource(1), camera_identifier="CAM-A01", zone_id="zone-1", cooldown_seconds=60.0)
+    start = 1000.0
+    seen = [rt._is_duplicate("CAM-A01", "CDI6227", "ENTRY", start + t) for t in range(0, 60, 2)]
+    assert seen.count(False) == 1  # only the first read counts
+    # The same plate after the window is a new observation.
+    assert rt._is_duplicate("CAM-A01", "CDI6227", "ENTRY", start + 61) is False
+
+
 def test_open_failure_isolates_and_does_not_crash_process(fake):
     fake.fail_open = True
     rt = _runtime(fake, reconnect_delay=0.01)
@@ -450,4 +619,4 @@ def test_runtime_source_event_id_deterministic_across_instances():
 
 
 def test_source_event_id_distinguishes_cameras():
-    assert make_source_event_id(b"x", "CAM-A01") != make_source_event_id(b"x", "CAM-B02")
+    assert make_source_event_id(b"x", "CAM-A01") != make_source_event_id(b"x", "CAM-B02")

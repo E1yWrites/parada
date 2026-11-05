@@ -365,7 +365,7 @@ all three — no per-source OCR/business code.
 - Opens the source, reads frames at a capped `VISION_PROCESS_FPS` (default 2;
   a 30–60 FPS webcam is never OCR'd at device rate).
 - Duplicate suppression (configurable `OBSERVATION_COOLDOWN_SECONDS`, default
-  5s): the same camera + same normalized plate + same direction within the
+  60s): the same camera + same normalized plate + same direction within the
   window is one observation, not N parking events. The API's
   `(cameraId, sourceEventId)` unique constraint **remains the final authority**
   — `sourceEventId` is derived by the one shared helper in

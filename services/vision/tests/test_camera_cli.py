@@ -111,7 +111,7 @@ def test_file_source_runtime_reads_and_OCR_processes_real_frames(fixture_video):
     event = fwd.call_args_list[0][0][1]
     assert event["cameraIdentifier"] == "CAM-A01"
     assert event["eventType"] == "ENTRY"
-    assert event["detectedPlate"] == "ABC1234"
+    assert event["detectedPlate"] == "ABC 1234"
 
 
 def test_runtime_forwards_events_via_existing_api_contract(fixture_video):

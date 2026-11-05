@@ -102,6 +102,7 @@ def _run(source, camera_identifier: str, zone_id: str | None) -> int:
     print(f"  frames read       : {s.frames_read}")
     print(f"  frames processed  : {s.frames_processed}")
     print(f"  detections        : {s.detections}")
+    print(f"  unconfirmed reads : {s.unconfirmed}")
     print(f"  forwarded         : {s.forwarded}")
     print(f"  api ok/conflict   : {s.api_ok}/{s.api_conflict}")
     print(f"  reconnects        : {s.reconnects}")

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import deque
 from dataclasses import dataclass, field
 
 import cv2
@@ -36,6 +37,7 @@ class RuntimeStats:
     frames_read: int = 0
     frames_processed: int = 0
     detections: int = 0
+    unconfirmed: int = 0  # detections not (yet) read the same way in enough recent frames
     forwarded: int = 0
     api_ok: int = 0
     api_conflict: int = 0
@@ -63,6 +65,13 @@ class CameraRuntime:
     max_forward_attempts: int = field(default_factory=lambda: config.MAX_FORWARD_ATTEMPTS)
     # ENTRY or EXIT, from CAMERA_EVENT_TYPE (default ENTRY); must match the gate set in Admin -> Cameras.
     event_type: str = field(default_factory=lambda: config.CAMERA_EVENT_TYPE)
+    # Forward a plate only once it was read the same way in at least
+    # plate_confirm_min_reads of the last plate_confirm_window processed frames.
+    plate_confirm_window: int = field(default_factory=lambda: config.PLATE_CONFIRM_WINDOW)
+    plate_confirm_min_reads: int = field(default_factory=lambda: config.PLATE_CONFIRM_MIN_READS)
+    # A single read at or above this OCR confidence is forwarded without waiting
+    # for confirmation frames (a clear plate held up to the camera). 0 = off.
+    plate_confirm_skip_confidence: float = field(default_factory=lambda: config.PLATE_CONFIRM_SKIP_CONFIDENCE)
 
     def __post_init__(self) -> None:
         # The only ingestion contract the API exposes is
@@ -81,9 +90,13 @@ class CameraRuntime:
             raise ValueError(f"CAMERA_EVENT_TYPE must be ENTRY or EXIT, got '{self.event_type}'.")
         if self.process_fps <= 0:
             self.process_fps = 1.0
+        self.plate_confirm_window = max(1, self.plate_confirm_window)
+        self.plate_confirm_min_reads = min(max(1, self.plate_confirm_min_reads), self.plate_confirm_window)
         self._stop_flag = False
         self.stats = RuntimeStats()
         self._last_observations: dict[tuple[str, str, str], float] = {}
+        # Plate read per recent processed frame (None = no plate read).
+        self._recent_reads: deque[str | None] = deque(maxlen=self.plate_confirm_window)
 
     def _source_name(self) -> str:
         """Source type as a plain string; sources may expose enum or str."""
@@ -180,6 +193,12 @@ class CameraRuntime:
             return "unknown"
 
     # -------------------------------------------------------------- debounce
+
+    def _is_confirmed(self, plate: str | None) -> bool:
+        """Record this processed frame's plate (None = none) and return True once
+        the same plate fills at least plate_confirm_min_reads of the window."""
+        self._recent_reads.append(plate)
+        return plate is not None and self._recent_reads.count(plate) >= self.plate_confirm_min_reads
 
     def _is_duplicate(self, camera_identifier: str, plate: str, direction: str, now: float) -> bool:
         key = (camera_identifier, plate, direction)
@@ -291,13 +310,28 @@ class CameraRuntime:
             result = process_image(image_bytes)
         except Exception as exc:  # OCR/detector raised on a valid frame
             logger.warning("frame processing error camera=%s: %s", self.camera_identifier, exc)
+            self._is_confirmed(None)
             return
         processing_ms = (time.monotonic() - started) * 1000
 
         if result.status != DetectionStatus.DETECTED or not result.normalized_plate:
             # No plate / low read: nothing meaningful to report. Quietly skip.
+            self._is_confirmed(None)
             return
         self.stats.detections += 1
+        confirmed = self._is_confirmed(result.normalized_plate)
+        if (
+            not confirmed
+            and self.plate_confirm_skip_confidence > 0
+            and (result.ocr_confidence or 0.0) >= self.plate_confirm_skip_confidence
+        ):
+            # Read clearly enough once; on a slow CPU the next frame can be
+            # 5+ s away and the car (or a hand-held plate) may be gone by then.
+            confirmed = True
+        if not confirmed:
+            # Seen once so far; wait for the next frames to read it the same way.
+            self.stats.unconfirmed += 1
+            return
 
         direction = self.event_type
         now = time.monotonic()
