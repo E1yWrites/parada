@@ -364,9 +364,12 @@ all three — no per-source OCR/business code.
 
 - Opens the source, reads frames at a capped `VISION_PROCESS_FPS` (default 2;
   a 30–60 FPS webcam is never OCR'd at device rate).
-- Duplicate suppression (configurable `OBSERVATION_COOLDOWN_SECONDS`, default
-  60s): the same camera + same normalized plate + same direction within the
-  window is one observation, not N parking events. The API's
+- Duplicate suppression, presence-based: after a send, the same camera + same
+  normalized plate + same direction is ignored while it keeps appearing in
+  frames — one observation, not N parking events. Once unseen for
+  `OBSERVATION_ABSENCE_RESET_SECONDS` (default 10s) its next confirmed read is
+  a new pass; `OBSERVATION_COOLDOWN_SECONDS` (default 5s) is the hard minimum
+  between two sends. The API's
   `(cameraId, sourceEventId)` unique constraint **remains the final authority**
   — `sourceEventId` is derived by the one shared helper in
   `app/event_identity.py` (SHA-256 of the encoded frame + `cameraIdentifier`),

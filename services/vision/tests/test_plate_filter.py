@@ -57,6 +57,12 @@ def test_group_structure_is_kept(reading, expected):
     assert match_plate(reading) == expected
 
 
+@pytest.mark.parametrize("reading", ["CD6227", "CD62271", "CD6227X", "cd6227"])
+def test_unbroken_two_letters_then_four_digits_is_rejected(reading):
+    # Same bug as "CD 6227" without the space: never "CDG227".
+    assert match_plate(reading) is None
+
+
 def test_custom_pattern_skips_ph_corrections(monkeypatch):
     # Corrections assume the default 3-letters-then-digits layout; any other
     # pattern is matched exactly as configured.

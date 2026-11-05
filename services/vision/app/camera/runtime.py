@@ -31,6 +31,9 @@ from .base import CameraSource, CameraSourceError, FrameReadError
 
 logger = logging.getLogger("parada.vision.runtime")
 
+# Above this many tracked plates, sightings older than the debounce horizon are dropped.
+_MAX_TRACKED_PLATES = 256
+
 
 @dataclass
 class RuntimeStats:
@@ -58,7 +61,11 @@ class CameraRuntime:
     camera_identifier: str
     zone_id: str | None = None
     process_fps: float = field(default_factory=lambda: config.VISION_PROCESS_FPS)
+    # Hard minimum between two sends of the same camera + plate + direction.
     cooldown_seconds: float = field(default_factory=lambda: config.OBSERVATION_COOLDOWN_SECONDS)
+    # After a send, the plate is ignored while it keeps appearing; unseen this
+    # long, its next confirmed read is a new pass. 0 = every send is a new pass.
+    absence_reset_seconds: float = field(default_factory=lambda: config.OBSERVATION_ABSENCE_RESET_SECONDS)
     reconnect_delay: float = field(default_factory=lambda: config.CAMERA_RECONNECT_DELAY_SECONDS)
     max_consecutive_failures: int = field(default_factory=lambda: config.MAX_CONSECUTIVE_READ_FAILURES)
     max_reconnects: int = field(default_factory=lambda: config.MAX_CAMERA_RECONNECTS)
@@ -94,7 +101,11 @@ class CameraRuntime:
         self.plate_confirm_min_reads = min(max(1, self.plate_confirm_min_reads), self.plate_confirm_window)
         self._stop_flag = False
         self.stats = RuntimeStats()
+        # Per (camera, plate, direction): when it was last sent / last read, and
+        # whether it was already sent during the pass now in front of the camera.
         self._last_observations: dict[tuple[str, str, str], float] = {}
+        self._last_seen: dict[tuple[str, str, str], float] = {}
+        self._sent_this_pass: set[tuple[str, str, str]] = set()
         # Plate read per recent processed frame (None = no plate read).
         self._recent_reads: deque[str | None] = deque(maxlen=self.plate_confirm_window)
 
@@ -200,12 +211,38 @@ class CameraRuntime:
         self._recent_reads.append(plate)
         return plate is not None and self._recent_reads.count(plate) >= self.plate_confirm_min_reads
 
+    def _saw_plate(self, camera_identifier: str, plate: str, direction: str, now: float) -> None:
+        """Record a sighting (confirmed or not). A plate unseen for at least
+        absence_reset_seconds has left: its next confirmed read is a new pass."""
+        key = (camera_identifier, plate, direction)
+        previous = self._last_seen.get(key)
+        if previous is not None and (now - previous) >= self.absence_reset_seconds:
+            self._sent_this_pass.discard(key)
+        self._last_seen[key] = now
+        if len(self._last_seen) > _MAX_TRACKED_PLATES:
+            self._forget_old_plates(now)
+
+    def _forget_old_plates(self, now: float) -> None:
+        # Misreads add a new key each; drop the ones that no longer matter.
+        horizon = max(self.absence_reset_seconds, self.cooldown_seconds)
+        for key, seen in list(self._last_seen.items()):
+            if now - seen > horizon:
+                del self._last_seen[key]
+                self._sent_this_pass.discard(key)
+                self._last_observations.pop(key, None)
+
     def _is_duplicate(self, camera_identifier: str, plate: str, direction: str, now: float) -> bool:
+        """Presence-based: after a send, the plate is a duplicate while it keeps
+        appearing (see _saw_plate), and never sent twice within cooldown_seconds."""
+        self._saw_plate(camera_identifier, plate, direction, now)
         key = (camera_identifier, plate, direction)
         last = self._last_observations.get(key)
         if last is not None and (now - last) < self.cooldown_seconds:
             return True
+        if key in self._sent_this_pass:
+            return True
         self._last_observations[key] = now
+        self._sent_this_pass.add(key)
         return False
 
     # ------------------------------------------------------------------ main
@@ -328,13 +365,15 @@ class CameraRuntime:
             # Read clearly enough once; on a slow CPU the next frame can be
             # 5+ s away and the car (or a hand-held plate) may be gone by then.
             confirmed = True
+        direction = self.event_type
+        now = time.monotonic()
         if not confirmed:
             # Seen once so far; wait for the next frames to read it the same way.
+            # Still a sighting: a car that is still there keeps its pass open.
+            self._saw_plate(self.camera_identifier, result.normalized_plate, direction, now)
             self.stats.unconfirmed += 1
             return
 
-        direction = self.event_type
-        now = time.monotonic()
         if self._is_duplicate(self.camera_identifier, result.normalized_plate, direction, now):
             return
 

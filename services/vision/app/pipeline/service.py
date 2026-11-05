@@ -46,6 +46,7 @@ MAX_PADDED_REREADS = 2
 
 _GROUP = re.compile(r"[A-Z0-9]+")
 _DIGIT_RUN = re.compile(r"[0-9]+")
+_TWO_LETTERS_THEN_DIGITS = re.compile(r"^[A-Z]{2}[0-9]{4}")
 
 
 def _match_groups(groups: list[str]) -> str | None:
@@ -86,6 +87,10 @@ def match_plate(reading: str) -> str | None:
         return _match_groups(groups)
     if PLATE_PATTERN.match(normalized):
         return normalized
+    if correct and _TWO_LETTERS_THEN_DIGITS.match(normalized):
+        # "CD6227": a letter was missed. Correcting would turn the first digit
+        # into the third letter ("CDG227"), a different plate.
+        return None
     # Longer windows first, so "ABCI234" becomes "ABC1234", not the shorter "BCI234".
     for length in (7, 6):
         windows = [normalized[start : start + length] for start in range(0, len(normalized) - length + 1)]

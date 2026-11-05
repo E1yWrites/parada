@@ -107,11 +107,15 @@ CAMERA_EVENT_TYPE = os.environ.get("CAMERA_EVENT_TYPE", "ENTRY").strip().upper()
 # OCR at that rate; process at most this many frames per second.
 VISION_PROCESS_FPS = float(os.environ.get("VISION_PROCESS_FPS", "2"))
 
-# Observation cooldown (seconds): suppress re-emitting the SAME camera + SAME
-# normalized plate + SAME direction within this window (debounce, section 17).
-# 60 s: a car waiting at the gate is read for many seconds; at 5 s one car was
-# counted 2-3 times in live testing.
-OBSERVATION_COOLDOWN_SECONDS = float(os.environ.get("OBSERVATION_COOLDOWN_SECONDS", "60"))
+# Duplicate suppression (debounce, section 17) for the SAME camera + SAME
+# normalized plate + SAME direction is presence-based: after a send, the plate
+# is ignored while it keeps appearing in frames, so a car waiting at the gate
+# is counted once however long it waits (a fixed 5 s window counted one car
+# 2-3 times in live testing). Once it has not been read for
+# OBSERVATION_ABSENCE_RESET_SECONDS, its next confirmed read is a new pass.
+# OBSERVATION_COOLDOWN_SECONDS is the hard minimum between two sends.
+OBSERVATION_COOLDOWN_SECONDS = float(os.environ.get("OBSERVATION_COOLDOWN_SECONDS", "5"))
+OBSERVATION_ABSENCE_RESET_SECONDS = float(os.environ.get("OBSERVATION_ABSENCE_RESET_SECONDS", "10"))
 
 # Plate confirmation: a plate is only forwarded once it was read the SAME way in
 # at least PLATE_CONFIRM_MIN_READS of the last PLATE_CONFIRM_WINDOW processed

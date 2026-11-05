@@ -80,7 +80,10 @@ def fake():
 
 
 def _runtime(fake, **kw):
+    # Debounce off by default (no hard minimum, no presence suppression);
+    # tests that exercise it set cooldown_seconds / absence_reset_seconds.
     kw.setdefault("cooldown_seconds", 0.0)
+    kw.setdefault("absence_reset_seconds", 0.0)
     kw.setdefault("process_fps", 20.0)
     kw.setdefault("reconnect_delay", 0.01)
     return CameraRuntime(
@@ -568,31 +571,133 @@ def test_exit_runtime_confirms_and_forwards_exit(mock_forward):
     assert [c[0][1]["eventType"] for c in mock_forward.call_args_list] == ["EXIT"]
 
 
-def test_cooldown_defaults_to_60_seconds(monkeypatch):
+# ------------------------------------------------- presence-based debounce
+
+
+def test_debounce_defaults(monkeypatch):
     import importlib
 
     import app.config as config
 
     monkeypatch.delenv("OBSERVATION_COOLDOWN_SECONDS", raising=False)
+    monkeypatch.delenv("OBSERVATION_ABSENCE_RESET_SECONDS", raising=False)
     try:
         importlib.reload(config)
-        assert config.OBSERVATION_COOLDOWN_SECONDS == 60.0
         rt = CameraRuntime(source=FakeSource(1), camera_identifier="CAM-A01", zone_id="zone-1")
-        assert rt.cooldown_seconds == 60.0
+        assert (rt.cooldown_seconds, rt.absence_reset_seconds) == (5.0, 10.0)
     finally:
         monkeypatch.undo()
         importlib.reload(config)
 
 
-def test_car_waiting_at_the_gate_is_counted_once():
-    # Night test 2: a car read for ~10 s at the gate was counted 2-3 times
-    # with the old 5 s default.
-    rt = CameraRuntime(source=FakeSource(1), camera_identifier="CAM-A01", zone_id="zone-1", cooldown_seconds=60.0)
-    start = 1000.0
-    seen = [rt._is_duplicate("CAM-A01", "CDI6227", "ENTRY", start + t) for t in range(0, 60, 2)]
-    assert seen.count(False) == 1  # only the first read counts
-    # The same plate after the window is a new observation.
-    assert rt._is_duplicate("CAM-A01", "CDI6227", "ENTRY", start + 61) is False
+class _Clock:
+    """Stands in for the runtime's `time` module so a test controls the clock."""
+
+    def __init__(self):
+        self.now = 1000.0
+
+    def monotonic(self):
+        return self.now
+
+    def sleep(self, _seconds):
+        pass
+
+
+def _drive(timeline, step=0.5, **kw):
+    """Feed one processed frame every `step` s; timeline(t) gives the plate in
+    view at t (None = no plate). Returns the times events were forwarded."""
+    import numpy as np
+
+    from app.pipeline.service import VisionResult
+
+    clock = _Clock()
+    kw.setdefault("cooldown_seconds", 5.0)
+    kw.setdefault("absence_reset_seconds", 10.0)
+    # 2-of-3 confirmation always applies (no single-read shortcut).
+    kw.setdefault("plate_confirm_skip_confidence", 0.0)
+    rt = CameraRuntime(source=FakeSource(1), camera_identifier="CAM-A01", zone_id="zone-1", **kw)
+    sent = []
+    frame = np.zeros((8, 8, 3), dtype=np.uint8)
+
+    def fake_process(_bytes):
+        plate = timeline(clock.now - 1000.0)
+        if plate is None:
+            return VisionResult(DetectionStatus.NO_DETECTION, None, None, None, None, 0)
+        return VisionResult(DetectionStatus.DETECTED, plate, plate, 0.6, 0.8, 1)
+
+    def fake_forward(_zone, event):
+        sent.append(round(clock.now - 1000.0, 1))
+        return 201, {"data": {}}
+
+    end = getattr(timeline, "end", 30.0)
+    with (
+        patch("app.camera.runtime.time", clock),
+        patch("app.camera.runtime.process_image", side_effect=fake_process),
+        patch("app.camera.runtime.api_client.forward_event", side_effect=fake_forward),
+    ):
+        while clock.now - 1000.0 <= end:
+            rt._process_frame(frame)
+            clock.now += step
+    return sent
+
+
+def _window(*spans, plate="CDI6227", end=40.0):
+    """timeline: `plate` in view during each (start, stop) span."""
+
+    def timeline(t):
+        return plate if any(a <= t < b for a, b in spans) else None
+
+    timeline.end = end
+    return timeline
+
+
+def test_plate_held_20_seconds_is_one_event():
+    assert len(_drive(_window((0, 20)))) == 1
+
+
+def test_plate_that_leaves_and_returns_after_15_seconds_is_two_events():
+    sent = _drive(_window((0, 5), (20, 25)))
+    assert len(sent) == 2
+    assert sent[1] >= 20
+
+
+def test_short_gap_below_the_absence_reset_is_the_same_pass():
+    # Out of view for 5 s (< 10 s): e.g. a person walking in front of the car.
+    assert len(_drive(_window((0, 5), (10, 15)))) == 1
+
+
+def test_plate_held_longer_than_the_old_window_is_still_one_event():
+    assert len(_drive(_window((0, 90), end=95.0))) == 1
+
+
+def test_hard_minimum_between_sends_still_applies():
+    # Absence reset of 1 s: the plate "returns" 2 s after the first send, but
+    # the 5 s hard minimum holds the second send back until t >= 5.
+    sent = _drive(_window((0, 1), (3, 8)), absence_reset_seconds=1.0)
+    assert len(sent) == 2
+    assert sent[1] - sent[0] >= 5.0
+
+
+def test_unconfirmed_sightings_keep_the_pass_open():
+    # 3-20 s: the plate is read only in 1 of every 3 frames, never confirmed;
+    # the car is still there, so the confirmed reads from 20 s are the same pass.
+    def timeline(t):
+        if t < 3 or 20 <= t < 25:
+            return "CDI6227"
+        if t < 20 and round(t * 2) % 3 == 0:
+            return "CDI6227"
+        return None
+
+    timeline.end = 30.0
+    assert len(_drive(timeline)) == 1
+
+
+def test_other_plates_are_not_suppressed_by_a_present_plate():
+    def timeline(t):
+        return "CDI6227" if t < 10 else "ABC1234" if t < 20 else None
+
+    timeline.end = 25.0
+    assert len(_drive(timeline)) == 2
 
 
 def test_open_failure_isolates_and_does_not_crash_process(fake):
@@ -619,4 +724,4 @@ def test_runtime_source_event_id_deterministic_across_instances():
 
 
 def test_source_event_id_distinguishes_cameras():
-    assert make_source_event_id(b"x", "CAM-A01") != make_source_event_id(b"x", "CAM-B02")
+    assert make_source_event_id(b"x", "CAM-A01") != make_source_event_id(b"x", "CAM-B02")
