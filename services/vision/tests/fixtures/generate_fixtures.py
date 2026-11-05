@@ -19,10 +19,15 @@ def _plate_image(text: str, w: int = 300, h: int = 100) -> Image.Image:
     img = Image.new("RGB", (w, h), color=(235, 235, 235))
     draw = ImageDraw.Draw(img)
     draw.rectangle([2, 2, w - 3, h - 3], outline=(20, 20, 20), width=4)
-    try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
-    except OSError:
-        font = ImageFont.load_default()
+    font = ImageFont.load_default()
+    # DejaVu (Linux, used for the committed fixtures) first; Arial Bold so a
+    # Windows checkout also draws plate-size text instead of the tiny default font.
+    for name in ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "DejaVuSans-Bold.ttf", "arialbd.ttf"):
+        try:
+            font = ImageFont.truetype(name, 48)
+            break
+        except OSError:
+            continue
     bbox = draw.textbbox((0, 0), text, font=font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     draw.text(((w - tw) / 2 - bbox[0], (h - th) / 2 - bbox[1]), text, fill=(10, 10, 10), font=font)
@@ -63,10 +68,23 @@ def make_spaced():
 
 
 def make_unreadable():
+    # A plate-shaped box whose text is pixelated into blocks wider than a
+    # character, so no text survives (for people or OCR). The previous version
+    # (noise + blur over the whole scene) left "ABC1234" legible; it only beat
+    # the box detector, and full-frame OCR then read the real text.
     scene = make_clear()
-    noise = np.random.default_rng(42).normal(0, 60, scene.shape).astype(np.int16)
-    noisy = np.clip(scene.astype(np.int16) + noise, 0, 255).astype(np.uint8)
-    return cv2.GaussianBlur(noisy, (25, 25), 0)
+    inner = scene[262:338, 262:538]  # inside the plate border (plate at 250,250, 300x100)
+    ys, xs = np.nonzero(cv2.cvtColor(inner, cv2.COLOR_BGR2GRAY) < 100)
+    # Text bounding box, padded to take in the anti-aliased edges.
+    y0, y1 = max(0, ys.min() - 3), min(inner.shape[0], ys.max() + 4)
+    x0, x1 = max(0, xs.min() - 3), min(inner.shape[1], xs.max() + 4)
+    text = inner[y0:y1, x0:x1]
+    # One block row over the full text height, each block one text-height wide
+    # (wider than any character): every character collapses to a gray block.
+    size = y1 - y0
+    blocks = cv2.resize(text, (max(1, (x1 - x0) // size), 1), interpolation=cv2.INTER_AREA)
+    inner[y0:y1, x0:x1] = cv2.resize(blocks, (x1 - x0, y1 - y0), interpolation=cv2.INTER_NEAREST)
+    return scene
 
 
 def make_no_plate():

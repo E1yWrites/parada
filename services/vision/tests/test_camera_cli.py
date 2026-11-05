@@ -73,6 +73,22 @@ def test_cli_run_mode_refuses_to_start_without_a_zone(fixture_video, monkeypatch
     assert fwd.call_count == 0
 
 
+def test_cli_run_mode_refuses_an_unknown_event_type(fixture_video, monkeypatch, capsys):
+    monkeypatch.setattr("app.config.CAMERA_SOURCE", "file")
+    monkeypatch.setattr("app.config.CAMERA_FILE_PATH", fixture_video)
+    monkeypatch.setattr("app.config.CAMERA_IDENTIFIER", "CAM-A02")
+    monkeypatch.setattr("app.config.CAMERA_ZONE_ID", "zone-1")
+    monkeypatch.setattr("app.config.CAMERA_EVENT_TYPE", "EXT")
+
+    with patch("app.camera.runtime.api_client.forward_event", return_value=(201, {"data": {}})) as fwd:
+        code = main(["run"])
+
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "CAMERA_EVENT_TYPE" in out
+    assert fwd.call_count == 0
+
+
 def test_file_source_runtime_reads_and_OCR_processes_real_frames(fixture_video):
     runtime = CameraRuntime(
         source=FileCameraSource(fixture_video),
@@ -95,7 +111,7 @@ def test_file_source_runtime_reads_and_OCR_processes_real_frames(fixture_video):
     event = fwd.call_args_list[0][0][1]
     assert event["cameraIdentifier"] == "CAM-A01"
     assert event["eventType"] == "ENTRY"
-    assert event["detectedPlate"] == "ABC1234"
+    assert event["detectedPlate"] == "ABC 1234"
 
 
 def test_runtime_forwards_events_via_existing_api_contract(fixture_video):

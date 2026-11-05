@@ -102,6 +102,7 @@ def _run(source, camera_identifier: str, zone_id: str | None) -> int:
     print(f"  frames read       : {s.frames_read}")
     print(f"  frames processed  : {s.frames_processed}")
     print(f"  detections        : {s.detections}")
+    print(f"  unconfirmed reads : {s.unconfirmed}")
     print(f"  forwarded         : {s.forwarded}")
     print(f"  api ok/conflict   : {s.api_ok}/{s.api_conflict}")
     print(f"  reconnects        : {s.reconnects}")
@@ -141,6 +142,12 @@ def main(argv: list[str] | None = None) -> int:
             "configuration error: CAMERA_ZONE_ID (or --zone-id) is required for `run` — "
             "the API ingests camera events at POST /zones/:zoneId/events, so the runtime "
             f"must know which zone camera '{vision_config.CAMERA_IDENTIFIER}' belongs to."
+        )
+        return 2
+    if vision_config.CAMERA_EVENT_TYPE not in ("ENTRY", "EXIT"):
+        print(
+            f"configuration error: CAMERA_EVENT_TYPE must be ENTRY or EXIT "
+            f"(got '{vision_config.CAMERA_EVENT_TYPE}')."
         )
         return 2
     return _run(source, vision_config.CAMERA_IDENTIFIER, zone_id)

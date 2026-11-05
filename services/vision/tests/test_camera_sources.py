@@ -122,6 +122,159 @@ def test_rtsp_describe_redacts_credentials():
     assert src.url  # original still available for open()
 
 
+class FakeRtspCapture:
+    """Stands in for cv2.VideoCapture on a live stream: every read() returns a
+    new frame stamped with its sequence number (pixel [0,0,0]), paced like a
+    camera, until `live` is cleared."""
+
+    def __init__(self, url, backend=None, opened: bool = True):
+        self.url = url
+        self._opened = opened
+        self.reads = 0
+        self.released = False
+        self.live = True
+
+    def isOpened(self) -> bool:
+        return self._opened
+
+    def read(self):
+        import time
+
+        time.sleep(0.005)
+        if not self.live:
+            return False, None
+        self.reads += 1
+        frame = np.zeros((48, 64, 3), dtype=np.uint8)
+        frame[0, 0, 0] = self.reads % 256
+        return True, frame
+
+    def get(self, prop):
+        return {cv2.CAP_PROP_FRAME_WIDTH: 64, cv2.CAP_PROP_FRAME_HEIGHT: 48}.get(prop, 0)
+
+    def release(self) -> None:
+        self.released = True
+
+
+@pytest.fixture
+def fake_rtsp(monkeypatch):
+    caps: list[FakeRtspCapture] = []
+
+    def factory(url, backend=None):
+        cap = FakeRtspCapture(url, backend)
+        caps.append(cap)
+        return cap
+
+    monkeypatch.setattr("app.camera.sources.cv2.VideoCapture", factory)
+    return caps
+
+
+def test_rtsp_open_failure_raises_clean_error(monkeypatch):
+    monkeypatch.setattr(
+        "app.camera.sources.cv2.VideoCapture", lambda url, backend=None: FakeRtspCapture(url, opened=False)
+    )
+    src = RtspCameraSource("rtsp://10.0.0.5:554/stream1")
+    with pytest.raises(CameraSourceError):
+        src.open()
+    assert src.opened is False
+
+
+def test_rtsp_reader_drains_stream_while_consumer_is_slow(fake_rtsp):
+    import time
+
+    # Regression: reading only at VISION_PROCESS_FPS let a real camera's
+    # stream back up until the camera dropped the session. The source must
+    # keep pulling frames while the runtime is busy (e.g. running OCR).
+    src = RtspCameraSource("rtsp://10.0.0.5:554/stream1")
+    src.open()
+    try:
+        first = src.read_frame()
+        time.sleep(0.3)  # consumer busy
+        assert fake_rtsp[0].reads > 10
+        newest = src.read_frame()
+        # The newest frame is returned, not the next stale one in a buffer.
+        assert int(newest[0, 0, 0]) - int(first[0, 0, 0]) > 10
+        assert src.resolution() == (64, 48)
+        assert src.describe()["streaming"] is True
+    finally:
+        src.close()
+
+
+def test_rtsp_read_frame_never_returns_the_same_frame_twice(fake_rtsp):
+    src = RtspCameraSource("rtsp://10.0.0.5:554/stream1")
+    src.open()
+    try:
+        stamps = [int(src.read_frame()[0, 0, 0]) for _ in range(5)]
+        assert all(b != a for a, b in zip(stamps, stamps[1:]))
+    finally:
+        src.close()
+
+
+def test_rtsp_stalled_stream_raises_frame_read_error(fake_rtsp):
+    src = RtspCameraSource("rtsp://10.0.0.5:554/stream1", frame_timeout_seconds=0.2)
+    src.open()
+    try:
+        src.read_frame()
+        fake_rtsp[0].live = False
+        try:
+            src.read_frame()  # a frame produced just before the stall may be pending
+        except FrameReadError:
+            pass
+        with pytest.raises(FrameReadError):
+            src.read_frame()
+    finally:
+        src.close()
+
+
+def test_rtsp_close_stops_reader_and_releases_capture(fake_rtsp):
+    src = RtspCameraSource("rtsp://10.0.0.5:554/stream1")
+    src.open()
+    reader = src._reader
+    src.close()
+    assert reader is not None and not reader.is_alive()
+    assert fake_rtsp[0].released is True
+    assert src.opened is False
+    assert src.resolution() == (0, 0)
+
+
+@pytest.mark.parametrize(
+    "make_source",
+    [
+        lambda: RtspCameraSource("rtsp://10.0.0.5:554/stream1"),
+        lambda: UsbCameraSource(device_index=0),
+        lambda: FileCameraSource(VIDEO),
+    ],
+    ids=["rtsp", "usb", "file"],
+)
+def test_reading_a_closed_source_raises_frame_read_error(make_source):
+    # Never opened, or closed by a reconnect whose open() failed: a read
+    # failure the runtime can retry, not an AssertionError that kills it.
+    src = make_source()
+    with pytest.raises(FrameReadError):
+        src.read_frame()
+
+
+def test_rtsp_read_after_close_raises_frame_read_error(fake_rtsp):
+    src = RtspCameraSource("rtsp://10.0.0.5:554/stream1")
+    src.open()
+    src.read_frame()
+    src.close()
+    with pytest.raises(FrameReadError):
+        src.read_frame()
+
+
+def test_rtsp_reopen_starts_a_fresh_reader(fake_rtsp):
+    src = RtspCameraSource("rtsp://10.0.0.5:554/stream1")
+    src.open()
+    src.read_frame()
+    src.open()  # runtime reconnect path: open() closes the old stream first
+    try:
+        assert len(fake_rtsp) == 2
+        assert fake_rtsp[0].released is True
+        assert src.read_frame() is not None
+    finally:
+        src.close()
+
+
 # --------------------------------------------------------------------------- File
 
 

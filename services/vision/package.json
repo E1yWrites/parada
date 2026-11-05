@@ -10,6 +10,10 @@
     "lint": "echo \"(vision) no linter configured\"",
     "typecheck": "echo \"(vision) no type checker configured\"",
     "test": "node scripts/venv-run.cjs pytest",
-    "camera": "node scripts/venv-run.cjs python -m app.camera.cli"
+    "camera": "node scripts/venv-run.cjs python -m app.camera.cli",
+    "cam1": "node scripts/camera-with-env.cjs .env.cam-a01 --debug",
+    "cam2": "node scripts/camera-with-env.cjs .env.cam-a02 --debug",
+    "cam1:quiet": "node scripts/camera-with-env.cjs .env.cam-a01",
+    "cam2:quiet": "node scripts/camera-with-env.cjs .env.cam-a02"
   }
 }

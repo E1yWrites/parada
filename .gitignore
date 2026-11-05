@@ -64,3 +64,6 @@ apps/admin/.impeccable/
 apps/mobile/.impeccable/
 .opencode/plans/
 docs/superpowers/
+# Camera debug frames and local test logs (contain plate images)
+debug-crops/
+test-run/
