@@ -100,7 +100,8 @@ describe("custom entry (index.js)", () => {
     // dev views (Sitemap / Unmatched Route) dereference; skipping it crashes
     // with "Cannot read property 'origin' of undefined" inside Expo Go.
     const entry = fs.readFileSync(path.join(__dirname, "..", "index.js"), "utf8");
-    const imports = entry.split("\n").filter((line) => /^import\b/.test(line));
+    // /\r?\n/: a Windows checkout (core.autocrlf) has CRLF line endings.
+    const imports = entry.split(/\r?\n/).filter((line) => /^import\b/.test(line));
     expect(imports[0]).toBe('import "@expo/metro-runtime";');
   });
 });
