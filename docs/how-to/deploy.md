@@ -236,7 +236,7 @@ systemd `EnvironmentFile=`, a container env, or `set -a; . ./.env; set +a`.
 | `CAMERA_SOURCE` | yes | `usb` \| `rtsp` \| `file` |
 | `CAMERA_DEVICE_INDEX` / `VIDEO_SOURCE` / `CAMERA_FILE_PATH` | one, per source | RTSP credentials may be embedded in `VIDEO_SOURCE`; they are redacted from logs and never stored |
 | `OCR_PLATE_CONFIDENCE_THRESHOLD` | no | Must equal the API's value |
-| `VISION_PROCESS_FPS`, `OBSERVATION_COOLDOWN_SECONDS`, `CAMERA_RECONNECT_DELAY_SECONDS`, `MAX_CONSECUTIVE_READ_FAILURES`, `MAX_FORWARD_ATTEMPTS`, `MAX_CAMERA_RECONNECTS` | no | Defaults `2`, `5`, `2`, `10`, `3`, `100` (plus `OBSERVATION_ABSENCE_RESET_SECONDS`, default `10`) |
+| `VISION_PROCESS_FPS`, `OBSERVATION_COOLDOWN_SECONDS`, `CAMERA_RECONNECT_DELAY_SECONDS`, `MAX_CONSECUTIVE_READ_FAILURES`, `MAX_FORWARD_ATTEMPTS`, `MAX_CAMERA_RECONNECTS` | no | Defaults `2`, `5`, `2`, `10`, `3`, `100` (plus `OBSERVATION_ABSENCE_RESET_SECONDS`, default `25`) |
 
 ### Mobile (build-time only)
 

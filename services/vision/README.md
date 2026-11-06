@@ -211,7 +211,7 @@ and never enter the database, an API response, or a log.
 | `PLATE_PATTERN` | `[A-Z]{3}[0-9]{3,4}` | plate format filter (see "Plate format filter" above); `""` turns it off |
 | `VISION_PROCESS_FPS` | `2` | processing ceiling — frames above this are not OCR'd |
 | `OBSERVATION_COOLDOWN_SECONDS` | `5` | hard minimum between two sends of the same camera + plate + direction |
-| `OBSERVATION_ABSENCE_RESET_SECONDS` | `10` | presence-based duplicate suppression: after a send, the plate is ignored while it keeps appearing (a car waiting at the gate is counted once). Unseen this long, its next confirmed read is a new pass. `0` leaves only the hard minimum above |
+| `OBSERVATION_ABSENCE_RESET_SECONDS` | `25` | presence-based duplicate suppression: after a send, the plate is ignored while it keeps appearing (a car waiting at the gate is counted once). Unseen this long, its next confirmed read is a new pass. `0` leaves only the hard minimum above |
 | `PLATE_CONFIRM_WINDOW` / `PLATE_CONFIRM_MIN_READS` | `3` / `2` | a plate is forwarded only after it was read the same way in at least `MIN_READS` of the last `WINDOW` processed frames (one-off misreads never reach the API); `PLATE_CONFIRM_MIN_READS=1` turns this off. The cooldown above applies after confirmation |
 | `VISION_MIN_OCR_CONFIDENCE` | `0.4` | readings below this OCR confidence are dropped (see "Low-confidence readings" above) |
 | `VISION_DEBUG_DIR` | (empty) | save candidate crops + OCR text per frame here (see "Debug dump" above) |

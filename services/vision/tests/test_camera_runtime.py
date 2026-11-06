@@ -584,7 +584,7 @@ def test_debounce_defaults(monkeypatch):
     try:
         importlib.reload(config)
         rt = CameraRuntime(source=FakeSource(1), camera_identifier="CAM-A01", zone_id="zone-1")
-        assert (rt.cooldown_seconds, rt.absence_reset_seconds) == (5.0, 10.0)
+        assert (rt.cooldown_seconds, rt.absence_reset_seconds) == (5.0, 25.0)
     finally:
         monkeypatch.undo()
         importlib.reload(config)
@@ -612,6 +612,8 @@ def _drive(timeline, step=0.5, **kw):
 
     clock = _Clock()
     kw.setdefault("cooldown_seconds", 5.0)
+    # Fixed here so the mechanism tests below don't depend on the default;
+    # the default itself is tested with live frame timing further down.
     kw.setdefault("absence_reset_seconds", 10.0)
     # 2-of-3 confirmation always applies (no single-read shortcut).
     kw.setdefault("plate_confirm_skip_confidence", 0.0)
@@ -659,6 +661,44 @@ def test_plate_that_leaves_and_returns_after_15_seconds_is_two_events():
     sent = _drive(_window((0, 5), (20, 25)))
     assert len(sent) == 2
     assert sent[1] >= 20
+
+
+def _reads_at(plates_by_time, end):
+    """timeline from {t: plate}; frames come every 6 s like the live CPU."""
+
+    def timeline(t):
+        return plates_by_time.get(round(t))
+
+    timeline.end = end
+    return timeline
+
+
+def test_one_misread_frame_at_live_frame_rate_is_not_a_new_pass():
+    # Day test: frames ~6 s apart, read at t=0, misread at t=6, read at t=12.
+    # Every read is forwardable (confirmation off) so only the debounce decides.
+    import app.config as config
+
+    assert config.OBSERVATION_ABSENCE_RESET_SECONDS == 25.0
+    timeline = _reads_at({0: "CDI6227", 6: None, 12: "CDI6227"}, end=12)
+    sent = _drive(
+        timeline, step=6.0, plate_confirm_min_reads=1, absence_reset_seconds=config.OBSERVATION_ABSENCE_RESET_SECONDS
+    )
+    assert sent == [0.0]
+
+
+def test_the_old_10_second_reset_counted_that_misread_as_a_second_car():
+    timeline = _reads_at({0: "CDI6227", 6: None, 12: "CDI6227"}, end=12)
+    assert _drive(timeline, step=6.0, plate_confirm_min_reads=1, absence_reset_seconds=10.0) == [0.0, 12.0]
+
+
+def test_one_misread_frame_with_confirmation_on_is_still_one_event():
+    import app.config as config
+
+    plates = {0: "CDI6227", 6: "CDI6227", 12: None, 18: "CDI6227", 24: "CDI6227", 30: "CDI6227"}
+    sent = _drive(
+        _reads_at(plates, end=30), step=6.0, absence_reset_seconds=config.OBSERVATION_ABSENCE_RESET_SECONDS
+    )
+    assert sent == [6.0]
 
 
 def test_short_gap_below_the_absence_reset_is_the_same_pass():
