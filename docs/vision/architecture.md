@@ -367,7 +367,7 @@ all three — no per-source OCR/business code.
 - Duplicate suppression, presence-based: after a send, the same camera + same
   normalized plate + same direction is ignored while it keeps appearing in
   frames — one observation, not N parking events. Once unseen for
-  `OBSERVATION_ABSENCE_RESET_SECONDS` (default 10s) its next confirmed read is
+  `OBSERVATION_ABSENCE_RESET_SECONDS` (default 25s) its next confirmed read is
   a new pass; `OBSERVATION_COOLDOWN_SECONDS` (default 5s) is the hard minimum
   between two sends. The API's
   `(cameraId, sourceEventId)` unique constraint **remains the final authority**

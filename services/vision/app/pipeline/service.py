@@ -45,26 +45,69 @@ MAX_PADDED_REREADS = 2
 
 
 _GROUP = re.compile(r"[A-Z0-9]+")
+# Groups plus the symbols OCR reads for the I's single stroke.
+_TOKEN = re.compile(r"[A-Z0-9]+|[\[\]|]")
+_BARS = frozenset("[]|")
 _DIGIT_RUN = re.compile(r"[0-9]+")
 _TWO_LETTERS_THEN_DIGITS = re.compile(r"^[A-Z]{2}[0-9]{4}")
 
 
-def _match_groups(groups: list[str]) -> str | None:
-    """Default PH format over a reading split into groups ("CDI 6227"): a group
-    of exactly 3 letters followed by a group of 3+ digits, each corrected only
-    within itself. Characters never move between groups, so "CD 6227" is
-    rejected instead of becoming "CDG227"."""
+def _plate_from(letters: str, digits: str) -> str | None:
+    """letters (exactly 3) + digit group, each corrected only within itself."""
+    letters = letters.translate(_TO_LETTER)
+    run = _DIGIT_RUN.match(digits.translate(_TO_DIGIT))
+    if len(letters) != 3 or not letters.isalpha() or run is None or len(run.group()) < 3:
+        return None
+    # A stray character after the number is dropped: "CDI 62271" -> "CDI6227".
+    plate = letters + run.group()[:4]
+    return plate if PLATE_PATTERN.match(plate) else None
+
+
+def _joined_letters(tokens: list[str], end: int) -> str | None:
+    """The letter group just before tokens[end], built from letter-only groups
+    split by OCR ("CD I", "C DI") and I's read as a bracket/bar ("CD [");
+    None unless they make exactly 3 letters. A bracket/bar counts as I only
+    right after letters, so a plate border ("| CD") never becomes a letter."""
+    parts: list[str] = []
+    for i in range(end - 1, -1, -1):
+        token = tokens[i]
+        if token in _BARS:
+            if i == 0 or not tokens[i - 1].isalpha():
+                break
+            parts.append("I")
+        elif token == "L":
+            # A lone "L" in a split letter group is almost always the I misread
+            # ("CD L 6227" is CDI 6227); joining it records the wrong plate.
+            return None
+        elif token.isalpha():
+            parts.append(token)
+        else:
+            break
+        joined = "".join(reversed(parts))
+        if len(joined) >= 3:
+            return joined if len(joined) == 3 else None
+    return None
+
+
+def _match_groups(tokens: list[str]) -> str | None:
+    """Default PH format over a reading split into groups ("CDI 6227"): a letter
+    group of exactly 3 letters followed by a group of 3+ digits. Characters
+    never move between groups, so "CD 6227" is rejected instead of becoming
+    "CDG227"; only whole groups are joined to make the 3 letters."""
+    groups = [t for t in tokens if t not in _BARS]
     for letters, digits in zip(groups, groups[1:]):
-        if len(letters) != 3:
+        if len(letters) == 3:
+            plate = _plate_from(letters, digits)
+            if plate is not None:
+                return plate
+    for end, digits in enumerate(tokens):
+        if digits in _BARS or not any(c.isdigit() for c in digits):
             continue
-        letters = letters.translate(_TO_LETTER)
-        run = _DIGIT_RUN.match(digits.translate(_TO_DIGIT))
-        if not letters.isalpha() or run is None or len(run.group()) < 3:
-            continue
-        # A stray character after the number is dropped: "CDI 62271" -> "CDI6227".
-        plate = letters + run.group()[:4]
-        if PLATE_PATTERN.match(plate):
-            return plate
+        letters = _joined_letters(tokens, end)
+        if letters is not None:
+            plate = _plate_from(letters, digits)
+            if plate is not None:
+                return plate
     return None
 
 
@@ -72,8 +115,8 @@ def match_plate(reading: str) -> str | None:
     """Return the plate found in an OCR reading (raw or normalized), or None.
 
     For the default PH format, a reading split into groups (by spaces or
-    other separators, "CDI 6227") is matched group by group; see
-    _match_groups. A single unbroken group is tried, in order: whole; any 7-
+    other separators, "CDI 6227", "CD I 6227", "CD [ 6227") is matched group
+    by group; see _match_groups. A single unbroken group is tried, in order: whole; any 7-
     then 6-character window of it (drops stray characters picked up next to
     the plate, e.g. "IABC1234"); and the same windows with letter/digit
     confusions corrected by position ("ABCI234" -> "ABC1234").
@@ -84,7 +127,7 @@ def match_plate(reading: str) -> str | None:
         return normalized if len(normalized) >= MIN_PLATE_TEXT_LENGTH else None
     correct = _PLATE_PATTERN_SOURCE == DEFAULT_PLATE_PATTERN
     if correct and len(groups) > 1:
-        return _match_groups(groups)
+        return _match_groups(_TOKEN.findall(reading.upper()))
     if PLATE_PATTERN.match(normalized):
         return normalized
     if correct and _TWO_LETTERS_THEN_DIGITS.match(normalized):

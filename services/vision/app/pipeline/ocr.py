@@ -20,6 +20,11 @@ import numpy as np
 # (region "NCR", dealer stickers, slogans), not the plate number.
 MIN_FRAGMENT_HEIGHT_RATIO = 0.5
 
+# No EasyOCR allowlist on purpose: with allowlist=A-Z0-9 the I's single stroke
+# came out as "L" and spaces were dropped, so "CD [ 6227" became the wrong plate
+# "CDL6227" (8 of 58 real day-test frames, none improved). match_plate reads
+# "[", "]" and "|" after letters as I instead.
+
 # Region/sticker words printed on Philippine plates around the plate number.
 REGION_WORDS = frozenset({"NCR", "PILIPINAS", "PHILIPPINES", "LTO"})
 # "REGION4A", "REGIONIV", "REGION" (its number then follows as its own token).

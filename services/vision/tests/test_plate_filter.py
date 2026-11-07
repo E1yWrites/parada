@@ -37,13 +37,10 @@ def test_non_plate_text_is_rejected(reading):
 @pytest.mark.parametrize(
     "reading, expected",
     [
-        # Night test 2: the I of CDI 6227 was missed (or read as "]", "[", "L").
-        # Correction used to pull the 6 into the letters: "CD 6227" -> "CDG227".
+        # Night test 2: the I of CDI 6227 was missed. Correction used to pull
+        # the 6 into the letters: "CD 6227" -> "CDG227".
         ("CD 6227", None),
-        ("CD] 6227", None),
-        ("CD ] 6227", None),
-        ("CD[ 6227", None),
-        ("CD L 6227", None),
+        ("CI 6227", None),
         ("CDI 6227", "CDI6227"),
         ("CDI 62271", "CDI6227"),  # stray character after the number
         ("CDI-6227", "CDI6227"),
@@ -54,6 +51,44 @@ def test_non_plate_text_is_rejected(reading):
     ],
 )
 def test_group_structure_is_kept(reading, expected):
+    assert match_plate(reading) == expected
+
+
+@pytest.mark.parametrize(
+    "reading, expected",
+    [
+        # Day test: OCR splits the letter group or reads the I as a bracket/bar.
+        ("CD I 6227", "CDI6227"),
+        ("C DI 6227", "CDI6227"),
+        ("C D I 6227", "CDI6227"),
+        ("CD [ 6227", "CDI6227"),
+        ("CD[ 6227", "CDI6227"),
+        ("CD ] 6227", "CDI6227"),
+        ("CD] 6227", "CDI6227"),
+        ("CD | 6227", "CDI6227"),
+        ("CD [ 6227|", "CDI6227"),  # bar after the number is not a letter
+        ("CD [ 62271", "CDI6227"),
+        # A lone "L" is the I misread: rejected, never the wrong plate CDL6227.
+        ("CD L 6227", None),
+        ("C D L 6227", None),
+        ("CD L [ 6227", None),
+        # A real 3-letter group with an L is still a plate.
+        ("CDL 6227", "CDL6227"),
+        # Still no third letter: never "CDG227".
+        ("CD 6227", None),
+        ("CD6227", None),
+        ("CD - 6227", None),
+        # A bar not right after letters is not an I (e.g. the plate border).
+        ("| CD 6227", None),
+        ("CD [ [ 6227", None),
+        # Joined groups must make exactly 3 letters.
+        ("CD IX 6227", None),
+        ("ICDI 6227", None),
+        # A real 3-letter group still wins over joining.
+        ("ABC | 1234", "ABC1234"),
+    ],
+)
+def test_split_letter_groups_are_joined(reading, expected):
     assert match_plate(reading) == expected
 
 

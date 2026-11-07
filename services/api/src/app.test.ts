@@ -2895,13 +2895,18 @@ describe("Phase 11B — Rate limiting (AUDIT-003)", () => {
   });
 
   it("resets the credential budget after the window elapses", async () => {
-    const app = createApp({ authRateLimit: { limit: 2, windowMs: 150 } });
+    // 2 s window: three failed logins (each hashes a password) must all land
+    // inside it, which a 150 ms window did not guarantee on slower machines.
+    const windowMs = 2_000;
+    const app = createApp({ authRateLimit: { limit: 2, windowMs } });
 
     await request(app).post("/auth/login").send({ email: "win@test.local", password: "WrongPass1!" }).expect(401);
     await request(app).post("/auth/login").send({ email: "win@test.local", password: "WrongPass1!" }).expect(401);
     await request(app).post("/auth/login").send({ email: "win@test.local", password: "WrongPass1!" }).expect(429);
 
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    // The window starts at the first attempt, so waiting longer than the
+    // window after the third one always crosses the reset.
+    await new Promise((resolve) => setTimeout(resolve, windowMs + 200));
 
     // Back under the limit: a fresh attempt is a credential error again (401),
     // not a throttle.

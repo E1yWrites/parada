@@ -114,8 +114,10 @@ VISION_PROCESS_FPS = float(os.environ.get("VISION_PROCESS_FPS", "2"))
 # 2-3 times in live testing). Once it has not been read for
 # OBSERVATION_ABSENCE_RESET_SECONDS, its next confirmed read is a new pass.
 # OBSERVATION_COOLDOWN_SECONDS is the hard minimum between two sends.
+# 25 s: a live frame takes ~6 s on CPU, so one misread frame already leaves a
+# 12 s gap; 10 s turned that gap into a second event in the day test.
 OBSERVATION_COOLDOWN_SECONDS = float(os.environ.get("OBSERVATION_COOLDOWN_SECONDS", "5"))
-OBSERVATION_ABSENCE_RESET_SECONDS = float(os.environ.get("OBSERVATION_ABSENCE_RESET_SECONDS", "10"))
+OBSERVATION_ABSENCE_RESET_SECONDS = float(os.environ.get("OBSERVATION_ABSENCE_RESET_SECONDS", "25"))
 
 # Plate confirmation: a plate is only forwarded once it was read the SAME way in
 # at least PLATE_CONFIRM_MIN_READS of the last PLATE_CONFIRM_WINDOW processed
