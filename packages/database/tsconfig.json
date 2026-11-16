@@ -7,7 +7,8 @@
     // WASM query compiler then compiles to require(), which Jest can load
     // without --experimental-vm-modules.
     "module": "CommonJS",
-    "moduleResolution": "Node10"
+    "moduleResolution": "Bundler",
+    "types": ["node", "jest"]
   },
   "include": ["src/**/*"]
 }
