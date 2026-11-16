@@ -17,6 +17,10 @@ type SessionContextValue = {
   /** In-memory copy of the stored bearer token (for authenticated image loads). */
   token: string | null;
   isLoading: boolean;
+  /** The stored session could not be checked (offline/timeout). Not the same as signed out. */
+  bootError: boolean;
+  /** Re-run the startup session check. */
+  retry: () => void;
   signIn: (email: string, password: string) => Promise<void>;
   /** Creates the account. No session is opened: the email must be verified first. */
   signUp: (name: string, email: string, password: string) => Promise<RegisterResponse>;
@@ -34,6 +38,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
+  const [bootError, setBootError] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -49,6 +54,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       try {
         const me = await api.me();
         if (active) {
+          setBootError(false);
           if (me.status === "ACTIVE") {
             setUser(me);
             setTokenState(token);
@@ -71,6 +77,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
         if (active) {
           setUser(null);
+          // Token kept but unverifiable: say so instead of acting signed out.
+          setBootError(!unauthorized);
         }
       } finally {
         if (active) {
@@ -92,6 +100,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }),
     [],
   );
+
+  const retry = useCallback(() => {
+    setBootError(false);
+    setIsLoading(true);
+    setReloadKey((k) => k + 1);
+  }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const response = await api.login(email, password);
@@ -138,8 +152,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<SessionContextValue>(
-    () => ({ user, token, isLoading, signIn, signUp, signOut, updateUser, changePassword }),
-    [user, token, isLoading, signIn, signUp, signOut, updateUser, changePassword],
+    () => ({ user, token, isLoading, bootError, retry, signIn, signUp, signOut, updateUser, changePassword }),
+    [user, token, isLoading, bootError, retry, signIn, signUp, signOut, updateUser, changePassword],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

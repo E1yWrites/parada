@@ -28,8 +28,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then((u) => {
         if (active) setUser(u);
       })
-      .catch(() => {
-        if (active) setUser(null);
+      .catch((err) => {
+        if (!active) return;
+        setUser(null);
+        // Only an explicit 401 means "not signed in"; anything else is the API being unreachable.
+        if (!(err instanceof ApiError) || err.status !== 401) setError("Unable to reach the PARADA API.");
       })
       .finally(() => {
         if (active) setLoading(false);

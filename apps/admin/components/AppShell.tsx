@@ -257,11 +257,26 @@ function Drawer({ onClose, returnFocusTo }: { onClose: () => void; returnFocusTo
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, error, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   if (loading) return <FullPageSpinner label="Loading operations console…" />;
+
+  if (!user && error) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center">
+        <BrandLogo height={20} />
+        <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">{error}</h1>
+        <p className="max-w-sm text-sm text-muted">
+          You are not signed out. Check the connection and try again.
+        </p>
+        <button type="button" className="btn-primary mt-2" onClick={() => window.location.reload()}>
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (!user) {
     return (

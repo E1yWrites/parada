@@ -44,6 +44,18 @@ describe("AppShell — role protection", () => {
     expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute("href", "/login");
   });
 
+  it("says the API is unreachable, not 'Admin access required', when the session check failed", () => {
+    setAuth({ user: null, loading: false, error: "Unable to reach the PARADA API." });
+    render(
+      <AppShell>
+        <div>content</div>
+      </AppShell>
+    );
+    expect(screen.getByText("Unable to reach the PARADA API.")).toBeInTheDocument();
+    expect(screen.queryByText("Admin access required")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
   it("blocks USER accounts with a forbidden message", () => {
     setAuth({ user: { id: "u1", email: "driver@parada.local", role: "USER" } as never, loading: false });
     render(

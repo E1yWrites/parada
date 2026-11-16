@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Redirect } from "expo-router";
+import { BootError } from "@/src/components/BootError";
 import { FullScreenLoading } from "@/src/components/FullScreenLoading";
 import { isOnboardingCompleted } from "@/lib/onboarding";
 import { useSession } from "@/src/providers/SessionProvider";
@@ -17,7 +18,7 @@ import { useSession } from "@/src/providers/SessionProvider";
 //   otherwise          -> login
 // `(tabs)/_layout` still redirects to /login when the session is missing.
 export default function Index() {
-  const { user, isLoading } = useSession();
+  const { user, isLoading, bootError, retry } = useSession();
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -34,6 +35,9 @@ export default function Index() {
 
   if (isLoading || onboarded === null) {
     return <FullScreenLoading testID="startup-loading" />;
+  }
+  if (!user && bootError) {
+    return <BootError onRetry={retry} />;
   }
   if (user) {
     return <Redirect href="/(tabs)/parking" />;

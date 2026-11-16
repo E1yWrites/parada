@@ -59,6 +59,29 @@ describe("AuthProvider — session behaviour", () => {
     expect(screen.getByTestId("loading").textContent).toBe("false");
   });
 
+  it("treats a 503 from /auth/me as an unreachable API, not as signed out", async () => {
+    (api.me as jest.Mock).mockRejectedValue(new ApiError("NETWORK", "Unable to reach the PARADA API.", 503));
+    render(
+      <AuthProvider>
+        <Harness />
+      </AuthProvider>
+    );
+    await waitFor(() => expect(screen.getByTestId("loading").textContent).toBe("false"));
+    expect(screen.getByTestId("error").textContent).toBe("Unable to reach the PARADA API.");
+    expect(screen.getByTestId("user").textContent).toBe("null");
+  });
+
+  it("keeps a plain 401 as signed out with no error", async () => {
+    (api.me as jest.Mock).mockRejectedValue(new ApiError("UNAUTHORIZED", "Not authenticated.", 401));
+    render(
+      <AuthProvider>
+        <Harness />
+      </AuthProvider>
+    );
+    await waitFor(() => expect(screen.getByTestId("loading").textContent).toBe("false"));
+    expect(screen.getByTestId("error").textContent).toBe("");
+  });
+
   it("signs in with valid credentials and stores the session in state only", async () => {
     (api.me as jest.Mock).mockRejectedValue(new ApiError("UNAUTHORIZED", "Not authenticated.", 401));
     (api.login as jest.Mock).mockResolvedValue({ id: "u1", email: "admin@parada.local", role: "ADMIN" });

@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { type ColorValue, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "@/src/providers/SessionProvider";
+import { BootError } from "@/src/components/BootError";
 import { FullScreenLoading } from "@/src/components/FullScreenLoading";
 import { TabBarBackground } from "@/src/components/TabBarBackground";
 import { VehicleSelectionProvider } from "@/src/components/VehicleSelection";
@@ -49,11 +50,14 @@ const AccountIcon = (props: IconProps) => (
 export default function TabsLayout() {
   const colors = useColors();
   const shadows = useThemeShadows();
-  const { user, isLoading } = useSession();
+  const { user, isLoading, bootError, retry } = useSession();
   const insets = useSafeAreaInsets();
 
   if (isLoading) {
     return <FullScreenLoading testID="session-loading" />;
+  }
+  if (!user && bootError) {
+    return <BootError onRetry={retry} />;
   }
   if (!user) {
     return <Redirect href="/login" />;

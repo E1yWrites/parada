@@ -1,7 +1,9 @@
 import * as SecureStore from "expo-secure-store";
 import { renderWithAppProviders, screen, waitFor } from "@/src/test/utils";
 import TabsLayout from "@/app/(tabs)/_layout";
-import { api } from "@/lib/api/client";
+import { api, ApiError } from "@/lib/api/client";
+import { getToken } from "@/lib/auth/session";
+import { fireEvent } from "@/src/test/utils";
 import { sessionStatusMeta } from "@/src/components/StatusBadge";
 import { colors } from "@/src/theme";
 
@@ -41,6 +43,33 @@ describe("access control", () => {
   it("redirects an anonymous user to /login", async () => {
     await renderWithAppProviders(<TabsLayout />);
     await waitFor(() => expect(screen.getByTestId("redirect-/login")).toBeOnTheScreen());
+  });
+
+  it("shows a can't-reach-server state, not the login redirect, when the session check fails offline", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-alive");
+    (api.me as jest.Mock).mockRejectedValueOnce(new ApiError("NETWORK", "Cannot reach the PARADA server.", 0));
+
+    await renderWithAppProviders(<TabsLayout />);
+
+    expect(await screen.findByTestId("boot-error")).toBeOnTheScreen();
+    expect(screen.queryByTestId("redirect-/login")).not.toBeOnTheScreen();
+    await expect(getToken()).resolves.toBe("tok-alive");
+
+    // Back online: Retry re-checks the stored token and renders the tabs.
+    (api.me as jest.Mock).mockResolvedValue(user);
+    await fireEvent.press(screen.getByTestId("boot-error-state-retry"));
+    await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
+  });
+
+  it("still sends an explicit 401 to /login and clears the token", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-dead");
+    (api.me as jest.Mock).mockRejectedValue(new ApiError("UNAUTHORIZED", "Session expired.", 401));
+
+    await renderWithAppProviders(<TabsLayout />);
+
+    await waitFor(() => expect(screen.getByTestId("redirect-/login")).toBeOnTheScreen());
+    expect(screen.queryByTestId("boot-error")).not.toBeOnTheScreen();
+    await expect(getToken()).resolves.toBeNull();
   });
 
   it("renders the four tabs for an authenticated user", async () => {
