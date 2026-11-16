@@ -55,6 +55,13 @@ export function avatarSrc(user: { id: string; avatarUpdatedAt?: string | null } 
   return `${PROXY_BASE}/users/${encodeURIComponent(user.id)}/avatar?v=${encodeURIComponent(user.avatarUpdatedAt)}`;
 }
 
+/** Full-page redirect to the login screen. An object so tests can spy on it (jsdom's location is unforgeable). */
+export const navigation = {
+  toLogin(): void {
+    window.location.assign("/login");
+  },
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -72,7 +79,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     if (res.status === 401 && typeof window !== "undefined") {
-      window.location.assign("/login");
+      navigation.toLogin();
     }
     const code = body?.error?.code ?? "ERROR";
     const message = body?.error?.message ?? `Request failed (${res.status}).`;

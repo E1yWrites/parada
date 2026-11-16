@@ -1,4 +1,4 @@
-import { api, ApiError } from "@/lib/api/client";
+import { api, ApiError, navigation } from "@/lib/api/client";
 
 const originalFetch = global.fetch;
 
@@ -18,17 +18,16 @@ function jsonErrorResponse(body: unknown, status: number) {
   } as Response;
 }
 
-afterEach(() => {
-  global.fetch = originalFetch;
-  delete (global as unknown as { location?: unknown }).location;
+let toLogin: jest.SpyInstance;
+
+beforeEach(() => {
+  toLogin = jest.spyOn(navigation, "toLogin").mockImplementation(() => undefined);
 });
 
-function stubLocation() {
-  Object.defineProperty(global, "location", {
-    writable: true,
-    value: { assign: jest.fn() },
-  });
-}
+afterEach(() => {
+  global.fetch = originalFetch;
+  toLogin.mockRestore();
+});
 
 describe("api client proxy requests", () => {
   it("unwraps the { data } envelope for GET endpoints", async () => {
@@ -116,17 +115,16 @@ describe("api client proxy requests", () => {
     expect(err).toBeInstanceOf(ApiError);
     expect(err.code).toBe("ZONE_FULL");
     expect(err.message).toBe("Zone is full.");
-    expect((global as unknown as { location?: { assign: jest.Mock } }).location).toBeUndefined();
+    expect(toLogin).not.toHaveBeenCalled();
   });
 
   it("redirects to /login on 401", async () => {
-    stubLocation();
     global.fetch = jest.fn().mockResolvedValue(
       jsonErrorResponse({ error: { code: "UNAUTHORIZED", message: "Not authorized." } }, 401)
     );
 
     await api.zones().catch(() => undefined);
-    expect(global.location.assign).toHaveBeenCalledWith("/login");
+    expect(toLogin).toHaveBeenCalledTimes(1);
   });
 
   it("resolves the current session user from GET /api/auth/me", async () => {

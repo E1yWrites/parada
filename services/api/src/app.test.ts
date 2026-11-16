@@ -2286,7 +2286,7 @@ describe("Phase 4 — Authentication security coverage", () => {
         .expect(401);
 
       expect(nonexistent.body.error.message).toBe(wrongPass.body.error.message);
-      expect(nonexistent.body.error).not.toContain("nobody@test.local");
+      expect(JSON.stringify(nonexistent.body.error)).not.toContain("nobody@test.local");
     });
   });
 
