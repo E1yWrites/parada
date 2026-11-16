@@ -1819,36 +1819,44 @@ describe("Phase 3 — Session entry & exit (user-initiated)", () => {
     ).toBe(0);
   });
 
-  it("completes an exit, decrements occupancy, and persists the fee", async () => {
+  /** Enter via the API, then backdate the stored entry so the elapsed time is real, not client-supplied. */
+  async function enterBackdated(plate: string, elapsedMs: number, body: Record<string, unknown> = {}) {
     const vehicle = await request(app)
       .post("/vehicles")
       .set("Authorization", `Bearer ${tokenA}`)
-      .send({ plateNumber: "ENT-007", vehicleType: "CAR" })
+      .send({ plateNumber: plate, vehicleType: "CAR" })
       .expect(201);
-
-    const enteredAt = new Date("2026-09-04T10:00:00.000Z");
-    const exitedAt = new Date("2026-09-04T13:00:00.000Z"); // exactly 3h
-
     const entry = await request(app)
       .post("/sessions/entry")
       .set("Authorization", `Bearer ${tokenA}`)
-      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id, enteredAt: enteredAt.toISOString() })
+      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id, ...body })
       .expect(201);
-    const sessionId = entry.body.data.session.id;
+    const sessionId = entry.body.data.session.id as string;
+    const backdated = new Date(Date.now() - elapsedMs);
+    await prisma.parkingSession.update({ where: { id: sessionId }, data: { enteredAt: backdated } });
+    return { sessionId, backdated };
+  }
+
+  const TWO_H_59_M = (2 * 3600 + 59 * 60) * 1000;
+
+  it("completes an exit, decrements occupancy, and persists the fee", async () => {
+    // 2h59m (not exactly 3h): the exit time is the server clock, so elapsed seconds only add.
+    const { sessionId } = await enterBackdated("ENT-007", TWO_H_59_M);
 
     const before = await prisma.parkingZone.findUniqueOrThrow({ where: { id: ctx.zoneId } });
 
     const res = await request(app)
       .post(`/sessions/${sessionId}/exit`)
       .set("Authorization", `Bearer ${tokenA}`)
-      .send({ exitedAt: exitedAt.toISOString() })
+      .send({})
       .expect(200);
 
     const saved = await prisma.parkingSession.findUniqueOrThrow({ where: { id: sessionId } });
     expect(saved.status).toBe("COMPLETED");
-    // 3h exactly -> base (2h) + 1 additional started hour = 20 + 10 = 30.
+    // Just under 3h -> base (2h) + 1 additional started hour = 20 + 10 = 30.
     expect(saved.feeAmount).toBe(30);
-    expect(saved.durationSeconds).toBe(3 * 60 * 60);
+    expect(saved.durationSeconds).toBeGreaterThanOrEqual(10740);
+    expect(saved.durationSeconds).toBeLessThanOrEqual(10800);
 
     const feeRow = await prisma.parkingFee.findFirstOrThrow({ where: { sessionId } });
     expect(feeRow.amount).toBe(saved.feeAmount);
@@ -1858,6 +1866,35 @@ describe("Phase 3 — Session entry & exit (user-initiated)", () => {
     expect(after.occupiedCount).toBe(before.occupiedCount - 1);
 
     expect(res.body.data.fee).toMatchObject({ amount: saved.feeAmount, status: "PENDING" });
+  });
+
+  it("ignores a client-supplied exitedAt", async () => {
+    const { sessionId, backdated } = await enterBackdated("ENT-0A1", TWO_H_59_M);
+
+    await request(app)
+      .post(`/sessions/${sessionId}/exit`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ exitedAt: backdated.toISOString() })
+      .expect(200);
+
+    const saved = await prisma.parkingSession.findUniqueOrThrow({ where: { id: sessionId } });
+    expect(saved.durationSeconds).toBeGreaterThanOrEqual(10740);
+    expect(saved.feeAmount).toBe(30);
+  });
+
+  it("ignores a client-supplied enteredAt", async () => {
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ENT-0A2", vehicleType: "CAR" })
+      .expect(201);
+    const entry = await request(app)
+      .post("/sessions/entry")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id, enteredAt: "2020-01-01T00:00:00Z" })
+      .expect(201);
+    const saved = await prisma.parkingSession.findUniqueOrThrow({ where: { id: entry.body.data.session.id } });
+    expect(Math.abs(saved.enteredAt.getTime() - Date.now())).toBeLessThan(60_000);
   });
 
   it("rejects a duplicate exit for an already-completed session", async () => {

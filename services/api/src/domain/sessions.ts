@@ -1,6 +1,5 @@
 import { prisma, Prisma, type Notification } from "@parada/database";
 import {
-  BadRequestError,
   ConflictError,
   NotFoundError,
 } from "../http/errors";
@@ -11,7 +10,6 @@ import { calculateParkingFee, persistSessionFee } from "./fees";
 import type {
   ParkingSessionResponse,
   SessionEntryInput,
-  SessionExitInput,
   SessionExitResult,
 } from "@parada/types";
 
@@ -108,10 +106,8 @@ export class ParkingSessionService {
       );
     }
 
-    const enteredAt = input.enteredAt ? new Date(input.enteredAt) : new Date();
-    if (Number.isNaN(enteredAt.getTime())) {
-      throw new BadRequestError("'enteredAt' must be a valid date.");
-    }
+    // Server clock only: a client-supplied time would let a driver forge duration and fee.
+    const enteredAt = new Date();
 
     try {
       const session = await prisma.$transaction(async (tx) => {
@@ -224,8 +220,7 @@ export class ParkingSessionService {
 
   async exit(
     userId: string,
-    sessionId: string,
-    input: SessionExitInput = {}
+    sessionId: string
   ): Promise<SessionExitResult & { notification: Notification | null }> {
     const session = await prisma.parkingSession.findFirst({
       where: { id: sessionId, userId },
@@ -238,10 +233,7 @@ export class ParkingSessionService {
       throw new ConflictError("This session is not active and cannot be exited.");
     }
 
-    const exitedAt = input.exitedAt ? new Date(input.exitedAt) : new Date();
-    if (Number.isNaN(exitedAt.getTime())) {
-      throw new BadRequestError("'exitedAt' must be a valid date.");
-    }
+    const exitedAt = new Date();
 
     const durationMs = Math.max(0, exitedAt.getTime() - session.enteredAt.getTime());
     const durationSeconds = Math.floor(durationMs / 1000);

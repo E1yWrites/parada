@@ -122,9 +122,7 @@ export function sessionsRouter(sessionService?: ParkingSessionService, realtimeH
         throw new BadRequestError("'zoneId' (string) is required.");
       }
 
-      const enteredAt = typeof body["enteredAt"] === "string" ? body["enteredAt"] : undefined;
-
-      const session = await sessionService.entry(userId, { vehicleId, zoneId, enteredAt });
+      const session = await sessionService.entry(userId, { vehicleId, zoneId });
       const occurredAt = new Date().toISOString();
       realtimeHub?.publish(
         { type: "PARKING_SESSION_STARTED", occurredAt, payload: session },
@@ -143,10 +141,7 @@ export function sessionsRouter(sessionService?: ParkingSessionService, realtimeH
         throw new BadRequestError("Session exit is not configured.");
       }
       const userId = currentUserId(res);
-      const body: Record<string, unknown> = req.body ?? {};
-      const exitedAt = typeof body["exitedAt"] === "string" ? body["exitedAt"] : undefined;
-
-      const { notification, ...result } = await sessionService.exit(userId, req.params["id"]!, { exitedAt });
+      const { notification, ...result } = await sessionService.exit(userId, req.params["id"]!);
       const occurredAt = new Date().toISOString();
       realtimeHub?.publish(
         { type: "PARKING_SESSION_COMPLETED", occurredAt, payload: result.session },

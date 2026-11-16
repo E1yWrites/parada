@@ -477,12 +477,6 @@ export interface ViolationAppealResponse {
 export interface SessionEntryInput {
   vehicleId: string;
   zoneId: string;
-  enteredAt?: string | null;
-}
-
-/** Input for a user-initiated parking exit (POST /sessions/:id/exit). */
-export interface SessionExitInput {
-  exitedAt?: string | null;
 }
 
 /** Result of a completed parking exit, including the persisted fee. */
