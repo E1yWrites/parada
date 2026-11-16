@@ -2486,6 +2486,13 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
         .expect(409);
     });
 
+    it("answers 400, not 500, to admin writes sent without a body (Express 5 leaves req.body undefined)", async () => {
+      const auth = { Authorization: `Bearer ${adminToken}` };
+      await request(app).post("/admin/zones").set(auth).expect(400);
+      await request(app).post("/admin/cameras").set(auth).expect(400);
+      await request(app).put("/admin/config").set(auth).expect(400);
+    });
+
     it("rejects a non-positive capacity", async () => {
       const res = await request(app)
         .post("/admin/zones")

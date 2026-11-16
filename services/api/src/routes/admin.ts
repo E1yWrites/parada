@@ -267,7 +267,7 @@ export function adminRouter(deps: {
     "/admin/config",
     asyncHandler(async (req, res) => {
       if (!deps.config) throw new NotFoundError("Configuration service unavailable.");
-      res.json(ok(await deps.config.updateEstablishmentSettings(req.body)));
+      res.json(ok(await deps.config.updateEstablishmentSettings(req.body ?? {})));
     })
   );
 
@@ -435,7 +435,7 @@ export function adminRouter(deps: {
   router.post(
     "/admin/zones",
     asyncHandler(async (req, res) => {
-      const created = await zoneConfig.createZone(req.body);
+      const created = await zoneConfig.createZone(req.body ?? {});
       res.status(201).json(ok(created));
     })
   );
@@ -443,7 +443,7 @@ export function adminRouter(deps: {
   router.patch(
     "/admin/zones/:id",
     asyncHandler(async (req, res) => {
-      const updated = await zoneConfig.updateZone(req.params["id"]!, req.body);
+      const updated = await zoneConfig.updateZone(req.params["id"]!, req.body ?? {});
       // Capacity/status edits change availability without an occupancy
       // event, so push the committed snapshot to every zone consumer.
       if (deps.realtimeHub) {
@@ -463,7 +463,7 @@ export function adminRouter(deps: {
   router.post(
     "/admin/zones/:id/slots",
     asyncHandler(async (req, res) => {
-      const slots = await zoneConfig.setSlots(req.params["id"]!, req.body);
+      const slots = await zoneConfig.setSlots(req.params["id"]!, req.body ?? {});
       res.status(201).json(ok(slots));
     })
   );
@@ -525,7 +525,7 @@ export function adminRouter(deps: {
   router.post(
     "/admin/cameras",
     asyncHandler(async (req, res) => {
-      const created = await zoneConfig.createCamera(req.body);
+      const created = await zoneConfig.createCamera(req.body ?? {});
       res.status(201).json(ok(created));
     })
   );
@@ -533,7 +533,7 @@ export function adminRouter(deps: {
   router.patch(
     "/admin/cameras/:id",
     asyncHandler(async (req, res) => {
-      const updated = await zoneConfig.updateCamera(req.params["id"]!, req.body);
+      const updated = await zoneConfig.updateCamera(req.params["id"]!, req.body ?? {});
       res.json(ok(updated));
     })
   );

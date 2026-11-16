@@ -211,6 +211,11 @@ function toEstablishmentLocation(value: unknown): EstablishmentLocation | null {
 }
 
 function validateSettings(input: EstablishmentSettings): void {
+  // A missing or partial body must be a 400, not a TypeError (500) below.
+  const sections = [input?.parkingFee, input?.guestPolicy, input?.zoneDefaults];
+  if (sections.some((section) => typeof section !== "object" || section === null)) {
+    throw new BadRequestError("'parkingFee', 'guestPolicy' and 'zoneDefaults' are required.");
+  }
   const fee = input.parkingFee;
   if (!Number.isFinite(fee.baseFee) || fee.baseFee < 0 || !Number.isFinite(fee.baseDurationHours) || fee.baseDurationHours <= 0 || !Number.isFinite(fee.additionalFeePerHour) || fee.additionalFeePerHour < 0) {
     throw new BadRequestError("Parking fee values are invalid.");
