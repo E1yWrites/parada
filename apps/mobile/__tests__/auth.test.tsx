@@ -6,7 +6,9 @@ import LoginScreen from "@/app/login";
 import RegisterScreen from "@/app/register";
 import { useSession } from "@/src/providers/SessionProvider";
 import { api, ApiError } from "@/lib/api/client";
-import { getToken } from "@/lib/auth/session";
+import { getToken, notifyAuthInvalidated } from "@/lib/auth/session";
+import { queryClient, queryKeys } from "@/lib/query";
+import { act } from "@testing-library/react-native";
 
 jest.mock("@/lib/api/client", () => {
   const actual = jest.requireActual("@/lib/api/client");
@@ -217,6 +219,35 @@ describe("session provider bootstrap", () => {
 
     await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent("signed-out"));
     await expect(getToken()).resolves.toBe("tok-alive");
+  });
+});
+
+describe("query cache isolation between accounts", () => {
+  it("clears the cache when the session is invalidated by a 401", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-persisted");
+    (api.me as jest.Mock).mockResolvedValue(user);
+    await renderWithAppProviders(<Probe />);
+    await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent(user.email));
+
+    queryClient.setQueryData(queryKeys.vehicles, [{ id: "v-old" }]);
+    await act(async () => {
+      await notifyAuthInvalidated();
+    });
+
+    expect(queryClient.getQueryData(queryKeys.vehicles)).toBeUndefined();
+  });
+
+  it("clears a previous account's cache on sign-in", async () => {
+    (api.login as jest.Mock).mockResolvedValue({ user, token: "tok-new" });
+    queryClient.setQueryData(queryKeys.vehicles, [{ id: "v-old" }]);
+    await renderWithAppProviders(<LoginScreen />);
+
+    await fireEvent.changeText(screen.getByTestId("login-email"), "alex@parada.test");
+    await fireEvent.changeText(screen.getByTestId("login-password"), "password123");
+    await fireEvent.press(screen.getByTestId("login-submit"));
+
+    await waitFor(() => expect(api.login).toHaveBeenCalled());
+    await waitFor(() => expect(queryClient.getQueryData(queryKeys.vehicles)).toBeUndefined());
   });
 });
 

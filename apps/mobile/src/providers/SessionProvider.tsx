@@ -88,6 +88,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       onAuthInvalidated(() => {
         setUser(null);
         setTokenState(null);
+        queryClient.clear();
       }),
     [],
   );
@@ -95,6 +96,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     const response = await api.login(email, password);
     await setToken(response.token);
+    // A previous account's cache must never serve the new one.
+    queryClient.clear();
     setTokenState(response.token);
     setUser(response.user);
   }, []);
