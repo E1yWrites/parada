@@ -9,7 +9,7 @@ jest.mock("next/link", () => {
   return ({ children, ...props }: { children: React.ReactNode }) => <a {...props}>{children}</a>;
 });
 
-const mockAuth = { user: null, loading: true, error: null, signIn: jest.fn(), signOut: jest.fn() };
+const mockAuth: { user: unknown; loading: boolean; error: string | null; signIn: jest.Mock; signOut: jest.Mock } = { user: null, loading: true, error: null, signIn: jest.fn(), signOut: jest.fn() };
 
 jest.mock("@/components/providers/auth-provider", () => ({
   useAuth: () => mockAuth,
