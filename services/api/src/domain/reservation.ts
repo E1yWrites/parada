@@ -5,6 +5,7 @@ import {
   ForbiddenError,
   NotFoundError,
 } from "../http/errors";
+import { requireOwnedActiveVehicle } from "./vehicles";
 import type { ConfigService } from "./config";
 import type { ReservationResponse } from "@parada/types";
 
@@ -162,24 +163,13 @@ export class ReservationService {
     return true;
   }
 
-  /** Owned AND registered: an unregistered (INACTIVE) vehicle is not eligible for new parking activity. */
-  private async requireOwnedVehicle(userId: string, vehicleId: string) {
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, userId, status: "ACTIVE" },
-    });
-    if (!vehicle) {
-      throw new NotFoundError("Vehicle not found.");
-    }
-    return vehicle;
-  }
-
   async create(
     userId: string,
     input: { zoneId: string; vehicleId: string; startAt?: string; endAt?: string }
   ) {
     const windowMinutes = await this.config.getReservationWindowMinutes();
 
-    const vehicle = await this.requireOwnedVehicle(userId, input.vehicleId);
+    const vehicle = await requireOwnedActiveVehicle(userId, input.vehicleId);
 
     const zone = await prisma.parkingZone.findUnique({ where: { id: input.zoneId } });
     if (!zone || zone.status !== "ACTIVE") {

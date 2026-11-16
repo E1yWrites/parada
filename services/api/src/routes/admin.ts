@@ -20,6 +20,48 @@ import {
   withoutNotifications,
 } from "../realtime/occupancyEvents";
 
+const ANOMALY_SELECT = {
+  id: true,
+  occupancyEventId: true,
+  cameraId: true,
+  vehicleId: true,
+  detectedPlate: true,
+  anomalyType: true,
+  description: true,
+  resolved: true,
+  createdAt: true,
+  event: {
+    select: {
+      id: true,
+      zoneId: true,
+      eventType: true,
+      source: true,
+      zone: { select: { code: true } },
+      camera: { select: { identifier: true } },
+    },
+  },
+} as const;
+
+/** Wire shape of an anomaly row, shared by the dashboard and the anomalies list. */
+function toAnomalyDto(a: Prisma.OccupancyAnomalyGetPayload<{ select: typeof ANOMALY_SELECT }>) {
+  return {
+    id: a.id,
+    occupancyEventId: a.occupancyEventId,
+    cameraId: a.cameraId,
+    vehicleId: a.vehicleId,
+    detectedPlate: a.detectedPlate,
+    anomalyType: a.anomalyType,
+    description: a.description,
+    resolved: a.resolved,
+    createdAt: a.createdAt,
+    zoneId: a.event?.zoneId ?? null,
+    zoneCode: a.event?.zone.code ?? null,
+    cameraIdentifier: a.event?.camera?.identifier ?? null,
+    eventType: a.event?.eventType ?? null,
+    source: a.event?.source ?? null,
+  };
+}
+
 /**
  * 24h occupancy trend, one point per hour boundary (25 points: T-24h..T-0h).
  * `OccupancyHistory` rows are per-zone point-in-time snapshots, not evenly
@@ -288,26 +330,7 @@ export function adminRouter(deps: {
           prisma.occupancyAnomaly.findMany({
             orderBy: { createdAt: "desc" },
             take: 8,
-            select: {
-              id: true,
-              occupancyEventId: true,
-              cameraId: true,
-              vehicleId: true,
-              detectedPlate: true,
-              anomalyType: true,
-              description: true,
-              resolved: true,
-              createdAt: true,
-              event: {
-                select: {
-                  zoneId: true,
-                  eventType: true,
-                  source: true,
-                  zone: { select: { code: true } },
-                  camera: { select: { identifier: true } },
-                },
-              },
-            },
+            select: ANOMALY_SELECT,
           }),
           prisma.notification.findMany({
             orderBy: { createdAt: "desc" },
@@ -345,22 +368,7 @@ export function adminRouter(deps: {
           lowZones: zones.filter((z) => z.availability === "LOW_AVAILABILITY"),
           fullZones: zones.filter((z) => z.availability === "FULL"),
           recentEvents,
-          recentAnomalies: anomalies.map((a) => ({
-            id: a.id,
-            occupancyEventId: a.occupancyEventId,
-            cameraId: a.cameraId,
-            vehicleId: a.vehicleId,
-            detectedPlate: a.detectedPlate,
-            anomalyType: a.anomalyType,
-            description: a.description,
-            resolved: a.resolved,
-            createdAt: a.createdAt,
-            zoneId: a.event?.zoneId ?? null,
-            zoneCode: a.event?.zone.code ?? null,
-            cameraIdentifier: a.event?.camera?.identifier ?? null,
-            eventType: a.event?.eventType ?? null,
-            source: a.event?.source ?? null,
-          })),
+          recentAnomalies: anomalies.map(toAnomalyDto),
           recentNotifications: notifications,
           trend,
         })
@@ -609,47 +617,12 @@ export function adminRouter(deps: {
         where,
         orderBy: { createdAt: "desc" },
         take: limit,
-        select: {
-          id: true,
-          occupancyEventId: true,
-          cameraId: true,
-          vehicleId: true,
-          detectedPlate: true,
-          anomalyType: true,
-          description: true,
-          resolved: true,
-          createdAt: true,
-          event: {
-            select: {
-              id: true,
-              zoneId: true,
-              eventType: true,
-              source: true,
-              zone: { select: { code: true } },
-              camera: { select: { identifier: true } },
-            },
-          },
-        },
+        select: ANOMALY_SELECT,
       });
 
       res.json(
         ok(
-          anomalies.map((a) => ({
-            id: a.id,
-            occupancyEventId: a.occupancyEventId,
-            cameraId: a.cameraId,
-            vehicleId: a.vehicleId,
-            detectedPlate: a.detectedPlate,
-            anomalyType: a.anomalyType,
-            description: a.description,
-            resolved: a.resolved,
-            createdAt: a.createdAt,
-            zoneId: a.event?.zoneId ?? null,
-            zoneCode: a.event?.zone.code ?? null,
-            cameraIdentifier: a.event?.camera?.identifier ?? null,
-            eventType: a.event?.eventType ?? null,
-            source: a.event?.source ?? null,
-          }))
+          anomalies.map(toAnomalyDto)
         )
       );
     })

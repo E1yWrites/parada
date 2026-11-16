@@ -51,10 +51,11 @@ export function createAuthMiddleware(
       } catch {
         throw new UnauthorizedError("Invalid or expired token.");
       }
-      if (await auth.isRevoked(claims.jti)) {
-        throw new UnauthorizedError("Token has been revoked.");
-      }
-      if (auth.isSessionValid && !(await auth.isSessionValid(claims))) {
+      const [revoked, valid] = await Promise.all([
+        auth.isRevoked(claims.jti),
+        auth.isSessionValid ? auth.isSessionValid(claims) : true,
+      ]);
+      if (revoked || !valid) {
         throw new UnauthorizedError("Token has been revoked.");
       }
       res.locals.auth = { id: claims.sub, role: claims.role, jti: claims.jti };

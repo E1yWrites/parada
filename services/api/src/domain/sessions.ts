@@ -4,6 +4,7 @@ import {
   NotFoundError,
 } from "../http/errors";
 import type { ConfigService } from "./config";
+import { requireOwnedActiveVehicle } from "./vehicles";
 import type { AssignmentService } from "./assignment";
 import type { ReservationService } from "./reservation";
 import { calculateParkingFee, persistSessionFee } from "./fees";
@@ -16,8 +17,8 @@ import type {
 type SessionRecord = {
   id: string;
   zoneId: string;
-  userId: string;
-  vehicleId: string;
+  userId: string | null;
+  vehicleId: string | null;
   entryEventId: string;
   exitEventId: string | null;
   enteredAt: Date;
@@ -31,7 +32,7 @@ type SessionRecord = {
   exitEvent: { id: string; detectedAt: Date } | null;
 };
 
-function sessionResponse(session: SessionRecord): ParkingSessionResponse {
+export function sessionResponse(session: SessionRecord): ParkingSessionResponse {
   return {
     ...session,
     enteredAt: session.enteredAt.toISOString(),
@@ -45,7 +46,7 @@ function sessionResponse(session: SessionRecord): ParkingSessionResponse {
   };
 }
 
-const sessionInclude = {
+export const sessionInclude = {
   zone: { select: { id: true, name: true, code: true } },
   vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
   entryEvent: { select: { id: true, detectedAt: true } },
@@ -75,17 +76,8 @@ export class ParkingSessionService {
     this.reservations = reservations;
   }
 
-  /** Owned AND registered: an unregistered (INACTIVE) vehicle is not eligible for new parking activity. */
-  private async requireOwnedVehicle(userId: string, vehicleId: string) {
-    const vehicle = await prisma.vehicle.findFirst({ where: { id: vehicleId, userId, status: "ACTIVE" } });
-    if (!vehicle) {
-      throw new NotFoundError("Vehicle not found.");
-    }
-    return vehicle;
-  }
-
   async entry(userId: string, input: SessionEntryInput): Promise<ParkingSessionResponse> {
-    const vehicle = await this.requireOwnedVehicle(userId, input.vehicleId);
+    const vehicle = await requireOwnedActiveVehicle(userId, input.vehicleId);
 
     const zone = await prisma.parkingZone.findUnique({ where: { id: input.zoneId } });
     if (!zone || zone.status !== "ACTIVE") {

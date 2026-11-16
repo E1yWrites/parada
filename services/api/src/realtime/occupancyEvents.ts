@@ -1,7 +1,8 @@
 import { prisma } from "@parada/database";
 import type { Notification } from "@parada/database";
-import type { NotificationCreatedPayload, ParkingSessionResponse } from "@parada/types";
+import type { NotificationCreatedPayload } from "@parada/types";
 import type { OccupancyService } from "../domain/occupancy";
+import { sessionInclude, sessionResponse } from "../domain/sessions";
 import { ZoneService } from "../domain/zones";
 import type { RealtimeHub } from "./hub";
 
@@ -22,13 +23,6 @@ export function withoutNotifications<T extends ProcessEventResult>(
   }
   return result as never;
 }
-
-const sessionInclude = {
-  zone: { select: { id: true, name: true, code: true } },
-  vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
-  entryEvent: { select: { id: true, detectedAt: true } },
-  exitEvent: { select: { id: true, detectedAt: true } },
-} as const;
 
 /**
  * Publishes the realtime consequences of one committed occupancy event, in the
@@ -74,7 +68,7 @@ export async function publishOccupancyOutcome(
         {
           type: event.eventType === "ENTRY" ? "PARKING_SESSION_STARTED" : "PARKING_SESSION_COMPLETED",
           occurredAt,
-          payload: toSessionResponse(session),
+          payload: sessionResponse(session),
         },
         { audience: "USER", userId: session.userId }
       );
@@ -178,34 +172,4 @@ export async function publishZoneSnapshot(
     },
     { audience: "PUBLIC" }
   );
-}
-
-function toSessionResponse(session: {
-  id: string;
-  zoneId: string;
-  userId: string | null;
-  vehicleId: string | null;
-  entryEventId: string;
-  exitEventId: string | null;
-  enteredAt: Date;
-  exitedAt: Date | null;
-  durationSeconds: number | null;
-  feeAmount: number | null;
-  status: "ACTIVE" | "COMPLETED";
-  zone: ParkingSessionResponse["zone"];
-  vehicle: ParkingSessionResponse["vehicle"];
-  entryEvent: { id: string; detectedAt: Date } | null;
-  exitEvent: { id: string; detectedAt: Date } | null;
-}): ParkingSessionResponse {
-  return {
-    ...session,
-    enteredAt: session.enteredAt.toISOString(),
-    exitedAt: session.exitedAt?.toISOString() ?? null,
-    entryEvent: session.entryEvent
-      ? { ...session.entryEvent, detectedAt: session.entryEvent.detectedAt.toISOString() }
-      : null,
-    exitEvent: session.exitEvent
-      ? { ...session.exitEvent, detectedAt: session.exitEvent.detectedAt.toISOString() }
-      : null,
-  };
 }
