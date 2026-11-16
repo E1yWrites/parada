@@ -3016,6 +3016,69 @@ describe("Admin anomalies — resolve", () => {
   });
 });
 
+describe("Zone availability subtracts reservation holds", () => {
+  beforeEach(async () => {
+    await cleanDatabase();
+  });
+
+  async function seed() {
+    const driver = await prisma.user.create({
+      data: { name: "Hold Driver", email: "hold-driver@test.local", passwordHash: "x", role: "USER" },
+    });
+    const vehicle = await prisma.vehicle.create({
+      data: { userId: driver.id, plateNumber: "HLD-001", normalizedPlate: "HLD001", vehicleType: "CAR" },
+    });
+    // A has 2 free spaces and B has 6; the tests below hold A's free spaces.
+    const a = await prisma.parkingZone.create({ data: { name: "Hold A", code: "HA", capacity: 4, occupiedCount: 2 } });
+    const b = await prisma.parkingZone.create({ data: { name: "Hold B", code: "HB", capacity: 10, occupiedCount: 4 } });
+    const hold = (zoneId: string, status: "CONFIRMED" | "CANCELLED" | "ACTIVE" = "CONFIRMED", startOffsetMin = 0) =>
+      prisma.reservation.create({
+        data: {
+          userId: driver.id,
+          vehicleId: vehicle.id,
+          zoneId,
+          status,
+          startAt: new Date(Date.now() + startOffsetMin * 60_000),
+          endAt: new Date(Date.now() + (startOffsetMin + 15) * 60_000),
+        },
+      });
+    return { a, b, hold };
+  }
+
+  it("lists availableCount = capacity - occupied - active holds, floored at 0, occupiedCount untouched", async () => {
+    const app = createApp();
+    const { a, hold } = await seed();
+    await hold(a.id);
+    await hold(a.id);
+    await hold(a.id); // one more than the 2 free spaces: must floor at 0, not go negative
+    await hold(a.id, "CANCELLED"); // cancelled and consumed holds protect nothing
+    await hold(a.id, "ACTIVE");
+    await hold(a.id, "CONFIRMED", 24 * 60); // far-future booking does not hold a space today
+
+    const res = await request(app).get("/zones").expect(200);
+    const zone = res.body.data.find((z: { id: string }) => z.id === a.id);
+    expect(zone).toMatchObject({ occupiedCount: 2, availableCount: 0, availability: "FULL" });
+  });
+
+  it("does not recommend a zone whose free spaces are all held, and ranks by held-adjusted load", async () => {
+    const app = createApp();
+    const { a, b, hold } = await seed();
+    await hold(a.id);
+    await hold(a.id);
+
+    const res = await request(app).get("/zones/recommendation").expect(200);
+    expect(res.body.data.recommendedZone.id).toBe(b.id);
+    expect(res.body.data.recommendedZone.availableCount).toBe(6);
+  });
+
+  it("shows the full raw availability again once the hold is cancelled", async () => {
+    const app = createApp();
+    const { a } = await seed();
+    const res = await request(app).get("/zones").expect(200);
+    expect(res.body.data.find((z: { id: string }) => z.id === a.id)).toMatchObject({ availableCount: 2 });
+  });
+});
+
 describe("Phase 11B — Rate limiting (AUDIT-003)", () => {
   const tokens = new TokenService({
     secret: "test-secret-key-for-testing-only-32chars",

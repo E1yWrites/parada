@@ -80,6 +80,20 @@ export class ReservationService {
    * entry — that vehicle is already counted in `occupiedCount`, so counting it
    * here too would hold a phantom second space until the window lapsed.
    */
+  /** The reservations that still protect capacity at `now` (see countActiveProtection). */
+  private protectionWhere(windowMinutes: number, now: Date): Prisma.ReservationWhereInput {
+    return {
+      status: { in: ["PENDING", "CONFIRMED"] },
+      // Bounded on BOTH sides: a reservation only protects capacity around
+      // its own arrival window. Without the upper bound a booking weeks out
+      // would consume a space today.
+      startAt: {
+        gte: new Date(now.getTime() - windowMinutes * 60 * 1000),
+        lte: new Date(now.getTime() + windowMinutes * 60 * 1000),
+      },
+    };
+  }
+
   private countActiveProtection(
     tx: Prisma.TransactionClient,
     zoneId: string,
@@ -90,19 +104,27 @@ export class ReservationService {
     return tx.reservation.count({
       where: {
         zoneId,
-        status: { in: ["PENDING", "CONFIRMED"] },
-        // Bounded on BOTH sides: a reservation only protects capacity around
-        // its own arrival window. Without the upper bound a booking weeks out
-        // would consume a space today.
-        startAt: {
-          gte: new Date(now.getTime() - windowMinutes * 60 * 1000),
-          lte: new Date(now.getTime() + windowMinutes * 60 * 1000),
-        },
+        ...this.protectionWhere(windowMinutes, now),
         ...(exclude
           ? { NOT: { userId: exclude.userId, vehicleId: exclude.vehicleId } }
           : {}),
       },
     });
+  }
+
+  /**
+   * Spaces currently held by reservations, per zone (one grouped query), for
+   * public availability. Read-only: overdue rows are excluded by the window
+   * bound itself, so no expiry write is needed.
+   */
+  async protectingCountsByZone(): Promise<Map<string, number>> {
+    const windowMinutes = await this.config.getReservationWindowMinutes();
+    const groups = await prisma.reservation.groupBy({
+      by: ["zoneId"],
+      where: this.protectionWhere(windowMinutes, new Date()),
+      _count: { _all: true },
+    });
+    return new Map(groups.map((g) => [g.zoneId, g._count._all]));
   }
 
   /**
