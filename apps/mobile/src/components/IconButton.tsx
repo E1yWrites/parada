@@ -49,7 +49,7 @@ export function IconButton({
       <Ionicons name={icon} size={size} color={color} />
       {badge ? (
         <View style={styles.badge} testID={testID ? `${testID}-badge` : undefined}>
-          <Text variant="micro" color={colors.onAccent} style={styles.badgeText}>
+          <Text variant="micro" color={colors.onDanger} style={styles.badgeText}>
             {badge > 9 ? "9+" : String(badge)}
           </Text>
         </View>

@@ -61,6 +61,20 @@ describe("theme contrast: text tokens on every ground", () => {
   }
 });
 
+describe("theme contrast: solid-fill and non-text pairs", () => {
+  for (const scheme of SCHEMES) {
+    const t = palettes[scheme];
+    it(`${scheme} onDanger on danger is >= 4.5:1 (unread badge text)`, () => {
+      expect(contrast(parse(t.onDanger).rgb, parse(t.danger).rgb)).toBeGreaterThanOrEqual(4.5);
+    });
+    for (const ground of ["surface", "surfaceElevated"] as const) {
+      it(`${scheme} primaryDeep on ${ground} is >= 3:1 (selected-zone border)`, () => {
+        expect(contrast(parse(t.primaryDeep).rgb, parse(t[ground] as string).rgb)).toBeGreaterThanOrEqual(3);
+      });
+    }
+  }
+});
+
 describe("theme contrast: status ink on its own soft tint", () => {
   for (const scheme of SCHEMES) {
     const t = palettes[scheme];

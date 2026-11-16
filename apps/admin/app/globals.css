@@ -42,6 +42,8 @@
   --faint: 107 111 122;
   --line: 36 38 45;
   --line-strong: 51 54 63;
+  /* Form-control boundary: >= 3:1 on card and paper (WCAG 1.4.11); line stays for hairline seams. */
+  --control-border: 110 114 125;
   --brand: 247 147 26;
   --brand-dark: 234 88 12;
   --brand-soft: 42 32 21;
@@ -80,6 +82,7 @@
   --faint: 155 145 134;
   --line: 228 221 207;
   --line-strong: 217 208 192;
+  --control-border: 135 127 115;
   --brand: 247 147 26;
   /* Deliberately darker than dark mode's brand-dark: raw brand orange only
      reaches ~2.3:1 as text on this warm-white surface. #B23A0A clears 4.5:1
@@ -120,6 +123,7 @@
     --faint: 155 145 134;
     --line: 228 221 207;
     --line-strong: 217 208 192;
+    --control-border: 135 127 115;
     --brand: 247 147 26;
     --brand-dark: 178 58 10;
     --brand-soft: 253 235 211;
@@ -236,7 +240,7 @@
 
   /* ---- Inputs ---- */
   .input {
-    @apply min-h-[44px] w-full rounded-control rounded-tr-control-cut border-[1.5px] border-line bg-card px-4 py-2 text-base font-medium text-charcoal placeholder:font-normal placeholder:text-muted transition-[border-color,box-shadow] duration-150 focus-visible:outline-hidden focus-visible:border-brand focus-visible:shadow-focus disabled:bg-raised disabled:text-muted;
+    @apply min-h-[44px] w-full rounded-control rounded-tr-control-cut border-[1.5px] border-control bg-card px-4 py-2 text-base font-medium text-charcoal placeholder:font-normal placeholder:text-muted transition-[border-color,box-shadow] duration-150 focus-visible:outline-hidden focus-visible:border-brand focus-visible:shadow-focus disabled:bg-raised disabled:text-muted;
   }
 
   select.input {
@@ -321,7 +325,7 @@
 
   /* ---- Segmented filter ---- */
   .segmented {
-    @apply inline-flex items-center gap-1 rounded-control rounded-tr-control-cut border border-line bg-card p-1;
+    @apply inline-flex items-center gap-1 rounded-control rounded-tr-control-cut border border-control bg-card p-1;
   }
 
   .segmented-item {
