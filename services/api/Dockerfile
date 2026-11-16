@@ -48,6 +48,8 @@ RUN npx turbo run build --filter=@parada/api
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=4100
+# Analytics ("today", peak hour) use server-local time; the establishment is in the Philippines.
+ENV TZ=Asia/Manila
 EXPOSE 4100
 
 USER node
