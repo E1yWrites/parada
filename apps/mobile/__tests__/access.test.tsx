@@ -1,9 +1,8 @@
 import * as SecureStore from "expo-secure-store";
-import { renderWithAppProviders, screen, waitFor } from "@/src/test/utils";
+import { fireEvent, renderWithAppProviders, screen, waitFor } from "@/src/test/utils";
 import TabsLayout from "@/app/(tabs)/_layout";
 import { api, ApiError } from "@/lib/api/client";
 import { getToken } from "@/lib/auth/session";
-import { fireEvent } from "@/src/test/utils";
 import { sessionStatusMeta } from "@/src/components/StatusBadge";
 import { colors } from "@/src/theme";
 
