@@ -342,6 +342,7 @@ using the JWT stored in the `HttpOnly` `parada_admin_token` cookie.
 | GET | `/admin/users` | All users with vehicle/session counts (no hashes) |
 | GET | `/admin/vehicles` | All registered vehicles with owners |
 | GET | `/admin/notifications` | ADMIN-targeted notifications + `unreadCount` |
+| PATCH | `/admin/anomalies/:id/resolve` | Mark an anomaly resolved (idempotent; `404` if unknown). Returns the anomaly. |
 | PATCH | `/admin/notifications/read-all` | Mark every ADMIN-targeted notification read (`{updated}`) |
 | PATCH | `/admin/notifications/:id/read` | Mark one notification read (`200` + the updated notification) |
 | GET | `/admin/anomalies` | Occupancy anomalies for admin review |

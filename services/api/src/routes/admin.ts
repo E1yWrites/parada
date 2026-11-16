@@ -643,6 +643,20 @@ export function adminRouter(deps: {
     })
   );
 
+  // Resolving is idempotent: marking an already-resolved anomaly again is a no-op, not an error.
+  router.patch(
+    "/admin/anomalies/:id/resolve",
+    asyncHandler(async (req, res) => {
+      const id = req.params["id"]!;
+      const { count } = await prisma.occupancyAnomaly.updateMany({ where: { id }, data: { resolved: true } });
+      if (count === 0) {
+        throw new NotFoundError("Anomaly not found.");
+      }
+      const anomaly = await prisma.occupancyAnomaly.findUniqueOrThrow({ where: { id }, select: ANOMALY_SELECT });
+      res.json(ok(toAnomalyDto(anomaly)));
+    })
+  );
+
   router.get(
     "/admin/sessions",
     asyncHandler(async (req, res) => {

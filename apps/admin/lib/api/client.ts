@@ -134,7 +134,7 @@ export interface ApiClient {
   analytics(params?: { from?: string; to?: string }): Promise<AdminAnalytics>;
 
   anomalies(): Promise<AdminAnomaly[]>;
-  /** Open anomalies only (GET /admin/anomalies?resolved=false), newest first, capped at the API maximum of 500. */
+  resolveAnomaly(id: string): Promise<AdminAnomaly>;
 
   history(zoneId: string, params?: { from?: string; to?: string; limit?: number }): Promise<ZoneHistory>;
 
@@ -233,6 +233,9 @@ function buildClient(): ApiClient {
     },
 
     anomalies: () => request<AdminAnomaly[]>("admin/anomalies"),
+
+    resolveAnomaly: (id) =>
+      request<AdminAnomaly>(`admin/anomalies/${encodeURIComponent(id)}/resolve`, jsonInit("PATCH")),
 
 
     async history(zoneId, params) {

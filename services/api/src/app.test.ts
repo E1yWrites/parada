@@ -2947,6 +2947,75 @@ describe("Admin dashboard — needs-attention counts", () => {
   });
 });
 
+describe("Admin anomalies — resolve", () => {
+  const tokens = new TokenService({
+    secret: "test-secret-key-for-testing-only-32chars",
+    issuer: "parada-api-test",
+    expiresIn: "1d",
+  });
+
+  beforeEach(async () => {
+    await cleanDatabase();
+  });
+
+  async function seed() {
+    const admin = await prisma.user.create({
+      data: { name: "Resolve Admin", email: "resolve-admin@test.local", passwordHash: "x", role: "ADMIN" },
+    });
+    const driver = await prisma.user.create({
+      data: { name: "Resolve Driver", email: "resolve-driver@test.local", passwordHash: "x", role: "USER" },
+    });
+    const zone = await prisma.parkingZone.create({ data: { name: "Resolve Zone", code: "RSV", capacity: 5 } });
+    const event = await prisma.occupancyEvent.create({
+      data: { zoneId: zone.id, eventType: "ENTRY", previousOccupied: 0, newOccupied: 0, availableCount: 5, detectedAt: new Date() },
+    });
+    const anomaly = await prisma.occupancyAnomaly.create({
+      data: { occupancyEventId: event.id, anomalyType: "UNREGISTERED_PLATE" },
+    });
+    return {
+      anomaly,
+      adminToken: tokens.sign({ id: admin.id, role: "ADMIN" }).token,
+      userToken: tokens.sign({ id: driver.id, role: "USER" }).token,
+    };
+  }
+
+  it("marks the anomaly resolved and drops it from ?resolved=false", async () => {
+    const app = createApp();
+    const { anomaly, adminToken } = await seed();
+
+    const res = await request(app)
+      .patch(`/admin/anomalies/${anomaly.id}/resolve`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    expect(res.body.data).toMatchObject({ id: anomaly.id, resolved: true });
+    expect((await prisma.occupancyAnomaly.findUniqueOrThrow({ where: { id: anomaly.id } })).resolved).toBe(true);
+
+    const open = await request(app)
+      .get("/admin/anomalies?resolved=false")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    expect(open.body.data.some((a: { id: string }) => a.id === anomaly.id)).toBe(false);
+    // Idempotent: resolving again is not an error.
+    await request(app).patch(`/admin/anomalies/${anomaly.id}/resolve`).set("Authorization", `Bearer ${adminToken}`).expect(200);
+  });
+
+  it("404s for an unknown anomaly", async () => {
+    const app = createApp();
+    const { adminToken } = await seed();
+    await request(app)
+      .patch("/admin/anomalies/does-not-exist/resolve")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(404);
+  });
+
+  it("refuses a USER with 403 and leaves the anomaly open", async () => {
+    const app = createApp();
+    const { anomaly, userToken } = await seed();
+    await request(app).patch(`/admin/anomalies/${anomaly.id}/resolve`).set("Authorization", `Bearer ${userToken}`).expect(403);
+    expect((await prisma.occupancyAnomaly.findUniqueOrThrow({ where: { id: anomaly.id } })).resolved).toBe(false);
+  });
+});
+
 describe("Phase 11B — Rate limiting (AUDIT-003)", () => {
   const tokens = new TokenService({
     secret: "test-secret-key-for-testing-only-32chars",
