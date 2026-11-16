@@ -24,7 +24,7 @@ const TabIcon = ({
   const colors = useColors();
   return (
     <View style={[iconStyles.iconWrap, focused ? { backgroundColor: colors.primarySoft } : undefined]}>
-      <Ionicons name={name} size={size} color={color} />
+      <Ionicons name={name} size={size} color={color as string} />
     </View>
   );
 };

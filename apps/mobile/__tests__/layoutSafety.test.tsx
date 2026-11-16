@@ -56,8 +56,8 @@ function makeZone(overrides: Partial<PublicZone> = {}): PublicZone {
 }
 
 describe("ZoneCard: long content", () => {
-  it("renders a very long zone name fully with a 2-line cap", () => {
-    render(<ZoneCard zone={makeZone()} onPress={jest.fn()} testID="zone" />);
+  it("renders a very long zone name fully with a 2-line cap", async () => {
+    await render(<ZoneCard zone={makeZone()} onPress={jest.fn()} testID="zone" />);
     const name = screen.getByText(LONG_ZONE_NAME);
     expect(name).toBeOnTheScreen();
     // Two lines is the deliberate cap: dynamic text reflows rather than
@@ -65,8 +65,8 @@ describe("ZoneCard: long content", () => {
     expect(name.props.numberOfLines).toBe(2);
   });
 
-  it("keeps metrics and availability visible beside a long name", () => {
-    render(<ZoneCard zone={makeZone()} onPress={jest.fn()} testID="zone" />);
+  it("keeps metrics and availability visible beside a long name", async () => {
+    await render(<ZoneCard zone={makeZone()} onPress={jest.fn()} testID="zone" />);
     expect(screen.getByTestId("zone-available")).toHaveTextContent("12");
     expect(screen.getByTestId("zone-occupancy-percent")).toHaveTextContent("8 of 20 · 40%");
     expect(screen.getByText("Available")).toBeOnTheScreen();
@@ -76,8 +76,8 @@ describe("ZoneCard: long content", () => {
 describe("Button: long titles wrap instead of clipping", () => {
   const longTitle = "Reserve ABC-1234-XG in Riverside Commercial Market South Wing Reserved Zone Alpha";
 
-  it("emits the full long title and keeps a 44pt touch target", () => {
-    render(<Button testID="btn" title={longTitle} onPress={jest.fn()} />);
+  it("emits the full long title and keeps a 44pt touch target", async () => {
+    await render(<Button testID="btn" title={longTitle} onPress={jest.fn()} />);
     expect(screen.getByText(longTitle)).toBeOnTheScreen();
     expect(screen.getByTestId("btn")).toHaveProp("accessibilityRole", "button");
     const flat = flattenStyle(screen.getByTestId("btn").props.style);
@@ -100,8 +100,8 @@ describe("ReservationCard: long content", () => {
     vehicle: { id: "v1", plateNumber: "ABC-1234-XG", vehicleType: "CAR" },
   };
 
-  it("renders long zone name, plate and time window in full", () => {
-    render(<ReservationCard reservation={reservation} testID="reservation" />);
+  it("renders long zone name, plate and time window in full", async () => {
+    await render(<ReservationCard reservation={reservation} testID="reservation" />);
     expect(screen.getByText(LONG_ZONE_NAME)).toBeOnTheScreen();
     expect(screen.getByText("ABC-1234-XG")).toBeOnTheScreen();
     expect(screen.getByTestId("reservation-window")).toHaveTextContent(/2026-09-06 .* – 2026-09-06 /);
@@ -128,8 +128,8 @@ describe("SessionCard: long content and guest", () => {
     exitEvent: null,
   };
 
-  it("renders a long active zone name in full", () => {
-    render(<SessionCard session={session} now={new Date("2026-09-06T10:00:00.000Z")} testID="session" />);
+  it("renders a long active zone name in full", async () => {
+    await render(<SessionCard session={session} now={new Date("2026-09-06T10:00:00.000Z")} testID="session" />);
     const zoneLine = screen.getByText(`Zone ${LONG_ZONE_NAME}`);
     expect(zoneLine).toBeOnTheScreen();
     // Wraps rather than hard-clipping to a single line.
@@ -137,8 +137,8 @@ describe("SessionCard: long content and guest", () => {
     expect(screen.getByTestId("session-plate")).toHaveTextContent("ABC-1234-XG");
   });
 
-  it("shows GUEST for a vehicle-less session", () => {
-    render(
+  it("shows GUEST for a vehicle-less session", async () => {
+    await render(
       <SessionCard
         session={{ ...session, vehicle: null }}
         now={new Date("2026-09-06T10:00:00.000Z")}
@@ -150,7 +150,7 @@ describe("SessionCard: long content and guest", () => {
 });
 
 describe("ActiveSessionBanner: long hero zone wraps", () => {
-  it("caps the hero zone name at 2 lines but still emits full text", () => {
+  it("caps the hero zone name at 2 lines but still emits full text", async () => {
     const session: SessionDto = {
       id: "s1",
       zoneId: "z1",
@@ -168,7 +168,7 @@ describe("ActiveSessionBanner: long hero zone wraps", () => {
       entryEvent: null,
       exitEvent: null,
     };
-    render(
+    await render(
       <ActiveSessionBanner
         session={session}
         now={new Date("2026-09-06T10:00:00.000Z")}
@@ -183,8 +183,8 @@ describe("ActiveSessionBanner: long hero zone wraps", () => {
 });
 
 describe("Input: long error wraps and stays alert", () => {
-  it("renders a long error message in full with alert role", () => {
-    render(
+  it("renders a long error message in full with alert role", async () => {
+    await render(
       <Input
         testID="email"
         label="Email"
@@ -214,10 +214,10 @@ describe("Floating tab bar clearance", () => {
 });
 
 describe("Long labels stay pressable", () => {
-  it("presses a button through its full label", () => {
+  it("presses a button through its full label", async () => {
     const onPress = jest.fn();
-    render(<Button testID="btn" title="Accept Recommendation" onPress={onPress} />);
-    fireEvent.press(screen.getByText("Accept Recommendation"));
+    await render(<Button testID="btn" title="Accept Recommendation" onPress={onPress} />);
+    await fireEvent.press(screen.getByText("Accept Recommendation"));
     expect(onPress).toHaveBeenCalled();
   });
 });

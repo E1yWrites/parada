@@ -176,12 +176,12 @@ describe("verify-email screen", () => {
 
   it("submits the 6-digit code and returns to login with a verified notice", async () => {
     (api.verifyEmail as jest.Mock).mockResolvedValue({ user });
-    renderWithAppProviders(<VerifyEmailScreen />);
+    await renderWithAppProviders(<VerifyEmailScreen />);
     expect(screen.getByTestId("verify-email-address")).toHaveTextContent(/alex@parada\.test/);
     expect(screen.getByTestId("verify-email-submit")).toBeDisabled();
 
-    fireEvent.changeText(screen.getByTestId("verify-email-code"), "12a345x6");
-    fireEvent.press(screen.getByTestId("verify-email-submit"));
+    await fireEvent.changeText(screen.getByTestId("verify-email-code"), "12a345x6");
+    await fireEvent.press(screen.getByTestId("verify-email-submit"));
 
     await waitFor(() => expect(api.verifyEmail).toHaveBeenCalledWith("alex@parada.test", "123456"));
     await waitFor(() =>
@@ -195,9 +195,9 @@ describe("verify-email screen", () => {
 
   it("shows the server's invalid/expired-code message and stays on the screen", async () => {
     (api.verifyEmail as jest.Mock).mockRejectedValue(new ApiError("CODE_EXPIRED", "That code has expired. Request a new one.", 422));
-    renderWithAppProviders(<VerifyEmailScreen />);
-    fireEvent.changeText(screen.getByTestId("verify-email-code"), "123456");
-    fireEvent.press(screen.getByTestId("verify-email-submit"));
+    await renderWithAppProviders(<VerifyEmailScreen />);
+    await fireEvent.changeText(screen.getByTestId("verify-email-code"), "123456");
+    await fireEvent.press(screen.getByTestId("verify-email-submit"));
     await waitFor(() => expect(screen.getByTestId("verify-email-error")).toHaveTextContent(/That code has expired\./));
     expect(__router.replace).not.toHaveBeenCalled();
   });
@@ -206,8 +206,8 @@ describe("verify-email screen", () => {
     (api.resendVerification as jest.Mock).mockResolvedValue({
       verification: { expiresAt: new Date(Date.now() + 600_000).toISOString(), resendAvailableAt: new Date(Date.now() + 60_000).toISOString() },
     });
-    renderWithAppProviders(<VerifyEmailScreen />);
-    fireEvent.press(screen.getByTestId("verify-email-resend"));
+    await renderWithAppProviders(<VerifyEmailScreen />);
+    await fireEvent.press(screen.getByTestId("verify-email-resend"));
     await waitFor(() => expect(api.resendVerification).toHaveBeenCalledWith("alex@parada.test"));
     await waitFor(() => expect(screen.getByTestId("verify-email-resend")).toBeDisabled());
     expect(screen.getByTestId("verify-email-resend")).toHaveTextContent(/Resend code in \d+s/);
@@ -220,8 +220,8 @@ describe("verify-email screen", () => {
         resendAvailableAt: new Date(Date.now() + 45_000).toISOString(),
       }),
     );
-    renderWithAppProviders(<VerifyEmailScreen />);
-    fireEvent.press(screen.getByTestId("verify-email-resend"));
+    await renderWithAppProviders(<VerifyEmailScreen />);
+    await fireEvent.press(screen.getByTestId("verify-email-resend"));
     await waitFor(() => expect(screen.getByTestId("verify-email-error")).toHaveTextContent(/Please wait/));
     expect(screen.getByTestId("verify-email-resend")).toBeDisabled();
   });
@@ -230,9 +230,9 @@ describe("verify-email screen", () => {
 describe("forgot / reset password screens", () => {
   it("requests a reset link and shows the generic confirmation", async () => {
     (api.forgotPassword as jest.Mock).mockResolvedValue({ message: "ok" });
-    renderWithAppProviders(<ForgotPasswordScreen />);
-    fireEvent.changeText(screen.getByTestId("forgot-password-email"), "alex@parada.test");
-    fireEvent.press(screen.getByTestId("forgot-password-submit"));
+    await renderWithAppProviders(<ForgotPasswordScreen />);
+    await fireEvent.changeText(screen.getByTestId("forgot-password-email"), "alex@parada.test");
+    await fireEvent.press(screen.getByTestId("forgot-password-submit"));
     await waitFor(() => expect(api.forgotPassword).toHaveBeenCalledWith("alex@parada.test"));
     expect(screen.getByTestId("forgot-password-sent")).toHaveTextContent(/If an account exists/);
   });
@@ -241,17 +241,17 @@ describe("forgot / reset password screens", () => {
     const token = "a".repeat(64);
     (useLocalSearchParams as jest.Mock).mockReturnValue({ token });
     (api.resetPassword as jest.Mock).mockResolvedValue({ user });
-    renderWithAppProviders(<ResetPasswordScreen />);
+    await renderWithAppProviders(<ResetPasswordScreen />);
     expect(screen.getByTestId("reset-password-token").props.value).toBe(token);
 
-    fireEvent.changeText(screen.getByTestId("reset-password-new"), "NewPassword1");
-    fireEvent.changeText(screen.getByTestId("reset-password-confirm"), "different");
-    fireEvent.press(screen.getByTestId("reset-password-submit"));
+    await fireEvent.changeText(screen.getByTestId("reset-password-new"), "NewPassword1");
+    await fireEvent.changeText(screen.getByTestId("reset-password-confirm"), "different");
+    await fireEvent.press(screen.getByTestId("reset-password-submit"));
     expect(screen.getByText("Passwords do not match.")).toBeOnTheScreen();
     expect(api.resetPassword).not.toHaveBeenCalled();
 
-    fireEvent.changeText(screen.getByTestId("reset-password-confirm"), "NewPassword1");
-    fireEvent.press(screen.getByTestId("reset-password-submit"));
+    await fireEvent.changeText(screen.getByTestId("reset-password-confirm"), "NewPassword1");
+    await fireEvent.press(screen.getByTestId("reset-password-submit"));
     await waitFor(() => expect(api.resetPassword).toHaveBeenCalledWith(token, "NewPassword1"));
     await waitFor(() => expect(__router.replace).toHaveBeenCalledWith({ pathname: "/login", params: { notice: "reset" } }));
   });
@@ -259,10 +259,10 @@ describe("forgot / reset password screens", () => {
   it("surfaces an invalid / used token", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ token: "b".repeat(64) });
     (api.resetPassword as jest.Mock).mockRejectedValue(new ApiError("TOKEN_INVALID", "This reset link is invalid or has already been used.", 422));
-    renderWithAppProviders(<ResetPasswordScreen />);
-    fireEvent.changeText(screen.getByTestId("reset-password-new"), "NewPassword1");
-    fireEvent.changeText(screen.getByTestId("reset-password-confirm"), "NewPassword1");
-    fireEvent.press(screen.getByTestId("reset-password-submit"));
+    await renderWithAppProviders(<ResetPasswordScreen />);
+    await fireEvent.changeText(screen.getByTestId("reset-password-new"), "NewPassword1");
+    await fireEvent.changeText(screen.getByTestId("reset-password-confirm"), "NewPassword1");
+    await fireEvent.press(screen.getByTestId("reset-password-submit"));
     await waitFor(() => expect(screen.getByTestId("reset-password-error")).toHaveTextContent(/already been used/));
   });
 });
@@ -271,16 +271,16 @@ describe("change password screen", () => {
   it("requires current password + matching confirmation, then swaps in the fresh token", async () => {
     await signedIn();
     (api.changePassword as jest.Mock).mockResolvedValue({ user, token: "tok-fresh" });
-    renderWithAppProviders(<ChangePasswordScreen />);
+    await renderWithAppProviders(<ChangePasswordScreen />);
 
-    fireEvent.press(screen.getByTestId("password-submit"));
+    await fireEvent.press(screen.getByTestId("password-submit"));
     expect(screen.getByText("Enter your current password.")).toBeOnTheScreen();
     expect(api.changePassword).not.toHaveBeenCalled();
 
-    fireEvent.changeText(screen.getByTestId("password-current"), "OldPassword1");
-    fireEvent.changeText(screen.getByTestId("password-new"), "NewPassword1");
-    fireEvent.changeText(screen.getByTestId("password-confirm"), "NewPassword1");
-    fireEvent.press(screen.getByTestId("password-submit"));
+    await fireEvent.changeText(screen.getByTestId("password-current"), "OldPassword1");
+    await fireEvent.changeText(screen.getByTestId("password-new"), "NewPassword1");
+    await fireEvent.changeText(screen.getByTestId("password-confirm"), "NewPassword1");
+    await fireEvent.press(screen.getByTestId("password-submit"));
 
     await waitFor(() => expect(api.changePassword).toHaveBeenCalledWith("OldPassword1", "NewPassword1"));
     await waitFor(() => expect(screen.getByTestId("password-done")).toBeOnTheScreen());
@@ -290,11 +290,11 @@ describe("change password screen", () => {
   it("shows the server's wrong-current-password error", async () => {
     await signedIn();
     (api.changePassword as jest.Mock).mockRejectedValue(new ApiError("UNPROCESSABLE", "Your current password is incorrect.", 422));
-    renderWithAppProviders(<ChangePasswordScreen />);
-    fireEvent.changeText(screen.getByTestId("password-current"), "wrong-one");
-    fireEvent.changeText(screen.getByTestId("password-new"), "NewPassword1");
-    fireEvent.changeText(screen.getByTestId("password-confirm"), "NewPassword1");
-    fireEvent.press(screen.getByTestId("password-submit"));
+    await renderWithAppProviders(<ChangePasswordScreen />);
+    await fireEvent.changeText(screen.getByTestId("password-current"), "wrong-one");
+    await fireEvent.changeText(screen.getByTestId("password-new"), "NewPassword1");
+    await fireEvent.changeText(screen.getByTestId("password-confirm"), "NewPassword1");
+    await fireEvent.press(screen.getByTestId("password-submit"));
     await waitFor(() => expect(screen.getByTestId("password-error")).toHaveTextContent(/current password is incorrect/));
     await expect(getToken()).resolves.toBe("tok-alive");
   });
@@ -304,13 +304,13 @@ describe("edit profile screen", () => {
   it("saves name + username and shows the server response", async () => {
     await signedIn();
     (api.updateProfile as jest.Mock).mockResolvedValue({ ...user, name: "Alexis Driver", username: "alexis" });
-    renderWithAppProviders(<EditProfileScreen />);
+    await renderWithAppProviders(<EditProfileScreen />);
     await waitFor(() => expect(screen.getByTestId("profile-name")).toBeOnTheScreen());
     expect(screen.getByTestId("profile-name-save")).toBeDisabled();
 
-    fireEvent.changeText(screen.getByTestId("profile-name"), "Alexis Driver");
-    fireEvent.changeText(screen.getByTestId("profile-username"), "Alexis");
-    fireEvent.press(screen.getByTestId("profile-name-save"));
+    await fireEvent.changeText(screen.getByTestId("profile-name"), "Alexis Driver");
+    await fireEvent.changeText(screen.getByTestId("profile-username"), "Alexis");
+    await fireEvent.press(screen.getByTestId("profile-name-save"));
 
     await waitFor(() => expect(api.updateProfile).toHaveBeenCalledWith({ name: "Alexis Driver", username: "alexis" }));
     await waitFor(() => expect(screen.getByTestId("profile-name-saved")).toBeOnTheScreen());
@@ -319,10 +319,10 @@ describe("edit profile screen", () => {
   it("shows a taken-username conflict from the server", async () => {
     await signedIn();
     (api.updateProfile as jest.Mock).mockRejectedValue(new ApiError("CONFLICT", "That username is already taken.", 409));
-    renderWithAppProviders(<EditProfileScreen />);
+    await renderWithAppProviders(<EditProfileScreen />);
     await waitFor(() => expect(screen.getByTestId("profile-username")).toBeOnTheScreen());
-    fireEvent.changeText(screen.getByTestId("profile-username"), "taken");
-    fireEvent.press(screen.getByTestId("profile-name-save"));
+    await fireEvent.changeText(screen.getByTestId("profile-username"), "taken");
+    await fireEvent.press(screen.getByTestId("profile-name-save"));
     await waitFor(() => expect(screen.getByText("That username is already taken.")).toBeOnTheScreen());
   });
 
@@ -332,19 +332,19 @@ describe("edit profile screen", () => {
       verification: { expiresAt: new Date(Date.now() + 600_000).toISOString(), resendAvailableAt: new Date(Date.now() + 60_000).toISOString() },
     });
     (api.confirmEmailChange as jest.Mock).mockResolvedValue({ ...user, email: "new@parada.test", pendingEmail: null });
-    renderWithAppProviders(<EditProfileScreen />);
+    await renderWithAppProviders(<EditProfileScreen />);
     await waitFor(() => expect(screen.getByTestId("profile-email-new")).toBeOnTheScreen());
 
-    fireEvent.changeText(screen.getByTestId("profile-email-new"), "New@parada.test");
-    fireEvent.press(screen.getByTestId("profile-email-request"));
+    await fireEvent.changeText(screen.getByTestId("profile-email-new"), "New@parada.test");
+    await fireEvent.press(screen.getByTestId("profile-email-request"));
     await waitFor(() => expect(api.requestEmailChange).toHaveBeenCalledWith("New@parada.test"));
     await waitFor(() => expect(screen.getByTestId("profile-email-pending")).toHaveTextContent(/new@parada\.test/));
     // Until confirmed the current email stays authoritative.
     expect(screen.getByTestId("profile-email-current")).toHaveTextContent(/alex@parada\.test/);
     expect(screen.getByTestId("profile-email-resend")).toBeDisabled();
 
-    fireEvent.changeText(screen.getByTestId("profile-email-code"), "654321");
-    fireEvent.press(screen.getByTestId("profile-email-confirm"));
+    await fireEvent.changeText(screen.getByTestId("profile-email-code"), "654321");
+    await fireEvent.press(screen.getByTestId("profile-email-confirm"));
     await waitFor(() => expect(api.confirmEmailChange).toHaveBeenCalledWith("654321"));
     await waitFor(() => expect(screen.getByTestId("profile-email-current")).toHaveTextContent(/new@parada\.test/));
     expect(screen.queryByTestId("profile-email-pending")).toBeNull();
@@ -357,20 +357,20 @@ describe("edit profile screen", () => {
     });
     (api.confirmPhoneChange as jest.Mock).mockResolvedValue({ ...user, phone: "+639171234567", pendingPhone: null });
     (api.clearPhone as jest.Mock).mockResolvedValue({ user: { ...user, phone: null } });
-    renderWithAppProviders(<EditProfileScreen />);
+    await renderWithAppProviders(<EditProfileScreen />);
     await waitFor(() => expect(screen.getByTestId("profile-phone-new")).toBeOnTheScreen());
 
-    fireEvent.changeText(screen.getByTestId("profile-phone-new"), "+63 917 123 4567");
-    fireEvent.press(screen.getByTestId("profile-phone-request"));
+    await fireEvent.changeText(screen.getByTestId("profile-phone-new"), "+63 917 123 4567");
+    await fireEvent.press(screen.getByTestId("profile-phone-request"));
     await waitFor(() => expect(api.requestPhoneChange).toHaveBeenCalledWith("+63 917 123 4567"));
     await waitFor(() => expect(screen.getByTestId("profile-phone-pending")).toHaveTextContent(/\+639171234567/));
 
-    fireEvent.changeText(screen.getByTestId("profile-phone-code"), "111222");
-    fireEvent.press(screen.getByTestId("profile-phone-confirm"));
+    await fireEvent.changeText(screen.getByTestId("profile-phone-code"), "111222");
+    await fireEvent.press(screen.getByTestId("profile-phone-confirm"));
     await waitFor(() => expect(api.confirmPhoneChange).toHaveBeenCalledWith("111222"));
     await waitFor(() => expect(screen.getByTestId("profile-phone-current")).toHaveTextContent(/\+639171234567/));
 
-    fireEvent.press(screen.getByTestId("profile-phone-clear"));
+    await fireEvent.press(screen.getByTestId("profile-phone-clear"));
     await waitFor(() => expect(api.clearPhone).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByTestId("profile-phone-current")).toHaveTextContent(/Not set/));
   });
@@ -382,16 +382,16 @@ describe("profile picture", () => {
     prepareAvatarUpload: jest.Mock;
   };
 
-  it("renders initials without a picture and the authenticated image URL with one", () => {
-    renderWithProviders(<Avatar name="Alex Driver" uri={null} authToken="tok" testID="av" />);
+  it("renders initials without a picture and the authenticated image URL with one", async () => {
+    await renderWithProviders(<Avatar name="Alex Driver" uri={null} authToken="tok" testID="av" />);
     expect(screen.getByText("AD")).toBeOnTheScreen();
     expect(screen.queryByTestId("av-image")).toBeNull();
-    screen.unmount();
+    await screen.unmount();
 
     const withPhoto = { ...user, avatarUpdatedAt: "2026-02-02T00:00:00.000Z" };
     const uri = avatarUrl(withPhoto)!;
     expect(uri).toContain(`/users/${user.id}/avatar?v=`);
-    renderWithProviders(<Avatar name="Alex Driver" uri={uri} authToken="tok" testID="av" />);
+    await renderWithProviders(<Avatar name="Alex Driver" uri={uri} authToken="tok" testID="av" />);
     const image = screen.getByTestId("av-image");
     expect(image.props.source).toEqual({ uri, headers: { Authorization: "Bearer tok" } });
     expect(avatarUrl(user)).toBeNull();
@@ -406,9 +406,9 @@ describe("profile picture", () => {
     (api.uploadAvatar as jest.Mock).mockResolvedValue(updated);
     (api.removeAvatar as jest.Mock).mockResolvedValue(user);
 
-    renderWithAppProviders(<AvatarEditor user={user} testID="ed" />);
+    await renderWithAppProviders(<AvatarEditor user={user} testID="ed" />);
     expect(screen.queryByTestId("ed-remove")).toBeNull();
-    fireEvent.press(screen.getByTestId("ed-gallery"));
+    await fireEvent.press(screen.getByTestId("ed-gallery"));
     await waitFor(() => expect(avatarLib.pickAvatarImage).toHaveBeenCalledWith("gallery"));
     await waitFor(() => expect(avatarLib.prepareAvatarUpload).toHaveBeenCalledWith({ uri: "file:///pick.jpg", width: 1200, height: 800 }));
     await waitFor(() => expect(api.uploadAvatar).toHaveBeenCalledWith(blob, "image/jpeg"));
@@ -418,22 +418,22 @@ describe("profile picture", () => {
     await signedIn();
     const { AvatarPickError } = jest.requireActual("@/lib/avatar") as typeof import("@/lib/avatar");
     avatarLib.pickAvatarImage.mockRejectedValueOnce(new AvatarPickError("permission-denied", "Camera access is required to take a profile photo."));
-    renderWithAppProviders(<AvatarEditor user={user} testID="ed" />);
-    fireEvent.press(screen.getByTestId("ed-camera"));
+    await renderWithAppProviders(<AvatarEditor user={user} testID="ed" />);
+    await fireEvent.press(screen.getByTestId("ed-camera"));
     await waitFor(() => expect(screen.getByTestId("ed-error")).toHaveTextContent(/Camera access is required/));
 
     avatarLib.pickAvatarImage.mockResolvedValueOnce({ uri: "file:///pick.jpg", width: 100, height: 100 });
     avatarLib.prepareAvatarUpload.mockResolvedValueOnce({ blob: new Blob(["x"]), contentType: "image/jpeg", uri: "file:///o.jpg" });
     (api.uploadAvatar as jest.Mock).mockRejectedValueOnce(new ApiError("UNPROCESSABLE", "Profile pictures must be a JPEG, PNG or WebP image.", 422));
-    fireEvent.press(screen.getByTestId("ed-gallery"));
+    await fireEvent.press(screen.getByTestId("ed-gallery"));
     await waitFor(() => expect(screen.getByTestId("ed-error")).toHaveTextContent(/JPEG, PNG or WebP/));
   });
 
   it("cancelling the picker leaves the account untouched", async () => {
     await signedIn();
     avatarLib.pickAvatarImage.mockResolvedValue(null);
-    renderWithAppProviders(<AvatarEditor user={user} testID="ed" />);
-    fireEvent.press(screen.getByTestId("ed-gallery"));
+    await renderWithAppProviders(<AvatarEditor user={user} testID="ed" />);
+    await fireEvent.press(screen.getByTestId("ed-gallery"));
     await waitFor(() => expect(avatarLib.pickAvatarImage).toHaveBeenCalled());
     expect(api.uploadAvatar).not.toHaveBeenCalled();
     expect(screen.queryByTestId("ed-error")).toBeNull();
@@ -447,13 +447,13 @@ describe("vehicle edit / unregister screen", () => {
 
   it("edits details and plate through the API", async () => {
     (api.updateVehicle as jest.Mock).mockResolvedValue({ ...vehicle, color: "Red", plateNumber: "XYZ-999", normalizedPlate: "XYZ999" });
-    renderWithProviders(<VehicleDetailScreen />);
+    await renderWithProviders(<VehicleDetailScreen />);
     await waitFor(() => expect(screen.getByTestId("vehicle-edit-form")).toBeOnTheScreen());
     expect(screen.getByTestId("vehicle-edit-save")).toBeDisabled();
 
-    fireEvent.changeText(screen.getByTestId("vehicle-edit-color"), "Red");
-    fireEvent.changeText(screen.getByTestId("vehicle-edit-plate"), "XYZ-999");
-    fireEvent.press(screen.getByTestId("vehicle-edit-save"));
+    await fireEvent.changeText(screen.getByTestId("vehicle-edit-color"), "Red");
+    await fireEvent.changeText(screen.getByTestId("vehicle-edit-plate"), "XYZ-999");
+    await fireEvent.press(screen.getByTestId("vehicle-edit-save"));
 
     await waitFor(() =>
       expect(api.updateVehicle).toHaveBeenCalledWith("v1", {
@@ -471,10 +471,10 @@ describe("vehicle edit / unregister screen", () => {
     (api.updateVehicle as jest.Mock).mockRejectedValue(
       new ApiError("CONFLICT", "You cannot change the plate number of a vehicle with an active zone assignment. Cancel the assignment first.", 409),
     );
-    renderWithProviders(<VehicleDetailScreen />);
+    await renderWithProviders(<VehicleDetailScreen />);
     await waitFor(() => expect(screen.getByTestId("vehicle-edit-plate")).toBeOnTheScreen());
-    fireEvent.changeText(screen.getByTestId("vehicle-edit-plate"), "NEW-1");
-    fireEvent.press(screen.getByTestId("vehicle-edit-save"));
+    await fireEvent.changeText(screen.getByTestId("vehicle-edit-plate"), "NEW-1");
+    await fireEvent.press(screen.getByTestId("vehicle-edit-save"));
     await waitFor(() => expect(screen.getByText(/Cancel the assignment first/)).toBeOnTheScreen());
   });
 
@@ -484,9 +484,9 @@ describe("vehicle edit / unregister screen", () => {
       confirm?.onPress?.();
     });
     (api.unregisterVehicle as jest.Mock).mockResolvedValue({ ...vehicle, status: "INACTIVE" });
-    renderWithProviders(<VehicleDetailScreen />);
+    await renderWithProviders(<VehicleDetailScreen />);
     await waitFor(() => expect(screen.getByTestId("vehicle-unregister")).toBeOnTheScreen());
-    fireEvent.press(screen.getByTestId("vehicle-unregister"));
+    await fireEvent.press(screen.getByTestId("vehicle-unregister"));
     expect(alertSpy).toHaveBeenCalled();
     await waitFor(() => expect(api.unregisterVehicle).toHaveBeenCalledWith("v1"));
     await waitFor(() => expect(__router.back).toHaveBeenCalled());
@@ -498,12 +498,12 @@ describe("vehicle edit / unregister screen", () => {
       .mockResolvedValueOnce([{ ...vehicle, isPrimary: false }])
       .mockResolvedValue([{ ...vehicle, isPrimary: true }]);
     (api.setPrimaryVehicle as jest.Mock).mockResolvedValue({ ...vehicle, isPrimary: true });
-    renderWithProviders(<VehicleDetailScreen />);
+    await renderWithProviders(<VehicleDetailScreen />);
 
     await waitFor(() => expect(screen.getByTestId("vehicle-make-primary")).toBeOnTheScreen());
     expect(screen.queryByTestId("vehicle-is-primary")).not.toBeOnTheScreen();
 
-    fireEvent.press(screen.getByTestId("vehicle-make-primary"));
+    await fireEvent.press(screen.getByTestId("vehicle-make-primary"));
 
     await waitFor(() => expect(api.setPrimaryVehicle).toHaveBeenCalledWith("v1"));
     await waitFor(() => expect(screen.getByTestId("vehicle-is-primary")).toBeOnTheScreen());
@@ -517,9 +517,9 @@ describe("vehicle edit / unregister screen", () => {
     (api.unregisterVehicle as jest.Mock).mockRejectedValue(
       new ApiError("CONFLICT", "You cannot unregister a vehicle with an active parking session.", 409, { reason: "ACTIVE_SESSION" }),
     );
-    renderWithProviders(<VehicleDetailScreen />);
+    await renderWithProviders(<VehicleDetailScreen />);
     await waitFor(() => expect(screen.getByTestId("vehicle-unregister")).toBeOnTheScreen());
-    fireEvent.press(screen.getByTestId("vehicle-unregister"));
+    await fireEvent.press(screen.getByTestId("vehicle-unregister"));
     await waitFor(() => expect(screen.getByText(/active parking session/)).toBeOnTheScreen());
     expect(__router.back).not.toHaveBeenCalled();
   });
@@ -532,11 +532,11 @@ describe("accepted recommendation: cancel from the parking screen", () => {
       (api.assignments as jest.Mock).mockResolvedValue([{ ...assignment, status: "CANCELLED" }]);
       return { ...assignment, id, status: "CANCELLED" };
     });
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
     await waitFor(() => expect(screen.getByTestId("assignment-current")).toBeOnTheScreen());
     expect(screen.getByText("You can cancel until your vehicle enters the zone.")).toBeOnTheScreen();
 
-    fireEvent.press(screen.getByTestId("assignment-cancel"));
+    await fireEvent.press(screen.getByTestId("assignment-cancel"));
     await waitFor(() => expect(api.cancelAssignment).toHaveBeenCalledWith("as1"));
     await waitFor(() => expect(screen.queryByTestId("assignment-current")).toBeNull());
     expect(screen.getByTestId("current-state-empty")).toBeOnTheScreen();
@@ -550,9 +550,9 @@ describe("accepted recommendation: cancel from the parking screen", () => {
     (api.cancelAssignment as jest.Mock).mockRejectedValue(
       new ApiError("CONFLICT", "This vehicle has already entered the parking area; the assignment can no longer be cancelled.", 409),
     );
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
     await waitFor(() => expect(screen.getByTestId("assignment-current")).toBeOnTheScreen());
-    fireEvent.press(screen.getByTestId("assignment-cancel"));
+    await fireEvent.press(screen.getByTestId("assignment-cancel"));
     await waitFor(() => expect(screen.getByTestId("assignment-cancel-error")).toHaveTextContent(/already entered/));
     expect(screen.getByTestId("assignment-current")).toBeOnTheScreen();
   });
@@ -576,7 +576,7 @@ describe("accepted recommendation: cancel from the parking screen", () => {
       entryEvent: null,
       exitEvent: null,
     });
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
     await waitFor(() => expect(screen.getByTestId("active-banner")).toBeOnTheScreen());
     expect(screen.queryByTestId("assignment-cancel")).toBeNull();
   });
@@ -594,7 +594,7 @@ describe("zone directions use the zone's own coordinates", () => {
 
   it("explains missing coordinates on the parking screen instead of fabricating a destination", async () => {
     (api.assignments as jest.Mock).mockResolvedValue([{ ...assignment, zoneId: "z2", zone: { id: "z2", name: "Zone B", code: "B" } }]);
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
     await waitFor(() => expect(screen.getByTestId("assignment-navigate")).toBeOnTheScreen());
     expect(screen.getByTestId("assignment-navigate")).toBeDisabled();
     expect(screen.getByTestId("assignment-navigate-unavailable")).toHaveTextContent(/haven't been configured yet/);
@@ -610,9 +610,9 @@ describe("zone directions use the zone's own coordinates", () => {
     LocationMock.__setPermission({ granted: true, canAskAgain: true });
     LocationMock.__setPosition({ latitude: 13.75, longitude: 121.05 });
     (api.assignments as jest.Mock).mockResolvedValue([assignment]);
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
     await waitFor(() => expect(screen.getByTestId("assignment-navigate")).toBeOnTheScreen());
-    fireEvent.press(screen.getByTestId("assignment-navigate"));
+    await fireEvent.press(screen.getByTestId("assignment-navigate"));
     await waitFor(() => expect(openSpy).toHaveBeenCalledWith(expect.stringContaining("daddr=13.76447,121.06462")));
   });
 });

@@ -84,35 +84,35 @@ describe("theme contrast: status ink on its own soft tint", () => {
 });
 
 /** The tokens the test renderer's ThemeProvider actually resolves. */
-function liveTokens(): ColorTokens {
+async function liveTokens(): Promise<ColorTokens> {
   let captured: ColorTokens | undefined;
   function Probe() {
     captured = useColors();
     return null;
   }
-  render(<Probe />);
+  await render(<Probe />);
   if (!captured) throw new Error("ThemeProvider did not provide tokens");
   return captured;
 }
 
 describe("components use the text-safe tokens", () => {
-  it("ghost button text is primaryDeep, not primary", () => {
-    const colors = liveTokens();
-    render(<Button testID="btn" title="Cancel" variant="ghost" onPress={jest.fn()} />);
+  it("ghost button text is primaryDeep, not primary", async () => {
+    const colors = await liveTokens();
+    await render(<Button testID="btn" title="Cancel" variant="ghost" onPress={jest.fn()} />);
     const label = screen.getByText("Cancel");
     const style = [label.props.style].flat(Infinity).reduce((acc, s) => ({ ...acc, ...(s || {}) }), {});
     expect(style.color).toBe(colors.primaryDeep);
   });
 
-  it("input placeholders use muted, not faint", () => {
-    const colors = liveTokens();
-    render(<Input testID="field" label="Email" value="" placeholder="you@lpu.edu.ph" onChangeText={jest.fn()} />);
+  it("input placeholders use muted, not faint", async () => {
+    const colors = await liveTokens();
+    await render(<Input testID="field" label="Email" value="" placeholder="you@lpu.edu.ph" onChangeText={jest.fn()} />);
     expect(screen.getByTestId("field").props.placeholderTextColor).toBe(colors.muted);
   });
 
-  it("status badge text uses the ink token for its hue", () => {
-    const colors = liveTokens();
-    render(
+  it("status badge text uses the ink token for its hue", async () => {
+    const colors = await liveTokens();
+    await render(
       <StatusBadge meta={{ label: "Full", icon: "ban", color: colors.danger }} testID="badge" />,
     );
     const label = screen.getByText("Full");

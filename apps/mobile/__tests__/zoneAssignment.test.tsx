@@ -148,7 +148,7 @@ function Harness() {
 
 describe("zone assignment: zone selection gating", () => {
   it("asks for a zone first and never submits without one", async () => {
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={null} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={null} />);
 
     expect(screen.getByTestId("assignment-zone-hint")).toHaveTextContent(
       "Choose a zone above.",
@@ -156,12 +156,12 @@ describe("zone assignment: zone selection gating", () => {
     const submit = await screen.findByTestId("assignment-submit");
     expect(submit).toHaveTextContent("Select a zone");
     expect(submit.props.accessibilityState).toMatchObject({ disabled: true });
-    fireEvent.press(submit);
+    await fireEvent.press(submit);
     expect(api.createAssignment).not.toHaveBeenCalled();
   });
 
   it("shows the selected zone summary and enables submission", async () => {
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
     const submit = await screen.findByTestId("assignment-submit");
     expect(screen.getByTestId("assignment-summary")).toHaveTextContent(/Zone A/);
@@ -176,7 +176,7 @@ describe("zone assignment: zone selection gating", () => {
   });
 
   it("rejects a full zone: warning shown and no submission", async () => {
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={fullZone} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={fullZone} />);
 
     await screen.findByTestId("assignment-submit");
     expect(screen.getByTestId("assignment-zone-full")).toHaveTextContent(
@@ -185,16 +185,16 @@ describe("zone assignment: zone selection gating", () => {
     const submit = screen.getByTestId("assignment-submit");
     expect(submit).toHaveTextContent("Select another zone");
     expect(submit.props.accessibilityState).toMatchObject({ disabled: true });
-    fireEvent.press(submit);
+    await fireEvent.press(submit);
     expect(api.createAssignment).not.toHaveBeenCalled();
   });
 
   it("treats a zone that filled up after selection as unavailable", async () => {
-    renderWithProviders(<FillableZoneHarness />);
+    await renderWithProviders(<FillableZoneHarness />);
     await screen.findByTestId("assignment-submit");
     expect(screen.queryByTestId("assignment-zone-full")).not.toBeOnTheScreen();
 
-    fireEvent.press(screen.getByTestId("make-zone-full"));
+    await fireEvent.press(screen.getByTestId("make-zone-full"));
     expect(screen.getByTestId("assignment-zone-full")).toBeOnTheScreen();
     expect(screen.getByTestId("assignment-submit")).toHaveTextContent("Select another zone");
     expect(screen.getByTestId("assignment-submit").props.accessibilityState).toMatchObject({
@@ -207,42 +207,42 @@ describe("zone assignment: vehicle requirement", () => {
   it("blocks submission when there is no vehicle and offers the vehicle flow", async () => {
     (api.vehicles as jest.Mock).mockResolvedValue([]);
     const router = useRouter();
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
     expect(await screen.findByTestId("assignment-no-vehicle")).toHaveTextContent(
       /Add a vehicle first to assign a zone\./,
     );
     expect(screen.queryByTestId("assignment-submit")).not.toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId("assignment-add-vehicle"));
+    await fireEvent.press(screen.getByTestId("assignment-add-vehicle"));
     expect(router.push).toHaveBeenCalledWith("/vehicles");
   });
 
   it("auto-uses the single active vehicle", async () => {
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
     expect(await screen.findByTestId("assignment-vehicle")).toHaveTextContent(/ABC-1234/);
     expect(screen.queryByTestId("assignment-vehicle-v1")).not.toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId("assignment-submit"));
+    await fireEvent.press(screen.getByTestId("assignment-submit"));
     await waitFor(() => expect(api.createAssignment).toHaveBeenCalledTimes(1));
     expect(api.createAssignment).toHaveBeenCalledWith({ zoneId: "z1", vehicleId: "v1" });
   });
 
   it("requires an explicit vehicle choice when several are registered", async () => {
     (api.vehicles as jest.Mock).mockResolvedValue([vehicle, otherVehicle]);
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
     await screen.findByTestId("assignment-vehicle-v1");
     const submit = screen.getByTestId("assignment-submit");
     expect(submit).toHaveTextContent("Select a vehicle");
     expect(submit.props.accessibilityState).toMatchObject({ disabled: true });
-    fireEvent.press(submit);
+    await fireEvent.press(submit);
     expect(api.createAssignment).not.toHaveBeenCalled();
 
-    fireEvent.press(screen.getByTestId("assignment-vehicle-v2"));
+    await fireEvent.press(screen.getByTestId("assignment-vehicle-v2"));
     expect(screen.getByTestId("assignment-vehicle-v2").props.accessibilityState).toMatchObject({
       selected: true,
     });
-    fireEvent.press(screen.getByTestId("assignment-submit"));
+    await fireEvent.press(screen.getByTestId("assignment-submit"));
 
     await waitFor(() => expect(api.createAssignment).toHaveBeenCalledTimes(1));
     expect(api.createAssignment).toHaveBeenCalledWith({ zoneId: "z1", vehicleId: "v2" });
@@ -250,10 +250,10 @@ describe("zone assignment: vehicle requirement", () => {
 
   it("never fabricates a vehicle and never auto-picks when several exist", async () => {
     (api.vehicles as jest.Mock).mockResolvedValue([vehicle, otherVehicle]);
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
     await screen.findByTestId("assignment-vehicle-v1");
-    fireEvent.press(screen.getByTestId("assignment-submit"));
+    await fireEvent.press(screen.getByTestId("assignment-submit"));
     expect(api.createAssignment).not.toHaveBeenCalled();
     expect(screen.getByTestId("assignment-vehicle-v1").props.accessibilityState.selected).toBe(
       false,
@@ -266,11 +266,11 @@ describe("zone assignment: vehicle requirement", () => {
 
 describe("zone assignment: submission", () => {
   it("submits the user-selected zone and vehicle only on explicit action", async () => {
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
     await screen.findByTestId("assignment-submit");
     expect(api.createAssignment).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByTestId("assignment-submit"));
+    await fireEvent.press(screen.getByTestId("assignment-submit"));
 
     await waitFor(() => expect(api.createAssignment).toHaveBeenCalledTimes(1));
     expect(api.createAssignment).toHaveBeenCalledWith({ zoneId: "z1", vehicleId: "v1" });
@@ -283,16 +283,16 @@ describe("zone assignment: submission", () => {
         resolveAssign = resolve;
       }),
     );
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
-    fireEvent.press(await screen.findByTestId("assignment-submit"));
+    await fireEvent.press(await screen.findByTestId("assignment-submit"));
     await waitFor(() =>
       expect(screen.getByTestId("assignment-submit")).toHaveTextContent("Assigning…"),
     );
     const submit = screen.getByTestId("assignment-submit");
     expect(submit.props.accessibilityState).toMatchObject({ busy: true, disabled: true });
 
-    fireEvent.press(submit);
+    await fireEvent.press(submit);
     expect(api.createAssignment).toHaveBeenCalledTimes(1);
 
     resolveAssign(assignment);
@@ -307,9 +307,9 @@ describe("zone assignment: submission", () => {
         resolveAssign = resolve;
       }),
     );
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
-    fireEvent.press(await screen.findByTestId("assignment-submit"));
+    await fireEvent.press(await screen.findByTestId("assignment-submit"));
     expect(screen.queryByTestId("assignment-already-assigned")).not.toBeOnTheScreen();
 
     resolveAssign(assignment);
@@ -318,7 +318,7 @@ describe("zone assignment: submission", () => {
   });
 
   it("refreshes assignment, zone and recommendation data after success", async () => {
-    renderWithProviders(<Harness />);
+    await renderWithProviders(<Harness />);
 
     await screen.findByTestId("screen-queries");
     await waitFor(() =>
@@ -326,7 +326,7 @@ describe("zone assignment: submission", () => {
     );
     expect(api.assignments).toHaveBeenCalledTimes(1);
 
-    fireEvent.press(await screen.findByTestId("assignment-submit"));
+    await fireEvent.press(await screen.findByTestId("assignment-submit"));
     await waitFor(() => expect(screen.getByTestId("assignment-already-assigned")).toBeOnTheScreen());
 
     // The panel invalidates all three keys; live consumers refetch each.
@@ -341,9 +341,9 @@ describe("zone assignment: failures", () => {
     (api.createAssignment as jest.Mock).mockRejectedValue(
       new ApiError("CONFLICT", "Zone 'z1' cannot accept assignments.", 409),
     );
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
-    fireEvent.press(await screen.findByTestId("assignment-submit"));
+    await fireEvent.press(await screen.findByTestId("assignment-submit"));
 
     await waitFor(() => expect(screen.getByTestId("assignment-error")).toBeOnTheScreen());
     expect(screen.getByTestId("assignment-error")).toHaveTextContent(/can't take this car right now\. Choose another zone\./);
@@ -355,9 +355,9 @@ describe("zone assignment: failures", () => {
     (api.createAssignment as jest.Mock).mockRejectedValue(
       new ApiError("CONFLICT", "This vehicle already has an active zone assignment.", 409),
     );
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
-    fireEvent.press(await screen.findByTestId("assignment-submit"));
+    await fireEvent.press(await screen.findByTestId("assignment-submit"));
 
     await waitFor(() => expect(screen.getByTestId("assignment-error")).toBeOnTheScreen());
     expect(screen.getByText("This car already has an assigned zone.")).toBeOnTheScreen();
@@ -368,9 +368,9 @@ describe("zone assignment: failures", () => {
     (api.createAssignment as jest.Mock).mockRejectedValue(
       new ApiError("NETWORK", "Cannot reach the PARADA server. Check your connection and try again.", 0),
     );
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
-    fireEvent.press(await screen.findByTestId("assignment-submit"));
+    await fireEvent.press(await screen.findByTestId("assignment-submit"));
 
     await waitFor(() => expect(screen.getByTestId("assignment-error")).toBeOnTheScreen());
     expect(screen.getByText("We couldn't connect to the parking service. Please try again.")).toBeOnTheScreen();
@@ -384,9 +384,9 @@ describe("zone assignment: failures", () => {
     (api.createAssignment as jest.Mock).mockRejectedValue(
       new ApiError("BAD_GATEWAY", "The server is down.", 502),
     );
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
-    fireEvent.press(await screen.findByTestId("assignment-submit"));
+    await fireEvent.press(await screen.findByTestId("assignment-submit"));
 
     await waitFor(() => expect(screen.getByTestId("assignment-error")).toBeOnTheScreen());
     const token = await SecureStore.getItemAsync("parada.session.token");
@@ -397,7 +397,7 @@ describe("zone assignment: failures", () => {
 describe("zone assignment: existing assignment", () => {
   it("shows the backend-confirmed assignment without offering another request", async () => {
     (api.assignments as jest.Mock).mockResolvedValue([assignment]);
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
     await waitFor(() => expect(screen.getByTestId("assignment-already-assigned")).toBeOnTheScreen());
     expect(screen.queryByTestId("assignment-submit")).not.toBeOnTheScreen();
@@ -413,11 +413,11 @@ describe("zone assignment: existing assignment", () => {
         expiresAt: new Date(Date.now() - 60_000).toISOString(),
       },
     ]);
-    renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
     await screen.findByTestId("assignment-submit");
     expect(screen.queryByTestId("assignment-confirmed")).not.toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId("assignment-submit"));
+    await fireEvent.press(screen.getByTestId("assignment-submit"));
     await waitFor(() => expect(api.createAssignment).toHaveBeenCalledTimes(1));
   });
 });

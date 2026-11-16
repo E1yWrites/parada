@@ -61,7 +61,7 @@ beforeEach(() => {
 describe("home screen: active session banner", () => {
   it("shows plate, zone and elapsed time when a session is active", async () => {
     (api.activeSession as jest.Mock).mockResolvedValue(activeSession);
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
 
     await waitFor(() => expect(screen.getByTestId("active-banner")).toBeOnTheScreen());
     expect(screen.getByTestId("active-banner-zone")).toHaveTextContent("Zone A");
@@ -73,7 +73,7 @@ describe("home screen: active session banner", () => {
     (api.activeSession as jest.Mock).mockRejectedValue(
       new ApiError("INVALID_SESSION_RESPONSE", "We couldn't load your parking session.", 502),
     );
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
 
     await waitFor(() => expect(screen.getByTestId("active-session-error")).toBeOnTheScreen());
     expect(screen.getByText("We couldn't load your parking session.")).toBeOnTheScreen();
@@ -83,7 +83,7 @@ describe("home screen: active session banner", () => {
   });
 
   it("omits the banner when there is no active session", async () => {
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
     await waitFor(() => expect(screen.getByTestId("parking-screen-title")).toBeOnTheScreen());
     expect(screen.queryByTestId("active-banner")).not.toBeOnTheScreen();
   });
@@ -91,7 +91,7 @@ describe("home screen: active session banner", () => {
 
 describe("home screen: connection honesty", () => {
   it("does not claim live availability when no realtime stream is connected", async () => {
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
     await waitFor(() => expect(screen.getByTestId("parking-screen-subtitle")).toHaveTextContent(/^Not live/));
     expect(screen.queryByText(/live zone availability/i)).not.toBeOnTheScreen();
   });

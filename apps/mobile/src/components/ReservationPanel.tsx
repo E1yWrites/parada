@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
@@ -49,6 +49,9 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
   const queryClient = useQueryClient();
   const selection = useVehicleSelection();
   const [startInMinutes, setStartInMinutes] = useState<number>(0);
+  // Set synchronously on submit: React Query commits isPending in a later
+  // batch, so a fast second tap could otherwise still see isPending === false.
+  const submitting = useRef(false);
 
   const create = useMutation({
     // Only startAt is sent: the backend owns the window length (endAt).
@@ -70,6 +73,7 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
       );
     },
     onSettled: () => {
+      submitting.current = false;
       void queryClient.invalidateQueries({ queryKey: queryKeys.reservations });
       // Zones refresh live availability and (via the ["zones"] prefix) the
       // recommendation card in one pass, without a duplicate refetch.
@@ -84,9 +88,10 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
     selectedZone !== null && selectedVehicle !== null && !zoneUnavailable && !create.isPending;
 
   function handleCreate() {
-    if (create.isPending || !selectedZone || !selectedVehicle || zoneUnavailable) {
+    if (submitting.current || create.isPending || !selectedZone || !selectedVehicle || zoneUnavailable) {
       return;
     }
+    submitting.current = true;
     create.mutate({ zoneId: selectedZone.id, vehicleId: selectedVehicle.id, startInMinutes });
   }
 

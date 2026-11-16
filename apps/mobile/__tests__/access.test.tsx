@@ -40,7 +40,7 @@ beforeEach(() => {
 
 describe("access control", () => {
   it("redirects an anonymous user to /login", async () => {
-    renderWithAppProviders(<TabsLayout />);
+    await renderWithAppProviders(<TabsLayout />);
     await waitFor(() => expect(screen.getByTestId("redirect-/login")).toBeOnTheScreen());
   });
 
@@ -48,7 +48,7 @@ describe("access control", () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-ok");
     (api.me as jest.Mock).mockResolvedValue(user);
 
-    renderWithAppProviders(<TabsLayout />);
+    await renderWithAppProviders(<TabsLayout />);
 
     await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
     expect(screen.getByText("Now")).toBeOnTheScreen();
@@ -63,7 +63,7 @@ describe("access control", () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-ok");
     (api.me as jest.Mock).mockResolvedValue(user);
 
-    renderWithAppProviders(<TabsLayout />);
+    await renderWithAppProviders(<TabsLayout />);
 
     await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
     expect(screen.queryByText("Vehicles")).not.toBeOnTheScreen();
@@ -73,7 +73,7 @@ describe("access control", () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-ok");
     (api.me as jest.Mock).mockResolvedValue(user);
 
-    renderWithAppProviders(<TabsLayout />);
+    await renderWithAppProviders(<TabsLayout />);
 
     await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
     for (const label of ["Now", "Zones", "History", "Account"]) {

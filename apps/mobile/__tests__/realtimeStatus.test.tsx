@@ -50,28 +50,28 @@ describe("connectionLabel", () => {
 });
 
 describe("RealtimeStatusProvider — bound to the real stream", () => {
-  it("publishes the stream's status to screens", () => {
+  it("publishes the stream's status to screens", async () => {
     mockStatus = "CONNECTED";
-    render(<Harness connected updatedAt={UPDATED} />);
+    await render(<Harness connected updatedAt={UPDATED} />);
     expect(screen.getByTestId("line")).toHaveTextContent("Live");
   });
 
-  it("never says Live while reconnecting", () => {
+  it("never says Live while reconnecting", async () => {
     mockStatus = "RECONNECTING";
-    render(<Harness connected updatedAt={UPDATED} />);
+    await render(<Harness connected updatedAt={UPDATED} />);
     expect(screen.getByTestId("line")).toHaveTextContent("Reconnecting… · Updated 10:42");
   });
 
-  it("falls back to Not live when the stream unmounts (sign-out)", () => {
+  it("falls back to Not live when the stream unmounts (sign-out)", async () => {
     mockStatus = "CONNECTED";
-    const { rerender } = render(<Harness connected />);
+    const { rerender } = await render(<Harness connected />);
     expect(screen.getByTestId("line")).toHaveTextContent("Live");
-    rerender(<Harness connected={false} />);
+    await rerender(<Harness connected={false} />);
     expect(screen.getByTestId("line")).toHaveTextContent("Not live");
   });
 
-  it("says Not live with no provider mounted", () => {
-    render(<Line />);
+  it("says Not live with no provider mounted", async () => {
+    await render(<Line />);
     expect(screen.getByTestId("line")).toHaveTextContent("Not live");
   });
 });

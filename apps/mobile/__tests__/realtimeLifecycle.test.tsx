@@ -59,7 +59,7 @@ describe("realtime connection follows the signed-in session", () => {
     (api.login as jest.Mock).mockResolvedValue({ user: alex, token: "tok-alex" });
     (api.logout as jest.Mock).mockResolvedValue(undefined);
 
-    render(
+    await render(
       <AppProviders>
         <Probe />
       </AppProviders>,
@@ -93,7 +93,7 @@ describe("realtime connection follows the signed-in session", () => {
       .mockResolvedValueOnce({ user: alex, token: "tok-alex" })
       .mockResolvedValueOnce({ user: sam, token: "tok-sam" });
 
-    render(
+    await render(
       <AppProviders>
         <Probe />
       </AppProviders>,
@@ -122,7 +122,7 @@ describe("realtime connection follows the signed-in session", () => {
     (api.login as jest.Mock).mockResolvedValueOnce({ user: alex, token: "tok-alex" });
     (api.changePassword as jest.Mock).mockResolvedValueOnce({ user: alex, token: "tok-alex-2" });
 
-    render(
+    await render(
       <AppProviders>
         <Probe />
       </AppProviders>,
@@ -149,7 +149,7 @@ describe("realtime connection follows the signed-in session", () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-stored");
     (api.me as jest.Mock).mockResolvedValue(alex);
 
-    render(
+    await render(
       <AppProviders>
         <Probe />
       </AppProviders>,

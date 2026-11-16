@@ -28,7 +28,7 @@ const fileStore: OnboardingStoreLike = {
     if (!file.exists) {
       file.create();
     }
-    file.write(new Date().toISOString());
+    await file.write(new Date().toISOString());
   },
   async clear() {
     const file = marker();

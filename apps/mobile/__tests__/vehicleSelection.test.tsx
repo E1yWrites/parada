@@ -76,7 +76,7 @@ beforeEach(() => {
  */
 describe("the chosen vehicle belongs to the parking action, not to one panel", () => {
   it("carries a plate chosen in the assignment panel over to the reservation panel", async () => {
-    renderWithProviders(
+    await renderWithProviders(
       <>
         <ZoneAssignmentPanel selectedZone={zoneA} />
         <ReservationPanel selectedZone={zoneA} />
@@ -89,7 +89,7 @@ describe("the chosen vehicle belongs to the parking action, not to one panel", (
     expect(screen.getByTestId("assignment-vehicle-hint")).toBeOnTheScreen();
     expect(screen.getByTestId("reservation-vehicle-hint")).toBeOnTheScreen();
 
-    fireEvent.press(screen.getByTestId("assignment-vehicle-v2"));
+    await fireEvent.press(screen.getByTestId("assignment-vehicle-v2"));
 
     // The reservation panel reflects the same choice without being touched.
     await waitFor(() =>
@@ -108,7 +108,7 @@ describe("the chosen vehicle belongs to the parking action, not to one panel", (
   it("asks for no choice at all when the driver has a single vehicle", async () => {
     (api.vehicles as jest.Mock).mockResolvedValue([vehicle]);
 
-    renderWithProviders(
+    await renderWithProviders(
       <>
         <ZoneAssignmentPanel selectedZone={zoneA} />
         <ReservationPanel selectedZone={zoneA} />
@@ -126,7 +126,7 @@ describe("the chosen vehicle belongs to the parking action, not to one panel", (
   it("preselects the driver's primary vehicle, without forcing it over an explicit pick", async () => {
     (api.vehicles as jest.Mock).mockResolvedValue([vehicle, { ...otherVehicle, isPrimary: true }]);
 
-    renderWithProviders(
+    await renderWithProviders(
       <>
         <ZoneAssignmentPanel selectedZone={zoneA} />
         <ReservationPanel selectedZone={zoneA} />
@@ -143,9 +143,9 @@ describe("the chosen vehicle belongs to the parking action, not to one panel", (
 
     // Tapping "Change" reveals the full chip list; picking the other vehicle
     // overrides the primary for this action only.
-    fireEvent.press(screen.getByTestId("assignment-vehicle-change"));
+    await fireEvent.press(screen.getByTestId("assignment-vehicle-change"));
     await waitFor(() => expect(screen.getByTestId("assignment-vehicle-v1")).toBeOnTheScreen());
-    fireEvent.press(screen.getByTestId("assignment-vehicle-v1"));
+    await fireEvent.press(screen.getByTestId("assignment-vehicle-v1"));
 
     await waitFor(() =>
       expect(screen.getByTestId("assignment-vehicle-v1").props.accessibilityState).toMatchObject({
@@ -162,7 +162,7 @@ describe("the chosen vehicle belongs to the parking action, not to one panel", (
   it("offers the add-vehicle route from every parking action when there is none", async () => {
     (api.vehicles as jest.Mock).mockResolvedValue([]);
 
-    renderWithProviders(
+    await renderWithProviders(
       <>
         <ZoneAssignmentPanel selectedZone={zoneA} />
         <ReservationPanel selectedZone={zoneA} />

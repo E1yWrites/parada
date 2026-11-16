@@ -44,7 +44,7 @@ describe("notifications screen", () => {
       unreadCount: 1,
     });
 
-    renderWithProviders(<NotificationsScreen />);
+    await renderWithProviders(<NotificationsScreen />);
 
     expect(await screen.findByText("TODAY")).toBeOnTheScreen();
     expect(screen.getByText("EARLIER")).toBeOnTheScreen();
@@ -54,7 +54,7 @@ describe("notifications screen", () => {
 
   it("shows an empty state with no notifications", async () => {
     (api.notifications as jest.Mock).mockResolvedValue({ notifications: [], unreadCount: 0 });
-    renderWithProviders(<NotificationsScreen />);
+    await renderWithProviders(<NotificationsScreen />);
 
     expect(await screen.findByText("No notifications yet")).toBeOnTheScreen();
   });
@@ -63,10 +63,10 @@ describe("notifications screen", () => {
     (api.notifications as jest.Mock)
       .mockRejectedValueOnce(new ApiError("NETWORK", "Cannot reach the PARADA server.", 0))
       .mockResolvedValueOnce({ notifications: [], unreadCount: 0 });
-    renderWithProviders(<NotificationsScreen />);
+    await renderWithProviders(<NotificationsScreen />);
 
     expect(await screen.findByText("Cannot reach the PARADA server.")).toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId("notifications-error-retry"));
+    await fireEvent.press(screen.getByTestId("notifications-error-retry"));
     await waitFor(() => expect(screen.getByText("No notifications yet")).toBeOnTheScreen());
   });
 
@@ -75,9 +75,9 @@ describe("notifications screen", () => {
       notifications: [base({ id: "n1", read: false })],
       unreadCount: 1,
     });
-    renderWithProviders(<NotificationsScreen />);
+    await renderWithProviders(<NotificationsScreen />);
 
-    fireEvent.press(await screen.findByTestId("notification-n1"));
+    await fireEvent.press(await screen.findByTestId("notification-n1"));
     await waitFor(() => expect(api.markNotificationRead).toHaveBeenCalledWith("n1"));
   });
 
@@ -86,9 +86,9 @@ describe("notifications screen", () => {
       notifications: [base({ id: "n1", read: true })],
       unreadCount: 0,
     });
-    renderWithProviders(<NotificationsScreen />);
+    await renderWithProviders(<NotificationsScreen />);
 
-    fireEvent.press(await screen.findByTestId("notification-n1"));
+    await fireEvent.press(await screen.findByTestId("notification-n1"));
     expect(api.markNotificationRead).not.toHaveBeenCalled();
   });
 });

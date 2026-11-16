@@ -25,7 +25,7 @@ jest.mock("expo-constants", () => {
   const expo = require("../app.json").expo;
   return {
     __esModule: true,
-    default: { expoConfig: { ...expo, sdkVersion: "57.0.0" }, manifest: null, manifest2: null },
+    default: { expoConfig: { ...expo, sdkVersion: "58.0.0" }, manifest: null, manifest2: null },
     ExecutionEnvironment: { StoreClient: "storeClient" },
   };
 });
@@ -52,8 +52,18 @@ function RootLayout() {
     </ThemeProvider>
   );
 }
+// Expo Router 58 shows only the screens a layout declares, so the stub
+// declares the same tabs as app/(tabs)/_layout.tsx.
 function TabsLayout() {
-  return <Tabs screenOptions={{ headerShown: false }} />;
+  return (
+    <Tabs screenOptions={{ headerShown: false }}>
+      <Tabs.Screen name="parking" />
+      <Tabs.Screen name="park" />
+      <Tabs.Screen name="sessions" />
+      <Tabs.Screen name="account" />
+      <Tabs.Screen name="vehicles" options={{ href: null }} />
+    </Tabs>
+  );
 }
 
 const routes = {
@@ -83,7 +93,7 @@ const routes = {
 };
 
 async function renderAt(initialUrl: string) {
-  renderRouter(routes, { initialUrl });
+  await renderRouter(routes, { initialUrl });
   await waitFor(() => expect(screen.queryByText(/^(PAGE|NOTFOUND):/)).toBeTruthy());
 }
 
@@ -134,7 +144,7 @@ describe("route tree (real expo-router)", () => {
   it("still resolves the other entry points directly", async () => {
     await renderAt("/login");
     expect(screen.getByText("PAGE:login@/login")).toBeTruthy();
-    screen.unmount();
+    await screen.unmount();
 
     await renderAt("/zones/z1");
     expect(screen.getByText("PAGE:zones/[id]@/zones/z1")).toBeTruthy();

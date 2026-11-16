@@ -81,7 +81,7 @@ beforeEach(() => {
 
 describe("account screen", () => {
   it("renders the profile from /auth/me", async () => {
-    renderWithProviders(<AccountScreen />);
+    await renderWithProviders(<AccountScreen />);
 
     await waitFor(() => expect(screen.getByTestId("account-profile")).toBeOnTheScreen());
     expect(screen.getByTestId("account-name")).toHaveTextContent("Alex Driver");
@@ -99,14 +99,14 @@ describe("account screen", () => {
 
   it("labels an admin profile with the ADMIN pill", async () => {
     (api.me as jest.Mock).mockResolvedValue(admin);
-    renderWithProviders(<AccountScreen />);
+    await renderWithProviders(<AccountScreen />);
 
     await waitFor(() => expect(screen.getByTestId("account-name")).toHaveTextContent("Ari Admin"));
     expect(screen.getByTestId("account-role")).toHaveTextContent("ADMIN");
   });
 
   it("shows a loading state while the profile loads", async () => {
-    renderWithProviders(<AccountScreen />);
+    await renderWithProviders(<AccountScreen />);
 
     expect(screen.getByTestId("account-loading")).toBeOnTheScreen();
     await screen.findByTestId("account-profile");
@@ -115,7 +115,7 @@ describe("account screen", () => {
   it("shows a single error state with retry when the profile cannot load", async () => {
     mockSessionContext.user = null;
     (api.me as jest.Mock).mockRejectedValue(networkError);
-    renderWithProviders(<AccountScreen />);
+    await renderWithProviders(<AccountScreen />);
 
     await waitFor(() => expect(screen.getByTestId("account-error")).toBeOnTheScreen());
     expect(screen.getByText("Cannot reach the PARADA server.")).toBeOnTheScreen();
@@ -126,7 +126,7 @@ describe("account screen", () => {
 
   it("degrades to the cached identity when the profile refresh fails", async () => {
     (api.me as jest.Mock).mockRejectedValue(networkError);
-    renderWithProviders(<AccountScreen />);
+    await renderWithProviders(<AccountScreen />);
 
     await waitFor(() => expect(screen.getByTestId("account-cache-note")).toBeOnTheScreen());
     expect(screen.getByTestId("account-cache-retry")).toBeOnTheScreen();
@@ -138,10 +138,10 @@ describe("account screen", () => {
 
   it("recovers from a refresh failure via retry", async () => {
     (api.me as jest.Mock).mockRejectedValueOnce(networkError).mockResolvedValueOnce(user);
-    renderWithProviders(<AccountScreen />);
+    await renderWithProviders(<AccountScreen />);
 
     await waitFor(() => expect(screen.getByTestId("account-cache-note")).toBeOnTheScreen());
-    fireEvent.press(screen.getByTestId("account-cache-retry"));
+    await fireEvent.press(screen.getByTestId("account-cache-retry"));
 
     await waitFor(() => expect(screen.queryByTestId("account-cache-note")).not.toBeOnTheScreen());
     expect(screen.getByTestId("account-name")).toHaveTextContent("Alex Driver");
@@ -149,7 +149,7 @@ describe("account screen", () => {
 
   it("keeps the cached-profile retry inside the 44pt touch-target baseline", async () => {
     (api.me as jest.Mock).mockRejectedValue(networkError);
-    renderWithProviders(<AccountScreen />);
+    await renderWithProviders(<AccountScreen />);
 
     await waitFor(() => expect(screen.getByTestId("account-cache-retry")).toBeOnTheScreen());
     const flat = flattenStyle(screen.getByTestId("account-cache-retry").props.style);
@@ -157,10 +157,10 @@ describe("account screen", () => {
   });
 
   it("signs out when Sign Out is pressed", async () => {
-    renderWithProviders(<AccountScreen />);
+    await renderWithProviders(<AccountScreen />);
 
     const button = await screen.findByTestId("logout-button");
-    fireEvent.press(button);
+    await fireEvent.press(button);
 
     await waitFor(() => expect(mockSessionContext.signOut).toHaveBeenCalledTimes(1));
   });

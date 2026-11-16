@@ -110,27 +110,27 @@ beforeEach(() => {
 
 describe("tab route smoke tests", () => {
   it("renders the Now route", async () => {
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
     expect(await screen.findByTestId("parking-screen-title")).toHaveTextContent("Now");
   });
 
   it("renders the Zones route", async () => {
-    renderWithProviders(<ParkScreen />);
+    await renderWithProviders(<ParkScreen />);
     expect(await screen.findByTestId("park-screen-title")).toHaveTextContent("Zones");
   });
 
   it("renders the Vehicles route", async () => {
-    renderWithProviders(<VehiclesScreen />);
+    await renderWithProviders(<VehiclesScreen />);
     expect(await screen.findByTestId("vehicles-list")).toBeOnTheScreen();
   });
 
   it("renders the Sessions route", async () => {
-    renderWithProviders(<SessionsScreen />);
+    await renderWithProviders(<SessionsScreen />);
     expect(await screen.findByTestId("sessions-list")).toBeOnTheScreen();
   });
 
   it("renders the Account route", async () => {
-    renderWithAppProviders(<AccountScreen />);
+    await renderWithAppProviders(<AccountScreen />);
     expect(await screen.findByTestId("account-screen-title")).toHaveTextContent("Account");
   });
 });
