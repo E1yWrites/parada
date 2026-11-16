@@ -1,7 +1,7 @@
 import { renderWithAppProviders, renderWithProviders, screen } from "@/src/test/utils";
 import ParkingScreen from "@/app/(tabs)/parking";
 import ParkScreen from "@/app/(tabs)/park";
-import VehiclesScreen from "@/app/(tabs)/vehicles";
+import VehiclesScreen from "@/app/vehicles";
 import SessionsScreen from "@/app/(tabs)/sessions";
 import AccountScreen from "@/app/(tabs)/account";
 import { api, type PublicZone, type SessionDto } from "@/lib/api/client";

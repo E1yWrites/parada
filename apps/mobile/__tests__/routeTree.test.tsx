@@ -61,7 +61,6 @@ function TabsLayout() {
       <Tabs.Screen name="park" />
       <Tabs.Screen name="sessions" />
       <Tabs.Screen name="account" />
-      <Tabs.Screen name="vehicles" options={{ href: null }} />
     </Tabs>
   );
 }
@@ -75,7 +74,6 @@ const routes = {
   "(tabs)/parking": page("parking"),
   "(tabs)/park": page("park"),
   "(tabs)/sessions": page("sessions"),
-  "(tabs)/vehicles": page("vehicles"),
   login: page("login"),
   notifications: page("notifications"),
   payments: page("payments"),
@@ -86,6 +84,7 @@ const routes = {
   "reset-password": page("reset-password"),
   "account/profile": page("account/profile"),
   "account/password": page("account/password"),
+  "vehicles/index": page("vehicles/index"),
   "vehicles/[id]": page("vehicles/[id]"),
   "violations/[id]": page("violations/[id]"),
   "violations/index": page("violations/index"),
@@ -148,6 +147,13 @@ describe("route tree (real expo-router)", () => {
 
     await renderAt("/zones/z1");
     expect(screen.getByText("PAGE:zones/[id]@/zones/z1")).toBeTruthy();
+  });
+
+  it('opens "/vehicles" (Account > My Vehicles) instead of bouncing to the first tab', async () => {
+    // Expo Router 58 redirects a focused hidden tab (href: null) to the
+    // initial tab, so Vehicles must stay a stack route, not a hidden tab.
+    await renderAt("/vehicles");
+    expect(screen.getByText("PAGE:vehicles/index@/vehicles")).toBeTruthy();
   });
 
   it("keeps unknown paths on the not-found route (no accidental catch-all)", async () => {

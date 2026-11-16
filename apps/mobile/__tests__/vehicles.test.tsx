@@ -1,5 +1,5 @@
 import { fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
-import VehiclesScreen from "@/app/(tabs)/vehicles";
+import VehiclesScreen from "@/app/vehicles";
 import { api, ApiError } from "@/lib/api/client";
 import type { Vehicle } from "@parada/types";
 

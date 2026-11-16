@@ -106,9 +106,6 @@ export default function TabsLayout() {
         name="account"
         options={{ title: "Account", tabBarAccessibilityLabel: "Account", tabBarIcon: AccountIcon }}
       />
-      {/* Vehicles moves off the tab bar (Figma direction) but stays reachable
-          at /vehicles, e.g. from the Account screen's "My Vehicles" link. */}
-      <Tabs.Screen name="vehicles" options={{ href: null }} />
     </Tabs>
     </VehicleSelectionProvider>
   );

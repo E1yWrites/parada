@@ -36,6 +36,7 @@ export default function VehiclesScreen() {
 
   return (
     <Screen
+      back
       scroll={false}
       title="Vehicles"
       subtitle="Registered plates are what gate cameras recognize"
