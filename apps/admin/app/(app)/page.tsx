@@ -10,7 +10,7 @@ import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import { ANOMALY_LABEL, AvailabilityBadge, PlateChip } from "@/components/ui/Badge";
 import { FacilityStrip, MetricCard } from "@/components/ui/MetricCard";
 import { OccupancyBar } from "@/components/ui/OccupancyBar";
-import { formatDate, formatDateTime, formatPct, plural } from "@/lib/format";
+import { formatTime, formatDateTime, formatPct, plural } from "@/lib/format";
 import { EVENT_LABEL, SOURCE_LABEL, labelFor } from "@/lib/labels";
 import type { AdminAnomaly, AdminDashboard, AdminNotification } from "@/lib/api/types";
 
@@ -155,7 +155,7 @@ export default function DashboardPage() {
     <div>
       <PageHeader
         title="Dashboard"
-        description={dashboard.dataUpdatedAt ? `Updated ${formatDate(dashboard.dataUpdatedAt)}` : undefined}
+        description={dashboard.dataUpdatedAt ? `Updated ${formatTime(dashboard.dataUpdatedAt)}` : undefined}
       />
 
       <QueryBoundary

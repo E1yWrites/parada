@@ -1,8 +1,16 @@
-export function formatDate(value: string | number | Date | null | undefined): string {
+export function formatTime(value: string | number | Date | null | undefined): string {
   if (value == null) return "—";
   const d = typeof value === "string" || typeof value === "number" ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+/** Calendar day with the year ("Jan 02, 2026") — for things like Joined, where a bare time is meaningless. */
+export function formatDay(value: string | number | Date | null | undefined): string {
+  if (value == null) return "—";
+  const d = typeof value === "string" || typeof value === "number" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString([], { year: "numeric", month: "short", day: "2-digit" });
 }
 
 export function formatDateTime(value: string | number | Date | null | undefined): string {
