@@ -108,7 +108,7 @@ function NeedsAttention({ fullZones }: { fullZones: AdminDashboard["fullZones"] 
             <li key={item.key}>
               <Link
                 href={item.href}
-                className="flex min-h-[44px] items-center justify-between gap-3 px-5 py-3 text-sm font-semibold text-charcoal transition-colors duration-100 hover:bg-raised/60 focus-visible:outline-none focus-visible:shadow-focus"
+                className="flex min-h-[44px] items-center justify-between gap-3 px-5 py-3 text-sm font-semibold text-charcoal transition-colors duration-100 hover:bg-raised/60 focus-visible:outline-hidden focus-visible:shadow-focus"
               >
                 <span className="flex items-center gap-3">
                   <TriangleAlert className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
@@ -281,7 +281,7 @@ export default function DashboardPage() {
                     <li key={z.id}>
                       <Link
                         href={`/zones/${z.id}`}
-                        className="grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-2 px-5 py-3 transition-colors duration-100 hover:bg-raised/60 focus-visible:outline-none focus-visible:bg-raised focus-visible:shadow-focus sm:grid-cols-[auto_minmax(0,1.4fr)_minmax(8rem,1fr)_auto]"
+                        className="grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-2 px-5 py-3 transition-colors duration-100 hover:bg-raised/60 focus-visible:outline-hidden focus-visible:bg-raised focus-visible:shadow-focus sm:grid-cols-[auto_minmax(0,1.4fr)_minmax(8rem,1fr)_auto]"
                       >
                         <PlateChip>{z.code}</PlateChip>
                         <span className="min-w-0 truncate text-sm font-bold text-charcoal">{z.name}</span>

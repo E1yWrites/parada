@@ -96,7 +96,7 @@ function isActive(href: string, exact: boolean | undefined, pathname: string): b
 
 function Brand() {
   return (
-    <Link href="/" className="flex items-center gap-3 rounded-control focus-visible:outline-none focus-visible:shadow-focus">
+    <Link href="/" className="flex items-center gap-3 rounded-control focus-visible:outline-hidden focus-visible:shadow-focus">
       <BrandLogo height={14} priority />
       <span className="mt-0.5 block text-micro font-semibold text-muted">Operations console</span>
     </Link>
@@ -113,7 +113,7 @@ function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: stri
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
         data-active={active ? "true" : undefined}
-        className={`relative z-[1] flex min-h-[40px] items-center gap-3 rounded-control px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:shadow-focus ${
+        className={`relative z-[1] flex min-h-[40px] items-center gap-3 rounded-control px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-hidden focus-visible:shadow-focus ${
           active ? "text-brand-ink" : "text-muted hover:bg-raised hover:text-charcoal"
         }`}
       >
@@ -244,7 +244,7 @@ function Drawer({ onClose, returnFocusTo }: { onClose: () => void; returnFocusTo
             ref={closeRef}
             type="button"
             onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus"
+            className="flex h-11 w-11 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-hidden focus-visible:shadow-focus"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" aria-hidden="true" />
@@ -322,7 +322,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ref={menuButtonRef}
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="-ml-1 flex h-11 w-11 items-center justify-center rounded-control text-muted hover:bg-raised hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus lg:hidden"
+              className="-ml-1 flex h-11 w-11 items-center justify-center rounded-control text-muted hover:bg-raised hover:text-charcoal focus-visible:outline-hidden focus-visible:shadow-focus lg:hidden"
               aria-label="Open menu"
               aria-expanded={mobileOpen}
             >
@@ -336,7 +336,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               href="/account"
               aria-label={`Account: ${user.name}, administrator`}
-              className="flex min-h-[44px] items-center gap-2.5 rounded-control rounded-tr-control-cut border border-line bg-card py-1.5 pl-1.5 pr-3 transition-colors duration-150 hover:bg-raised focus-visible:outline-none focus-visible:shadow-focus"
+              className="flex min-h-[44px] items-center gap-2.5 rounded-control rounded-tr-control-cut border border-line bg-card py-1.5 pl-1.5 pr-3 transition-colors duration-150 hover:bg-raised focus-visible:outline-hidden focus-visible:shadow-focus"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft" aria-hidden="true">
                 <UserCircle2 className="h-5 w-5 text-brand-ink" />
@@ -349,7 +349,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => signOut()}
-              className="flex min-h-[44px] items-center gap-2 rounded-control px-3 text-sm font-semibold text-muted transition-colors duration-150 hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:shadow-focus"
+              className="flex min-h-[44px] items-center gap-2 rounded-control px-3 text-sm font-semibold text-muted transition-colors duration-150 hover:bg-danger-soft hover:text-danger focus-visible:outline-hidden focus-visible:shadow-focus"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
               <span>Log out</span>
@@ -357,7 +357,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[88rem] flex-1 px-4 py-6 focus:outline-none sm:px-6 sm:py-8">
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[88rem] flex-1 px-4 py-6 focus:outline-hidden sm:px-6 sm:py-8">
           {children}
         </main>
       </div>

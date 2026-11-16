@@ -1,6 +1,23 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Design tokens stay in tailwind.config.ts (a test reads it). */
+@config "../tailwind.config.ts";
+
+/* Tailwind 4 compatibility: keep v3 defaults the components were designed with. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 /**
  * PARADA "operations console" world — deliberately its own atmosphere, not
@@ -169,6 +186,11 @@
   background-color: rgb(var(--paper));
 }
 
+/* Applied by the .btn-* variants below, so it must be a utility in Tailwind 4. */
+@utility btn {
+  @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-control rounded-tr-control-cut px-5 text-sm font-bold transition-all duration-150 focus-visible:outline-hidden focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
+}
+
 @layer components {
   /* ---- Panels: the registry surface. Three soft corners, one sharp cut
      (top-right) — the shared PARADA shape, echoing the logo's diagonal cut.
@@ -187,9 +209,6 @@
   }
 
   /* ---- Buttons: same cut as panels — the primary action carries the brand shape ---- */
-  .btn {
-    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-control rounded-tr-control-cut px-5 text-sm font-bold transition-all duration-150 focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
-  }
 
   .btn-sm {
     @apply min-h-[36px] px-3.5 text-xs;
@@ -217,7 +236,7 @@
 
   /* ---- Inputs ---- */
   .input {
-    @apply min-h-[44px] w-full rounded-control rounded-tr-control-cut border-[1.5px] border-line bg-card px-4 py-2 text-base font-medium text-charcoal placeholder:font-normal placeholder:text-muted transition-[border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:border-brand focus-visible:shadow-focus disabled:bg-raised disabled:text-muted;
+    @apply min-h-[44px] w-full rounded-control rounded-tr-control-cut border-[1.5px] border-line bg-card px-4 py-2 text-base font-medium text-charcoal placeholder:font-normal placeholder:text-muted transition-[border-color,box-shadow] duration-150 focus-visible:outline-hidden focus-visible:border-brand focus-visible:shadow-focus disabled:bg-raised disabled:text-muted;
   }
 
   select.input {
@@ -306,7 +325,7 @@
   }
 
   .segmented-item {
-    @apply min-h-[34px] rounded-chip rounded-tr-control-cut px-3.5 text-xs font-bold text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-none focus-visible:shadow-focus aria-pressed:bg-brand-soft aria-pressed:text-brand-ink;
+    @apply min-h-[34px] rounded-chip rounded-tr-control-cut px-3.5 text-xs font-bold text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-hidden focus-visible:shadow-focus aria-pressed:bg-brand-soft aria-pressed:text-brand-ink;
   }
 
   /* ---- Scrollbar ---- */

@@ -295,7 +295,7 @@ export default function ZonesPage() {
               {/* No aria-label: the link's own text (name, count, status, cameras) is its name. */}
               <Link
                 href={`/zones/${z.id}`}
-                className="card-hover block rounded-t-panel p-5 focus-visible:outline-none focus-visible:shadow-focus"
+                className="card-hover block rounded-t-panel p-5 focus-visible:outline-hidden focus-visible:shadow-focus"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">

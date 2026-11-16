@@ -301,7 +301,7 @@ function PhysicalInventory({ zoneId, zoneCode, capacity }: { zoneId: string; zon
                         removeSlot.mutate(slot.slotCode);
                       }}
                       disabled={busy}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:shadow-focus"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-hidden focus-visible:shadow-focus"
                       aria-label={`Remove ${slot.slotCode}`}
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -438,7 +438,7 @@ export default function ZoneDetailPage() {
                             <div
                               key={e.id}
                               title={`${formatDateTime(e.occurredAt)} · ${e.occupiedCount} / ${cap}`}
-                              className={`flex-1 rounded-sm transition-colors duration-150 hover:bg-brand-dark ${AVAILABILITY_BAR[zone.availability]} opacity-80`}
+                              className={`flex-1 rounded-xs transition-colors duration-150 hover:bg-brand-dark ${AVAILABILITY_BAR[zone.availability]} opacity-80`}
                               style={{ height: `${Math.max(4, h)}%` }}
                             />
                           );
