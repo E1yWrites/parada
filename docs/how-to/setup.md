@@ -10,7 +10,7 @@ production/online deployment see [deploy.md](deploy.md).
 
 | Tool | Version | Needed for |
 |---|---|---|
-| Node.js | 20.19.4+, 22.13+ or 24.3+ (`.nvmrc`: 24; last full verification on 24.15.0) | everything. `apps/mobile` (React Native 0.86 / Metro 0.84) refuses older versions; API and Admin alone run on 18.18+ |
+| Node.js | 22.13+ or 24.3+ (`.nvmrc`: 24; last full verification on 24.15.0) | everything. `apps/mobile` (Expo SDK 58 / React Native 0.88) refuses older versions; API and Admin alone need 20.19+ (Prisma 7, Next.js 16) |
 | npm | 9+ | dependency install (`packageManager: npm@9.2.0`; verified with npm 12.0.2) |
 | Python | 3.11 | `services/vision` only |
 | Git | any | clone |

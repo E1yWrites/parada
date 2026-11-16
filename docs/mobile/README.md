@@ -1,6 +1,6 @@
 # PARADA Mobile Application
 
-User-facing driver app (Phase 8). React Native + **Expo SDK 57** + TypeScript,
+User-facing driver app (Phase 8). React Native + **Expo SDK 58** + TypeScript,
 with **Expo Router** (file-based navigation) and **TanStack Query** for data
 caching. Talks to the `services/api` backend over HTTPS/HTTP.
 
@@ -8,7 +8,7 @@ caching. Talks to the `services/api` backend over HTTPS/HTTP.
 
 | Concern | Choice |
 |---------|--------|
-| Framework | Expo SDK 57 (`expo@~57.0.22`; Phase 11D) |
+| Framework | Expo SDK 58 (`expo@~58.0.25`, React Native 0.88, React 19.3) |
 | React / React Native | `react@19.2.3` / `react-native@0.86.3` |
 | Navigation | `expo-router@~57.0.21` (typed, file-based tabs) |
 | Data layer | `@tanstack/react-query@^5` on the `lib/api/client.ts` fetch wrapper |
@@ -16,7 +16,7 @@ caching. Talks to the `services/api` backend over HTTPS/HTTP.
 | Fonts | `@expo-google-fonts/*` (Inter, Space Grotesk, JetBrains Mono) |
 | Styling | Design tokens in `src/theme` (no styling library) |
 | Tests | `jest-expo` + `@testing-library/react-native` (RNTL v13) |
-| Lint / types | `eslint-config-expo` (legacy `.eslintrc.js`) / `tsc --noEmit` |
+| Lint / types | `eslint-config-expo/flat` (`eslint.config.mjs`, ESLint 9) / `tsc --noEmit` (TypeScript 6) |
 
 ## Getting started
 
@@ -144,10 +144,11 @@ All gates are wired into Turborepo (`npx turbo typecheck lint test`).
 
 ## Monorepo notes (why the bits are the way they are)
 
-- **Dual npm tree.** `apps/admin` pins React 18 while Expo SDK 57 needs React 19,
-  so npm keeps the SDK tree inside `apps/mobile/node_modules` and nests a few
-  packages under `node_modules/expo/node_modules/`. The root `postinstall`
-  (`scripts/ensure-expo-link.cjs`) bridges the gaps with idempotent symlinks:
+- **One React.** `apps/admin` and `apps/mobile` pin the same React (19.3.0), so
+  npm hoists React and the Expo SDK tree to the repo root. The root `postinstall`
+  (`scripts/ensure-expo-link.cjs`) is then a no-op; it stays for the case where a
+  version split pushes the SDK tree back into `apps/mobile/node_modules`, and then
+  bridges the gaps with idempotent symlinks:
   `node_modules/expo` and `node_modules/react-native` at the repo root, plus
   nested SDK packages lifted into `apps/mobile/node_modules`. After any
   `npm install`/`ci`/`dedupe`, re-run it (`node scripts/ensure-expo-link.cjs`);

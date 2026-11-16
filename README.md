@@ -68,8 +68,8 @@ HttpOnly cookie.
 
 Prerequisites:
 
-- **Node.js 20.19.4+, 22.13+ or 24.3+** (`.nvmrc`: 24) and **npm 9+**. The mobile toolchain
-  (React Native 0.86 / Metro 0.84) refuses Node 18.
+- **Node.js 22.13+ or 24.3+** (`.nvmrc`: 24; odd-numbered releases are unsupported) and
+  **npm 9+**. Expo SDK 58 (React Native 0.88) and React Native Testing Library 14 require it.
 - **Python 3.11** — only for the vision/OCR service
 - No PostgreSQL install and no Docker required: `packages/database` runs an **embedded PostgreSQL 18**
   cluster on port `5442`, with data persisted in `packages/database/.embedded-pg/`.
@@ -172,7 +172,7 @@ address. The API URL goes in `apps/mobile/.env`:
 EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:4100
 ```
 
-and the packager hostname in `apps/mobile/.env.local` (Expo SDK 57 refuses to load this
+and the packager hostname in `apps/mobile/.env.local` (Expo SDK 57+ refuses to load this
 machine-personal variable from a non-`.local` env file; both files are gitignored):
 
 ```

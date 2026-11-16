@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- Node.js 20.19.4+, 22.13+ or 24.3+ (`.nvmrc`: 24) and npm 9+. The mobile
-  toolchain (React Native 0.86 / Metro 0.84) refuses Node 18
+- Node.js 22.13+ or 24.3+ (`.nvmrc`: 24; odd-numbered releases are unsupported) and
+  npm 9+. Expo SDK 58 (React Native 0.88) requires it
 - Python 3.11 — only needed for the vision/OCR service
 - No PostgreSQL install and no Docker required for development:
   `packages/database` runs an embedded PostgreSQL 18 cluster on port `5442`,
