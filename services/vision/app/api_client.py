@@ -7,6 +7,9 @@ import httpx
 
 from . import config
 
+# One pooled client: a fresh client per event paid a new TCP (and TLS) handshake every time.
+_client = httpx.Client(timeout=5.0)
+
 
 def forward_event(zone_id: str, event: dict) -> tuple[int, dict]:
     headers = {"Content-Type": "application/json"}
@@ -14,8 +17,7 @@ def forward_event(zone_id: str, event: dict) -> tuple[int, dict]:
         headers["X-API-Key"] = config.CAMERA_API_KEY
 
     url = f"{config.PARADA_API_URL}/zones/{zone_id}/events"
-    with httpx.Client(timeout=5.0) as client:
-        response = client.post(url, json=event, headers=headers)
+    response = _client.post(url, json=event, headers=headers)
     try:
         body = response.json()
     except ValueError:
