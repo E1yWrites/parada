@@ -25,7 +25,7 @@
     "postinstall": "node scripts/ensure-expo-link.cjs"
   },
   "devDependencies": {
-    "cross-env": "^7.0.3",
+    "cross-env": "^10.1.0",
     "turbo": "^2.3.0",
     "@eslint/js": "^10.0.1",
     "eslint": "^10.0.0",

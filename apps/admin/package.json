@@ -34,7 +34,6 @@
     "eslint-config-next": "16.4.6",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
-    "jsdom": "^25.0.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^4.3.5",
     "ts-jest": "^29.4.15",
