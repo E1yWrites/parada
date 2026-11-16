@@ -7,6 +7,7 @@ jest.mock("@/lib/api/client", () => ({
   api: {
     notifications: jest.fn(),
     markNotificationRead: jest.fn(),
+    markAllNotificationsRead: jest.fn(),
   },
 }));
 
@@ -41,6 +42,7 @@ describe("Notifications page — mark-read flow", () => {
     queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mockedApi.notifications.mockResolvedValue({ notifications: [unread, read], unreadCount: 1 });
     mockedApi.markNotificationRead.mockResolvedValue({});
+    mockedApi.markAllNotificationsRead.mockResolvedValue({ updated: 1 });
   });
 
   it("renders notifications with read state and an unread count", async () => {
@@ -62,16 +64,15 @@ describe("Notifications page — mark-read flow", () => {
     expect(invalidateSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["dashboard"] }));
   });
 
-  it("marks all unread notifications read without touching already-read ones", async () => {
+  it("marks all notifications read with one bulk call and no per-id calls", async () => {
     renderPage(queryClient);
     await screen.findByText("Zone A is full (20/20).");
     const markAll = screen.getByRole("button", { name: /mark all read/i });
     await waitFor(() => expect(markAll).toBeEnabled());
     fireEvent.click(markAll);
 
-    await waitFor(() => expect(mockedApi.markNotificationRead).toHaveBeenCalledTimes(1));
-    expect(mockedApi.markNotificationRead).toHaveBeenCalledWith("n1");
-    expect(mockedApi.markNotificationRead).not.toHaveBeenCalledWith("n2");
+    await waitFor(() => expect(mockedApi.markAllNotificationsRead).toHaveBeenCalledTimes(1));
+    expect(mockedApi.markNotificationRead).not.toHaveBeenCalled();
   });
 
   it("shows mutation errors", async () => {

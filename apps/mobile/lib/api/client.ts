@@ -555,6 +555,8 @@ export const api = {
     ),
   markNotificationRead: (id: string) =>
     request<{ id: string; read: boolean }>(`/notifications/${id}/read`, { method: "PATCH" }),
+  markAllNotificationsRead: () =>
+    request<{ updated: number }>("/notifications/read-all", { method: "PATCH" }),
 
   violations: async () =>
     requireValidatedList(

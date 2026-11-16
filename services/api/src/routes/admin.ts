@@ -565,6 +565,17 @@ export function adminRouter(deps: {
   );
 
   router.patch(
+    "/admin/notifications/read-all",
+    asyncHandler(async (_req, res) => {
+      const { count } = await prisma.notification.updateMany({
+        where: { targetRole: "ADMIN", read: false },
+        data: { read: true },
+      });
+      res.json(ok({ updated: count }));
+    })
+  );
+
+  router.patch(
     "/admin/notifications/:id/read",
     asyncHandler(async (req, res) => {
       const id = req.params["id"]!;

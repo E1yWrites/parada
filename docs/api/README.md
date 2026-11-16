@@ -342,6 +342,7 @@ using the JWT stored in the `HttpOnly` `parada_admin_token` cookie.
 | GET | `/admin/users` | All users with vehicle/session counts (no hashes) |
 | GET | `/admin/vehicles` | All registered vehicles with owners |
 | GET | `/admin/notifications` | ADMIN-targeted notifications + `unreadCount` |
+| PATCH | `/admin/notifications/read-all` | Mark every ADMIN-targeted notification read (`{updated}`) |
 | PATCH | `/admin/notifications/:id/read` | Mark one notification read (`200` + the updated notification) |
 | GET | `/admin/anomalies` | Occupancy anomalies for admin review |
 | POST | `/admin/zones` | Create a zone (unique `code`; duplicate is `409`) |
@@ -400,6 +401,7 @@ client-supplied user id is never trusted.
 | GET | `/violations` | The user's own establishment violations. |
 | POST | `/violations/:id/appeal` | Dispute an own violation (`{reason}`). One appeal per violation, only while PENDING. |
 | GET | `/notifications` | The user's own alerts (`?unread=true`, `?limit=`). Returns `{notifications, unreadCount}`. |
+| PATCH | `/notifications/read-all` | Mark all of the user's own notifications read (`{updated}`). |
 | PATCH | `/notifications/:id/read` | Mark one of the user's own notifications read. |
 
 ### Fees

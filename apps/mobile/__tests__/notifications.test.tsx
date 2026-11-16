@@ -10,6 +10,7 @@ jest.mock("@/lib/api/client", () => {
     api: {
       notifications: jest.fn(),
       markNotificationRead: jest.fn(),
+      markAllNotificationsRead: jest.fn(),
     },
   };
 });
@@ -79,6 +80,19 @@ describe("notifications screen", () => {
 
     await fireEvent.press(await screen.findByTestId("notification-n1"));
     await waitFor(() => expect(api.markNotificationRead).toHaveBeenCalledWith("n1"));
+  });
+
+  it("marks everything read with one bulk request and no per-row calls", async () => {
+    (api.markAllNotificationsRead as jest.Mock).mockResolvedValue({ updated: 2 });
+    (api.notifications as jest.Mock).mockResolvedValue({
+      notifications: [base({ id: "n1", read: false }), base({ id: "n2", read: false })],
+      unreadCount: 2,
+    });
+    await renderWithProviders(<NotificationsScreen />);
+
+    await fireEvent.press(await screen.findByTestId("notifications-mark-all-read"));
+    await waitFor(() => expect(api.markAllNotificationsRead).toHaveBeenCalledTimes(1));
+    expect(api.markNotificationRead).not.toHaveBeenCalled();
   });
 
   it("does not re-mark an already-read notification", async () => {

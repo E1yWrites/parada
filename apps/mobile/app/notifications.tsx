@@ -32,11 +32,8 @@ export default function NotificationsScreen() {
     onSettled: () => void queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
   });
 
-  // No bulk "mark all read" endpoint exists yet — this fires one real
-  // markNotificationRead call per unread notification rather than faking a
-  // single request.
   const markAllRead = useMutation({
-    mutationFn: (ids: string[]) => Promise.all(ids.map((id) => api.markNotificationRead(id))),
+    mutationFn: () => api.markAllNotificationsRead(),
     onSettled: () => void queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
   });
 
@@ -63,7 +60,7 @@ export default function NotificationsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Mark all notifications read"
             disabled={markAllRead.isPending}
-            onPress={() => markAllRead.mutate(all.filter((n) => !n.read).map((n) => n.id))}
+            onPress={() => markAllRead.mutate()}
             hitSlop={12}
             testID="notifications-mark-all-read">
             <Text variant="caption" color={colors.primaryDeep}>

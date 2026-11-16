@@ -354,3 +354,61 @@ describe("a camera identifier cannot be changed after registration", () => {
     expect(ok.body.data.identifier).toBe(original);
   });
 });
+
+describe("bulk mark-all-read", () => {
+  async function mkUser(slug: string, role: "USER" | "ADMIN") {
+    return prisma.user.create({
+      data: { name: `RA ${slug}`, email: `ra-${slug}-${RUN}@test.local`, passwordHash: "x", role },
+    });
+  }
+  const tokenFor = (u: { id: string; role: "USER" | "ADMIN" }) => auth["tokens"].sign({ id: u.id, role: u.role }).token;
+  let zoneId: string;
+  beforeAll(async () => {
+    zoneId = (await prisma.parkingZone.create({ data: { name: `RA Zone ${RUN}`, code: `RA${RUN}`, capacity: 5 } })).id;
+  });
+  const note = (userId: string | null, targetRole: "USER" | "ADMIN") =>
+    prisma.notification.create({ data: { userId, targetRole, zoneId, type: "SESSION_COMPLETED", message: "m" } });
+
+  it("marks only the caller's own unread notifications", async () => {
+    const a = await mkUser("a", "USER");
+    const b = await mkUser("b", "USER");
+    await Promise.all([note(a.id, "USER"), note(a.id, "USER"), note(a.id, "USER"), note(b.id, "USER")]);
+    const app = createApp({ auth });
+
+    const res = await request(app)
+      .patch("/notifications/read-all")
+      .set("Authorization", `Bearer ${tokenFor(a)}`)
+      .expect(200);
+
+    expect(res.body.data.updated).toBe(3);
+    expect(await prisma.notification.count({ where: { userId: a.id, read: false } })).toBe(0);
+    expect(await prisma.notification.count({ where: { userId: b.id, read: false } })).toBe(1);
+  });
+
+  it("marks only ADMIN-targeted rows for an admin", async () => {
+    const admin = await mkUser("adm", "ADMIN");
+    const driver = await mkUser("drv", "USER");
+    await note(null, "ADMIN");
+    await note(null, "ADMIN");
+    await note(driver.id, "USER");
+    const app = createApp({ auth });
+
+    const res = await request(app)
+      .patch("/admin/notifications/read-all")
+      .set("Authorization", `Bearer ${tokenFor(admin)}`)
+      .expect(200);
+
+    expect(res.body.data.updated).toBeGreaterThanOrEqual(2);
+    expect(await prisma.notification.count({ where: { targetRole: "ADMIN", read: false } })).toBe(0);
+    expect(await prisma.notification.count({ where: { userId: driver.id, read: false } })).toBe(1);
+  });
+
+  it("refuses a USER on the admin endpoint", async () => {
+    const driver = await mkUser("forbid", "USER");
+    const app = createApp({ auth });
+    await request(app)
+      .patch("/admin/notifications/read-all")
+      .set("Authorization", `Bearer ${tokenFor(driver)}`)
+      .expect(403);
+  });
+});

@@ -33,12 +33,7 @@ export default function NotificationsPage() {
   });
 
   const marksAll = useMutation({
-    mutationFn: async () => {
-      const ids = (notifications.data?.notifications ?? [])
-        .filter((n) => !n.read)
-        .map((n) => n.id);
-      for (const id of ids) await api.markNotificationRead(id);
-    },
+    mutationFn: () => api.markAllNotificationsRead(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });

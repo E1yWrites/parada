@@ -49,6 +49,15 @@ describe("api client proxy requests", () => {
     expect(init.headers["Content-Type"]).toBe("application/json");
   });
 
+  it("sends one PATCH to the bulk endpoint for markAllNotificationsRead", async () => {
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse({ data: { updated: 2 } }));
+
+    await expect(api.markAllNotificationsRead()).resolves.toEqual({ updated: 2 });
+    const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(url).toBe("/api/proxy/admin/notifications/read-all");
+    expect(init.method).toBe("PATCH");
+  });
+
   it("sends a POST JSON body for simulatorRun", async () => {
     const result = { scenario: "SINGLE_ENTRY", events: [], rejects: [], occupancy: null, zone: null };
     global.fetch = jest.fn().mockResolvedValue(jsonResponse({ data: result }));

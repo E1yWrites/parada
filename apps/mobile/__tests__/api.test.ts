@@ -493,6 +493,15 @@ describe("api client: notifications and violations", () => {
     expect(err.message).toBe("We couldn't load your notifications.");
   });
 
+  it("markAllNotificationsRead PATCHes the bulk endpoint", async () => {
+    const fetchMock = mockFetch({ data: { updated: 3 } });
+    (global.fetch as unknown as jest.Mock) = fetchMock;
+    await expect(api.markAllNotificationsRead()).resolves.toEqual({ updated: 3 });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/notifications\/read-all$/);
+    expect(init.method).toBe("PATCH");
+  });
+
   it("markNotificationRead PATCHes the notification", async () => {
     const fetchMock = mockFetch({ data: { id: "n1", read: true } });
     (global.fetch as unknown as jest.Mock) = fetchMock;

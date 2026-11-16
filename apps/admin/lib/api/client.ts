@@ -123,6 +123,7 @@ export interface ApiClient {
 
   notifications(): Promise<NotificationList>;
   markNotificationRead(id: string): Promise<unknown>;
+  markAllNotificationsRead(): Promise<{ updated: number }>;
   guestAdmit(payload: GuestAdmitRequest): Promise<GuestAdmitResult>;
   config(): Promise<EstablishmentSettings>;
   updateConfig(payload: EstablishmentSettings): Promise<EstablishmentSettings>;
@@ -207,6 +208,9 @@ function buildClient(): ApiClient {
 
     markNotificationRead: (id) =>
       request(`admin/notifications/${encodeURIComponent(id)}/read`, jsonInit("PATCH")),
+
+    markAllNotificationsRead: () =>
+      request<{ updated: number }>("admin/notifications/read-all", jsonInit("PATCH")),
 
     guestAdmit: (payload) => request<GuestAdmitResult>("admin/guest-admit", jsonInit("POST", payload)),
 
