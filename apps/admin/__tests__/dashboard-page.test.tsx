@@ -5,7 +5,7 @@ import { api } from "@/lib/api/client";
 import type { AdminAnomaly, AdminDashboard } from "@/lib/api/types";
 
 jest.mock("@/lib/api/client", () => ({
-  api: { dashboard: jest.fn(), unresolvedAnomalies: jest.fn(), appeals: jest.fn() },
+  api: { dashboard: jest.fn(), appeals: jest.fn() },
   ApiError: jest.requireActual("@/lib/api/client").ApiError,
 }));
 jest.mock("next/link", () => {
@@ -40,6 +40,8 @@ function dashboard(over: Partial<AdminDashboard> = {}): AdminDashboard {
       totalAvailable: 20,
       occupancyPct: 33,
       activeSessions: 10,
+      openAnomalies: 0,
+      pendingAppeals: 0,
       onlineCameras: 2,
       offlineCameras: 1,
     },
@@ -54,10 +56,6 @@ function dashboard(over: Partial<AdminDashboard> = {}): AdminDashboard {
   };
 }
 
-beforeEach(() => {
-  mockedApi.unresolvedAnomalies.mockResolvedValue([]);
-  mockedApi.appeals.mockResolvedValue([]);
-});
 
 const renderPage = () =>
   render(
@@ -128,30 +126,26 @@ const zoneRow = (over: Partial<AdminDashboard["zones"][number]>) =>
 describe("Admin dashboard — needs attention (redesign)", () => {
   it("lists open anomalies, pending appeals and full zones, each linking to where it is acted on", async () => {
     const full = zoneRow({ id: "z2", name: "Zone B", code: "B", occupiedCount: 30, availableCount: 0, occupancyPct: 100, availability: "FULL" });
-    mockedApi.dashboard.mockResolvedValue(dashboard({ zones: [full], fullZones: [full] }));
-    mockedApi.unresolvedAnomalies.mockResolvedValue([anomaly({ id: "a1" }), anomaly({ id: "a2" })]);
-    mockedApi.appeals.mockResolvedValue([
-      { id: "p1", status: "PENDING" },
-      { id: "p2", status: "APPROVED" },
-    ]);
+    mockedApi.dashboard.mockResolvedValue(
+      dashboard({
+        zones: [full],
+        fullZones: [full],
+        summary: { ...dashboard().summary, openAnomalies: 2, pendingAppeals: 1 },
+      })
+    );
     renderPage();
 
     expect(await screen.findByRole("link", { name: /2 unresolved anomalies/ })).toHaveAttribute("href", "/anomalies");
     expect(await screen.findByRole("link", { name: /1 appeal awaiting a decision/ })).toHaveAttribute("href", "/appeals");
     expect(screen.getByRole("link", { name: /Zone B is full/ })).toHaveAttribute("href", "/zones/z2");
+    // Counts come from the dashboard payload: no list fetches just to count rows.
+    expect(mockedApi.appeals).not.toHaveBeenCalled();
   });
 
   it("says Nothing needs attention when every source is empty", async () => {
     mockedApi.dashboard.mockResolvedValue(dashboard());
     renderPage();
     expect(await screen.findByText("Nothing needs attention.")).toBeInTheDocument();
-  });
-
-  it("reports a failed source instead of claiming nothing needs attention", async () => {
-    mockedApi.dashboard.mockResolvedValue(dashboard());
-    mockedApi.unresolvedAnomalies.mockRejectedValue(new Error("boom"));
-    renderPage();
-    expect(await screen.findByText(/Couldn't load anomalies/)).toBeInTheDocument();
   });
 });
 

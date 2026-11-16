@@ -311,9 +311,11 @@ export function adminRouter(deps: {
       const totalAvailable = Math.max(0, totalCapacity - totalOccupied);
       const now = new Date();
 
-      const [activeSessions, cameraCounts, recentEvents, anomalies, notifications, trend] =
+      const [activeSessions, openAnomalies, pendingAppeals, cameraCounts, recentEvents, anomalies, notifications, trend] =
         await Promise.all([
           prisma.parkingSession.count({ where: { status: "ACTIVE" } }),
+          prisma.occupancyAnomaly.count({ where: { resolved: false } }),
+          prisma.violationAppeal.count({ where: { status: "PENDING" } }),
           prisma.camera.groupBy({ by: ["status"], _count: { _all: true } }),
           prisma.occupancyEvent.findMany({
             orderBy: { detectedAt: "desc" },
@@ -361,6 +363,8 @@ export function adminRouter(deps: {
             totalAvailable,
             occupancyPct: totalCapacity > 0 ? (totalOccupied / totalCapacity) * 100 : 0,
             activeSessions,
+            openAnomalies,
+            pendingAppeals,
             onlineCameras,
             offlineCameras,
           },

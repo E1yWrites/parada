@@ -306,6 +306,8 @@ export interface AdminDashboard {
     totalAvailable: number;
     occupancyPct: number;
     activeSessions: number;
+    openAnomalies: number;
+    pendingAppeals: number;
     onlineCameras: number;
     offlineCameras: number;
   };

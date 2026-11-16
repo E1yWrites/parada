@@ -2889,6 +2889,64 @@ describe("Admin dashboard — occupancy trend (24h)", () => {
   });
 });
 
+describe("Admin dashboard — needs-attention counts", () => {
+  const tokens = new TokenService({
+    secret: "test-secret-key-for-testing-only-32chars",
+    issuer: "parada-api-test",
+    expiresIn: "1d",
+  });
+
+  beforeEach(async () => {
+    await cleanDatabase();
+  });
+
+  it("counts unresolved anomalies and PENDING appeals only", async () => {
+    const app = createApp();
+    const admin = await prisma.user.create({
+      data: { name: "Count Admin", email: "count-admin@test.local", passwordHash: "x", role: "ADMIN" },
+    });
+    const driver = await prisma.user.create({
+      data: { name: "Count Driver", email: "count-driver@test.local", passwordHash: "x", role: "USER" },
+    });
+    const token = tokens.sign({ id: admin.id, role: "ADMIN" }).token;
+    const zone = await prisma.parkingZone.create({ data: { name: "Count Zone", code: "CNT", capacity: 5 } });
+
+    const anomaly = async (resolved: boolean) => {
+      const event = await prisma.occupancyEvent.create({
+        data: {
+          zoneId: zone.id,
+          eventType: "ENTRY",
+          previousOccupied: 0,
+          newOccupied: 0,
+          availableCount: 5,
+          detectedAt: new Date(),
+        },
+      });
+      await prisma.occupancyAnomaly.create({
+        data: { occupancyEventId: event.id, anomalyType: "UNREGISTERED_PLATE", resolved },
+      });
+    };
+    await anomaly(false);
+    await anomaly(false);
+    await anomaly(true);
+
+    const appeal = async (status: "PENDING" | "APPROVED") => {
+      const violation = await prisma.violation.create({
+        data: { userId: driver.id, zoneId: zone.id, violationType: "OVERSTAY", fineAmount: 100 },
+      });
+      await prisma.violationAppeal.create({
+        data: { violationId: violation.id, userId: driver.id, reason: "r", status },
+      });
+    };
+    await appeal("PENDING");
+    await appeal("APPROVED");
+
+    const res = await request(app).get("/admin/dashboard").set("Authorization", `Bearer ${token}`).expect(200);
+    expect(res.body.data.summary.openAnomalies).toBe(2);
+    expect(res.body.data.summary.pendingAppeals).toBe(1);
+  });
+});
+
 describe("Phase 11B — Rate limiting (AUDIT-003)", () => {
   const tokens = new TokenService({
     secret: "test-secret-key-for-testing-only-32chars",
