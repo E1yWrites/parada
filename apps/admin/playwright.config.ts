@@ -10,7 +10,7 @@ export default defineConfig({
   fullyParallel: true,
   reporter: [["list"]],
   use: {
-    baseURL: process.env.PARADA_ADMIN_URL ?? "http://localhost:3001",
+    baseURL: process.env.PARADA_ADMIN_URL ?? "http://localhost:3000",
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },

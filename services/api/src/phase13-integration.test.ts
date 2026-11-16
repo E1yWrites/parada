@@ -433,6 +433,9 @@ describe("Phase 13 — full system integration", () => {
     // Admitted with a warning: the session exists, the assignment is untouched.
     expect(await prisma.parkingSession.count({ where: { vehicleId: car.id, status: "ACTIVE", zoneId: zoneB.id } })).toBe(1);
     expect(await prisma.occupancyAnomaly.count({ where: { vehicleId: car.id, anomalyType: "WRONG_ZONE_WARNING" } })).toBe(1);
+    const anomaly = await prisma.occupancyAnomaly.findFirst({ where: { vehicleId: car.id, anomalyType: "WRONG_ZONE_WARNING" } });
+    // Operator-facing text names zones by code on both sides, never by internal id.
+    expect(anomaly!.description).toBe("Vehicle is assigned to zone 'P13A' but entered zone 'P13B'.");
     expect(await prisma.violation.count()).toBe(0);
 
     const notified = framesOf(driver.frames, "NOTIFICATION_CREATED");

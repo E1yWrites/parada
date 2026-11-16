@@ -359,6 +359,49 @@ describe("Phase 6 — occupancy simulator & admin infrastructure", () => {
 
       expect(res.body.data.occupancy.occupiedCount).toBe(0);
     });
+
+    it("runs on a zone whose only gate is BIDIRECTIONAL (the seeded campus layout)", async () => {
+      await prisma.camera.deleteMany({ where: { zoneId: ctx.zoneId } });
+      await prisma.camera.create({
+        data: { zoneId: ctx.zoneId, name: "Main Gate", identifier: "cam-sim-both", gateType: "BIDIRECTIONAL", status: "ONLINE" },
+      });
+
+      const res = await request(ctx.app)
+        .post("/simulator/run")
+        .set("Authorization", `Bearer ${ctx.adminToken}`)
+        .send({ scenario: "COMPLETE_PARKING_LIFECYCLE", zoneId: ctx.zoneId, vehicleIds: ctx.vehicleIds })
+        .expect(201);
+
+      const session = res.body.data.events.find((e: Record<string, unknown>) => e.kind === "PARKING_SESSION").session;
+      expect(session.status).toBe("COMPLETED");
+      expect(res.body.data.occupancy.occupiedCount).toBe(0);
+      const events = await prisma.occupancyEvent.findMany({ where: { zoneId: ctx.zoneId }, include: { camera: true } });
+      expect(events.map((e) => e.camera?.identifier)).toEqual(["cam-sim-both", "cam-sim-both"]);
+    });
+
+    it("still runs after an API restart (a fresh simulator must not reuse stored event ids)", async () => {
+      const run = (app: ReturnType<typeof createApp>) =>
+        request(app)
+          .post("/simulator/run")
+          .set("Authorization", `Bearer ${ctx.adminToken}`)
+          .send({ scenario: "COMPLETE_PARKING_LIFECYCLE", zoneId: ctx.zoneId, vehicleIds: ctx.vehicleIds });
+
+      await run(ctx.app).expect(201);
+      const restarted = createApp(); // new process: the in-memory sequence starts over
+      const res = await run(restarted).expect(201);
+      expect(res.body.data.rejects ?? []).toEqual([]);
+      expect(await prisma.occupancyEvent.count({ where: { zoneId: ctx.zoneId } })).toBe(4);
+    });
+
+    it("explains which cameras are missing when a zone has none", async () => {
+      await prisma.camera.deleteMany({ where: { zoneId: ctx.zoneId } });
+      const res = await request(ctx.app)
+        .post("/simulator/run")
+        .set("Authorization", `Bearer ${ctx.adminToken}`)
+        .send({ scenario: "SINGLE_ENTRY", zoneId: ctx.zoneId, vehicleIds: ctx.vehicleIds })
+        .expect(400);
+      expect(res.body.error.message).toContain("one BIDIRECTIONAL");
+    });
   });
 
   describe("Occupancy history (admin)", () => {

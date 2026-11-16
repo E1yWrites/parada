@@ -132,6 +132,11 @@ npm run seed -w @parada/database              # upserts zones/cameras/users/vehi
   already exist. It does **not** clear parking sessions, violations,
   reservations, occupancy history, or notifications accumulated from prior
   runs. For that, see "Reset to a clean state" below.
+- **Guest admission starts closed.** The seed stores the default guest
+  policy (`PRIMARY_ZONE` with no primary zone), so every unknown plate is
+  denied with `GUEST_POLICY_MISCONFIGURED` until an admin picks a zone in
+  Admin → Settings → Guest admission (for the seeded campus: `A — Main Loop`).
+  Registered vehicles are unaffected.
 
 ## 5. Run the stack
 

@@ -271,9 +271,18 @@ export class OccupancyService {
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        const target = err.meta?.target;
+        // parking_sessions_one_active_per_vehicle: an ENTRY for a vehicle that is
+        // already parked. Same 409 and rollback, but not a duplicate event id.
+        if ((Array.isArray(target) ? target : [target]).some((t) => String(t).includes("vehicleId"))) {
+          throw new ConflictError(
+            "This vehicle already has an active parking session; the ENTRY was not recorded.",
+            { target }
+          );
+        }
         throw new ConflictError(
           `Duplicate camera event for sourceEventId '${sourceEventId}'.`,
-          { target: err.meta?.target }
+          { target }
         );
       }
       throw err;
@@ -374,7 +383,7 @@ export class OccupancyService {
   private async processRegisteredVehicle(
     tx: Prisma.TransactionClient,
     ctx: {
-      zone: { id: string; capacity: number; occupiedCount: number };
+      zone: { id: string; code: string; capacity: number; occupiedCount: number };
       camera: { id: string };
       match: VehicleMatch;
       eventType: OccupancyEventType;
@@ -525,7 +534,7 @@ export class OccupancyService {
             vehicleId,
             detectedPlate: match.detectedPlate,
             anomalyType: "WRONG_ZONE_WARNING",
-            description: `Vehicle is assigned to zone '${assignedZoneCode}' but entered zone '${zone.id}'.`,
+            description: `Vehicle is assigned to zone '${assignedZoneCode}' but entered zone '${zone.code}'.`,
             resolved: false,
           },
         });

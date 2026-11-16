@@ -2442,6 +2442,25 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
   });
 
   describe("ADMIN zone CRUD", () => {
+    it("reports a BIDIRECTIONAL gate as the zone's entry and exit camera", async () => {
+      const zone = await prisma.parkingZone.create({ data: { name: "Loop", code: "L", capacity: 10 } });
+      await prisma.camera.create({
+        data: { zoneId: zone.id, name: "Main Gate", identifier: "cam-l-main", gateType: "BIDIRECTIONAL", status: "ONLINE" },
+      });
+      const res = await request(app).get("/admin/zones").set("Authorization", `Bearer ${adminToken}`).expect(200);
+      const listed = res.body.data.find((z: { id: string }) => z.id === zone.id);
+      expect(listed.entryCamera.identifier).toBe("cam-l-main");
+      expect(listed.exitCamera.identifier).toBe("cam-l-main");
+
+      await prisma.camera.create({
+        data: { zoneId: zone.id, name: "Exit Gate", identifier: "cam-l-exit", gateType: "EXIT", status: "ONLINE" },
+      });
+      const again = await request(app).get("/admin/zones").set("Authorization", `Bearer ${adminToken}`).expect(200);
+      const relisted = again.body.data.find((z: { id: string }) => z.id === zone.id);
+      expect(relisted.entryCamera.identifier).toBe("cam-l-main");
+      expect(relisted.exitCamera.identifier).toBe("cam-l-exit");
+    });
+
     it("creates a zone and exposes it to the public/mobile /zones contract", async () => {
       await request(app)
         .post("/admin/zones")

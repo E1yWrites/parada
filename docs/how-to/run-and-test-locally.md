@@ -109,6 +109,10 @@ npm run test                                 # all workspaces
   ```bash
   npm run test -w @parada/vision
   ```
+- On Windows the API suite can abort part-way with exit code `3221226505`
+  (`0xC0000409`, a native crash, not a failed assertion; see the
+  [README known issue](../../README.md#testing)). Rerun
+  `npm run test -w @parada/api`.
 - Individual workspaces: `npm run test -w @parada/api`, `-w @parada/admin`,
   `-w @parada/mobile`, `-w @parada/database`, `-w @parada/types`.
 - Two vision tests send real OCR results into a running API. They are skipped

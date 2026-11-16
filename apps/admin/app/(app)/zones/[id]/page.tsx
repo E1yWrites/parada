@@ -12,6 +12,7 @@ import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import { AvailabilityBadge, CameraEnabledBadge, Pill, PlateChip, AVAILABILITY_BAR } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatDateTime, formatPct } from "@/lib/format";
+import { GATE_LABEL, labelFor } from "@/lib/labels";
 import type { AdminZoneDetail, AdminSlot } from "@/lib/api/types";
 import { parseCoordinates } from "@/lib/coordinates";
 
@@ -386,30 +387,29 @@ export default function ZoneDetailPage() {
               <Card>
                 <SectionHeader title="Gate cameras" description="Entry and exit counting for this zone" />
                 <div className="divide-y divide-line">
-                  {[zone.entryCamera, zone.exitCamera].filter(Boolean).map((cam) => {
-                    const isEntry = zone.entryCamera?.id === cam!.id;
-                    const camStatus = zone.cameras.find((c) => c.id === cam!.id)?.status;
+                  {zone.cameras.map((cam) => {
+                    const isExitOnly = cam.gateType === "EXIT";
                     return (
-                      <div key={cam!.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
+                      <div key={cam.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
                         <div className="flex min-w-0 items-center gap-3">
                           <span
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control ${
-                              isEntry ? "bg-success-soft text-success" : "bg-brand-soft text-brand-ink"
+                              isExitOnly ? "bg-brand-soft text-brand-ink" : "bg-success-soft text-success"
                             }`}
                             aria-hidden="true"
                           >
-                            {isEntry ? <DoorClosed className="h-4 w-4" /> : <DoorOpen className="h-4 w-4" />}
+                            {isExitOnly ? <DoorOpen className="h-4 w-4" /> : <DoorClosed className="h-4 w-4" />}
                           </span>
                           <div className="min-w-0">
-                            <p className="font-mono text-sm font-bold text-charcoal">{cam!.identifier}</p>
-                            <p className="text-micro font-semibold text-muted">{isEntry ? "Entry" : "Exit"} gate</p>
+                            <p className="font-mono text-sm font-bold text-charcoal">{cam.identifier}</p>
+                            <p className="text-micro font-semibold text-muted">{labelFor(GATE_LABEL, cam.gateType)} gate</p>
                           </div>
                         </div>
-                        <CameraEnabledBadge enabled={camStatus === "ONLINE"} />
+                        <CameraEnabledBadge enabled={cam.status === "ONLINE"} />
                       </div>
                     );
                   })}
-                  {!zone.entryCamera && !zone.exitCamera ? (
+                  {zone.cameras.length === 0 ? (
                     <p className="p-5 text-sm text-muted">
                       No cameras assigned to this zone. Register gate cameras from the Cameras page.
                     </p>

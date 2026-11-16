@@ -98,3 +98,35 @@ describe("Admin zone detail — navigation coordinates", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/between -180 and 180/);
   });
 });
+
+describe("Admin zone detail — gate cameras", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedApi.zoneSlots.mockResolvedValue([]);
+    mockedApi.history.mockResolvedValue({
+      zone: { id: "z1", name: "Main Loop", code: "A", capacity: 30 },
+      from: null,
+      to: null,
+      limit: 30,
+      entries: [],
+    });
+  });
+
+  it("lists every camera, including BIDIRECTIONAL gates (the seeded campus layout)", async () => {
+    const main = { id: "c1", identifier: "cam-a-main-gate", name: "Main Gate", gateType: "BIDIRECTIONAL" as const, status: "ONLINE" as const };
+    const north = { id: "c2", identifier: "cam-a-north-gate", name: "North Gate", gateType: "BIDIRECTIONAL" as const, status: "OFFLINE" as const };
+    mockedApi.zones.mockResolvedValue([{ ...zone, cameras: [main, north], entryCamera: main, exitCamera: main }]);
+    renderPage();
+
+    expect(await screen.findByText("cam-a-main-gate")).toBeInTheDocument();
+    expect(screen.getByText("cam-a-north-gate")).toBeInTheDocument();
+    expect(screen.getAllByText("Entry and exit gate")).toHaveLength(2);
+    expect(screen.queryByText(/No cameras assigned/)).not.toBeInTheDocument();
+  });
+
+  it("explains how to add cameras when the zone has none", async () => {
+    mockedApi.zones.mockResolvedValue([zone]);
+    renderPage();
+    expect(await screen.findByText(/No cameras assigned to this zone/)).toBeInTheDocument();
+  });
+});

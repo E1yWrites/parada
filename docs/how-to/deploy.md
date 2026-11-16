@@ -320,6 +320,11 @@ Two supported options:
    '<address>';` (roles are `USER`/`ADMIN`). Create zones and cameras in
    Admin afterwards.
 
+After the first admin signs in, set **Admin → Settings → Guest admission →
+Primary zone**. The default policy (`PRIMARY_ZONE` without a zone) denies
+every unknown plate with `GUEST_POLICY_MISCONFIGURED`; that is the safe
+default, not a fault.
+
 ### 4.4 Verify after migration
 
 Run against the production database and confirm all rows exist:

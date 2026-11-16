@@ -74,8 +74,11 @@ export class ZoneConfigService {
       return {
         ...this.toSummary(z),
         cameras: z.cameras,
-        entryCamera: z.cameras.find((c) => c.gateType === "ENTRY") ?? null,
-        exitCamera: z.cameras.find((c) => c.gateType === "EXIT") ?? null,
+        // A BIDIRECTIONAL gate serves both directions, as OccupancyService accepts it.
+        entryCamera:
+          z.cameras.find((c) => c.gateType === "ENTRY") ?? z.cameras.find((c) => c.gateType === "BIDIRECTIONAL") ?? null,
+        exitCamera:
+          z.cameras.find((c) => c.gateType === "EXIT") ?? z.cameras.find((c) => c.gateType === "BIDIRECTIONAL") ?? null,
         physicalInventory,
       };
     });
