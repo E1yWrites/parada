@@ -130,6 +130,8 @@ function ScreenQueriesHarness() {
     queryKey: queryKeys.recommendation,
     queryFn: api.recommendedZone,
   });
+  // The Zones screen (not the panel) owns the assignments query.
+  useQuery({ queryKey: queryKeys.assignments, queryFn: api.assignments });
   return (
     <RNText testID="screen-queries">
       {`zones:${zones.data?.length ?? 0};rec:${recommendation.data?.recommendedZone?.id ?? "none"}`}
@@ -296,25 +298,24 @@ describe("zone assignment: submission", () => {
     expect(api.createAssignment).toHaveBeenCalledTimes(1);
 
     resolveAssign(assignment);
-    await waitFor(() => expect(screen.getByTestId("assignment-already-assigned")).toBeOnTheScreen());
-    expect(screen.queryByTestId("assignment-submit")).not.toBeOnTheScreen();
+    await waitFor(() => expect(screen.getByTestId("assignment-submit")).not.toHaveTextContent("Assigning…"));
   });
 
-  it("renders backend-confirmed assignment state only after success", async () => {
+  it("writes the backend-confirmed assignment state only after success", async () => {
     let resolveAssign!: (value: ZoneAssignmentResponse) => void;
     (api.createAssignment as jest.Mock).mockReturnValueOnce(
       new Promise<ZoneAssignmentResponse>((resolve) => {
         resolveAssign = resolve;
       }),
     );
-    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
+    const { client } = await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
 
     await fireEvent.press(await screen.findByTestId("assignment-submit"));
-    expect(screen.queryByTestId("assignment-already-assigned")).not.toBeOnTheScreen();
+    expect(client.getQueryData(queryKeys.assignments)).toBeUndefined();
 
+    // The Zones screen (not this panel) renders the plan from this cache.
     resolveAssign(assignment);
-    await waitFor(() => expect(screen.getByTestId("assignment-already-assigned")).toBeOnTheScreen());
-    expect(screen.queryByTestId("assignment-submit")).not.toBeOnTheScreen();
+    await waitFor(() => expect(client.getQueryData(queryKeys.assignments)).toEqual([assignment]));
   });
 
   it("refreshes assignment, zone and recommendation data after success", async () => {
@@ -327,7 +328,6 @@ describe("zone assignment: submission", () => {
     expect(api.assignments).toHaveBeenCalledTimes(1);
 
     await fireEvent.press(await screen.findByTestId("assignment-submit"));
-    await waitFor(() => expect(screen.getByTestId("assignment-already-assigned")).toBeOnTheScreen());
 
     // The panel invalidates all three keys; live consumers refetch each.
     await waitFor(() => expect(api.assignments).toHaveBeenCalledTimes(2));
@@ -395,16 +395,6 @@ describe("zone assignment: failures", () => {
 });
 
 describe("zone assignment: existing assignment", () => {
-  it("shows the backend-confirmed assignment without offering another request", async () => {
-    (api.assignments as jest.Mock).mockResolvedValue([assignment]);
-    await renderWithProviders(<ZoneAssignmentPanel selectedZone={zoneA} />);
-
-    await waitFor(() => expect(screen.getByTestId("assignment-already-assigned")).toBeOnTheScreen());
-    expect(screen.queryByTestId("assignment-submit")).not.toBeOnTheScreen();
-    expect(screen.queryByTestId("assignment-vehicle-v1")).not.toBeOnTheScreen();
-    expect(api.createAssignment).not.toHaveBeenCalled();
-  });
-
   it("ignores expired assignments and allows a fresh assignment", async () => {
     (api.assignments as jest.Mock).mockResolvedValue([
       {

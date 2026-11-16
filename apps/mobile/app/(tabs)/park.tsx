@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
 import {
+  Button,
   EmptyState,
   ErrorState,
+  FormAlert,
   LoadingState,
   ReservationPanel,
   Screen,
@@ -15,7 +18,7 @@ import {
 import { api, ApiError, type PublicZone } from "@/lib/api/client";
 import { activeAssignmentFrom } from "@/lib/assignment";
 import { currentReservationFrom } from "@/lib/current";
-import { plural } from "@/lib/format";
+import { formatDateTime, plural } from "@/lib/format";
 import { queryKeys } from "@/lib/query";
 import { useConnectionLabel } from "@/src/providers/RealtimeStatusProvider";
 import { spacing } from "@/src/theme";
@@ -32,6 +35,7 @@ const ZONE_TILE_WIDTH = 208;
  * selection is gated on it (no second plan while one is current).
  */
 export default function ParkScreen() {
+  const router = useRouter();
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [actionMode, setActionMode] = useState<"assign" | "reserve">("assign");
   const zones = useQuery({
@@ -71,10 +75,13 @@ export default function ParkScreen() {
     void reservationList.refetch();
   };
 
-  const selectedZone = zones.data?.find((zone) => zone.id === selectedZoneId) ?? null;
   const assignment = activeAssignmentFrom(assignmentList.data);
   const reservation = currentReservationFrom(reservationList.data);
   const hasCurrentState = activeSession !== null || assignment !== null || reservation !== null;
+  // One plan at a time: a selection made before a plan existed must not survive it.
+  const selectedZone = hasCurrentState
+    ? null
+    : (zones.data?.find((zone) => zone.id === selectedZoneId) ?? null);
 
   return (
     <Screen
@@ -119,7 +126,7 @@ export default function ParkScreen() {
               <ZoneCard
                 zone={zone}
                 onPress={hasCurrentState ? null : () => setSelectedZoneId(zone.id)}
-                selected={selectedZoneId === zone.id}
+                selected={!hasCurrentState && selectedZoneId === zone.id}
                 leastBusy={zone.id === leastBusyId}
                 testID={`zone-${zone.code}`}
               />
@@ -127,7 +134,27 @@ export default function ParkScreen() {
           ))}
         </ScrollView>
       )}
-      {activeSession ? null : (
+      {activeSession ? null : assignment || reservation ? (
+        <View style={styles.parkingAction}>
+          <FormAlert
+            tone="notice"
+            message={
+              reservation
+                ? `Reserved ${reservation.zone.name}. Space kept ${formatDateTime(reservation.startAt)} – ${formatDateTime(reservation.endAt)}.`
+                : `You're assigned to ${assignment?.zone.name}. No space is kept. See Now to cancel.`
+            }
+            testID="zones-current-plan"
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            title="Open Now"
+            accessibilityLabel="Open Now to see or cancel your current plan"
+            onPress={() => router.push("/parking")}
+            testID="zones-open-now"
+          />
+        </View>
+      ) : (
         <View style={styles.parkingAction} testID="parking-action">
           <View testID="parking-action-toggle">
             <SegmentedControl

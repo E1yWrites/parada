@@ -641,7 +641,7 @@ describe("phase 9.7: manual assignment → current state", () => {
     // The backend list confirms the ACTIVE assignment on refetch.
     (api.assignments as jest.Mock).mockResolvedValue([assignment]);
     await fireEvent.press(submit);
-    await waitFor(() => expect(screen.getByTestId("assignment-already-assigned")).toBeOnTheScreen());
+    await waitFor(() => expect(screen.getByTestId("zones-current-plan")).toBeOnTheScreen());
 
     await rerender(
       <SafeAreaProvider

@@ -1,11 +1,9 @@
 import { useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { ChoiceChip } from "./ChoiceChip";
-import { FormAlert } from "./FormAlert";
 import { PlateChip } from "./PlateChip";
 import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
@@ -13,7 +11,7 @@ import { VehiclePicker, useVehicleSelection } from "./VehicleSelection";
 import { api, type PublicZone } from "@/lib/api/client";
 import { upsertReservation } from "@/lib/current";
 import type { ReservationResponse } from "@parada/types";
-import { formatClockTime, formatDateTime, plural } from "@/lib/format";
+import { formatClockTime, plural } from "@/lib/format";
 import { parkingErrorMessage } from "@/lib/parkingErrors";
 import { queryKeys } from "@/lib/query";
 import { spacing } from "@/src/theme";
@@ -45,7 +43,6 @@ export const START_PRESETS = [
  */
 export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
   const colors = useColors();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const selection = useVehicleSelection();
   const [startInMinutes, setStartInMinutes] = useState<number>(0);
@@ -118,23 +115,6 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
 
   return (
     <View style={styles.panel} testID="reservation-panel">
-      {create.isSuccess && create.data ? (
-        <View style={styles.confirmed}>
-          <FormAlert
-            tone="notice"
-            message={`Reserved ${create.data.zone.name}. Space kept ${formatDateTime(create.data.startAt)} – ${formatDateTime(create.data.endAt)}.`}
-            testID="reservation-confirmed-notice"
-          />
-          <Button
-            variant="secondary"
-            size="sm"
-            title="Open Now"
-            accessibilityLabel="Open Now to navigate to or cancel this reservation"
-            onPress={() => router.push("/parking")}
-            testID="reservation-open-now"
-          />
-        </View>
-      ) : null}
       <SectionHeader
         title="Reserve a space"
         caption="Keeps one space for you from your arrival time."
@@ -216,10 +196,6 @@ const styles = StyleSheet.create({
   },
   body: {
     gap: spacing.lg,
-  },
-  confirmed: {
-    gap: spacing.md,
-    alignItems: "flex-start",
   },
   start: {
     gap: spacing.sm,

@@ -239,7 +239,7 @@ describe("reservation panel: submission", () => {
     await fireEvent.press(create);
     expect(api.createReservation).toHaveBeenCalledTimes(1);
     resolveCreate(reservation());
-    await waitFor(() => expect(screen.getByTestId("reservation-confirmed-notice")).toBeOnTheScreen());
+    await waitFor(() => expect(screen.getByTestId("reservation-create")).not.toHaveTextContent("Reserving…"));
   });
 
   it("confirms from the backend response only after success, and keeps the live reservation out of History", async () => {
@@ -247,11 +247,10 @@ describe("reservation panel: submission", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValue([reservation()]);
     await renderWithProviders(<Harness />);
-    expect(screen.queryByTestId("reservation-confirmed-notice")).not.toBeOnTheScreen();
     await fireEvent.press(await screen.findByTestId("reservation-create"));
-    await waitFor(() =>
-      expect(screen.getByTestId("reservation-confirmed-notice")).toHaveTextContent(/Reserved Zone A\. Space kept/),
-    );
+    // The confirmation is rendered by the Zones screen from the reservations cache, not by this panel.
+    await waitFor(() => expect(api.createReservation).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId("reservation-confirmed-notice")).not.toBeOnTheScreen();
     // A live reservation is shown once, on Now — never also in the History list.
     await waitFor(() => expect(api.reservations).toHaveBeenCalledTimes(2));
     expect(screen.queryByTestId("reservation-r1")).not.toBeOnTheScreen();
@@ -399,7 +398,6 @@ describe("reservation panel: refresh after actions", () => {
     const zonesCalls = (api.zones as jest.Mock).mock.calls.length;
     await fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() => expect(screen.getByTestId("harness-count")).toHaveTextContent("1"));
-    await waitFor(() => expect(screen.getByTestId("reservation-confirmed-notice")).toBeOnTheScreen());
     await waitFor(() =>
       expect((api.zones as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(zonesCalls + 1),
     );

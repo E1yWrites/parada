@@ -1,17 +1,15 @@
 import { StyleSheet, View } from "react-native";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "./Button";
 import { Card } from "./Card";
-import { FormAlert } from "./FormAlert";
 import { PlateChip } from "./PlateChip";
 import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
 import { VehiclePicker, useVehicleSelection } from "./VehicleSelection";
 import { api, type CreateAssignmentInput, type PublicZone } from "@/lib/api/client";
-import { ASSIGNMENT_TERMS, activeAssignmentFrom, upsertAssignment } from "@/lib/assignment";
+import { ASSIGNMENT_TERMS, upsertAssignment } from "@/lib/assignment";
 import type { ZoneAssignmentResponse } from "@parada/types";
-import { formatDateTime, plural } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { parkingErrorMessage } from "@/lib/parkingErrors";
 import { queryKeys } from "@/lib/query";
 import { spacing } from "@/src/theme";
@@ -34,11 +32,8 @@ type ZoneAssignmentPanelProps = {
  */
 export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) {
   const colors = useColors();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const selection = useVehicleSelection();
-
-  const assignments = useQuery({ queryKey: queryKeys.assignments, queryFn: api.assignments });
 
   const assign = useMutation({
     mutationFn: (input: CreateAssignmentInput) => api.createAssignment(input),
@@ -56,8 +51,6 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
       void queryClient.invalidateQueries({ queryKey: queryKeys.assignments });
     },
   });
-
-  const confirmedAssignment = assign.data ?? activeAssignmentFrom(assignments.data);
 
   const { activeVehicles, selectedVehicle } = selection;
 
@@ -92,94 +85,64 @@ export function ZoneAssignmentPanel({ selectedZone }: ZoneAssignmentPanelProps) 
 
   return (
     <View style={styles.panel} testID="assignment-panel">
-      {confirmedAssignment ? (
-        // An assignment is not parking and keeps no space: say exactly that.
-        <FormAlert
-          tone="notice"
-          message={[
-            `Assigned to ${confirmedAssignment.zone.name}.`,
-            confirmedAssignment.expiresAt ? `Enter by ${formatDateTime(confirmedAssignment.expiresAt)}.` : null,
-            "No space is kept for you.",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          testID="assignment-confirmed-notice"
-        />
-      ) : null}
       <SectionHeader
-        title={confirmedAssignment ? "Assigned zone" : "Go to this zone"}
-        caption={confirmedAssignment ? undefined : "No space is kept for you."}
+        title="Go to this zone"
+        caption="No space is kept for you."
         testID="assignment-header"
       />
 
-      {confirmedAssignment ? (
-        <View style={styles.assigned}>
-          <Text variant="caption" color={colors.muted} testID="assignment-already-assigned">
-            You already have an assigned zone. Cancel it before choosing another.
+      <Card padding={spacing.xl2} style={styles.body} testID="assignment-body">
+        {selectedZone === null ? (
+          <Text variant="caption" color={colors.muted} testID="assignment-zone-hint">
+            Choose a zone above.
           </Text>
+        ) : zoneUnavailable ? (
+          <Text variant="body" color={colors.danger} testID="assignment-zone-full">
+            This zone is now full. Please choose another zone.
+          </Text>
+        ) : (
+          <Card tone="tinted" testID="assignment-summary" style={styles.summary}>
+            <PlateChip value={selectedZone.code} />
+            <View style={styles.summaryText}>
+              <Text variant="title" numberOfLines={2}>
+                {selectedZone.name}
+              </Text>
+              <Text variant="caption">{plural(selectedZone.availableCount, "space")} available</Text>
+            </View>
+          </Card>
+        )}
+
+        {selectedZone !== null && !zoneUnavailable ? (
+          <Text variant="caption" color={colors.muted} testID="assignment-terms">
+            {ASSIGNMENT_TERMS}
+          </Text>
+        ) : null}
+
+        <VehiclePicker
+          selection={selection}
+          testIDPrefix="assignment"
+          chooseLabel="CHOOSE VEHICLE"
+          chooseHint="Choose a vehicle to assign."
+          emptyPrompt="Add a vehicle first to assign a zone."
+        />
+
+        {assign.isError ? (
+          <Text variant="body" color={colors.danger} testID="assignment-error">
+            {assignmentError}
+          </Text>
+        ) : null}
+
+        {activeVehicles.length > 0 ? (
           <Button
-            variant="secondary"
-            size="sm"
-            title="Open Now"
-            accessibilityLabel="Open Now to see or cancel your assigned zone"
-            onPress={() => router.push("/parking")}
-            testID="assignment-open-now"
+            title={buttonTitle}
+            accessibilityLabel={submitLabel}
+            onPress={handleAssign}
+            loading={assign.isPending}
+            disabled={!canSubmit}
+            testID="assignment-submit"
           />
-        </View>
-      ) : (
-        <Card padding={spacing.xl2} style={styles.body} testID="assignment-body">
-          {selectedZone === null ? (
-            <Text variant="caption" color={colors.muted} testID="assignment-zone-hint">
-              Choose a zone above.
-            </Text>
-          ) : zoneUnavailable ? (
-            <Text variant="body" color={colors.danger} testID="assignment-zone-full">
-              This zone is now full. Please choose another zone.
-            </Text>
-          ) : (
-            <Card tone="tinted" testID="assignment-summary" style={styles.summary}>
-              <PlateChip value={selectedZone.code} />
-              <View style={styles.summaryText}>
-                <Text variant="title" numberOfLines={2}>
-                  {selectedZone.name}
-                </Text>
-                <Text variant="caption">{plural(selectedZone.availableCount, "space")} available</Text>
-              </View>
-            </Card>
-          )}
-
-          {selectedZone !== null && !zoneUnavailable ? (
-            <Text variant="caption" color={colors.muted} testID="assignment-terms">
-              {ASSIGNMENT_TERMS}
-            </Text>
-          ) : null}
-
-          <VehiclePicker
-            selection={selection}
-            testIDPrefix="assignment"
-            chooseLabel="CHOOSE VEHICLE"
-            chooseHint="Choose a vehicle to assign."
-            emptyPrompt="Add a vehicle first to assign a zone."
-          />
-
-          {assign.isError ? (
-            <Text variant="body" color={colors.danger} testID="assignment-error">
-              {assignmentError}
-            </Text>
-          ) : null}
-
-          {activeVehicles.length > 0 ? (
-            <Button
-              title={buttonTitle}
-              accessibilityLabel={submitLabel}
-              onPress={handleAssign}
-              loading={assign.isPending}
-              disabled={!canSubmit}
-              testID="assignment-submit"
-            />
-          ) : null}
-        </Card>
-      )}
+        ) : null}
+      </Card>
     </View>
   );
 }
@@ -190,10 +153,6 @@ const styles = StyleSheet.create({
   },
   body: {
     gap: spacing.xl,
-  },
-  assigned: {
-    gap: spacing.md,
-    alignItems: "flex-start",
   },
   summary: {
     flexDirection: "row",

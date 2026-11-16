@@ -1,9 +1,10 @@
-import { fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
+import { act, fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
+import { queryKeys } from "@/lib/query";
 import ParkScreen from "@/app/(tabs)/park";
 import { useEffect } from "react";
 import { useVehicleSelection } from "@/src/components/VehicleSelection";
 import { api, ApiError, type PublicZone } from "@/lib/api/client";
-import type { ReservationResponse } from "@parada/types";
+import type { ReservationResponse, ZoneAssignmentResponse } from "@parada/types";
 
 jest.mock("@/lib/api/client", () => {
   const actual = jest.requireActual("@/lib/api/client");
@@ -314,6 +315,7 @@ describe("park screen: reservations (phase 9.4)", () => {
       vehicle: { id: "v1", plateNumber: "ABC-1234", vehicleType: "CAR" },
     };
     (api.createReservation as jest.Mock).mockResolvedValue(confirmed);
+    (api.reservations as jest.Mock).mockResolvedValueOnce([]).mockResolvedValue([confirmed]);
     await renderWithProviders(<ParkScreen />);
 
     await fireEvent.press(await screen.findByTestId("zone-A"));
@@ -328,7 +330,7 @@ describe("park screen: reservations (phase 9.4)", () => {
       ),
     );
     // Plain confirmation of what the backend did (no mascot, no "for you!").
-    expect(await screen.findByTestId("reservation-confirmed-notice")).toHaveTextContent(
+    expect(await screen.findByTestId("zones-current-plan")).toHaveTextContent(
       /Reserved Zone A\. Space kept .+ – .+\./,
     );
   });
@@ -437,6 +439,57 @@ describe("park screen: reserve for a later arrival (redesign)", () => {
     createdAt: new Date("2026-01-01T00:00:00.000Z"), updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   };
 
+  const activeAssignment = {
+    id: "a1", userId: "u1", vehicleId: "v1", zoneId: "z2", status: "ACTIVE",
+    assignedAt: "2026-09-05T09:00:00.000Z", expiresAt: new Date(Date.now() + 600_000).toISOString(),
+    createdAt: "2026-09-05T09:00:00.000Z", updatedAt: "2026-09-05T09:00:00.000Z",
+    zone: { id: "z2", name: "Zone B", code: "B" },
+    vehicle: { id: "v1", plateNumber: "ABC-1234", vehicleType: "CAR" },
+  } as ZoneAssignmentResponse;
+
+  it("offers no second plan while a reservation exists", async () => {
+    (api.vehicles as jest.Mock).mockResolvedValue([car]);
+    (api.reservations as jest.Mock).mockResolvedValue([confirmed]);
+    await renderWithProviders(<ParkScreen />);
+
+    expect(await screen.findByTestId("zones-current-plan")).toHaveTextContent(/Reserved Zone A\. Space kept/);
+    expect(screen.queryByTestId("assignment-submit")).not.toBeOnTheScreen();
+    expect(screen.queryByTestId("reservation-create")).not.toBeOnTheScreen();
+    expect(screen.queryByTestId("parking-action-toggle")).not.toBeOnTheScreen();
+    expect(screen.getByTestId("zone-A").props.accessibilityState?.selected).toBeFalsy();
+  });
+
+  it("drops a zone selected before a plan was created", async () => {
+    (api.vehicles as jest.Mock).mockResolvedValue([car]);
+    (api.createReservation as jest.Mock).mockResolvedValue(confirmed);
+    (api.reservations as jest.Mock).mockResolvedValueOnce([]).mockResolvedValue([confirmed]);
+    await renderWithProviders(<ParkScreen />);
+
+    await fireEvent.press(await screen.findByTestId("zone-A"));
+    await fireEvent.press(await screen.findByTestId("parking-action-reserve"));
+    await fireEvent.press(await screen.findByTestId("reservation-create"));
+
+    expect(await screen.findByTestId("zones-current-plan")).toBeOnTheScreen();
+    expect(screen.queryByTestId("parking-action-toggle")).not.toBeOnTheScreen();
+    expect(screen.queryByTestId("reservation-create")).not.toBeOnTheScreen();
+  });
+
+  it("brings the panels back, with no stale 'Assigned to', once an assignment is cancelled", async () => {
+    (api.vehicles as jest.Mock).mockResolvedValue([car]);
+    (api.assignments as jest.Mock).mockResolvedValue([activeAssignment]);
+    const { client } = await renderWithProviders(<ParkScreen />);
+    expect(await screen.findByTestId("zones-current-plan")).toHaveTextContent(/assigned to Zone B/);
+    expect(screen.queryByTestId("assignment-submit")).not.toBeOnTheScreen();
+
+    await act(async () => {
+      client.setQueryData(queryKeys.assignments, [{ ...activeAssignment, status: "CANCELLED" }]);
+    });
+
+    expect(await screen.findByTestId("assignment-submit")).toBeOnTheScreen();
+    expect(screen.queryByTestId("zones-current-plan")).not.toBeOnTheScreen();
+    expect(screen.queryByText(/Assigned to/)).not.toBeOnTheScreen();
+  });
+
   it("sends startAt 30 minutes ahead for 'In 30 min' and never sends endAt", async () => {
     (api.vehicles as jest.Mock).mockResolvedValue([car]);
     (api.createReservation as jest.Mock).mockResolvedValue(confirmed);
@@ -460,6 +513,7 @@ describe("park screen: reserve for a later arrival (redesign)", () => {
   it("defaults to Now and shows the window the backend returned, with a button to Now", async () => {
     (api.vehicles as jest.Mock).mockResolvedValue([car]);
     (api.createReservation as jest.Mock).mockResolvedValue(confirmed);
+    (api.reservations as jest.Mock).mockResolvedValueOnce([]).mockResolvedValue([confirmed]);
     await renderWithProviders(<ParkScreen />);
 
     await fireEvent.press(await screen.findByTestId("zone-A"));
@@ -471,7 +525,9 @@ describe("park screen: reserve for a later arrival (redesign)", () => {
     const input = (api.createReservation as jest.Mock).mock.calls[0][0];
     expect(Math.abs(new Date(input.startAt).getTime() - before)).toBeLessThan(5_000);
 
-    expect(await screen.findByTestId("reservation-confirmed-notice")).toHaveTextContent(/Space kept/);
-    expect(screen.getByTestId("reservation-open-now")).toBeOnTheScreen();
+    expect(await screen.findByTestId("zones-current-plan")).toHaveTextContent(/Space kept/);
+    expect(screen.getByTestId("zones-open-now")).toBeOnTheScreen();
+    // Selecting another plan type is no longer possible once one exists.
+    expect(screen.queryByTestId("parking-action-toggle")).not.toBeOnTheScreen();
   });
 });
