@@ -125,7 +125,7 @@ export function createApp(options: AppOptions = {}): Express {
     })
   );
 
-  const zones = zonesRouter(occupancy, new ZoneService(), config, authMiddleware);
+  const zones = zonesRouter(occupancy, new ZoneService());
   const cameraApiKey = options.cameraApiKey !== undefined ? options.cameraApiKey : env.cameraApiKey;
   if (env.nodeEnv === "production" && !cameraApiKey) {
     throw new Error("CAMERA_API_KEY is required in production.");

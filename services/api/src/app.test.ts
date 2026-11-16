@@ -181,11 +181,9 @@ describe("PARADA API", () => {
     });
   });
 
-  describe("GET /zones/establishment — Phase 9.5 navigation destination", () => {
-    let adminToken: string;
-
-    beforeEach(async () => {
-      await prisma.user.create({
+  describe("establishment navigation location is not exposed", () => {
+    it("has no /zones/establishment route and the settings contract carries no location", async () => {
+      const admin = await prisma.user.create({
         data: {
           name: "Admin User",
           email: "est-admin@test.local",
@@ -195,61 +193,27 @@ describe("PARADA API", () => {
           status: "ACTIVE",
         },
       });
-      const adminLogin = await request(app)
+      const login = await request(app)
         .post("/auth/login")
         .send({ email: "est-admin@test.local", password: "AdminPass123!" })
         .expect(200);
-      adminToken = adminLogin.body.data.token;
-    });
-
-    it("returns a null location when none is configured (no fabricated coordinates)", async () => {
-      const res = await request(app)
-        .get("/zones/establishment")
-        .set("Authorization", `Bearer ${adminToken}`)
-        .expect(200);
-      expect(res.body.data.location).toBeNull();
-    });
-
-    it("requires authentication — the facility address is not public", async () => {
-      await request(app).get("/zones/establishment").expect(401);
-    });
-
-    it("returns the admin-configured establishment location to signed-in drivers", async () => {
+      expect(admin.id).toBeTruthy();
       await request(app)
+        .get("/zones/establishment")
+        .set("Authorization", `Bearer ${login.body.data.token}`)
+        .expect(404);
+      const res = await request(app)
         .put("/admin/config")
-        .set("Authorization", `Bearer ${adminToken}`)
+        .set("Authorization", `Bearer ${login.body.data.token}`)
         .send({
           parkingFee: { baseFee: 20, baseDurationHours: 2, additionalFeePerHour: 10 },
           guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: null, maxDurationHours: 8, allowWhenFull: false },
           zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
           violations: [],
-          location: { address: "123 Test Ave, Demo", latitude: 14.5, longitude: 121.25 },
+          location: { address: "Ignored", latitude: 14.5, longitude: 121.25 },
         })
         .expect(200);
-
-      const res = await request(app)
-        .get("/zones/establishment")
-        .set("Authorization", `Bearer ${adminToken}`)
-        .expect(200);
-      expect(res.body.data.location).toEqual({
-        address: "123 Test Ave, Demo",
-        latitude: 14.5,
-        longitude: 121.25,
-      });
-    });
-
-    it("rejects establishment locations with out-of-range coordinates", async () => {
-      await request(app)
-        .put("/admin/config")
-        .set("Authorization", `Bearer ${adminToken}`)
-        .send({
-          parkingFee: { baseFee: 20, baseDurationHours: 2, additionalFeePerHour: 10 },
-          guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: null, maxDurationHours: 8, allowWhenFull: false },
-          zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
-          violations: [],
-          location: { address: "Nowhere", latitude: 121.25, longitude: 14.5 },
-        })
-        .expect(400);
+      expect(res.body.data).not.toHaveProperty("location");
     });
   });
 

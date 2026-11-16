@@ -390,7 +390,6 @@ client-supplied user id is never trusted.
 | Method | Path | Notes |
 |--------|------|-------|
 | GET | `/zones/recommendation` | Least-occupied suitable zone, or `{ recommendedZone: null }`. Public. A recommendation is NOT an assignment. |
-| GET | `/zones/establishment` | Navigation destination; `null` until an admin configures one. |
 | POST | `/assignments` | Accept a zone (`{zoneId, vehicleId}`). One ACTIVE assignment per vehicle; expired ones are released automatically. |
 | GET | `/assignments`, `/assignments/:id` | The user's assignments. |
 | PATCH | `/assignments/:id/cancel` | Release an accepted recommendation **before entry**. Only the owner, only while `ACTIVE` and unexpired, and only while the vehicle has no ACTIVE parking session (`409` otherwise). The row stays as history with status `CANCELLED`; nothing about occupancy, reservations or sessions changes, and the vehicle may be assigned again immediately. Publishes `ASSIGNMENT_CANCELLED`. |
@@ -674,5 +673,5 @@ only, zones carry no geometry):
 |------|------|---------:|------------------------------------------|
 | Main Loop | `A` | 30 | `cam-a-main-gate` (P. Herrera cor. Doña Aurelia), `cam-a-north-gate` (Doña Aurelia) |
 
-The establishment navigation destination is the main gate,
-`13.76447, 121.06462` (`EstablishmentConfig.location`).
+The seeded main gate is `13.76447, 121.06462` (kept in `EstablishmentConfig.location`,
+which is no longer exposed or editable; mobile navigates to each zone's own coordinates).

@@ -153,17 +153,16 @@ describe("Phase 13 — full system integration", () => {
       .send({ identifier: "p13-exit", zoneId, gateType: "EXIT", status: "ONLINE" })
       .expect(201);
 
-    // Establishment settings: fees, guest policy, and the GPS destination.
+    // Establishment settings: fees and guest policy.
     const settings = await asAdmin(request(app).put("/admin/config"))
       .send({
         parkingFee: { baseFee: 20, baseDurationHours: 2, additionalFeePerHour: 10 },
         guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: zoneId },
         zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
         violations: [{ type: "WRONG_ZONE", fineAmount: 100, description: "Wrong zone." }],
-        location: { address: "LPU Batangas", latitude: 13.7565, longitude: 121.0583 },
       })
       .expect(200);
-    expect(settings.body.data.location.address).toBe("LPU Batangas");
+    expect(settings.body.data.guestPolicy.primaryZoneId).toBe(zoneId);
 
     // ---- Vehicle (mobile) ---------------------------------------------
     const vehicle = await asDriver(request(app).post("/vehicles"))
@@ -190,11 +189,6 @@ describe("Phase 13 — full system integration", () => {
     // Assignment conflict: one active assignment per vehicle.
     const dupAssignment = await asDriver(request(app).post("/assignments")).send({ zoneId, vehicleId }).expect(409);
     expect(dupAssignment.body.error.code).toBe("CONFLICT");
-
-    // ---- GPS destination (mobile navigate) ------------------------------
-    const establishment = await asDriver(request(app).get("/zones/establishment")).expect(200);
-    expect(establishment.body.data.location).toEqual({ address: "LPU Batangas", latitude: 13.7565, longitude: 121.0583 });
-    await request(app).get("/zones/establishment").expect(401);
 
     // ---- Realtime subscribers: the driver (mobile), a stranger, an admin --
     const driver = spy(driverId, "USER");
