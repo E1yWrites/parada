@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useMemo, useRef } from "react";
+import { useMemo, useState } from "react";
 import { Animated, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { motion, radii, spacing } from "@/src/theme";
 import { useColors, useThemeShadows } from "@/src/providers/ThemeProvider";
@@ -47,7 +47,7 @@ export function Card({
     shadowColor != null ? { shadowColor } : undefined,
     shadowOpacity != null ? { shadowOpacity } : undefined,
   ];
-  const scale = useRef(new Animated.Value(1)).current;
+  const [scale] = useState(() => new Animated.Value(1));
   const content = (
     // The border/background/radius clip lives on its own inner view, separate
     // from the shadow-casting outer one (no border, no background) — on

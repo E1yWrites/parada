@@ -176,12 +176,12 @@ export function CurrentParkingState({
       ) : null}
       {assignmentError ? (
         <Text variant="caption" color={colors.danger} testID="assignment-load-note">
-          We couldn't load your assignment info. Pull to refresh to try again.
+          We couldn&apos;t load your assignment info. Pull to refresh to try again.
         </Text>
       ) : null}
       {reservationError ? (
         <Text variant="caption" color={colors.danger} testID="reservation-load-note">
-          We couldn't load your reservation info. Pull to refresh to try again.
+          We couldn&apos;t load your reservation info. Pull to refresh to try again.
         </Text>
       ) : null}
     </View>
@@ -248,7 +248,7 @@ function SessionState({
             ) : null}
             {assignmentError && !assignment ? (
               <Text variant="caption" testID="session-assignment-note">
-                Couldn't load your assignment info.
+                Couldn&apos;t load your assignment info.
               </Text>
             ) : null}
           </View>

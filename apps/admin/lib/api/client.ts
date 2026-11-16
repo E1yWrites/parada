@@ -58,6 +58,8 @@ export function avatarSrc(user: { id: string; avatarUpdatedAt?: string | null } 
 /** Full-page redirect to the login screen. An object so tests can spy on it (jsdom's location is unforgeable). */
 export const navigation = {
   toLogin(): void {
+    // A full page load on purpose: it drops every cached query of the ended session.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign("/login");
   },
 };

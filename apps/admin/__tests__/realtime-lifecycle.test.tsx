@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { Providers } from "@/components/providers/providers";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -33,9 +34,12 @@ class FakeEventSource {
   }
 }
 
-let auth: ReturnType<typeof useAuth> | null = null;
+const probe: { auth: ReturnType<typeof useAuth> | null } = { auth: null };
 function Probe() {
-  auth = useAuth();
+  const auth = useAuth();
+  useEffect(() => {
+    probe.auth = auth;
+  });
   return <span data-testid="user">{auth.user ? auth.user.email : "null"}</span>;
 }
 
@@ -45,7 +49,7 @@ const otherAdmin = { id: "a2", name: "Ops 2", email: "ops2@parada.local", role: 
 beforeEach(() => {
   jest.clearAllMocks();
   FakeEventSource.instances = [];
-  auth = null;
+  probe.auth = null;
   (global as unknown as { EventSource: unknown }).EventSource = FakeEventSource;
 });
 
@@ -60,11 +64,11 @@ describe("admin realtime connection follows the admin session", () => {
         <Probe />
       </Providers>
     );
-    await waitFor(() => expect(auth?.loading).toBe(false));
+    await waitFor(() => expect(probe.auth?.loading).toBe(false));
     expect(FakeEventSource.instances).toHaveLength(0);
 
     await act(async () => {
-      await auth!.signIn("admin@parada.local", "AdminPass123!");
+      await probe.auth!.signIn("admin@parada.local", "AdminPass123!");
     });
     await waitFor(() => expect(screen.getByTestId("user").textContent).toBe("admin@parada.local"));
     await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
@@ -72,7 +76,7 @@ describe("admin realtime connection follows the admin session", () => {
     expect(FakeEventSource.instances[0]!.closed).toBe(false);
 
     await act(async () => {
-      await auth!.signOut();
+      await probe.auth!.signOut();
     });
     await waitFor(() => expect(FakeEventSource.instances[0]!.closed).toBe(true));
     expect(FakeEventSource.instances).toHaveLength(1);
@@ -88,17 +92,17 @@ describe("admin realtime connection follows the admin session", () => {
         <Probe />
       </Providers>
     );
-    await waitFor(() => expect(auth?.loading).toBe(false));
+    await waitFor(() => expect(probe.auth?.loading).toBe(false));
 
     await act(async () => {
-      await auth!.signIn("admin@parada.local", "AdminPass123!");
+      await probe.auth!.signIn("admin@parada.local", "AdminPass123!");
     });
     await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
     await act(async () => {
-      await auth!.signOut();
+      await probe.auth!.signOut();
     });
     await act(async () => {
-      await auth!.signIn("ops2@parada.local", "AdminPass123!");
+      await probe.auth!.signIn("ops2@parada.local", "AdminPass123!");
     });
 
     await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
@@ -114,7 +118,7 @@ describe("admin realtime connection follows the admin session", () => {
         <Probe />
       </Providers>
     );
-    await waitFor(() => expect(auth?.loading).toBe(false));
+    await waitFor(() => expect(probe.auth?.loading).toBe(false));
     expect(FakeEventSource.instances).toHaveLength(0);
   });
 });

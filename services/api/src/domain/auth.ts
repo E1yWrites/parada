@@ -215,7 +215,7 @@ export class AuthService {
     // exists. Verify against a dummy hash when the user is absent to keep
     // timing roughly constant and prevent trivial user-enumeration.
     const stored = user?.passwordHash ?? FALLBACK_HASH;
-    let valid = false;
+    let valid: boolean;
     try {
       valid = await argon2.verify(stored, input.password);
     } catch {
@@ -312,7 +312,7 @@ export class AuthService {
     if (!user || user.status !== "ACTIVE") {
       throw new UnauthorizedError("Authentication required.");
     }
-    let valid = false;
+    let valid: boolean;
     try {
       valid = await argon2.verify(user.passwordHash, input.currentPassword);
     } catch {

@@ -1,5 +1,4 @@
-import { Platform } from "react-native";
-import { Linking } from "react-native";
+import { Linking, Platform } from "react-native";
 import type { LocationCoordinates } from "./location";
 
 /**

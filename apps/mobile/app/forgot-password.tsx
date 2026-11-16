@@ -46,7 +46,7 @@ export default function ForgotPasswordScreen() {
       <View style={styles.heading}>
         <Text variant="hero">Reset your password</Text>
         <Text variant="body" color={colors.muted}>
-          Enter your email and we'll send a reset link. It works once and expires in 30 minutes.
+          Enter your email and we&apos;ll send a reset link. It works once and expires in 30 minutes.
         </Text>
       </View>
       {sent ? (

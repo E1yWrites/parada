@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
@@ -31,7 +31,7 @@ export function ActiveSessionBanner({ session, now, children, testID }: ActiveSe
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
   const reducedMotion = usePrefersReducedMotion();
-  const pulse = useRef(new Animated.Value(0)).current;
+  const [pulse] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (reducedMotion) {

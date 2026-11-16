@@ -21,7 +21,7 @@
     "db:reset": "cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada?schema=public\" prisma migrate reset --force && npm run seed",
     "db:test:setup": "node scripts/setup-test-db.cjs && cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test?schema=public\" prisma migrate deploy && cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test_api?schema=public\" prisma migrate deploy",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "test": "cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test?schema=public\" jest"
   },
   "dependencies": {
@@ -41,8 +41,6 @@
     "ts-jest": "^29.4.15",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.0",
-    "eslint": "^8.57.0",
-    "@typescript-eslint/parser": "^7.18.0",
-    "@typescript-eslint/eslint-plugin": "^7.18.0"
+    "eslint": "^10.0.0"
   }
 }

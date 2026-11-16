@@ -130,6 +130,8 @@ function useCooldown(resendAvailableAt: string | null): number {
       if (!resendAvailableAt) return 0;
       return Math.max(0, Math.ceil((new Date(resendAvailableAt).getTime() - Date.now()) / 1000));
     };
+    // Syncs with the wall clock (an external system) when the deadline changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLeft(compute());
     if (!resendAvailableAt) return;
     const timer = setInterval(() => {

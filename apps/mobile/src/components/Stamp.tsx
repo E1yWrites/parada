@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Animated, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
@@ -24,7 +24,7 @@ export function Stamp({ label, icon, color, testID }: StampProps) {
   const colors = useColors();
   const resolvedColor = color ?? colors.primary;
   const reducedMotion = usePrefersReducedMotion();
-  const scale = useRef(new Animated.Value(reducedMotion ? 1 : 0.92)).current;
+  const [scale] = useState(() => new Animated.Value(reducedMotion ? 1 : 0.92));
 
   useEffect(() => {
     if (reducedMotion) {

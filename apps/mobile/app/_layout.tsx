@@ -2,8 +2,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { AppProviders } from "@/src/providers/AppProviders";
-import { ThemeProvider } from "@/src/providers/ThemeProvider";
-import { useColors, useColorSchemeResolved } from "@/src/providers/ThemeProvider";
+import { ThemeProvider, useColors, useColorSchemeResolved } from "@/src/providers/ThemeProvider";
 import { FullScreenLoading } from "@/src/components/FullScreenLoading";
 import { fontAssets } from "@/src/theme";
 

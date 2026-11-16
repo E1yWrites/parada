@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useState } from "react";
 import { ActivityIndicator, Animated, Pressable, StyleSheet, View } from "react-native";
 import type { ReactNode } from "react";
 import { motion, radii, spacing, touchTarget } from "@/src/theme";
@@ -61,7 +61,7 @@ export function Button({
   const styles = useMemo(() => buildStyles(colors), [colors]);
   const isDisabled = disabled || loading;
   const palette = variantColors[variant];
-  const scale = useRef(new Animated.Value(1)).current;
+  const [scale] = useState(() => new Animated.Value(1));
   return (
     <Pressable
       testID={testID}

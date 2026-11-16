@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Clock3 } from "lucide-react";
@@ -25,14 +25,9 @@ export default function HistoryPage() {
   const zoneId = searchParams.get("zone") ?? "";
   const [navigating, setNavigating] = useState(false);
 
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-
-  useEffect(() => {
-    if (searchParams.get("from")) setFrom(String(searchParams.get("from")).slice(0, 16));
-    if (searchParams.get("to")) setTo(String(searchParams.get("to")).slice(0, 16));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Seeded once from the URL; the inputs own the values after that.
+  const [from, setFrom] = useState(() => (searchParams.get("from") ?? "").slice(0, 16));
+  const [to, setTo] = useState(() => (searchParams.get("to") ?? "").slice(0, 16));
 
   const history = useQuery({
     queryKey: ["history", zoneId, from, to, 200],

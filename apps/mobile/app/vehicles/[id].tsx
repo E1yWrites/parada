@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -93,13 +93,16 @@ function VehicleForm({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
+  // Refetched vehicle data resets the form (adjust state during render).
+  const [formVehicle, setFormVehicle] = useState(vehicle);
+  if (formVehicle !== vehicle) {
+    setFormVehicle(vehicle);
     setPlate(vehicle.plateNumber);
     setType(vehicle.vehicleType);
     setMake(vehicle.make ?? "");
     setModel(vehicle.model ?? "");
     setColor(vehicle.color ?? "");
-  }, [vehicle]);
+  }
 
   const save = useMutation({
     mutationFn: (input: VehicleUpdateInput) => api.updateVehicle(vehicle.id, input),
@@ -240,7 +243,7 @@ function VehicleForm({
       ) : null}
       <View style={styles.danger}>
         <Text variant="caption" color={colors.muted}>
-          Unregistering keeps your past sessions, fees and violations. A vehicle that is parked, assigned or reserved can't be
+          Unregistering keeps your past sessions, fees and violations. A vehicle that is parked, assigned or reserved can&apos;t be
           unregistered until that ends.
         </Text>
         <Button

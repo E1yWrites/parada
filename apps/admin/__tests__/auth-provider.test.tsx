@@ -110,7 +110,6 @@ describe("AuthProvider — session behaviour", () => {
 });
 
 function fireEventClick(label: string) {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { fireEvent } = require("@testing-library/react");
   fireEvent.click(screen.getByRole("button", { name: label }));
 }

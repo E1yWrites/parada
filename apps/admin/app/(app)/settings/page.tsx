@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Save } from "lucide-react";
 import { api, ApiError } from "@/lib/api/client";
@@ -101,13 +101,15 @@ export default function SettingsPage() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    if (settings.data) {
-      setForm(settings.data);
-      setViolationsText(JSON.stringify(settings.data.violations, null, 2));
-      setLocationForm(toLocationForm(settings.data.location));
-    }
-  }, [settings.data]);
+  // Load fetched settings into the form whenever a new copy arrives
+  // (adjust state during render instead of an effect).
+  const [loaded, setLoaded] = useState<EstablishmentSettings | undefined>(undefined);
+  if (settings.data && settings.data !== loaded) {
+    setLoaded(settings.data);
+    setForm(settings.data);
+    setViolationsText(JSON.stringify(settings.data.violations, null, 2));
+    setLocationForm(toLocationForm(settings.data.location));
+  }
 
   const save = useMutation({
     mutationFn: (location: EstablishmentSettings["location"]) =>

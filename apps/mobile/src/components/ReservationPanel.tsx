@@ -99,7 +99,9 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
   const startPreview =
     startInMinutes === 0
       ? "A space is kept for you from now."
-      : `A space is kept for you from ${formatClockTime(Date.now() + startInMinutes * 60_000)}.`;
+      : // Display-only preview of the arrival time; the request computes its own startAt.
+        // eslint-disable-next-line react-hooks/purity
+        `A space is kept for you from ${formatClockTime(Date.now() + startInMinutes * 60_000)}.`;
 
   const createLabel = (() => {
     if (selectedZone === null) {
