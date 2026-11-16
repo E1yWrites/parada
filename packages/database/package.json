@@ -18,16 +18,18 @@
     "db:start": "node scripts/start-dev-db-background.cjs",
     "db:stop": "node scripts/stop-dev-db.cjs",
     "db:migrate": "cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada?schema=public\" prisma migrate deploy",
-    "db:reset": "cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada?schema=public\" prisma migrate reset --force",
+    "db:reset": "cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada?schema=public\" prisma migrate reset --force && npm run seed",
     "db:test:setup": "node scripts/setup-test-db.cjs && cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test?schema=public\" prisma migrate deploy && cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test_api?schema=public\" prisma migrate deploy",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
-    "test": "cross-env DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test?schema=public\" jest"
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules DATABASE_URL=\"postgresql://parada:changeme@127.0.0.1:5442/parada_test?schema=public\" jest"
   },
   "dependencies": {
     "@parada/config": "0.1.0",
-    "@prisma/client": "^5.19.0",
-    "argon2": "^0.45.1"
+    "@prisma/client": "7.10.1",
+    "argon2": "^0.45.1",
+    "@prisma/adapter-pg": "7.10.1",
+    "pg": "^8.13.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",
@@ -35,16 +37,12 @@
     "dotenv": "^18.0.10",
     "embedded-postgres": "^18.4.0-beta.17",
     "jest": "^29.7.0",
-    "pg": "^8.13.0",
-    "prisma": "^5.19.0",
+    "prisma": "7.10.1",
     "ts-jest": "^29.2.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.0",
     "eslint": "^8.57.0",
     "@typescript-eslint/parser": "^7.18.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0"
-  },
-  "prisma": {
-    "seed": "ts-node src/seed/index.ts"
   }
 }

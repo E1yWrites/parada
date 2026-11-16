@@ -19,12 +19,16 @@
 // Always use `prisma migrate`, never `db push`, against a real database.
 
 generator client {
-  provider = "prisma-client-js"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = ""
 }
 
+// The connection URL lives in prisma.config.ts (CLI) and src/client.ts
+// (runtime, through the pg driver adapter).
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ---------------------------------------------------------------------------
