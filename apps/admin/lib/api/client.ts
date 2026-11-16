@@ -19,7 +19,6 @@ import type {
   SimulatorResult,
   SimulatorStatus,
   ZoneHistory,
-  ZoneOccupancy,
   GuestAdmitRequest,
   GuestAdmitResult,
   EstablishmentSettings,
@@ -107,7 +106,6 @@ export interface ApiClient {
   dashboard(): Promise<AdminDashboard>;
 
   zones(): Promise<AdminZoneDetail[]>;
-  zoneOccupancy(zoneId: string): Promise<ZoneOccupancy>;
   createZone(payload: AdminZoneCreateInput): Promise<AdminZone>;
   updateZone(zoneId: string, payload: AdminZoneUpdateInput): Promise<AdminZone>;
   zoneSlots(zoneId: string): Promise<AdminSlot[]>;
@@ -172,9 +170,6 @@ function buildClient(): ApiClient {
     dashboard: () => request<AdminDashboard>("admin/dashboard"),
 
     zones: () => request<AdminZoneDetail[]>("admin/zones"),
-
-    zoneOccupancy: (zoneId) =>
-      request<ZoneOccupancy>(`zones/${encodeURIComponent(zoneId)}/occupancy`),
 
     createZone: (payload) => request<AdminZone>("admin/zones", jsonInit("POST", payload)),
 

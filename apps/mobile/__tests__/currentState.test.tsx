@@ -30,7 +30,6 @@ jest.mock("@/lib/api/client", () => {
       register: jest.fn(),
       logout: jest.fn(),
       zones: jest.fn(),
-      zoneOccupancy: jest.fn(),
       vehicles: jest.fn(),
       createVehicle: jest.fn(),
       sessions: jest.fn(),

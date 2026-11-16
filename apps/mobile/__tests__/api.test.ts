@@ -77,35 +77,6 @@ describe("api client: success envelopes", () => {
     await expect(api.activeSession()).resolves.toEqual(guest);
   });
 
-  it("zoneOccupancy matches the backend zoneId contract", async () => {
-    (global.fetch as unknown as jest.Mock) = mockFetch({
-      data: {
-        zoneId: "z1",
-        name: "Zone A",
-        code: "A",
-        capacity: 20,
-        occupiedCount: 15,
-        availableCount: 5,
-        status: "ACTIVE",
-        availability: "LOW_AVAILABILITY",
-        navigationLat: null,
-        navigationLng: null,
-      },
-    });
-    await expect(api.zoneOccupancy("z1")).resolves.toMatchObject({
-      zoneId: "z1",
-      name: "Zone A",
-      code: "A",
-      capacity: 20,
-      occupiedCount: 15,
-      availableCount: 5,
-      status: "ACTIVE",
-      availability: "LOW_AVAILABILITY",
-      navigationLat: null,
-      navigationLng: null,
-    });
-  });
-
   it("attaches the Bearer token when present", async () => {
     await setToken("tok-123");
     const fetchMock = mockFetch({ data: [] });

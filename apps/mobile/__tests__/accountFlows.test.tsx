@@ -47,7 +47,6 @@ jest.mock("@/lib/api/client", () => {
       uploadAvatar: jest.fn(),
       removeAvatar: jest.fn(),
       zones: jest.fn(),
-      zoneOccupancy: jest.fn(),
       recommendedZone: jest.fn(),
       assignments: jest.fn(),
       createAssignment: jest.fn(),
