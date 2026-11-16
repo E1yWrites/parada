@@ -412,3 +412,67 @@ describe("bulk mark-all-read", () => {
       .expect(403);
   });
 });
+
+describe("one current plan per driver", () => {
+  async function seed(slug: string) {
+    const driver = await prisma.user.create({
+      data: { name: `Plan ${slug}`, email: `plan-${slug}-${RUN}@test.local`, passwordHash: "x", role: "USER" },
+    });
+    const vehicle = await prisma.vehicle.create({
+      data: { userId: driver.id, plateNumber: `PL${slug}${RUN}`.toUpperCase(), normalizedPlate: `PL${slug}${RUN}`.toUpperCase(), vehicleType: "CAR" },
+    });
+    const vehicle2 = await prisma.vehicle.create({
+      data: { userId: driver.id, plateNumber: `PM${slug}${RUN}`.toUpperCase(), normalizedPlate: `PM${slug}${RUN}`.toUpperCase(), vehicleType: "CAR" },
+    });
+    const zoneA = await prisma.parkingZone.create({ data: { name: `Plan A ${slug} ${RUN}`, code: `PA${slug}${RUN}`, capacity: 5 } });
+    const zoneB = await prisma.parkingZone.create({ data: { name: `Plan B ${slug} ${RUN}`, code: `PB${slug}${RUN}`, capacity: 5 } });
+    const token = auth["tokens"].sign({ id: driver.id, role: "USER" }).token;
+    const app = createApp({ auth });
+    const post = (path: string, body: object) =>
+      request(app).post(path).set("Authorization", `Bearer ${token}`).send(body);
+    return { driver, vehicle, vehicle2, zoneA, zoneB, token, app, post };
+  }
+
+  it("refuses a reservation while an assignment is active, with a clear error code", async () => {
+    const { vehicle, zoneA, zoneB, post } = await seed("a");
+    await post("/assignments", { zoneId: zoneA.id, vehicleId: vehicle.id }).expect(201);
+
+    const res = await post("/reservations", { zoneId: zoneB.id, vehicleId: vehicle.id }).expect(409);
+    expect(res.body.error.code).toBe("ACTIVE_PLAN_EXISTS");
+    expect(res.body.error.message).toMatch(/assigned zone/i);
+    expect(await prisma.reservation.count({ where: { zoneId: zoneB.id } })).toBe(0);
+  });
+
+  it("refuses an assignment while a reservation is active, even for another vehicle", async () => {
+    const { vehicle, vehicle2, zoneA, zoneB, post } = await seed("b");
+    await post("/reservations", { zoneId: zoneA.id, vehicleId: vehicle.id }).expect(201);
+
+    const res = await post("/assignments", { zoneId: zoneB.id, vehicleId: vehicle2.id }).expect(409);
+    expect(res.body.error.code).toBe("ACTIVE_PLAN_EXISTS");
+    expect(await prisma.zoneAssignment.count({ where: { zoneId: zoneB.id } })).toBe(0);
+  });
+
+  it("allows the other plan once the first is cancelled", async () => {
+    const { vehicle, zoneA, zoneB, app, token, post } = await seed("c");
+    const created = await post("/reservations", { zoneId: zoneA.id, vehicleId: vehicle.id }).expect(201);
+    await request(app)
+      .patch(`/reservations/${created.body.data.id}/cancel`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+
+    await post("/assignments", { zoneId: zoneB.id, vehicleId: vehicle.id }).expect(201);
+  });
+
+  it("lets exactly one of two simultaneous plans through", async () => {
+    const { vehicle, vehicle2, zoneA, zoneB, driver, post } = await seed("d");
+    const results = await Promise.all([
+      post("/assignments", { zoneId: zoneA.id, vehicleId: vehicle.id }),
+      post("/reservations", { zoneId: zoneB.id, vehicleId: vehicle2.id }),
+    ]);
+
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    const assignments = await prisma.zoneAssignment.count({ where: { userId: driver.id, status: "ACTIVE" } });
+    const reservations = await prisma.reservation.count({ where: { userId: driver.id } });
+    expect(assignments + reservations).toBe(1);
+  });
+});

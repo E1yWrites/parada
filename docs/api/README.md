@@ -396,6 +396,7 @@ client-supplied user id is never trusted.
 | POST | `/reservations` | Hold a zone (`{zoneId, vehicleId, startAt?, endAt?}`). Reservations are serialized per zone (PostgreSQL advisory lock) and refused when capacity plus existing holds would be exceeded; overlapping duplicates for the same user/vehicle/zone return `409 CONFLICT`, non-overlapping windows are allowed. A hold protects a space only until the holder arrives: a successful entry (camera or `POST /sessions/entry`) flips it to `ACTIVE`, and an `ACTIVE` reservation no longer counts against capacity because the vehicle is now in `occupiedCount` (Phase 13). |
 | GET | `/reservations`, `/reservations/:id` | The user's reservations; window-expired ones are flipped to EXPIRED lazily. |
 | PATCH | `/reservations/:id/cancel` | Cancel an own reservation. |
+| — | plan rule | `POST /assignments` and `POST /reservations` return `409 ACTIVE_PLAN_EXISTS` (`details.existing`: `ASSIGNMENT` or `RESERVATION`) when the driver already has the other kind of current plan. Checked inside the create transaction under a per-user advisory lock. |
 | POST | `/sessions/entry` | User-initiated entry (`{vehicleId, zoneId}`). Entry and exit times are server time; client timestamps are ignored. |
 | POST | `/sessions/:id/exit` | User-initiated exit; computes and persists the fee. |
 | GET | `/violations` | The user's own establishment violations. |

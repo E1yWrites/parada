@@ -19,6 +19,10 @@ export function parkingErrorMessage(error: unknown, action: ParkingAction, zoneN
   if (error.code === "NETWORK" || error.code === "TIMEOUT") {
     return CONNECTION;
   }
+  // One current plan per driver: the backend's message already says which one to cancel.
+  if (error.code === "ACTIVE_PLAN_EXISTS") {
+    return error.message;
+  }
   if (action === "assign") {
     if (error.code === "CONFLICT") {
       const message = error.message.toLowerCase();

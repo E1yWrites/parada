@@ -5,6 +5,7 @@ import {
   ForbiddenError,
   NotFoundError,
 } from "../http/errors";
+import { assertNoOtherPlan, lockUserPlan } from "./plan";
 import { requireOwnedActiveVehicle } from "./vehicles";
 import type { ConfigService } from "./config";
 import type { ReservationResponse } from "@parada/types";
@@ -216,6 +217,10 @@ export class ReservationService {
 
     try {
       return await prisma.$transaction(async (tx) => {
+        // One current plan per driver. Taken before the zone lock (the assignment
+        // path takes only this one), so the two paths cannot deadlock.
+        await lockUserPlan(tx, userId);
+
         // Serialize reservations for THIS zone. Two concurrent creates for the
         // same zone must not both pass the capacity check, so each creator
         // takes a PostgreSQL advisory transaction lock keyed by the zone id.
@@ -256,6 +261,7 @@ export class ReservationService {
         if (conflicting) {
           throw new ConflictError("A reservation for this vehicle in this zone already overlaps the requested window.");
         }
+        await assertNoOtherPlan(tx, userId, "RESERVATION");
 
         const protecting = await this.countActiveProtection(tx, zone.id, windowMinutes, now);
         if (currentZone.occupiedCount + protecting >= currentZone.capacity) {

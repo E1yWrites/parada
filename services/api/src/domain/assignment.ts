@@ -1,5 +1,6 @@
 import { prisma, type Prisma } from "@parada/database";
 import { ConflictError, NotFoundError } from "../http/errors";
+import { assertNoOtherPlan, lockUserPlan } from "./plan";
 import { requireOwnedActiveVehicle } from "./vehicles";
 import type { ConfigService } from "./config";
 import type { ZoneAssignmentResponse } from "@parada/types";
@@ -66,40 +67,45 @@ export class AssignmentService {
       throw new ConflictError(`Zone '${input.zoneId}' cannot accept assignments.`);
     }
 
-    // Prevent more than one *unexpired* ACTIVE assignment per vehicle. An
-    // assignment past its expiry no longer holds the vehicle: it is flipped to
-    // EXPIRED here (lazily, mirroring ReservationService.expireOverdue) so the
-    // user is never permanently locked out of assigning again.
-    await prisma.zoneAssignment.updateMany({
-      where: {
-        vehicleId: vehicle.id,
-        status: "ACTIVE",
-        expiresAt: { not: null, lte: new Date() },
-      },
-      data: { status: "EXPIRED" },
-    });
-    const active = await prisma.zoneAssignment.findFirst({
-      where: { vehicleId: vehicle.id, status: "ACTIVE" },
-    });
-    if (active) {
-      throw new ConflictError("This vehicle already has an active zone assignment.");
-    }
-
     const windowMinutes = await this.config.getReservationWindowMinutes();
     const expiresAt = new Date(Date.now() + windowMinutes * 60 * 1000);
 
-    const assignment = await prisma.zoneAssignment.create({
-      data: {
-        userId,
-        vehicleId: vehicle.id,
-        zoneId: zone.id,
-        status: "ACTIVE",
-        expiresAt,
-      },
-      include: {
-        zone: { select: { id: true, name: true, code: true } },
-        vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
-      },
+    const assignment = await prisma.$transaction(async (tx) => {
+      await lockUserPlan(tx, userId);
+
+      // Prevent more than one *unexpired* ACTIVE assignment per vehicle. An
+      // assignment past its expiry no longer holds the vehicle: it is flipped to
+      // EXPIRED here (lazily, mirroring ReservationService.expireOverdue) so the
+      // user is never permanently locked out of assigning again.
+      await tx.zoneAssignment.updateMany({
+        where: {
+          vehicleId: vehicle.id,
+          status: "ACTIVE",
+          expiresAt: { not: null, lte: new Date() },
+        },
+        data: { status: "EXPIRED" },
+      });
+      const active = await tx.zoneAssignment.findFirst({
+        where: { vehicleId: vehicle.id, status: "ACTIVE" },
+      });
+      if (active) {
+        throw new ConflictError("This vehicle already has an active zone assignment.");
+      }
+      await assertNoOtherPlan(tx, userId, "ASSIGNMENT");
+
+      return tx.zoneAssignment.create({
+        data: {
+          userId,
+          vehicleId: vehicle.id,
+          zoneId: zone.id,
+          status: "ACTIVE",
+          expiresAt,
+        },
+        include: {
+          zone: { select: { id: true, name: true, code: true } },
+          vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
+        },
+      });
     });
 
     return toResponse(assignment);
