@@ -265,6 +265,29 @@ describe("a violation status change reaches the driver", () => {
     expect(frame).not.toContain("\"status\":\"APPEALED\"");
   });
 
+  it("publishes VIOLATION_UPDATED (APPEALED) to the owner and to admins when the driver appeals", async () => {
+    const { driver, admin, violation } = await seedPendingViolation("d");
+    const hub = new RealtimeHub();
+    const owner = spyClient(driver.id, "USER");
+    const adminSpy = spyClient(admin.id, "ADMIN");
+    hub.subscribe(owner.client);
+    hub.subscribe(adminSpy.client);
+    const app = createApp({ auth, realtimeHub: hub });
+    const { token } = auth["tokens"].sign({ id: driver.id, role: "USER" });
+
+    await request(app)
+      .post(`/violations/${violation.id}/appeal`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reason: "Not my car." })
+      .expect(201);
+
+    for (const spy of [owner, adminSpy]) {
+      const frame = spy.frames.find((f) => f.includes("VIOLATION_UPDATED"));
+      expect(frame).toBeDefined();
+      expect(frame).toContain("\"status\":\"APPEALED\"");
+    }
+  });
+
   it("never sends another driver's violation update", async () => {
     const { driver, admin, violation } = await seedPendingViolation("c");
     const hub = new RealtimeHub();

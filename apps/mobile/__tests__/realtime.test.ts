@@ -124,6 +124,22 @@ describe("useRealtime (mobile)", () => {
     expect(notifySpy).not.toHaveBeenCalled();
   });
 
+  it("refetches reservations when a session starts (entry consumes the reservation)", async () => {
+    const qc = new QueryClient();
+    const spy = jest.spyOn(qc, "invalidateQueries");
+    await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+    await waitFor(() => expect(MockES.instances.length).toBe(1));
+
+    MockES.instances[0]!.emit("PARKING_SESSION_STARTED", {
+      type: "PARKING_SESSION_STARTED",
+      occurredAt: new Date().toISOString(),
+      seq: 1,
+      payload: { id: "s1", status: "ACTIVE" },
+    });
+
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["reservations"] });
+  });
+
   describe("stale and out-of-order frames", () => {
     it("ignores a replayed event whose seq it has already acted on", async () => {
       const qc = new QueryClient();

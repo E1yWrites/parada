@@ -7,7 +7,7 @@ import type { ParkingSessionResponse } from "@parada/types";
 import { currentUserId } from "../middleware/auth";
 import type { ParkingSessionService } from "../domain/sessions";
 import type { RealtimeHub } from "../realtime/hub";
-import { publishZoneSnapshot } from "../realtime/occupancyEvents";
+import { notificationCreatedPayload, publishZoneSnapshot } from "../realtime/occupancyEvents";
 
 type SessionRecord = {
   id: string;
@@ -152,15 +152,7 @@ export function sessionsRouter(sessionService?: ParkingSessionService, realtimeH
           {
             type: "NOTIFICATION_CREATED",
             occurredAt,
-            payload: {
-              id: notification.id,
-              zoneId: notification.zoneId,
-              userId: notification.userId,
-              type: notification.type,
-              message: notification.message,
-              targetRole: notification.targetRole,
-              createdAt: notification.createdAt.toISOString(),
-            },
+            payload: notificationCreatedPayload(notification),
           },
           { audience: "USER", userId }
         );

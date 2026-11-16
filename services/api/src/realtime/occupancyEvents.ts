@@ -1,6 +1,6 @@
 import { prisma } from "@parada/database";
 import type { Notification } from "@parada/database";
-import type { ParkingSessionResponse } from "@parada/types";
+import type { NotificationCreatedPayload, ParkingSessionResponse } from "@parada/types";
 import type { OccupancyService } from "../domain/occupancy";
 import { ZoneService } from "../domain/zones";
 import type { RealtimeHub } from "./hub";
@@ -107,21 +107,47 @@ export async function publishOccupancyOutcome(
       {
         type: "NOTIFICATION_CREATED",
         occurredAt,
-        payload: {
-          id: notification.id,
-          zoneId: notification.zoneId,
-          userId: notification.userId,
-          type: notification.type,
-          message: notification.message,
-          targetRole: notification.targetRole,
-          createdAt: notification.createdAt.toISOString(),
-        },
+        payload: notificationCreatedPayload(notification),
       },
       notification.targetRole === "USER" && notification.userId
         ? { audience: "USER", userId: notification.userId }
         : { audience: "ADMIN" }
     );
   }
+}
+
+/** Wire shape of a notification, shared by every NOTIFICATION_CREATED publisher. */
+export function notificationCreatedPayload(n: Notification): NotificationCreatedPayload {
+  return {
+    id: n.id,
+    zoneId: n.zoneId,
+    userId: n.userId,
+    type: n.type,
+    message: n.message,
+    targetRole: n.targetRole,
+    createdAt: n.createdAt.toISOString(),
+  };
+}
+
+/**
+ * Re-reads the committed violation and addresses it to its owner. Publishing the
+ * row just read (not a mutation's return value) means a client that invalidates
+ * on the event always refetches state the database has actually settled.
+ */
+export async function publishViolationUpdated(hub: RealtimeHub, violationId: string): Promise<void> {
+  const violation = await prisma.violation.findUnique({
+    where: { id: violationId },
+    include: {
+      vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
+      zone: { select: { id: true, name: true, code: true } },
+      appeal: true,
+    },
+  });
+  if (!violation) return;
+  hub.publish(
+    { type: "VIOLATION_UPDATED", occurredAt: new Date().toISOString(), payload: violation as never },
+    { audience: "USER", userId: violation.userId }
+  );
 }
 
 /**

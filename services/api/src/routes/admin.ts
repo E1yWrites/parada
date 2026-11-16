@@ -12,7 +12,13 @@ import type { ViolationService } from "../domain/violations";
 import { ZoneConfigService } from "../domain/zoneConfig";
 import { rateLimit } from "../http/rateLimit";
 import type { RealtimeHub } from "../realtime/hub";
-import { publishOccupancyOutcome, publishZoneSnapshot, withoutNotifications } from "../realtime/occupancyEvents";
+import {
+  notificationCreatedPayload,
+  publishOccupancyOutcome,
+  publishViolationUpdated,
+  publishZoneSnapshot,
+  withoutNotifications,
+} from "../realtime/occupancyEvents";
 
 /**
  * 24h occupancy trend, one point per hour boundary (25 points: T-24h..T-0h).
@@ -154,27 +160,6 @@ export function adminRouter(deps: {
     })
   );
 
-  // Re-read the committed violation and address it to its owner. Publishing the
-  // row we just read (rather than a mutation's return value) keeps this on the
-  // same footing as the occupancy pipeline: a client that invalidates on the
-  // event always refetches state the database has actually settled.
-  const publishViolationUpdated = async (violationId: string) => {
-    if (!deps.realtimeHub) return;
-    const violation = await prisma.violation.findUnique({
-      where: { id: violationId },
-      include: {
-        vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
-        zone: { select: { id: true, name: true, code: true } },
-        appeal: true,
-      },
-    });
-    if (!violation) return;
-    deps.realtimeHub.publish(
-      { type: "VIOLATION_UPDATED", occurredAt: new Date().toISOString(), payload: violation as never },
-      { audience: "USER", userId: violation.userId }
-    );
-  };
-
   router.get(
     "/admin/violations",
     asyncHandler(async (_req, res) => {
@@ -203,7 +188,7 @@ export function adminRouter(deps: {
       // The domain state machine decides whether this transition is legal; the
       // route holds no transition logic and never trusts a body reviewer id.
       const updated = await deps.violations.adminUpdateStatus(req.params["id"]!, status as ViolationStatus);
-      await publishViolationUpdated(updated.id);
+      if (deps.realtimeHub) await publishViolationUpdated(deps.realtimeHub, updated.id);
       res.json(ok(updated));
     })
   );
@@ -235,22 +220,14 @@ export function adminRouter(deps: {
         {
           type: "NOTIFICATION_CREATED",
           occurredAt: new Date().toISOString(),
-          payload: {
-            id: notification.id,
-            zoneId: notification.zoneId,
-            userId: notification.userId,
-            type: notification.type,
-            message: notification.message,
-            targetRole: notification.targetRole,
-            createdAt: notification.createdAt.toISOString(),
-          },
+          payload: notificationCreatedPayload(notification),
         },
         // The appeal's owner is the recipient. ViolationAppeal.userId is
         // non-null in the schema, unlike Notification.userId (nullable for
         // ADMIN-targeted rows), so this needs no assertion.
         { audience: "USER", userId: appeal.userId }
       );
-      await publishViolationUpdated(appeal.violationId);
+      if (deps.realtimeHub) await publishViolationUpdated(deps.realtimeHub, appeal.violationId);
       res.json(ok(appeal));
     })
   );

@@ -5,6 +5,7 @@ import { asyncHandler } from "../http/asyncHandler";
 import { currentUserId } from "../middleware/auth";
 import type { ViolationService } from "../domain/violations";
 import type { RealtimeHub } from "../realtime/hub";
+import { notificationCreatedPayload, publishViolationUpdated } from "../realtime/occupancyEvents";
 
 /** A driver's own violations and their right to dispute them. */
 export function violationsRouter(violations: ViolationService, realtimeHub?: RealtimeHub): Router {
@@ -33,18 +34,11 @@ export function violationsRouter(violations: ViolationService, realtimeHub?: Rea
         {
           type: "NOTIFICATION_CREATED",
           occurredAt: new Date().toISOString(),
-          payload: {
-            id: notification.id,
-            zoneId: notification.zoneId,
-            userId: notification.userId,
-            type: notification.type,
-            message: notification.message,
-            targetRole: notification.targetRole,
-            createdAt: notification.createdAt.toISOString(),
-          },
+          payload: notificationCreatedPayload(notification),
         },
         { audience: "ADMIN" }
       );
+      if (realtimeHub) await publishViolationUpdated(realtimeHub, appeal.violationId);
       res.status(201).json(ok(appeal));
     })
   );
