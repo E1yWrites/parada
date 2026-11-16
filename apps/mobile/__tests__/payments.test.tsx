@@ -7,6 +7,17 @@ jest.mock("@/lib/api/client", () => {
   return { ...actual, api: { violations: jest.fn(), sessions: jest.fn() } };
 });
 
+describe("payments screen layout", () => {
+  it("keeps the outstanding balance on one line, shrinking at large text sizes", async () => {
+    (api.violations as jest.Mock).mockResolvedValue([]);
+    (api.sessions as jest.Mock).mockResolvedValue([]);
+    await renderWithProviders(<PaymentsScreen />);
+    const total = await screen.findByTestId("payments-outstanding-total");
+    expect(total.props.numberOfLines).toBe(1);
+    expect(total.props.adjustsFontSizeToFit).toBe(true);
+  });
+});
+
 describe("payments screen copy", () => {
   it("makes no payment-history or free-window claim (neither exists)", async () => {
     (api.violations as jest.Mock).mockResolvedValue([]);

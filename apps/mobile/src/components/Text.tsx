@@ -28,6 +28,8 @@ type TextProps = {
   color?: string;
   align?: "auto" | "left" | "right" | "center";
   numberOfLines?: number;
+  /** Shrink to fit `numberOfLines` instead of clipping/wrapping (needs numberOfLines). */
+  adjustsFontSizeToFit?: boolean;
   accessibilityLabel?: string;
   accessibilityRole?: AccessibilityRole;
   /** Announce changes to this text (Android live region; e.g. a connection line). */
@@ -128,6 +130,7 @@ export function Text({
   color,
   align,
   numberOfLines,
+  adjustsFontSizeToFit,
   accessibilityLabel,
   accessibilityRole,
   accessibilityLiveRegion,
@@ -144,6 +147,7 @@ export function Text({
       accessibilityRole={accessibilityRole}
       accessibilityLiveRegion={accessibilityLiveRegion}
       numberOfLines={numberOfLines}
+      adjustsFontSizeToFit={adjustsFontSizeToFit}
       maxFontSizeMultiplier={maxFontSizeMultiplier}
       style={[
         baseStyle,

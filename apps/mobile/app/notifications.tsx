@@ -5,7 +5,7 @@ import { EmptyState, ErrorState, LoadingState, NotificationRow, Screen, Text } f
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import type { NotificationResponse } from "@parada/types";
-import { radii, spacing } from "@/src/theme";
+import { radii, spacing, touchTarget } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 
@@ -60,8 +60,9 @@ export default function NotificationsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Mark all notifications read"
             disabled={markAllRead.isPending}
+            accessibilityState={{ disabled: markAllRead.isPending, busy: markAllRead.isPending }}
             onPress={() => markAllRead.mutate()}
-            hitSlop={12}
+            style={styles.markAll}
             testID="notifications-mark-all-read">
             <Text variant="caption" color={colors.primaryDeep}>
               {markAllRead.isPending ? "Marking…" : "Mark all read"}
@@ -135,6 +136,10 @@ function buildStyles(colors: ColorTokens) {
       alignItems: "center",
       justifyContent: "space-between",
       marginBottom: spacing.md,
+    },
+    markAll: {
+      minHeight: touchTarget,
+      justifyContent: "center",
     },
     unreadBadge: {
       backgroundColor: colors.dangerSoft,

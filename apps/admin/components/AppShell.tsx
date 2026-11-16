@@ -113,7 +113,7 @@ function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: stri
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
         data-active={active ? "true" : undefined}
-        className={`relative z-[1] flex min-h-[40px] items-center gap-3 rounded-control px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-hidden focus-visible:shadow-focus ${
+        className={`relative z-[1] flex min-h-[44px] items-center gap-3 rounded-control px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-hidden focus-visible:shadow-focus ${
           active ? "text-brand-ink" : "text-muted hover:bg-raised hover:text-charcoal"
         }`}
       >

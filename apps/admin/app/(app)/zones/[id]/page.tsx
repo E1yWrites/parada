@@ -301,7 +301,7 @@ function PhysicalInventory({ zoneId, zoneCode, capacity }: { zoneId: string; zon
                         removeSlot.mutate(slot.slotCode);
                       }}
                       disabled={busy}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-hidden focus-visible:shadow-focus"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-hidden focus-visible:shadow-focus"
                       aria-label={`Remove ${slot.slotCode}`}
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />

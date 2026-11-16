@@ -95,6 +95,26 @@ describe("notifications screen", () => {
     expect(api.markNotificationRead).not.toHaveBeenCalled();
   });
 
+  it("gives Mark all read a 44pt target and exposes its busy state", async () => {
+    (api.markAllNotificationsRead as jest.Mock).mockReturnValue(new Promise(() => {}));
+    (api.notifications as jest.Mock).mockResolvedValue({
+      notifications: [base({ id: "n1", read: false })],
+      unreadCount: 1,
+    });
+    await renderWithProviders(<NotificationsScreen />);
+
+    const button = await screen.findByTestId("notifications-mark-all-read");
+    const style = [button.props.style].flat(Infinity).reduce((a, x) => ({ ...a, ...(x || {}) }), {});
+    expect(style.minHeight).toBeGreaterThanOrEqual(44);
+    await fireEvent.press(button);
+    await waitFor(() =>
+      expect(screen.getByTestId("notifications-mark-all-read").props.accessibilityState).toMatchObject({
+        busy: true,
+        disabled: true,
+      }),
+    );
+  });
+
   it("does not re-mark an already-read notification", async () => {
     (api.notifications as jest.Mock).mockResolvedValue({
       notifications: [base({ id: "n1", read: true })],

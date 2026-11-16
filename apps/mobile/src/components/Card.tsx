@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { Animated, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { motion, radii, spacing } from "@/src/theme";
+import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
 import { useColors, useThemeShadows } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 import type { ShadowTokens } from "@/src/theme/shadows";
@@ -48,6 +49,7 @@ export function Card({
     shadowOpacity != null ? { shadowOpacity } : undefined,
   ];
   const [scale] = useState(() => new Animated.Value(1));
+  const reducedMotion = usePrefersReducedMotion();
   const content = (
     // The border/background/radius clip lives on its own inner view, separate
     // from the shadow-casting outer one (no border, no background) — on
@@ -75,9 +77,15 @@ export function Card({
         accessibilityRole="button"
         onPress={onPress}
         onPressIn={() => {
+          if (reducedMotion) {
+            return;
+          }
           Animated.spring(scale, { toValue: 0.96, friction: 7, tension: 300, useNativeDriver: true }).start();
         }}
         onPressOut={() => {
+          if (reducedMotion) {
+            return;
+          }
           Animated.spring(scale, {
             toValue: 1,
             friction: motion.springPlayful.friction,

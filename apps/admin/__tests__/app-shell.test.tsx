@@ -56,6 +56,17 @@ describe("AppShell — role protection", () => {
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
+  it("gives every nav link a 44px minimum height", () => {
+    setAuth({ user: { id: "u1", email: "admin@parada.local", role: "ADMIN" } as never, loading: false });
+    render(
+      <AppShell>
+        <div>content</div>
+      </AppShell>
+    );
+    const link = screen.getAllByRole("link", { name: /Dashboard/ })[0];
+    expect(link.className).toContain("min-h-[44px]");
+  });
+
   it("blocks USER accounts with a forbidden message", () => {
     setAuth({ user: { id: "u1", email: "driver@parada.local", role: "USER" } as never, loading: false });
     render(

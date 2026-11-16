@@ -119,6 +119,13 @@ describe("violation detail screen", () => {
     expect(await screen.findByTestId("violation-appeal-pending")).toBeOnTheScreen();
   });
 
+  it("keeps the fine amount on one line, shrinking at large text sizes", async () => {
+    await renderWithProviders(<ViolationDetailScreen />);
+    const amount = await screen.findByTestId("violation-fine-amount");
+    expect(amount.props.numberOfLines).toBe(1);
+    expect(amount.props.adjustsFontSizeToFit).toBe(true);
+  });
+
   it("disables submit until a reason is entered", async () => {
     (api.violations as jest.Mock).mockResolvedValue([violation({})]);
     await renderWithProviders(<ViolationDetailScreen />);

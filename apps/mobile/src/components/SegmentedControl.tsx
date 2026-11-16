@@ -28,14 +28,14 @@ export function SegmentedControl({ options, value, onChange, testID }: Segmented
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
   return (
-    <View style={styles.track} testID={testID}>
+    <View style={styles.track} accessibilityRole="radiogroup" testID={testID}>
       {options.map((option) => {
         const selected = option.value === value;
         return (
           <Pressable
             key={option.value}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: selected, selected }}
             accessibilityLabel={option.accessibilityLabel ?? option.label}
             onPress={() => onChange(option.value)}
             style={({ pressed }) => [

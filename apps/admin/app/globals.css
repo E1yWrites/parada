@@ -215,7 +215,7 @@
   /* ---- Buttons: same cut as panels — the primary action carries the brand shape ---- */
 
   .btn-sm {
-    @apply min-h-[36px] px-3.5 text-xs;
+    @apply min-h-[44px] px-3.5 text-xs;
   }
 
   .btn-primary {
@@ -329,7 +329,7 @@
   }
 
   .segmented-item {
-    @apply min-h-[34px] rounded-chip rounded-tr-control-cut px-3.5 text-xs font-bold text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-hidden focus-visible:shadow-focus aria-pressed:bg-brand-soft aria-pressed:text-brand-ink;
+    @apply min-h-[44px] rounded-chip rounded-tr-control-cut px-3.5 text-xs font-bold text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-hidden focus-visible:shadow-focus aria-pressed:bg-brand-soft aria-pressed:text-brand-ink;
   }
 
   /* ---- Scrollbar ---- */

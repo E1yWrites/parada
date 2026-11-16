@@ -107,6 +107,8 @@ export function Input({
           selectionColor={colors.primary}
           cursorColor={colors.primary}
           accessibilityLabel={label}
+          // The error/hint are sibling Texts; without this a focused field reads only its label.
+          accessibilityHint={error ?? hint}
           accessibilityState={{ disabled: !editable }}
           style={[
             styles.input,
@@ -134,6 +136,7 @@ export function Input({
             variant="caption"
             color={colors.danger}
             accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
             style={styles.message}>
             {error}
           </Text>

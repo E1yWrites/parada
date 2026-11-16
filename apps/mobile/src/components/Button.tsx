@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { motion, radii, spacing, touchTarget } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
+import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
 import { Text } from "./Text";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
@@ -62,6 +63,7 @@ export function Button({
   const isDisabled = disabled || loading;
   const palette = variantColors[variant];
   const [scale] = useState(() => new Animated.Value(1));
+  const reducedMotion = usePrefersReducedMotion();
   return (
     <Pressable
       testID={testID}
@@ -71,11 +73,14 @@ export function Button({
       disabled={isDisabled}
       onPress={onPress}
       onPressIn={() => {
-        if (!isDisabled) {
+        if (!isDisabled && !reducedMotion) {
           Animated.spring(scale, { toValue: 0.96, friction: 7, tension: 300, useNativeDriver: true }).start();
         }
       }}
       onPressOut={() => {
+        if (reducedMotion) {
+          return;
+        }
         Animated.spring(scale, {
           toValue: 1,
           friction: motion.springPlayful.friction,

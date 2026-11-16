@@ -73,7 +73,7 @@ export default function NotificationsPage() {
               className="segmented-item uppercase tracking-[0.06em]"
               aria-pressed={filter === f}
             >
-              {f}
+              {f === "ALL" ? "All" : "Unread"}
               {f === "UNREAD" && unreadCount > 0 ? (
                 <span className="ml-1.5 rounded-full bg-brand px-2 py-0.5 font-display text-micro font-black text-on-accent">
                   {unreadCount}

@@ -38,6 +38,7 @@ export function FormAlert({ tone, message, icon, testID }: FormAlertProps) {
         color={color}
         style={styles.text}
         accessibilityRole={isError ? "alert" : undefined}
+        accessibilityLiveRegion={isError ? "polite" : undefined}
         testID={isError ? testID : undefined}>
         {message}
       </Text>

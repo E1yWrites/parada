@@ -350,7 +350,7 @@ function AssignmentState({ assignment, destination, destinationReady, onCancel }
             testID="assignment-cancel"
           />
           {cancelError ? (
-            <Text variant="caption" color={colors.danger} accessibilityRole="alert" testID="assignment-cancel-error">
+            <Text variant="caption" color={colors.danger} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="assignment-cancel-error">
               {cancelError}
             </Text>
           ) : (
@@ -470,7 +470,7 @@ function ReservationState({ reservation, destination, destinationReady, onCancel
             />
           )}
           {cancelError ? (
-            <Text variant="caption" color={colors.danger} accessibilityRole="alert" testID="reservation-cancel-error">
+            <Text variant="caption" color={colors.danger} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="reservation-cancel-error">
               {cancelError}
             </Text>
           ) : null}

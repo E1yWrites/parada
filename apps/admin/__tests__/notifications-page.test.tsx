@@ -49,7 +49,9 @@ describe("Notifications page — mark-read flow", () => {
     renderPage(queryClient);
     expect(await screen.findByText("Zone A is full (20/20).")).toBeInTheDocument();
     expect(screen.getByText("Zone B is low.")).toBeInTheDocument();
-    expect(screen.getByText("UNREAD").parentElement).toHaveTextContent("1");
+    // The filter now reads "Unread" (CSS uppercases it), not the raw enum "UNREAD".
+    expect(screen.getByRole("button", { name: /^Unread/ })).toHaveTextContent("1");
+    expect(screen.queryByText("UNREAD")).not.toBeInTheDocument();
   });
 
   it("marks a notification read by calling the backend and invalidating caches", async () => {

@@ -94,7 +94,7 @@ export function ActiveSessionBanner({ session, now, children, testID }: ActiveSe
         </View>
         <View style={styles.elapsedText}>
           <Text variant="micro">SESSION ELAPSED</Text>
-          <Text variant="display" testID={testID ? `${testID}-elapsed` : undefined}>
+          <Text variant="display" numberOfLines={1} adjustsFontSizeToFit testID={testID ? `${testID}-elapsed` : undefined}>
             {formatElapsed(session.enteredAt, now)}
           </Text>
         </View>

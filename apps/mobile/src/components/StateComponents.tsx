@@ -16,7 +16,7 @@ export function LoadingState({ label = "Loading", testID }: { label?: string; te
   return (
     <Card tone="tinted" style={styles.loading} testID={testID}>
       <ActivityIndicator testID={testID ? `${testID}-spinner` : undefined} color={colors.primary} />
-      <Text variant="caption" style={styles.loadingLabel}>
+      <Text variant="caption" style={styles.loadingLabel} accessibilityLiveRegion="polite">
         {label}
       </Text>
       <View style={styles.skeleton} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -45,14 +45,14 @@ export function ErrorState({
         <Text variant="title" align="center">
           Something went wrong
         </Text>
-        <Text variant="body" align="center" color={colors.muted}>
+        <Text variant="body" align="center" color={colors.muted} accessibilityLiveRegion="polite">
           {message}
         </Text>
       </View>
       {onRetry ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Retry"
+          accessibilityLabel="Try again"
           onPress={onRetry}
           hitSlop={10}
           style={({ pressed }) => [styles.retry, pressed ? styles.retryPressed : undefined]}

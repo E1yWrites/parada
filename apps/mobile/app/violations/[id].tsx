@@ -85,7 +85,7 @@ export default function ViolationDetailScreen() {
               <Text variant="micro">FINE</Text>
               <ViolationBadge status={violation.status} testID="violation-summary-status" />
             </View>
-            <Text variant="display" color={violationColor}>
+            <Text variant="display" numberOfLines={1} adjustsFontSizeToFit color={violationColor} testID="violation-fine-amount">
               {formatCurrency(violation.fineAmount)}
             </Text>
             <Text variant="body" color={colors.muted}>

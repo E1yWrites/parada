@@ -69,7 +69,7 @@ export default function PaymentsScreen() {
             <Text variant="caption" color={colors.muted}>
               Outstanding balance
             </Text>
-            <Text variant="display" style={styles.balance} testID="payments-outstanding-total">
+            <Text variant="display" numberOfLines={1} adjustsFontSizeToFit style={styles.balance} testID="payments-outstanding-total">
               {formatCurrency(outstandingTotal)}
             </Text>
             <Text variant="caption" color={colors.muted}>
