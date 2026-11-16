@@ -25,9 +25,25 @@ describe("Guest admission page", () => {
     fireEvent.change(screen.getByLabelText("Zone"), { target: { value: "z1" } });
     fireEvent.change(screen.getByLabelText("Entry camera"), { target: { value: "cam-entry" } });
     fireEvent.change(screen.getByLabelText("Detected plate"), { target: { value: "GUEST-1" } });
-    fireEvent.change(screen.getByLabelText("Source event ID"), { target: { value: "admin-event-1" } });
     fireEvent.click(screen.getByRole("button", { name: "Admit guest" }));
-    await waitFor(() => expect(mockedApi.guestAdmit).toHaveBeenCalledWith({ zoneId: "z1", cameraIdentifier: "cam-entry", sourceEventId: "admin-event-1", detectedPlate: "GUEST-1" }));
+    await waitFor(() => expect(mockedApi.guestAdmit).toHaveBeenCalledWith({ zoneId: "z1", cameraIdentifier: "cam-entry", sourceEventId: expect.stringMatching(/^admin-guest-/), detectedPlate: "GUEST-1" }));
     expect(await screen.findByText("Guest admitted")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Source event ID")).not.toBeInTheDocument();
+  });
+
+  it("sends a different event id for each successful admission", async () => {
+    renderPage();
+    await screen.findByRole("option", { name: /Zone A/ });
+    fireEvent.change(screen.getByLabelText("Zone"), { target: { value: "z1" } });
+    await screen.findByRole("option", { name: /cam-entry/ });
+    fireEvent.change(screen.getByLabelText("Entry camera"), { target: { value: "cam-entry" } });
+    fireEvent.change(screen.getByLabelText("Detected plate"), { target: { value: "GUEST-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Admit guest" }));
+    await waitFor(() => expect(mockedApi.guestAdmit).toHaveBeenCalledTimes(1));
+    await screen.findByText("Guest admitted");
+    fireEvent.click(screen.getByRole("button", { name: "Admit guest" }));
+    await waitFor(() => expect(mockedApi.guestAdmit).toHaveBeenCalledTimes(2));
+    const [first, second] = mockedApi.guestAdmit.mock.calls.map((c) => c[0].sourceEventId);
+    expect(first).not.toBe(second);
   });
 });

@@ -43,7 +43,7 @@ export default function PaymentsScreen() {
 
   const outstanding = (violations.data ?? []).filter((v) => v.status === "PENDING" || v.status === "UPHELD");
   const outstandingTotal = outstanding.reduce((sum, v) => sum + v.fineAmount, 0);
-  const paidFees = (sessions.data ?? []).filter(
+  const sessionFees = (sessions.data ?? []).filter(
     (s): s is SessionDto & { feeAmount: number } => s.feeAmount != null && s.feeAmount > 0,
   );
 
@@ -51,7 +51,7 @@ export default function PaymentsScreen() {
     <Screen
       back
       title="Payments"
-      subtitle="Fees, fines and payment history"
+      subtitle="Fees and fines"
       refreshing={violations.isFetching || sessions.isFetching}
       onRefresh={refresh}
       testID="payments-screen">
@@ -100,14 +100,14 @@ export default function PaymentsScreen() {
             </View>
           )}
 
-          <SectionHeader title="Session fees" caption="Charged when a session ends over the free window" testID="payments-fees-header" />
-          {paidFees.length === 0 ? (
+          <SectionHeader title="Session fees" caption="Charged when a session ends, at the establishment's rates." testID="payments-fees-header" />
+          {sessionFees.length === 0 ? (
             <Text variant="caption" color={colors.muted}>
               No session fees yet.
             </Text>
           ) : (
             <Card padding={0} testID="payments-fees-list">
-              {paidFees.map((s, i) => (
+              {sessionFees.map((s, i) => (
                 <View key={s.id} style={[styles.row, i > 0 ? styles.rowDivider : undefined]}>
                   <View style={styles.rowText}>
                     <Text variant="bodySemi">Parking fee · Zone {s.zone.code}</Text>

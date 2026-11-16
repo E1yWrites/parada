@@ -299,7 +299,7 @@ Space Grotesk has no 900 cut, so hierarchy on mobile comes from size, not weight
 - **History** — completed sessions and past reservations, read-only.
 - **Account** — appearance (System / Light / Dark), My Vehicles, Payments & Fees, Edit profile, Change password, Violations, Sign out. The role pill shows only for ADMIN.
 
-Scroll content clears the floating tab bar with `tabClearance(insets.bottom)`, never a fixed number. Every tab header shows the connection state under the title: **"Live"** only while the realtime stream is connected, otherwise **"Reconnecting…"** or **"Not live"** plus **"Updated hh:mm"**, announced through a polite live region.
+Scroll content clears the floating tab bar with `tabClearance(insets.bottom)`, never a fixed number. Now and Zones show the connection state under the title: **"Live"** only while the realtime stream is connected, otherwise **"Reconnecting…"** or **"Not live"** plus **"Updated hh:mm"**, announced through a polite live region.
 
 **Admin.** A 240px sidebar (`w-60`) from `lg` up and a modal drawer below it, a sticky header, and a main column capped at 88rem. Navigation groups are headings, never collapsible:
 

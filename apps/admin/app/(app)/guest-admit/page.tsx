@@ -10,10 +10,14 @@ import { Button } from "@/components/ui/Button";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import type { GuestAdmitResult } from "@/lib/api/types";
 
+// The API needs an idempotency key per admission; the operator should never have to invent one.
+// Not crypto.randomUUID(): it is secure-context only and the LOCAL profile may serve the admin over plain HTTP.
+const newGuestEventId = () => `admin-guest-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
 export default function GuestAdmissionPage() {
   const [zoneId, setZoneId] = useState("");
   const [cameraIdentifier, setCameraIdentifier] = useState("");
-  const [sourceEventId, setSourceEventId] = useState("");
+  const [sourceEventId, setSourceEventId] = useState(newGuestEventId);
   const [detectedPlate, setDetectedPlate] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [result, setResult] = useState<GuestAdmitResult | null>(null);
@@ -28,6 +32,8 @@ export default function GuestAdmissionPage() {
       detectedPlate: detectedPlate.trim() || null,
     }),
     onSuccess: (next) => {
+      // A retry after an error keeps the same id (idempotent); the next admission is a new event.
+      setSourceEventId(newGuestEventId());
       setResult(next);
       setValidationError(null);
     },
@@ -37,8 +43,8 @@ export default function GuestAdmissionPage() {
     event.preventDefault();
     setResult(null);
     setValidationError(null);
-    if (!zoneId || !cameraIdentifier || !sourceEventId.trim()) {
-      setValidationError("Zone, camera, and source event ID are required.");
+    if (!zoneId || !cameraIdentifier) {
+      setValidationError("Zone and camera are required.");
       return;
     }
     if (!detectedPlate.trim()) {
@@ -84,10 +90,6 @@ export default function GuestAdmissionPage() {
             <div>
               <label htmlFor="guest-plate" className="label">Detected plate</label>
               <input id="guest-plate" className="input font-mono uppercase" value={detectedPlate} onChange={(e) => setDetectedPlate(e.target.value)} placeholder="ABC-1234" />
-            </div>
-            <div>
-              <label htmlFor="guest-source" className="label">Source event ID</label>
-              <input id="guest-source" className="input font-mono" value={sourceEventId} onChange={(e) => setSourceEventId(e.target.value)} placeholder="camera-event-2026-001" />
             </div>
             {validationError ? (
               <p role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
