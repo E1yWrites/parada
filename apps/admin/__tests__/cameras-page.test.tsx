@@ -168,6 +168,43 @@ describe("Admin cameras page — redesign labels and feedback", () => {
   });
 });
 
+describe("Admin cameras page — field-level errors (UAT 2026-11-17)", () => {
+  it("shows a duplicate identifier under the identifier field and focuses it", async () => {
+    const { ApiError } = jest.requireActual("@/lib/api/client");
+    mockedApi.cameras.mockResolvedValue([]);
+    mockedApi.zones.mockResolvedValue([zone]);
+    mockedApi.createCamera.mockRejectedValue(new ApiError("CONFLICT", "Camera identifier already exists.", 409, "identifier"));
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /register camera/i }));
+    fireEvent.change(screen.getByPlaceholderText("CAM-A01"), { target: { value: "CAM-A01" } });
+    fireEvent.change(zoneSelect(), { target: { value: "z1" } });
+    fireEvent.click(screen.getByRole("button", { name: /register camera$/i }));
+
+    const identifier = screen.getByLabelText("Camera identifier");
+    await waitFor(() => expect(identifier).toHaveAttribute("aria-invalid", "true"));
+    expect(identifier).toHaveAccessibleDescription("Camera identifier already exists.");
+    expect(identifier).toHaveFocus();
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+
+  it("keeps an error that names no field in the form-level alert", async () => {
+    const { ApiError } = jest.requireActual("@/lib/api/client");
+    mockedApi.cameras.mockResolvedValue([]);
+    mockedApi.zones.mockResolvedValue([zone]);
+    mockedApi.createCamera.mockRejectedValue(new ApiError("NOT_FOUND", "Zone 'z1' not found.", 404));
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /register camera/i }));
+    fireEvent.change(screen.getByPlaceholderText("CAM-A01"), { target: { value: "CAM-A02" } });
+    fireEvent.change(zoneSelect(), { target: { value: "z1" } });
+    fireEvent.click(screen.getByRole("button", { name: /register camera$/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Zone 'z1' not found.");
+    expect(screen.getByLabelText("Camera identifier")).not.toHaveAttribute("aria-invalid");
+  });
+});
+
 describe("Admin cameras page — keyboard focus (found in the keyboard pass)", () => {
   it("starts on the identifier when registering, and on the zone when editing", async () => {
     mockedApi.cameras.mockResolvedValue([camera]);

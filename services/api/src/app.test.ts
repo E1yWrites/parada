@@ -475,17 +475,33 @@ describe("Authentication & Authorization", () => {
         .expect(201);
       await verifyAllUsers();
 
-      await request(app)
+      const res = await request(app)
         .post("/auth/register")
         .send({ name: "Test User 2", email: "dup@test.local", password: "Password123!" })
         .expect(409);
+      // Names the field so the form can show the message under Email (UAT 2026-11-17).
+      expect(res.body.error).toMatchObject({ code: "CONFLICT", details: { field: "email" } });
     });
 
     it("rejects weak password", async () => {
-      await request(app)
+      const res = await request(app)
         .post("/auth/register")
         .send({ name: "Test User", email: "weak@test.local", password: "short" })
         .expect(422);
+      expect(res.body.error).toMatchObject({ code: "UNPROCESSABLE", details: { field: "password" } });
+    });
+
+    it("names the invalid field in 422s for name and email", async () => {
+      const badEmail = await request(app)
+        .post("/auth/register")
+        .send({ name: "Test User", email: "a@b.c", password: "Password123!" })
+        .expect(422);
+      expect(badEmail.body.error).toMatchObject({ message: "Enter a valid email address.", details: { field: "email" } });
+      const badName = await request(app)
+        .post("/auth/register")
+        .send({ name: "x", email: "name@test.local", password: "Password123!" })
+        .expect(422);
+      expect(badName.body.error.details).toEqual({ field: "name" });
     });
 
     it("rejects missing fields", async () => {
@@ -2501,6 +2517,19 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
         .send({ name: "Bad", code: "BAD", capacity: 0 })
         .expect(400);
       expect(res.body.error.code).toBe("BAD_REQUEST");
+      expect(res.body.error.details).toEqual({ field: "capacity" });
+    });
+
+    it("names the missing field and the out-of-range coordinate", async () => {
+      const auth = { Authorization: `Bearer ${adminToken}` };
+      const noCode = await request(app).post("/admin/zones").set(auth).send({ name: "No Code", capacity: 5 }).expect(400);
+      expect(noCode.body.error.details).toEqual({ field: "code" });
+      const badLng = await request(app)
+        .post("/admin/zones")
+        .set(auth)
+        .send({ name: "Far", code: "FAR", capacity: 5, navigationLat: 13.7, navigationLng: 500 })
+        .expect(422);
+      expect(badLng.body.error.details).toEqual({ field: "navigationLng" });
     });
 
     it("edits a zone name/code/status without changing occupancy", async () => {
@@ -2536,7 +2565,8 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
         .patch(`/admin/zones/${zone.id}`)
         .set("Authorization", `Bearer ${adminToken}`)
         .send({ capacity: 5 })
-        .expect(409);
+        .expect(409)
+        .expect((res) => expect(res.body.error.details).toEqual({ field: "capacity" }));
       const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } });
       expect(after.capacity).toBe(10);
       expect(after.occupiedCount).toBe(6);
@@ -2564,7 +2594,8 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
         .patch(`/admin/zones/${zone.id}`)
         .set("Authorization", `Bearer ${adminToken}`)
         .send({ capacity: 3 })
-        .expect(409);
+        .expect(409)
+        .expect((res) => expect(res.body.error.details).toEqual({ field: "capacity" }));
       const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } });
       expect(after.capacity).toBe(10);
     });
@@ -2661,7 +2692,8 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
         .post("/admin/cameras")
         .set("Authorization", `Bearer ${adminToken}`)
         .send({ zoneId: zone.id, identifier: "CAM-DUP", gateType: "EXIT" })
-        .expect(409);
+        .expect(409)
+        .expect((res) => expect(res.body.error.details).toEqual({ field: "identifier" }));
     });
 
     it("rejects an invalid gate direction", async () => {

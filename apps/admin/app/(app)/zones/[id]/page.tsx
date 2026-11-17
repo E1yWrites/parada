@@ -15,6 +15,16 @@ import { formatDateTime, formatPct } from "@/lib/format";
 import { GATE_LABEL, labelFor } from "@/lib/labels";
 import type { AdminZoneDetail, AdminSlot } from "@/lib/api/types";
 import { parseCoordinates } from "@/lib/coordinates";
+import { FieldError, focusField, invalidProps } from "@/components/ui/FieldError";
+
+/** API field name -> input id, so a rejection is shown under its input. */
+const EDIT_FIELD_IDS: Record<string, string | undefined> = {
+  name: "edit-zone-name",
+  code: "edit-zone-code",
+  capacity: "edit-zone-capacity",
+  navigationLat: "edit-zone-lat",
+  navigationLng: "edit-zone-lng",
+};
 
 function activeCodes(slots: AdminSlot[]): string[] {
   return slots.filter((s) => s.status === "ACTIVE").map((s) => s.slotCode);
@@ -37,13 +47,15 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
     navigationLng: zone.navigationLng === null ? "" : String(zone.navigationLng),
   });
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<string | null>(null);
+  const fieldError = (id: string) => (errorField === id ? error : null);
   const [saved, setSaved] = useState(false);
 
   const save = useMutation({
     mutationFn: () => {
       const navigation = parseCoordinates(form.navigationLat, form.navigationLng);
       if ("error" in navigation) {
-        return Promise.reject(new ApiError("BAD_REQUEST", navigation.error, 400));
+        return Promise.reject(new ApiError("BAD_REQUEST", navigation.error, 400, navigation.field));
       }
       return api.updateZone(zone.id, {
         name: form.name,
@@ -65,13 +77,17 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
         navigationLng: next.navigationLng === null ? "" : String(next.navigationLng),
       });
       setError(null);
+      setErrorField(null);
       setSaved(true);
       queryClient.invalidateQueries({ queryKey: ["zones"] });
       queryClient.invalidateQueries({ queryKey: ["history", zone.id] });
     },
     onError: (err) => {
+      const id = err instanceof ApiError && err.field ? EDIT_FIELD_IDS[err.field] : undefined;
       setSaved(false);
       setError(err instanceof ApiError ? err.message : "Unable to save this zone.");
+      setErrorField(id ?? null);
+      focusField(id);
     },
   });
 
@@ -84,6 +100,7 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
           event.preventDefault();
           setSaved(false);
           setError(null);
+          setErrorField(null);
           save.mutate();
         }}
       >
@@ -95,7 +112,9 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
+            {...invalidProps("edit-zone-name", fieldError("edit-zone-name"))}
           />
+          <FieldError id="edit-zone-name" message={fieldError("edit-zone-name")} />
         </div>
         <div>
           <label htmlFor="edit-zone-code" className="label">Code</label>
@@ -105,7 +124,9 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
             value={form.code}
             onChange={(e) => setForm({ ...form, code: e.target.value })}
             required
+            {...invalidProps("edit-zone-code", fieldError("edit-zone-code"))}
           />
+          <FieldError id="edit-zone-code" message={fieldError("edit-zone-code")} />
         </div>
         <div className="sm:col-span-2">
           <label htmlFor="edit-zone-description" className="label">Description</label>
@@ -126,7 +147,9 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
             value={form.capacity}
             onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
             required
+            {...invalidProps("edit-zone-capacity", fieldError("edit-zone-capacity"))}
           />
+          <FieldError id="edit-zone-capacity" message={fieldError("edit-zone-capacity")} />
           <p className="field-help">Cannot drop below the current occupancy or reserved spaces.</p>
         </div>
         <div>
@@ -138,7 +161,9 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
             value={form.navigationLat}
             onChange={(e) => setForm({ ...form, navigationLat: e.target.value })}
             placeholder="13.76447"
+            {...invalidProps("edit-zone-lat", fieldError("edit-zone-lat"))}
           />
+          <FieldError id="edit-zone-lat" message={fieldError("edit-zone-lat")} />
           <p className="field-help">WGS84, -90 to 90. Drivers&apos; Directions open the map at exactly this point.</p>
         </div>
         <div>
@@ -150,7 +175,9 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
             value={form.navigationLng}
             onChange={(e) => setForm({ ...form, navigationLng: e.target.value })}
             placeholder="121.06462"
+            {...invalidProps("edit-zone-lng", fieldError("edit-zone-lng"))}
           />
+          <FieldError id="edit-zone-lng" message={fieldError("edit-zone-lng")} />
           <p className="field-help">-180 to 180. Leave both empty to disable Directions for this zone.</p>
         </div>
         <div>
@@ -171,7 +198,7 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
             {save.isPending ? "Saving zone…" : "Save zone"}
           </Button>
           {saved ? <SavedNote>Zone saved.</SavedNote> : null}
-          {error ? (
+          {error && !errorField ? (
             <span role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
               <AlertCircle className="h-4 w-4" aria-hidden="true" />
               {error}

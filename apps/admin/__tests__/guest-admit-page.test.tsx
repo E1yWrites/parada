@@ -21,7 +21,14 @@ describe("Guest admission page", () => {
   it("validates required fields and submits the ADMIN override", async () => {
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: "Admit guest" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("required");
+    // Each missing field is marked and described by its own message (UAT 2026-11-17).
+    expect(await screen.findAllByRole("alert")).toHaveLength(3);
+    expect(screen.getByLabelText("Zone")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Zone")).toHaveAccessibleDescription("Select a zone.");
+    expect(screen.getByLabelText("Entry camera")).toHaveAccessibleDescription("Select an entry camera.");
+    expect(screen.getByLabelText("Detected plate")).toHaveAccessibleDescription("Enter the guest plate detected by the camera.");
+    expect(screen.getByLabelText("Zone")).toHaveFocus();
+    expect(mockedApi.guestAdmit).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText("Zone"), { target: { value: "z1" } });
     fireEvent.change(screen.getByLabelText("Entry camera"), { target: { value: "cam-entry" } });
     fireEvent.change(screen.getByLabelText("Detected plate"), { target: { value: "GUEST-1" } });

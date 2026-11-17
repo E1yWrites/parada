@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
+import { FieldError, focusField, invalidProps } from "@/components/ui/FieldError";
 import type { GuestAdmitResult } from "@/lib/api/types";
 
 // The API needs an idempotency key per admission; the operator should never have to invent one.
@@ -19,7 +20,8 @@ export default function GuestAdmissionPage() {
   const [cameraIdentifier, setCameraIdentifier] = useState("");
   const [sourceEventId, setSourceEventId] = useState(newGuestEventId);
   const [detectedPlate, setDetectedPlate] = useState("");
-  const [validationError, setValidationError] = useState<string | null>(null);
+  // Keyed by input id, so each message sits under (and describes) its field.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState<GuestAdmitResult | null>(null);
 
   const zones = useQuery({ queryKey: ["zones"], queryFn: () => api.zones() });
@@ -35,20 +37,21 @@ export default function GuestAdmissionPage() {
       // A retry after an error keeps the same id (idempotent); the next admission is a new event.
       setSourceEventId(newGuestEventId());
       setResult(next);
-      setValidationError(null);
+      setFieldErrors({});
     },
   });
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     setResult(null);
-    setValidationError(null);
-    if (!zoneId || !cameraIdentifier) {
-      setValidationError("Zone and camera are required.");
-      return;
-    }
-    if (!detectedPlate.trim()) {
-      setValidationError("Enter the guest plate detected by the camera.");
+    const next: Record<string, string> = {};
+    if (!zoneId) next["guest-zone"] = "Select a zone.";
+    if (!cameraIdentifier) next["guest-camera"] = "Select an entry camera.";
+    if (!detectedPlate.trim()) next["guest-plate"] = "Enter the guest plate detected by the camera.";
+    setFieldErrors(next);
+    const first = Object.keys(next)[0];
+    if (first) {
+      focusField(first);
       return;
     }
     admit.mutate();
@@ -73,30 +76,27 @@ export default function GuestAdmissionPage() {
             </div>
             <div>
               <label htmlFor="guest-zone" className="label">Zone</label>
-              <select id="guest-zone" className="input" value={zoneId} onChange={(e) => { setZoneId(e.target.value); setCameraIdentifier(""); }}>
+              <select id="guest-zone" className="input" value={zoneId} onChange={(e) => { setZoneId(e.target.value); setCameraIdentifier(""); }} {...invalidProps("guest-zone", fieldErrors["guest-zone"])}>
                 <option value="">Select a zone…</option>
                 {zones.data?.map((zone) => <option key={zone.id} value={zone.id}>{zone.code} — {zone.name}</option>)}
               </select>
+              <FieldError id="guest-zone" message={fieldErrors["guest-zone"]} />
             </div>
             <div>
               <label htmlFor="guest-camera" className="label">Entry camera</label>
-              <select id="guest-camera" className="input" value={cameraIdentifier} onChange={(e) => setCameraIdentifier(e.target.value)}>
+              <select id="guest-camera" className="input" value={cameraIdentifier} onChange={(e) => setCameraIdentifier(e.target.value)} {...invalidProps("guest-camera", fieldErrors["guest-camera"])}>
                 <option value="">Select a camera…</option>
                 {selectedCameras.filter((camera) => camera.gateType === "ENTRY" || camera.gateType === "BIDIRECTIONAL").map((camera) => (
                   <option key={camera.id} value={camera.identifier}>{camera.identifier} — {camera.gateType}</option>
                 ))}
               </select>
+              <FieldError id="guest-camera" message={fieldErrors["guest-camera"]} />
             </div>
             <div>
               <label htmlFor="guest-plate" className="label">Detected plate</label>
-              <input id="guest-plate" className="input font-mono uppercase" value={detectedPlate} onChange={(e) => setDetectedPlate(e.target.value)} placeholder="ABC-1234" />
+              <input id="guest-plate" className="input font-mono uppercase" value={detectedPlate} onChange={(e) => setDetectedPlate(e.target.value)} placeholder="ABC-1234" {...invalidProps("guest-plate", fieldErrors["guest-plate"])} />
+              <FieldError id="guest-plate" message={fieldErrors["guest-plate"]} />
             </div>
-            {validationError ? (
-              <p role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
-                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                {validationError}
-              </p>
-            ) : null}
             {admit.error ? (
               <p role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
                 <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />

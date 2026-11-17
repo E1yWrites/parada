@@ -337,5 +337,5 @@ export interface SimulatorResult {
 }
 
 export interface ApiErrorBody {
-  error?: { code?: string; message?: string };
+  error?: { code?: string; message?: string; details?: { field?: unknown } };
 }

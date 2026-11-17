@@ -12,7 +12,17 @@ import { AvailabilityBadge, PlateChip } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, SavedNote, SectionHeader } from "@/components/ui/Card";
 import { OccupancyBar } from "@/components/ui/OccupancyBar";
+import { FieldError, focusField, invalidProps } from "@/components/ui/FieldError";
 import type { AdminZoneCreateInput, AdminZoneDetail } from "@/lib/api/types";
+
+/** API field name -> input id, so a rejection is shown under its input. */
+const CREATE_FIELD_IDS: Record<string, string | undefined> = {
+  name: "zone-name",
+  code: "zone-code",
+  capacity: "zone-capacity",
+  navigationLat: "zone-lat",
+  navigationLng: "zone-lng",
+};
 
 function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => void; onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -32,12 +42,15 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => v
   const [navigationLat, setNavigationLat] = useState("");
   const [navigationLng, setNavigationLng] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Input id the error belongs to; null keeps it in the form-level alert.
+  const [errorField, setErrorField] = useState<string | null>(null);
+  const fieldError = (id: string) => (errorField === id ? error : null);
 
   const create = useMutation({
     mutationFn: () => {
       const navigation = parseCoordinates(navigationLat, navigationLng);
       if ("error" in navigation) {
-        return Promise.reject(new ApiError("BAD_REQUEST", navigation.error, 400));
+        return Promise.reject(new ApiError("BAD_REQUEST", navigation.error, 400, navigation.field));
       }
       return api.createZone({ ...form, ...navigation });
     },
@@ -50,13 +63,17 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => v
       onCreated(created?.name ?? form.name);
     },
     onError: (err) => {
+      const id = err instanceof ApiError && err.field ? CREATE_FIELD_IDS[err.field] : undefined;
       setError(err instanceof ApiError ? err.message : "Unable to save this zone.");
+      setErrorField(id ?? null);
+      focusField(id);
     },
   });
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    setErrorField(null);
     create.mutate();
   }
 
@@ -85,7 +102,9 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => v
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="Zone A"
             required
+            {...invalidProps("zone-name", fieldError("zone-name"))}
           />
+          <FieldError id="zone-name" message={fieldError("zone-name")} />
         </div>
         <div>
           <label htmlFor="zone-code" className="label">
@@ -98,7 +117,9 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => v
             onChange={(e) => setForm({ ...form, code: e.target.value })}
             placeholder="A"
             required
+            {...invalidProps("zone-code", fieldError("zone-code"))}
           />
+          <FieldError id="zone-code" message={fieldError("zone-code")} />
           <p className="field-help">Short identifier drivers see on the gate and in the app.</p>
         </div>
         <div className="sm:col-span-2">
@@ -126,7 +147,9 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => v
             value={form.capacity}
             onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
             required
+            {...invalidProps("zone-capacity", fieldError("zone-capacity"))}
           />
+          <FieldError id="zone-capacity" message={fieldError("zone-capacity")} />
         </div>
         <div>
           <label htmlFor="zone-lat" className="label">
@@ -139,7 +162,9 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => v
             value={navigationLat}
             onChange={(e) => setNavigationLat(e.target.value)}
             placeholder="13.76447"
+            {...invalidProps("zone-lat", fieldError("zone-lat"))}
           />
+          <FieldError id="zone-lat" message={fieldError("zone-lat")} />
           <p className="field-help">Optional now; drivers&apos; Directions stay disabled until both are set.</p>
         </div>
         <div>
@@ -153,14 +178,16 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => v
             value={navigationLng}
             onChange={(e) => setNavigationLng(e.target.value)}
             placeholder="121.06462"
+            {...invalidProps("zone-lng", fieldError("zone-lng"))}
           />
+          <FieldError id="zone-lng" message={fieldError("zone-lng")} />
         </div>
         <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4 sm:col-span-2">
           <Button type="submit" variant="primary" disabled={create.isPending}>
             <Save className="h-4 w-4" aria-hidden="true" />
             {create.isPending ? "Creating zone…" : "Create zone"}
           </Button>
-          {error ? (
+          {error && !errorField ? (
             <p role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
               <AlertCircle className="h-4 w-4" aria-hidden="true" />
               {error}

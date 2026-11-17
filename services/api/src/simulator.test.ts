@@ -570,4 +570,54 @@ describe("Phase 6 — occupancy simulator & admin infrastructure", () => {
       expect(await prisma.occupancyEvent.count({ where: { zoneId: tiny.zoneId } })).toBe(2);
     });
   });
+
+  // UAT 2026-11-17 (T6): a newly registered driver found no fee after a
+  // simulated entry + exit. The admin page sends every active vehicle id in
+  // /admin/vehicles order (by plate), and single-vehicle scenarios use the
+  // first, so the session and fee went to whichever plate sorts first.
+  describe("Simulated lifecycle fee lands on the chosen driver", () => {
+    async function uatDriver() {
+      const driver = await prisma.user.create({
+        data: { name: "UAT Driver", email: "uat-driver@test.local", passwordHash: "x", role: "USER" },
+      });
+      // TUV-777 sorts after the seeded SIM-001, like a real new driver's plate after ABC-1234.
+      const vehicle = await prisma.vehicle.create({
+        data: { userId: driver.id, plateNumber: "TUV-777", normalizedPlate: "TUV777", vehicleType: "CAR", status: "ACTIVE" },
+      });
+      return { vehicleId: vehicle.id, token: tokenService.sign({ id: driver.id, role: "USER" }).token };
+    }
+
+    async function feesFor(token: string) {
+      const res = await request(ctx.app).get("/sessions").set("Authorization", `Bearer ${token}`).expect(200);
+      return (res.body.data as { status: string; feeAmount: number | null }[]).filter((s) => s.feeAmount != null);
+    }
+
+    it("an all-vehicles payload (the admin page's 'All registered vehicles' default) charges the first plate, not the new driver", async () => {
+      const uat = await uatDriver();
+      const all = await request(ctx.app).get("/admin/vehicles").set("Authorization", `Bearer ${ctx.adminToken}`).expect(200);
+      const ids = (all.body.data as { id: string }[]).map((v) => v.id);
+      expect(ids).toContain(uat.vehicleId);
+
+      await request(ctx.app)
+        .post("/simulator/run")
+        .set("Authorization", `Bearer ${ctx.adminToken}`)
+        .send({ scenario: "COMPLETE_PARKING_LIFECYCLE", zoneId: ctx.zoneId, vehicleIds: ids })
+        .expect(201);
+
+      expect(await feesFor(uat.token)).toEqual([]);
+      expect(await feesFor(ctx.userToken)).toEqual([expect.objectContaining({ status: "COMPLETED", feeAmount: 20 })]);
+    });
+
+    it("a single chosen vehicle id puts the completed session and its fee on that driver", async () => {
+      const uat = await uatDriver();
+      await request(ctx.app)
+        .post("/simulator/run")
+        .set("Authorization", `Bearer ${ctx.adminToken}`)
+        .send({ scenario: "COMPLETE_PARKING_LIFECYCLE", zoneId: ctx.zoneId, vehicleIds: [uat.vehicleId] })
+        .expect(201);
+
+      expect(await feesFor(uat.token)).toEqual([expect.objectContaining({ status: "COMPLETED", feeAmount: 20 })]);
+      expect(await feesFor(ctx.userToken)).toEqual([]);
+    });
+  });
 });

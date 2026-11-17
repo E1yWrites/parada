@@ -28,7 +28,8 @@ function renderPage(queryClient: QueryClient) {
 }
 
 const zone = { id: "z1", name: "Zone A", code: "A", capacity: 20 };
-const vehicle = { id: "v1", plateNumber: "ABC-1234", vehicleType: "CAR" };
+const vehicle = { id: "v1", plateNumber: "ABC-1234", vehicleType: "CAR", user: { id: "u1", name: "Driver User" } };
+const uatVehicle = { id: "v2", plateNumber: "TUV-777", vehicleType: "CAR", user: { id: "u2", name: "UAT Driver" } };
 
 const status = {
   runs: 3,
@@ -70,7 +71,7 @@ describe("Simulator page — drives the real backend", () => {
     const invalidateSpy = jest.spyOn(queryClient, "invalidateQueries");
 
     renderPage(queryClient);
-    await screen.findByText("Will use 1 registered active vehicles.");
+    await screen.findByText(/Will use 1 registered active vehicles\./);
     fireEvent.change(screen.getByLabelText("Zone"), { target: { value: "z1" } });
     fireEvent.click(screen.getByRole("button", { name: /run simulator/i }));
 
@@ -87,6 +88,34 @@ describe("Simulator page — drives the real backend", () => {
       expect(invalidateSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["dashboard"] }))
     );
     expect(invalidateSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["simulator-status"] }));
+  });
+
+  // UAT 2026-11-17 (T6): with every vehicle sent, single-vehicle scenarios hit
+  // the first plate, so a new driver never saw the simulated fee.
+  it("says which plate a single-vehicle scenario will use when no vehicle is chosen", async () => {
+    mockedApi.vehicles.mockResolvedValue([vehicle, uatVehicle]);
+    renderPage(queryClient);
+    expect(
+      await screen.findByText(/Single-vehicle scenarios use the first plate, ABC-1234 \(Driver User\)\./)
+    ).toBeInTheDocument();
+  });
+
+  it("sends only the chosen vehicle so its driver gets the session and fee", async () => {
+    mockedApi.vehicles.mockResolvedValue([vehicle, uatVehicle]);
+    mockedApi.simulatorRun.mockResolvedValue({ ...result, scenario: "COMPLETE_PARKING_LIFECYCLE", rejects: [] });
+    renderPage(queryClient);
+    fireEvent.change(screen.getByLabelText("Scenario"), { target: { value: "COMPLETE_PARKING_LIFECYCLE" } });
+    const select = await screen.findByLabelText("Vehicle");
+    await screen.findByRole("option", { name: "TUV-777 — UAT Driver" });
+    fireEvent.change(select, { target: { value: "v2" } });
+    expect(screen.getByText("Will use TUV-777; its driver sees the session and fee.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /run simulator/i }));
+
+    await waitFor(() =>
+      expect(mockedApi.simulatorRun).toHaveBeenCalledWith(
+        expect.objectContaining({ scenario: "COMPLETE_PARKING_LIFECYCLE", vehicleIds: ["v2"] })
+      )
+    );
   });
 
   it("displays the resulting occupancy and any real rejections from the backend", async () => {

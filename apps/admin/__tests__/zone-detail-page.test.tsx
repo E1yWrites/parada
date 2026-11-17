@@ -97,6 +97,23 @@ describe("Admin zone detail — navigation coordinates", () => {
     fireEvent.click(screen.getByRole("button", { name: /save zone/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/between -180 and 180/);
   });
+
+  it("puts a capacity rejection that names its field under Capacity (UAT 2026-11-17)", async () => {
+    mockedApi.zones.mockResolvedValue([zone]);
+    const { ApiError } = jest.requireActual("@/lib/api/client");
+    mockedApi.updateZone.mockRejectedValue(
+      new ApiError("CONFLICT", "You cannot reduce this zone below its current occupancy.", 409, "capacity")
+    );
+    renderPage();
+    await screen.findByLabelText("Capacity");
+    fireEvent.change(screen.getByLabelText("Capacity"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: /save zone/i }));
+
+    const capacity = screen.getByLabelText("Capacity");
+    await waitFor(() => expect(capacity).toHaveAttribute("aria-invalid", "true"));
+    expect(capacity).toHaveAccessibleDescription("You cannot reduce this zone below its current occupancy.");
+    expect(capacity).toHaveFocus();
+  });
 });
 
 describe("Admin zone detail — gate cameras", () => {

@@ -14,6 +14,13 @@ import { formatDateTime } from "@/lib/format";
 import { EVENT_LABEL, GATE_LABEL, labelFor } from "@/lib/labels";
 import type { AdminCamera, AdminCameraEvent } from "@/lib/api/types";
 import type { AdminZoneDetail } from "@/lib/api/types";
+import { FieldError, focusField, invalidProps } from "@/components/ui/FieldError";
+
+/** API field name -> input id, so a rejection is shown under its input. */
+const CAMERA_FIELD_IDS: Record<string, string | undefined> = {
+  identifier: "camera-identifier",
+  name: "camera-name",
+};
 
 const GATE_TONE: Record<string, "neutral" | "info" | "success"> = {
   ENTRY: "success",
@@ -62,6 +69,8 @@ function CameraForm({
       : EMPTY
   );
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<string | null>(null);
+  const fieldError = (id: string) => (errorField === id ? error : null);
   // Start keyboard users inside the form: Register unmounts while it is open,
   // and Edit opens it above the row that was pressed. The identifier is fixed
   // once registered, so an edit starts on the zone.
@@ -93,13 +102,17 @@ function CameraForm({
       onDone(editing ? `Camera ${editing.identifier} saved.` : `Camera ${form.identifier} registered.`);
     },
     onError: (err) => {
+      const id = err instanceof ApiError && err.field ? CAMERA_FIELD_IDS[err.field] : undefined;
       setError(err instanceof ApiError ? err.message : "Unable to save this camera.");
+      setErrorField(id ?? null);
+      focusField(id);
     },
   });
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    setErrorField(null);
     save.mutate();
   }
 
@@ -127,7 +140,9 @@ function CameraForm({
             placeholder="CAM-A01"
             disabled={identifierDisabled}
             required
+            {...invalidProps("camera-identifier", fieldError("camera-identifier"))}
           />
+          <FieldError id="camera-identifier" message={fieldError("camera-identifier")} />
           <p className="field-help">Stable, unique id fed to the vision pipeline. Cannot be changed after creation.</p>
         </div>
         <div>
@@ -180,7 +195,9 @@ function CameraForm({
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="Zone A Entry gate"
+            {...invalidProps("camera-name", fieldError("camera-name"))}
           />
+          <FieldError id="camera-name" message={fieldError("camera-name")} />
         </div>
         <div className="sm:col-span-2">
           <label htmlFor="camera-location" className="label">Location</label>
@@ -197,7 +214,7 @@ function CameraForm({
             <Save className="h-4 w-4" aria-hidden="true" />
             {save.isPending ? (editing ? "Saving camera…" : "Registering camera…") : editing ? "Save camera" : "Register camera"}
           </Button>
-          {error ? (
+          {error && !errorField ? (
             <span role="alert" className="flex items-center gap-2 text-sm font-semibold text-danger">
               <AlertCircle className="h-4 w-4" aria-hidden="true" />
               {error}

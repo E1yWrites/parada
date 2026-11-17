@@ -33,12 +33,15 @@ import type {
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
+  /** The input the backend rejected (`error.details.field`), when it names one. */
+  readonly field?: string;
 
-  constructor(code: string, message: string, status: number) {
+  constructor(code: string, message: string, status: number, field?: string) {
     super(message);
     this.name = "ApiError";
     this.code = code;
     this.status = status;
+    this.field = field;
   }
 }
 
@@ -84,7 +87,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     const code = body?.error?.code ?? "ERROR";
     const message = body?.error?.message ?? `Request failed (${res.status}).`;
-    throw new ApiError(code, message, res.status);
+    const field = body?.error?.details?.field;
+    throw new ApiError(code, message, res.status, typeof field === "string" ? field : undefined);
   }
 
   return (body?.data ?? undefined) as T;

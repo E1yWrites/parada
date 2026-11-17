@@ -349,7 +349,9 @@ describe("Forgot / reset password", () => {
     expect(row.expiresAt.getTime() - now.getTime()).toBe(30 * 60_000);
 
     await request(app).post("/auth/reset-password").send({ token: "not-a-token", newPassword: "Reset12345!" }).expect(422);
-    await request(app).post("/auth/reset-password").send({ token: resetToken, newPassword: "short" }).expect(422);
+    const weak = await request(app).post("/auth/reset-password").send({ token: resetToken, newPassword: "short" }).expect(422);
+    // The rejected input is the new password, not a "password" field.
+    expect(weak.body.error.details).toEqual({ field: "newPassword" });
 
     const reset = await request(app).post("/auth/reset-password").send({ token: resetToken, newPassword: "Reset12345!" }).expect(200);
     expect(reset.body.data.user.email).toBe("forgot@test.local");

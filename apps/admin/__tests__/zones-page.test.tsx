@@ -149,11 +149,44 @@ describe("Admin zones page — Phase 11A configuration", () => {
       "Capacity cannot be lower than current occupancy"
     );
   });
+
+  // UAT 2026-11-17: highlight the specific field with the error.
+  it("shows a backend rejection under the field it names, marks it invalid and focuses it", async () => {
+    mockedApi.zones.mockResolvedValue([]);
+    mockFailedCreate("Zone capacity must be a positive integer.", "capacity");
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /new zone/i }));
+    fireEvent.change(screen.getByPlaceholderText("Zone A"), { target: { value: "Zone C" } });
+    fireEvent.change(screen.getByPlaceholderText("A"), { target: { value: "C" } });
+    fireEvent.click(screen.getByRole("button", { name: /create zone/i }));
+
+    const capacity = screen.getByLabelText("Capacity");
+    await waitFor(() => expect(capacity).toHaveAttribute("aria-invalid", "true"));
+    expect(capacity).toHaveAccessibleDescription("Zone capacity must be a positive integer.");
+    expect(capacity).toHaveFocus();
+    // Shown once, under the field; not repeated in the form-level alert.
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByLabelText("Name")).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("marks the missing coordinate of a half-filled pair", async () => {
+    mockedApi.zones.mockResolvedValue([]);
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: /new zone/i }));
+    fireEvent.change(screen.getByPlaceholderText("Zone A"), { target: { value: "Nav" } });
+    fireEvent.change(screen.getByPlaceholderText("A"), { target: { value: "N" } });
+    fireEvent.change(screen.getByLabelText("Navigation latitude"), { target: { value: "13.7" } });
+    fireEvent.click(screen.getByRole("button", { name: /create zone/i }));
+
+    await waitFor(() => expect(screen.getByLabelText("Navigation longitude")).toHaveAttribute("aria-invalid", "true"));
+    expect(screen.getByLabelText("Navigation latitude")).not.toHaveAttribute("aria-invalid");
+  });
 });
 
-function mockFailedCreate(message: string) {
+function mockFailedCreate(message: string, field?: string) {
   const { ApiError } = jest.requireActual("@/lib/api/client");
-  mockedApi.createZone.mockRejectedValue(new ApiError("CONFLICT", message, 409));
+  mockedApi.createZone.mockRejectedValue(new ApiError("CONFLICT", message, 409, field));
 }
 
 describe("Admin zones page — keyboard focus (found in the keyboard pass)", () => {

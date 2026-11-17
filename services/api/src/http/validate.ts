@@ -3,6 +3,8 @@ import { BadRequestError, UnprocessableError } from "./errors";
 /**
  * Backend-authoritative input validation for account fields. Mobile/Admin
  * validate for UX only; these are the rules that actually hold.
+ * Name/email/coordinate rejections name the offending input in
+ * `details.field` so a form can show the message under that field.
  */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -27,7 +29,7 @@ export function validateEmail(raw: unknown, field = "email"): string {
   }
   const email = raw.trim().toLowerCase();
   if (email.length > 254 || !EMAIL_RE.test(email)) {
-    throw new UnprocessableError("Enter a valid email address.");
+    throw new UnprocessableError("Enter a valid email address.", { field });
   }
   return email;
 }
@@ -64,7 +66,7 @@ export function validateDisplayName(raw: unknown): string {
   }
   const name = raw.trim().replace(/\s+/g, " ");
   if (name.length < 2 || name.length > 80) {
-    throw new UnprocessableError("Name must be 2–80 characters.");
+    throw new UnprocessableError("Name must be 2–80 characters.", { field: "name" });
   }
   return name;
 }
@@ -117,15 +119,15 @@ export function validateCoordinatePair(
     return { navigationLat: null, navigationLng: null };
   }
   if (latUnset !== lngUnset) {
-    throw new BadRequestError("'navigationLat' and 'navigationLng' must be set together.");
+    throw new BadRequestError("'navigationLat' and 'navigationLng' must be set together.", { field: latUnset ? "navigationLat" : "navigationLng" });
   }
   const lat = typeof latRaw === "number" ? latRaw : Number.NaN;
   const lng = typeof lngRaw === "number" ? lngRaw : Number.NaN;
   if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
-    throw new UnprocessableError("'navigationLat' must be a number between -90 and 90.");
+    throw new UnprocessableError("'navigationLat' must be a number between -90 and 90.", { field: "navigationLat" });
   }
   if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
-    throw new UnprocessableError("'navigationLng' must be a number between -180 and 180.");
+    throw new UnprocessableError("'navigationLng' must be a number between -180 and 180.", { field: "navigationLng" });
   }
   return { navigationLat: lat, navigationLng: lng };
 }

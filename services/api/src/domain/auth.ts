@@ -141,7 +141,7 @@ export class AuthService {
       // Duplicate email -> Prisma P2002 on the email unique constraint.
       const code = (err as { code?: string })?.code;
       if (code === "P2002") {
-        throw new ConflictError(`An account with email '${email}' already exists.`);
+        throw new ConflictError(`An account with email '${email}' already exists.`, { field: "email" });
       }
       throw err;
     }
@@ -282,12 +282,12 @@ export class AuthService {
   }
 
   /** Validates a password meets the minimum policy. Throws Unprocessable on failure. */
-  validatePassword(password: string): void {
+  validatePassword(password: string, field = "password"): void {
     if (typeof password !== "string" || password.length < 8) {
-      throw new UnprocessableError("Password must be at least 8 characters long.");
+      throw new UnprocessableError("Password must be at least 8 characters long.", { field });
     }
     if (password.length > 128) {
-      throw new UnprocessableError("Password must be at most 128 characters long.");
+      throw new UnprocessableError("Password must be at most 128 characters long.", { field });
     }
   }
 
@@ -304,7 +304,7 @@ export class AuthService {
     userId: string,
     input: { currentPassword: string; newPassword: string }
   ): Promise<{ user: AuthUser; token: string }> {
-    this.validatePassword(input.newPassword);
+    this.validatePassword(input.newPassword, "newPassword");
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, role: true, status: true, passwordHash: true },
@@ -370,7 +370,7 @@ export class AuthService {
    * unverified account becomes verified here too.
    */
   async resetPassword(input: { token: string; newPassword: string }): Promise<AuthUser> {
-    this.validatePassword(input.newPassword);
+    this.validatePassword(input.newPassword, "newPassword");
     const passwordHash = await argon2.hash(input.newPassword, { type: argon2.argon2id });
     const updated = await prisma.$transaction(async (tx) => {
       const { userId } = await this.verification.consumeToken(tx, {

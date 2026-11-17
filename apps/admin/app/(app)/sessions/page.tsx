@@ -13,6 +13,23 @@ import type { AdminSession, ParkingSessionStatus } from "@/lib/api/types";
 
 type Filter = "ALL" | ParkingSessionStatus;
 
+/** Plates match regardless of case, spaces or dashes: "abc 1234" finds "ABC-1234". */
+function plateKey(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function sessionMatches(s: AdminSession, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const plate = plateKey(query);
+  return (
+    // An all-punctuation query must not match every plate.
+    (plate.length > 0 && s.vehicle != null && plateKey(s.vehicle.plateNumber).includes(plate)) ||
+    (s.user?.name.toLowerCase().includes(q) ?? false) ||
+    s.zone.code.toLowerCase().includes(q)
+  );
+}
+
 export default function SessionsPage() {
   const [filter, setFilter] = useState<Filter>("ALL");
   const [query, setQuery] = useState("");
@@ -23,16 +40,9 @@ export default function SessionsPage() {
     refetchInterval: 30_000,
   });
 
-  const rows = (sessions.data ?? []).filter((s) => {
-    if (filter !== "ALL" && s.status !== filter) return false;
-    if (!query.trim()) return true;
-    const q = query.trim().toLowerCase();
-    return (
-      (s.vehicle?.plateNumber.toLowerCase().includes(q) ?? false) ||
-      (s.user?.name.toLowerCase().includes(q) ?? false) ||
-      s.zone.code.toLowerCase().includes(q)
-    );
-  });
+  const rows = (sessions.data ?? []).filter(
+    (s) => (filter === "ALL" || s.status === filter) && sessionMatches(s, query)
+  );
 
   const columns: Column<AdminSession>[] = [
     {
@@ -88,8 +98,8 @@ export default function SessionsPage() {
   return (
     <div>
       <PageHeader
-        title="Vehicles"
-        description="Every camera-recorded entry and exit, for registered vehicles and guests."
+        title="Sessions"
+        description="Every camera-recorded entry and exit, for registered vehicles and guests. Search by plate to find a vehicle."
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -100,7 +110,8 @@ export default function SessionsPage() {
             placeholder="Search plate, owner, zone…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search sessions"
+            aria-label="Search sessions by plate, owner or zone"
+            type="search"
           />
         </div>
         <div className="segmented" role="group" aria-label="Filter sessions by status">

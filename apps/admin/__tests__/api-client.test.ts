@@ -30,6 +30,18 @@ afterEach(() => {
 });
 
 describe("api client proxy requests", () => {
+  it("carries the rejected field from error.details so a form can mark that input", async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonErrorResponse({ error: { code: "CONFLICT", message: "Camera identifier already exists.", details: { field: "identifier" } } }, 409)
+    );
+    const err = await api.cameras().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err).toMatchObject({ code: "CONFLICT", status: 409, field: "identifier" });
+
+    global.fetch = jest.fn().mockResolvedValue(jsonErrorResponse({ error: { code: "CONFLICT", message: "x" } }, 409));
+    expect(await api.cameras().catch((e: unknown) => e)).toMatchObject({ field: undefined });
+  });
+
   it("unwraps the { data } envelope for GET endpoints", async () => {
     const payload = [{ id: "z1", code: "A" }];
     global.fetch = jest.fn().mockResolvedValue(jsonResponse({ data: payload }));

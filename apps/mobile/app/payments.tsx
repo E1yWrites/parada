@@ -46,6 +46,8 @@ export default function PaymentsScreen() {
   const sessionFees = (sessions.data ?? []).filter(
     (s): s is SessionDto & { feeAmount: number } => s.feeAmount != null && s.feeAmount > 0,
   );
+  // A session still in progress has no fee yet; say so instead of an unexplained blank.
+  const inProgress = (sessions.data ?? []).filter((s) => s.status === "ACTIVE");
 
   return (
     <Screen
@@ -65,16 +67,46 @@ export default function PaymentsScreen() {
         />
       ) : (
         <View style={styles.content}>
+          {/* Session fees first: after a parking session ends, its fee is what a driver comes here to read. */}
+          <SectionHeader title="Session fees" caption="Charged when a session ends, at the establishment's rates." testID="payments-fees-header" />
+          {inProgress.map((s) => (
+            <Text key={s.id} variant="caption" color={colors.muted} testID={`payments-in-progress-${s.id}`}>
+              {`${s.vehicle?.plateNumber ?? "Your vehicle"} is parked in Zone ${s.zone.code}. Its fee is charged when the session ends.`}
+            </Text>
+          ))}
+          {sessionFees.length === 0 ? (
+            <Text variant="caption" color={colors.muted} testID="payments-fees-empty">
+              No session fees yet. A fee appears here when a parking session for one of your registered plates ends.
+            </Text>
+          ) : (
+            <Card padding={0} testID="payments-fees-list">
+              {sessionFees.map((s, i) => (
+                <View key={s.id} style={[styles.row, i > 0 ? styles.rowDivider : undefined]}>
+                  <View style={styles.rowText}>
+                    <Text variant="bodySemi">Parking fee · Zone {s.zone.code}</Text>
+                    <Text variant="caption" color={colors.muted}>
+                      {s.vehicle ? `${s.vehicle.plateNumber} · ` : ""}
+                      {formatDateTime(s.exitedAt ?? s.enteredAt)}
+                    </Text>
+                  </View>
+                  <Text variant="bodySemi" testID={`payments-fee-${s.id}`}>
+                    {formatCurrency(s.feeAmount)}
+                  </Text>
+                </View>
+              ))}
+            </Card>
+          )}
+
           <Card testID="payments-outstanding">
             <Text variant="caption" color={colors.muted}>
-              Outstanding balance
+              Unpaid fines
             </Text>
             <Text variant="display" numberOfLines={1} adjustsFontSizeToFit style={styles.balance} testID="payments-outstanding-total">
               {formatCurrency(outstandingTotal)}
             </Text>
             <Text variant="caption" color={colors.muted}>
               {outstanding.length === 0
-                ? "Nothing due right now."
+                ? "No unpaid violation fines."
                 : `${outstanding.length} unpaid violation${outstanding.length === 1 ? "" : "s"}`}
             </Text>
           </Card>
@@ -83,7 +115,7 @@ export default function PaymentsScreen() {
           {outstanding.length === 0 ? (
             <EmptyState
               illustration="shield"
-              title="Nothing due"
+              title="No unpaid fines"
               description="Wrong-zone fines will show up here until paid, dismissed or resolved."
               testID="payments-outstanding-empty"
             />
@@ -98,29 +130,6 @@ export default function PaymentsScreen() {
                 />
               ))}
             </View>
-          )}
-
-          <SectionHeader title="Session fees" caption="Charged when a session ends, at the establishment's rates." testID="payments-fees-header" />
-          {sessionFees.length === 0 ? (
-            <Text variant="caption" color={colors.muted}>
-              No session fees yet.
-            </Text>
-          ) : (
-            <Card padding={0} testID="payments-fees-list">
-              {sessionFees.map((s, i) => (
-                <View key={s.id} style={[styles.row, i > 0 ? styles.rowDivider : undefined]}>
-                  <View style={styles.rowText}>
-                    <Text variant="bodySemi">Parking fee · Zone {s.zone.code}</Text>
-                    <Text variant="caption" color={colors.muted}>
-                      {formatDateTime(s.exitedAt ?? s.enteredAt)}
-                    </Text>
-                  </View>
-                  <Text variant="bodySemi" testID={`payments-fee-${s.id}`}>
-                    {formatCurrency(s.feeAmount)}
-                  </Text>
-                </View>
-              ))}
-            </Card>
           )}
         </View>
       )}

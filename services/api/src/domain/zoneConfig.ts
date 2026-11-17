@@ -145,7 +145,8 @@ export class ZoneConfigService {
           if (capacityRequested < current.occupiedCount) {
             throw new ConflictError(
               `You cannot reduce this zone below its current occupancy. ` +
-                `${current.occupiedCount} of ${current.capacity} spaces are currently occupied.`
+                `${current.occupiedCount} of ${current.capacity} spaces are currently occupied.`,
+              { field: "capacity" }
             );
           }
           const protecting = this.reservations
@@ -154,7 +155,8 @@ export class ZoneConfigService {
           if (capacityRequested <= current.occupiedCount + protecting) {
             throw new ConflictError(
               `You cannot reduce this zone below its occupied and reserved capacity. ` +
-                `(${current.occupiedCount} occupied, ${protecting} reserved, capacity ${current.capacity}).`
+                `(${current.occupiedCount} occupied, ${protecting} reserved, capacity ${current.capacity}).`,
+              { field: "capacity" }
             );
           }
           data.capacity = capacityRequested;
@@ -302,7 +304,7 @@ export class ZoneConfigService {
       return this.toCamera(created);
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-        throw new ConflictError("Camera identifier already exists.");
+        throw new ConflictError("Camera identifier already exists.", { field: "identifier" });
       }
       throw err;
     }
@@ -446,18 +448,18 @@ export class ZoneConfigService {
 
 function requiredLabel(field: "name" | "code" | "identifier" | "slot code", value: unknown): string {
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new BadRequestError(`'${field}' is required.`);
+    throw new BadRequestError(`'${field}' is required.`, { field });
   }
   const trimmed = value.trim();
   if (trimmed.length > 120) {
-    throw new BadRequestError(`'${field}' must be 120 characters or fewer.`);
+    throw new BadRequestError(`'${field}' must be 120 characters or fewer.`, { field });
   }
   return trimmed;
 }
 
 function validateCapacity(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
-    throw new BadRequestError("Zone capacity must be a positive integer.");
+    throw new BadRequestError("Zone capacity must be a positive integer.", { field: "capacity" });
   }
   return value;
 }

@@ -149,6 +149,73 @@ describe("register screen", () => {
     await expect(getToken()).resolves.toBeNull();
     expect(__router.replace).not.toHaveBeenCalledWith("/(tabs)/parking");
   });
+
+  // UAT 2026-11-17: registration errors should mark the specific field.
+  async function submitValidForm() {
+    await fireEvent.changeText(screen.getByTestId("register-name"), "Alex Driver");
+    await fireEvent.changeText(screen.getByTestId("register-email"), "alex@parada.test");
+    await fireEvent.changeText(screen.getByTestId("register-password"), "password123");
+    await fireEvent.changeText(screen.getByTestId("register-confirm"), "password123");
+    await fireEvent.press(screen.getByTestId("register-submit"));
+  }
+
+  it("shows a duplicate-email rejection under the Email field, announced to screen readers", async () => {
+    (api.register as jest.Mock).mockRejectedValue(
+      new ApiError("CONFLICT", "An account with email 'alex@parada.test' already exists.", 409, { field: "email" }),
+    );
+    await renderWithAppProviders(<RegisterScreen />);
+    await submitValidForm();
+
+    const fieldError = await screen.findByTestId("register-email-error");
+    expect(fieldError).toHaveTextContent(/This email already has an account\. Sign in instead/);
+    expect(fieldError.props.accessibilityRole).toBe("alert");
+    expect(screen.getByLabelText("Email").props.accessibilityHint).toMatch(/already has an account/);
+    expect(screen.queryByTestId("register-error")).toBeNull();
+  });
+
+  it("puts a server field rejection under that field with the server's message", async () => {
+    (api.register as jest.Mock).mockRejectedValue(
+      new ApiError("UNPROCESSABLE", "Name must be 2–80 characters.", 422, { field: "name" }),
+    );
+    await renderWithAppProviders(<RegisterScreen />);
+    await submitValidForm();
+
+    expect(await screen.findByTestId("register-name-error")).toHaveTextContent("Name must be 2–80 characters.");
+  });
+
+  it("keeps the banner for errors that name no field", async () => {
+    (api.register as jest.Mock).mockRejectedValue(new ApiError("TOO_MANY_REQUESTS", "Too many requests.", 429));
+    await renderWithAppProviders(<RegisterScreen />);
+    await submitValidForm();
+
+    expect(await screen.findByTestId("register-error")).toHaveTextContent("Too many requests.");
+  });
+
+  it("applies the server's 80-character name limit before submitting", async () => {
+    await renderWithAppProviders(<RegisterScreen />);
+    await fireEvent.changeText(screen.getByTestId("register-name"), "A".repeat(81));
+    await fireEvent.changeText(screen.getByTestId("register-email"), "alex@parada.test");
+    await fireEvent.changeText(screen.getByTestId("register-password"), "password123");
+    await fireEvent.changeText(screen.getByTestId("register-confirm"), "password123");
+    await fireEvent.press(screen.getByTestId("register-submit"));
+
+    expect(api.register).not.toHaveBeenCalled();
+    expect(screen.getByTestId("register-name-error")).toHaveTextContent("Name must be 2–80 characters.");
+  });
+
+  it("applies the server's email rule before submitting and states the password rule up front", async () => {
+    await renderWithAppProviders(<RegisterScreen />);
+    expect(screen.getByTestId("register-password-hint")).toHaveTextContent(/At least 8 characters/);
+
+    await fireEvent.changeText(screen.getByTestId("register-name"), "Alex Driver");
+    await fireEvent.changeText(screen.getByTestId("register-email"), "alex@parada.c");
+    await fireEvent.changeText(screen.getByTestId("register-password"), "password123");
+    await fireEvent.changeText(screen.getByTestId("register-confirm"), "password123");
+    await fireEvent.press(screen.getByTestId("register-submit"));
+
+    expect(api.register).not.toHaveBeenCalled();
+    expect(screen.getByTestId("register-email-error")).toHaveTextContent("Enter a valid email address.");
+  });
 });
 
 describe("session provider bootstrap", () => {
