@@ -2496,11 +2496,67 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
         .set("Authorization", `Bearer ${adminToken}`)
         .send({ name: "Zone A", code: "A", capacity: 10 })
         .expect(201);
-      await request(app)
+      const res = await request(app)
         .post("/admin/zones")
         .set("Authorization", `Bearer ${adminToken}`)
         .send({ name: "Zone Dupe", code: "A", capacity: 10 })
         .expect(409);
+      expect(res.body.error).toMatchObject({
+        code: "CONFLICT",
+        message: "A zone with this code already exists.",
+        details: { field: "code" },
+      });
+    });
+
+    // Walkthrough 2026-11-18: the duplicate is named so the form can mark that input.
+    it("names the duplicate field on create: name, or code when both are taken", async () => {
+      const auth = { Authorization: `Bearer ${adminToken}` };
+      await request(app).post("/admin/zones").set(auth).send({ name: "Zone A", code: "A", capacity: 10 }).expect(201);
+
+      const dupName = await request(app)
+        .post("/admin/zones")
+        .set(auth)
+        .send({ name: " Zone A ", code: "NEW", capacity: 10 })
+        .expect(409);
+      expect(dupName.body.error).toMatchObject({
+        code: "CONFLICT",
+        message: "A zone with this name already exists.",
+        details: { field: "name" },
+      });
+
+      const both = await request(app).post("/admin/zones").set(auth).send({ name: "Zone A", code: "A", capacity: 10 }).expect(409);
+      expect(both.body.error).toMatchObject({ message: "A zone with this code already exists.", details: { field: "code" } });
+      expect(await prisma.parkingZone.count()).toBe(1);
+    });
+
+    it("names the duplicate field on edit and leaves the zone unchanged", async () => {
+      const auth = { Authorization: `Bearer ${adminToken}` };
+      await prisma.parkingZone.create({ data: { name: "Taken", code: "T", capacity: 10 } });
+      const zone = await prisma.parkingZone.create({ data: { name: "Mine", code: "M", capacity: 10 } });
+
+      // A name-only edit must not be blamed on the (unsent) code.
+      const nameOnly = await request(app).patch(`/admin/zones/${zone.id}`).set(auth).send({ name: "Taken" }).expect(409);
+      expect(nameOnly.body.error).toMatchObject({ code: "CONFLICT", details: { field: "name" } });
+
+      // The edit form resends the zone's own code; that is not a conflict.
+      const withOwnCode = await request(app)
+        .patch(`/admin/zones/${zone.id}`)
+        .set(auth)
+        .send({ name: "Taken", code: "M" })
+        .expect(409);
+      expect(withOwnCode.body.error).toMatchObject({
+        message: "A zone with this name already exists.",
+        details: { field: "name" },
+      });
+
+      const dupCode = await request(app).patch(`/admin/zones/${zone.id}`).set(auth).send({ name: "Mine", code: "T" }).expect(409);
+      expect(dupCode.body.error).toMatchObject({
+        message: "A zone with this code already exists.",
+        details: { field: "code" },
+      });
+
+      const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } });
+      expect(after).toMatchObject({ name: "Mine", code: "M" });
     });
 
     it("answers 400, not 500, to admin writes sent without a body (Express 5 leaves req.body undefined)", async () => {

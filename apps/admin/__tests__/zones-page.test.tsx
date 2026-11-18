@@ -170,6 +170,28 @@ describe("Admin zones page — Phase 11A configuration", () => {
     expect(screen.getByLabelText("Name")).not.toHaveAttribute("aria-invalid");
   });
 
+  // Walkthrough 2026-11-18: a duplicate name/code is marked on its own input.
+  it.each([
+    ["name", "Name", "A zone with this name already exists."],
+    ["code", "Code", "A zone with this code already exists."],
+  ])("shows a duplicate %s under the %s input", async (field, label, message) => {
+    mockedApi.zones.mockResolvedValue([]);
+    mockFailedCreate(message, field);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /new zone/i }));
+    fireEvent.change(screen.getByPlaceholderText("Zone A"), { target: { value: "Zone A" } });
+    fireEvent.change(screen.getByPlaceholderText("A"), { target: { value: "A" } });
+    fireEvent.click(screen.getByRole("button", { name: /create zone/i }));
+
+    const input = screen.getByLabelText(label);
+    await waitFor(() => expect(input).toHaveAttribute("aria-invalid", "true"));
+    expect(input).toHaveAccessibleDescription(message);
+    expect(input).toHaveFocus();
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByLabelText(label === "Name" ? "Code" : "Name")).not.toHaveAttribute("aria-invalid");
+  });
+
   it("marks the missing coordinate of a half-filled pair", async () => {
     mockedApi.zones.mockResolvedValue([]);
     renderPage();

@@ -114,6 +114,26 @@ describe("Admin zone detail — navigation coordinates", () => {
     expect(capacity).toHaveAccessibleDescription("You cannot reduce this zone below its current occupancy.");
     expect(capacity).toHaveFocus();
   });
+
+  // Walkthrough 2026-11-18: a duplicate name/code is marked on its own input.
+  it.each([
+    ["name", "Name", "A zone with this name already exists."],
+    ["code", "Code", "A zone with this code already exists."],
+  ])("puts a duplicate %s under the %s input", async (field, label, message) => {
+    mockedApi.zones.mockResolvedValue([zone]);
+    const { ApiError } = jest.requireActual("@/lib/api/client");
+    mockedApi.updateZone.mockRejectedValue(new ApiError("CONFLICT", message, 409, field));
+    renderPage();
+    await screen.findByLabelText(label);
+    fireEvent.click(screen.getByRole("button", { name: /save zone/i }));
+
+    const input = screen.getByLabelText(label);
+    await waitFor(() => expect(input).toHaveAttribute("aria-invalid", "true"));
+    expect(input).toHaveAccessibleDescription(message);
+    expect(input).toHaveFocus();
+    expect(screen.queryAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByLabelText(label === "Name" ? "Code" : "Name")).not.toHaveAttribute("aria-invalid");
+  });
 });
 
 describe("Admin zone detail — gate cameras", () => {
