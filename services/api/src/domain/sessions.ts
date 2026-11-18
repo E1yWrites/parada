@@ -1,25 +1,24 @@
 import { prisma, Prisma, type Notification } from "@parada/database";
 import {
-  BadRequestError,
   ConflictError,
   NotFoundError,
 } from "../http/errors";
 import type { ConfigService } from "./config";
+import { requireOwnedActiveVehicle } from "./vehicles";
 import type { AssignmentService } from "./assignment";
 import type { ReservationService } from "./reservation";
 import { calculateParkingFee, persistSessionFee } from "./fees";
 import type {
   ParkingSessionResponse,
   SessionEntryInput,
-  SessionExitInput,
   SessionExitResult,
 } from "@parada/types";
 
 type SessionRecord = {
   id: string;
   zoneId: string;
-  userId: string;
-  vehicleId: string;
+  userId: string | null;
+  vehicleId: string | null;
   entryEventId: string;
   exitEventId: string | null;
   enteredAt: Date;
@@ -33,7 +32,7 @@ type SessionRecord = {
   exitEvent: { id: string; detectedAt: Date } | null;
 };
 
-function sessionResponse(session: SessionRecord): ParkingSessionResponse {
+export function sessionResponse(session: SessionRecord): ParkingSessionResponse {
   return {
     ...session,
     enteredAt: session.enteredAt.toISOString(),
@@ -47,7 +46,7 @@ function sessionResponse(session: SessionRecord): ParkingSessionResponse {
   };
 }
 
-const sessionInclude = {
+export const sessionInclude = {
   zone: { select: { id: true, name: true, code: true } },
   vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
   entryEvent: { select: { id: true, detectedAt: true } },
@@ -77,17 +76,8 @@ export class ParkingSessionService {
     this.reservations = reservations;
   }
 
-  /** Owned AND registered: an unregistered (INACTIVE) vehicle is not eligible for new parking activity. */
-  private async requireOwnedVehicle(userId: string, vehicleId: string) {
-    const vehicle = await prisma.vehicle.findFirst({ where: { id: vehicleId, userId, status: "ACTIVE" } });
-    if (!vehicle) {
-      throw new NotFoundError("Vehicle not found.");
-    }
-    return vehicle;
-  }
-
   async entry(userId: string, input: SessionEntryInput): Promise<ParkingSessionResponse> {
-    const vehicle = await this.requireOwnedVehicle(userId, input.vehicleId);
+    const vehicle = await requireOwnedActiveVehicle(userId, input.vehicleId);
 
     const zone = await prisma.parkingZone.findUnique({ where: { id: input.zoneId } });
     if (!zone || zone.status !== "ACTIVE") {
@@ -108,10 +98,8 @@ export class ParkingSessionService {
       );
     }
 
-    const enteredAt = input.enteredAt ? new Date(input.enteredAt) : new Date();
-    if (Number.isNaN(enteredAt.getTime())) {
-      throw new BadRequestError("'enteredAt' must be a valid date.");
-    }
+    // Server clock only: a client-supplied time would let a driver forge duration and fee.
+    const enteredAt = new Date();
 
     try {
       const session = await prisma.$transaction(async (tx) => {
@@ -224,8 +212,7 @@ export class ParkingSessionService {
 
   async exit(
     userId: string,
-    sessionId: string,
-    input: SessionExitInput = {}
+    sessionId: string
   ): Promise<SessionExitResult & { notification: Notification | null }> {
     const session = await prisma.parkingSession.findFirst({
       where: { id: sessionId, userId },
@@ -238,10 +225,7 @@ export class ParkingSessionService {
       throw new ConflictError("This session is not active and cannot be exited.");
     }
 
-    const exitedAt = input.exitedAt ? new Date(input.exitedAt) : new Date();
-    if (Number.isNaN(exitedAt.getTime())) {
-      throw new BadRequestError("'exitedAt' must be a valid date.");
-    }
+    const exitedAt = new Date();
 
     const durationMs = Math.max(0, exitedAt.getTime() - session.enteredAt.getTime());
     const durationSeconds = Math.floor(durationMs / 1000);

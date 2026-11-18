@@ -94,6 +94,8 @@ const PAIRS: [string, string, number][] = [
   ["on-accent", "brand", 4.5],
   ["on-accent", "brand-hover", 4.5],
   ["paper", "success", 4.5],
+  ["control-border", "card", 3],
+  ["control-border", "paper", 3],
   ["focus", "card", 3],
   ["focus", "paper", 3],
 ];
@@ -130,5 +132,12 @@ describe("admin token usage", () => {
   it("writes the cut corner with its token, not a literal", () => {
     const offenders = files.filter((f) => /rounded-tr-\[/.test(readFileSync(f, "utf8")));
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("form control boundaries use the 3:1 token", () => {
+  it(".input and .segmented draw their border with control-border, not the hairline token", () => {
+    expect(css).toMatch(/\.input\s*\{\s*@apply[^;]*border-control/);
+    expect(css).toMatch(/\.segmented\s*\{\s*@apply[^;]*border-control/);
   });
 });

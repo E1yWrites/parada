@@ -6,7 +6,9 @@ import LoginScreen from "@/app/login";
 import RegisterScreen from "@/app/register";
 import { useSession } from "@/src/providers/SessionProvider";
 import { api, ApiError } from "@/lib/api/client";
-import { getToken } from "@/lib/auth/session";
+import { getToken, notifyAuthInvalidated } from "@/lib/auth/session";
+import { queryClient, queryKeys } from "@/lib/query";
+import { act } from "@testing-library/react-native";
 
 jest.mock("@/lib/api/client", () => {
   const actual = jest.requireActual("@/lib/api/client");
@@ -18,7 +20,6 @@ jest.mock("@/lib/api/client", () => {
       register: jest.fn(),
       logout: jest.fn(),
       zones: jest.fn(),
-      zoneOccupancy: jest.fn(),
       vehicles: jest.fn(),
       createVehicle: jest.fn(),
       sessions: jest.fn(),
@@ -52,11 +53,11 @@ beforeEach(() => {
 describe("login screen", () => {
   it("signs in, stores the token and navigates to tabs", async () => {
     (api.login as jest.Mock).mockResolvedValue({ user, token: "tok-uid" });
-    renderWithAppProviders(<LoginScreen />);
+    await renderWithAppProviders(<LoginScreen />);
 
-    fireEvent.changeText(screen.getByTestId("login-email"), "alex@parada.test");
-    fireEvent.changeText(screen.getByTestId("login-password"), "password123");
-    fireEvent.press(screen.getByTestId("login-submit"));
+    await fireEvent.changeText(screen.getByTestId("login-email"), "alex@parada.test");
+    await fireEvent.changeText(screen.getByTestId("login-password"), "password123");
+    await fireEvent.press(screen.getByTestId("login-submit"));
 
     await waitFor(() => expect(api.login).toHaveBeenCalledWith("alex@parada.test", "password123"));
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalled());
@@ -71,11 +72,11 @@ describe("login screen", () => {
         verification: null,
       }),
     );
-    renderWithAppProviders(<LoginScreen />);
+    await renderWithAppProviders(<LoginScreen />);
 
-    fireEvent.changeText(screen.getByTestId("login-email"), "Alex@parada.test");
-    fireEvent.changeText(screen.getByTestId("login-password"), "password123");
-    fireEvent.press(screen.getByTestId("login-submit"));
+    await fireEvent.changeText(screen.getByTestId("login-email"), "Alex@parada.test");
+    await fireEvent.changeText(screen.getByTestId("login-password"), "password123");
+    await fireEvent.press(screen.getByTestId("login-submit"));
 
     await waitFor(() =>
       expect(__router.replace).toHaveBeenCalledWith({ pathname: "/verify-email", params: { email: "alex@parada.test" } }),
@@ -84,18 +85,18 @@ describe("login screen", () => {
     expect(screen.queryByTestId("login-error")).toBeNull();
   });
 
-  it("offers password recovery from the login screen", () => {
-    renderWithAppProviders(<LoginScreen />);
+  it("offers password recovery from the login screen", async () => {
+    await renderWithAppProviders(<LoginScreen />);
     expect(screen.getByTestId("login-goto-forgot")).toBeOnTheScreen();
   });
 
   it("shows the backend error and does not navigate on 401", async () => {
     (api.login as jest.Mock).mockRejectedValue(new ApiError("UNAUTHORIZED", "Invalid email or password.", 401));
-    renderWithAppProviders(<LoginScreen />);
+    await renderWithAppProviders(<LoginScreen />);
 
-    fireEvent.changeText(screen.getByTestId("login-email"), "alex@parada.test");
-    fireEvent.changeText(screen.getByTestId("login-password"), "nope-nope");
-    fireEvent.press(screen.getByTestId("login-submit"));
+    await fireEvent.changeText(screen.getByTestId("login-email"), "alex@parada.test");
+    await fireEvent.changeText(screen.getByTestId("login-password"), "nope-nope");
+    await fireEvent.press(screen.getByTestId("login-submit"));
 
     await waitFor(() => expect(screen.getByTestId("login-error")).toHaveTextContent("Invalid email or password."));
     expect(__router.replace).not.toHaveBeenCalled();
@@ -104,9 +105,9 @@ describe("login screen", () => {
 
 describe("register screen", () => {
   it("validates locally before calling the API", async () => {
-    renderWithAppProviders(<RegisterScreen />);
+    await renderWithAppProviders(<RegisterScreen />);
 
-    fireEvent.press(screen.getByTestId("register-submit"));
+    await fireEvent.press(screen.getByTestId("register-submit"));
     expect(api.register).not.toHaveBeenCalled();
     expect(screen.getByText("Enter your name.")).toBeOnTheScreen();
     expect(screen.getByText("Enter a valid email address.")).toBeOnTheScreen();
@@ -114,13 +115,13 @@ describe("register screen", () => {
   });
 
   it("rejects a mismatched confirmation password", async () => {
-    renderWithAppProviders(<RegisterScreen />);
+    await renderWithAppProviders(<RegisterScreen />);
 
-    fireEvent.changeText(screen.getByTestId("register-name"), "Alex Driver");
-    fireEvent.changeText(screen.getByTestId("register-email"), "alex@parada.test");
-    fireEvent.changeText(screen.getByTestId("register-password"), "password123");
-    fireEvent.changeText(screen.getByTestId("register-confirm"), "password999");
-    fireEvent.press(screen.getByTestId("register-submit"));
+    await fireEvent.changeText(screen.getByTestId("register-name"), "Alex Driver");
+    await fireEvent.changeText(screen.getByTestId("register-email"), "alex@parada.test");
+    await fireEvent.changeText(screen.getByTestId("register-password"), "password123");
+    await fireEvent.changeText(screen.getByTestId("register-confirm"), "password999");
+    await fireEvent.press(screen.getByTestId("register-submit"));
 
     expect(api.register).not.toHaveBeenCalled();
     expect(screen.getByText("Passwords do not match.")).toBeOnTheScreen();
@@ -131,13 +132,13 @@ describe("register screen", () => {
       user: { ...user, emailVerifiedAt: null },
       verification: { expiresAt: "2026-01-01T00:10:00.000Z", resendAvailableAt: "2026-01-01T00:01:00.000Z" },
     });
-    renderWithAppProviders(<RegisterScreen />);
+    await renderWithAppProviders(<RegisterScreen />);
 
-    fireEvent.changeText(screen.getByTestId("register-name"), "Alex Driver");
-    fireEvent.changeText(screen.getByTestId("register-email"), "alex@parada.test");
-    fireEvent.changeText(screen.getByTestId("register-password"), "password123");
-    fireEvent.changeText(screen.getByTestId("register-confirm"), "password123");
-    fireEvent.press(screen.getByTestId("register-submit"));
+    await fireEvent.changeText(screen.getByTestId("register-name"), "Alex Driver");
+    await fireEvent.changeText(screen.getByTestId("register-email"), "alex@parada.test");
+    await fireEvent.changeText(screen.getByTestId("register-password"), "password123");
+    await fireEvent.changeText(screen.getByTestId("register-confirm"), "password123");
+    await fireEvent.press(screen.getByTestId("register-submit"));
 
     await waitFor(() =>
       expect(api.register).toHaveBeenCalledWith("Alex Driver", "alex@parada.test", "password123"),
@@ -148,6 +149,73 @@ describe("register screen", () => {
     await expect(getToken()).resolves.toBeNull();
     expect(__router.replace).not.toHaveBeenCalledWith("/(tabs)/parking");
   });
+
+  // UAT 2026-11-17: registration errors should mark the specific field.
+  async function submitValidForm() {
+    await fireEvent.changeText(screen.getByTestId("register-name"), "Alex Driver");
+    await fireEvent.changeText(screen.getByTestId("register-email"), "alex@parada.test");
+    await fireEvent.changeText(screen.getByTestId("register-password"), "password123");
+    await fireEvent.changeText(screen.getByTestId("register-confirm"), "password123");
+    await fireEvent.press(screen.getByTestId("register-submit"));
+  }
+
+  it("shows a duplicate-email rejection under the Email field, announced to screen readers", async () => {
+    (api.register as jest.Mock).mockRejectedValue(
+      new ApiError("CONFLICT", "An account with email 'alex@parada.test' already exists.", 409, { field: "email" }),
+    );
+    await renderWithAppProviders(<RegisterScreen />);
+    await submitValidForm();
+
+    const fieldError = await screen.findByTestId("register-email-error");
+    expect(fieldError).toHaveTextContent(/This email already has an account\. Sign in instead/);
+    expect(fieldError.props.accessibilityRole).toBe("alert");
+    expect(screen.getByLabelText("Email").props.accessibilityHint).toMatch(/already has an account/);
+    expect(screen.queryByTestId("register-error")).toBeNull();
+  });
+
+  it("puts a server field rejection under that field with the server's message", async () => {
+    (api.register as jest.Mock).mockRejectedValue(
+      new ApiError("UNPROCESSABLE", "Name must be 2–80 characters.", 422, { field: "name" }),
+    );
+    await renderWithAppProviders(<RegisterScreen />);
+    await submitValidForm();
+
+    expect(await screen.findByTestId("register-name-error")).toHaveTextContent("Name must be 2–80 characters.");
+  });
+
+  it("keeps the banner for errors that name no field", async () => {
+    (api.register as jest.Mock).mockRejectedValue(new ApiError("TOO_MANY_REQUESTS", "Too many requests.", 429));
+    await renderWithAppProviders(<RegisterScreen />);
+    await submitValidForm();
+
+    expect(await screen.findByTestId("register-error")).toHaveTextContent("Too many requests.");
+  });
+
+  it("applies the server's 80-character name limit before submitting", async () => {
+    await renderWithAppProviders(<RegisterScreen />);
+    await fireEvent.changeText(screen.getByTestId("register-name"), "A".repeat(81));
+    await fireEvent.changeText(screen.getByTestId("register-email"), "alex@parada.test");
+    await fireEvent.changeText(screen.getByTestId("register-password"), "password123");
+    await fireEvent.changeText(screen.getByTestId("register-confirm"), "password123");
+    await fireEvent.press(screen.getByTestId("register-submit"));
+
+    expect(api.register).not.toHaveBeenCalled();
+    expect(screen.getByTestId("register-name-error")).toHaveTextContent("Name must be 2–80 characters.");
+  });
+
+  it("applies the server's email rule before submitting and states the password rule up front", async () => {
+    await renderWithAppProviders(<RegisterScreen />);
+    expect(screen.getByTestId("register-password-hint")).toHaveTextContent(/At least 8 characters/);
+
+    await fireEvent.changeText(screen.getByTestId("register-name"), "Alex Driver");
+    await fireEvent.changeText(screen.getByTestId("register-email"), "alex@parada.c");
+    await fireEvent.changeText(screen.getByTestId("register-password"), "password123");
+    await fireEvent.changeText(screen.getByTestId("register-confirm"), "password123");
+    await fireEvent.press(screen.getByTestId("register-submit"));
+
+    expect(api.register).not.toHaveBeenCalled();
+    expect(screen.getByTestId("register-email-error")).toHaveTextContent("Enter a valid email address.");
+  });
 });
 
 describe("session provider bootstrap", () => {
@@ -155,7 +223,7 @@ describe("session provider bootstrap", () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-persisted");
     (api.me as jest.Mock).mockResolvedValue(user);
 
-    renderWithAppProviders(<Probe />);
+    await renderWithAppProviders(<Probe />);
 
     await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent(user.email));
     expect(api.me).toHaveBeenCalledTimes(1);
@@ -165,7 +233,7 @@ describe("session provider bootstrap", () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-dead");
     (api.me as jest.Mock).mockRejectedValue(new ApiError("UNAUTHORIZED", "Session expired.", 401));
 
-    renderWithAppProviders(<Probe />);
+    await renderWithAppProviders(<Probe />);
 
     await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent("signed-out"));
     await expect(getToken()).resolves.toBeNull();
@@ -177,7 +245,7 @@ describe("session provider bootstrap", () => {
       new ApiError("NETWORK", "Cannot reach the PARADA server.", 0),
     );
 
-    renderWithAppProviders(<Probe />);
+    await renderWithAppProviders(<Probe />);
 
     await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent("signed-out"));
     await expect(getToken()).resolves.toBe("tok-alive");
@@ -189,7 +257,7 @@ describe("session provider bootstrap", () => {
       new ApiError("TIMEOUT", "The request timed out.", 0),
     );
 
-    renderWithAppProviders(<Probe />);
+    await renderWithAppProviders(<Probe />);
 
     await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent("signed-out"));
     await expect(getToken()).resolves.toBe("tok-alive");
@@ -201,7 +269,7 @@ describe("session provider bootstrap", () => {
       new ApiError("BAD_GATEWAY", "The server is down.", 502),
     );
 
-    renderWithAppProviders(<Probe />);
+    await renderWithAppProviders(<Probe />);
 
     await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent("signed-out"));
     await expect(getToken()).resolves.toBe("tok-alive");
@@ -213,10 +281,39 @@ describe("session provider bootstrap", () => {
       new ApiError("FORBIDDEN", "Not permitted.", 403),
     );
 
-    renderWithAppProviders(<Probe />);
+    await renderWithAppProviders(<Probe />);
 
     await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent("signed-out"));
     await expect(getToken()).resolves.toBe("tok-alive");
+  });
+});
+
+describe("query cache isolation between accounts", () => {
+  it("clears the cache when the session is invalidated by a 401", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-persisted");
+    (api.me as jest.Mock).mockResolvedValue(user);
+    await renderWithAppProviders(<Probe />);
+    await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent(user.email));
+
+    queryClient.setQueryData(queryKeys.vehicles, [{ id: "v-old" }]);
+    await act(async () => {
+      await notifyAuthInvalidated();
+    });
+
+    expect(queryClient.getQueryData(queryKeys.vehicles)).toBeUndefined();
+  });
+
+  it("clears a previous account's cache on sign-in", async () => {
+    (api.login as jest.Mock).mockResolvedValue({ user, token: "tok-new" });
+    queryClient.setQueryData(queryKeys.vehicles, [{ id: "v-old" }]);
+    await renderWithAppProviders(<LoginScreen />);
+
+    await fireEvent.changeText(screen.getByTestId("login-email"), "alex@parada.test");
+    await fireEvent.changeText(screen.getByTestId("login-password"), "password123");
+    await fireEvent.press(screen.getByTestId("login-submit"));
+
+    await waitFor(() => expect(api.login).toHaveBeenCalled());
+    await waitFor(() => expect(queryClient.getQueryData(queryKeys.vehicles)).toBeUndefined());
   });
 });
 

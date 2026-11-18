@@ -45,9 +45,9 @@ export function render(ui: ReactElement, options?: RenderOptions) {
   );
 }
 
-export function renderWithProviders(ui: ProviderChildren) {
+export async function renderWithProviders(ui: ProviderChildren) {
   const client = createTestClient();
-  const utils = rtlRender(
+  const utils = await rtlRender(
     <SafeAreaProvider
       initialMetrics={{
         frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -64,9 +64,9 @@ export function renderWithProviders(ui: ProviderChildren) {
 }
 
 /** Render within full app providers (React Query + PARADA session context). */
-export function renderWithAppProviders(ui: ProviderChildren) {
+export async function renderWithAppProviders(ui: ProviderChildren) {
   const client = createTestClient();
-  const utils = rtlRender(
+  const utils = await rtlRender(
     <SafeAreaProvider
       initialMetrics={{
         frame: { x: 0, y: 0, width: 390, height: 844 },

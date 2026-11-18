@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import { radii } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
@@ -30,9 +30,12 @@ export function Avatar({ name, uri = null, authToken = null, size = 40, testID }
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
   const [failed, setFailed] = useState(false);
-  useEffect(() => {
+  const [failedUri, setFailedUri] = useState(uri);
+  if (failedUri !== uri) {
+    // A new picture gets a fresh load attempt.
+    setFailedUri(uri);
     setFailed(false);
-  }, [uri]);
+  }
 
   const radius = Math.round(size * 0.34);
   const showImage = uri !== null && !failed;

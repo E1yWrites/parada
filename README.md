@@ -68,8 +68,8 @@ HttpOnly cookie.
 
 Prerequisites:
 
-- **Node.js 20.19.4+, 22.13+ or 24.3+** (`.nvmrc`: 24) and **npm 9+**. The mobile toolchain
-  (React Native 0.86 / Metro 0.84) refuses Node 18.
+- **Node.js 22.13+ or 24.3+** (`.nvmrc`: 24; odd-numbered releases are unsupported) and
+  **npm 9+**. Expo SDK 58 (React Native 0.88) and React Native Testing Library 14 require it.
 - **Python 3.11** — only for the vision/OCR service
 - No PostgreSQL install and no Docker required: `packages/database` runs an **embedded PostgreSQL 18**
   cluster on port `5442`, with data persisted in `packages/database/.embedded-pg/`.
@@ -172,7 +172,7 @@ address. The API URL goes in `apps/mobile/.env`:
 EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:4100
 ```
 
-and the packager hostname in `apps/mobile/.env.local` (Expo SDK 57 refuses to load this
+and the packager hostname in `apps/mobile/.env.local` (Expo SDK 57+ refuses to load this
 machine-personal variable from a non-`.local` env file; both files are gitignored):
 
 ```
@@ -203,19 +203,26 @@ npm run test                                 # all workspaces
 The API and database suites run against **real PostgreSQL**, not mocks, and refuse to start unless
 `DATABASE_URL` points at a test database. Vision tests run under pytest in the service's virtualenv.
 
-Current state, measured 2026-10-14 (Windows 11, Node 24.15.0, embedded PostgreSQL 18):
+Current state, measured 2026-10-15 (Windows 11, Node 24.15.0, embedded PostgreSQL 18):
 
 | Workspace | Suites | Tests |
 |-----------|--------|-------|
 | `@parada/types` | 1 | 9 passed |
 | `@parada/database` | 1 | 53 passed |
-| `@parada/api` | 18 | 304 passed |
-| `@parada/admin` | 22 | 155 passed |
+| `@parada/api` | 18 | 309 passed |
+| `@parada/admin` | 22 | 157 passed |
 | `@parada/mobile` | 39 | 490 passed |
 | `@parada/vision` (pytest) | — | 83 passed, 2 skipped |
 
 `npm run typecheck`, `npm run lint` and `npm run build` pass across all 7 workspaces. Lint reports
-2 warnings and no errors. The two skipped vision tests are the opt-in live-API integration tests; they
+2 warnings and no errors. The admin Playwright checks (`npm run test:e2e -w @parada/admin` against a
+running admin) pass 6/6.
+
+**Known issue (Windows only):** the `@parada/api` suite sometimes aborts part-way with exit code
+`3221226505` (`0xC0000409`, a native fast-fail in the Node process, not a failing assertion). It hit
+about half of the full runs on Windows 11 / Node 24.15 and never on Linux (WSL, Node 24.20, 7 full runs),
+and only when all of `src/app.test.ts` runs in one process. Rerun `npm run test -w @parada/api` when
+it happens; `npm run test` (turbo) reports it as a failed `@parada/api#test`. The two skipped vision tests are the opt-in live-API integration tests; they
 passed (2/2, real EasyOCR → API) when pointed at a running API.
 
 The same day, a live cross-service run against a throwaway database also passed:

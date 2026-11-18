@@ -2,7 +2,13 @@
   "extends": "@parada/config/tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    // Plain CommonJS: the generated Prisma client's dynamic import() of its
+    // WASM query compiler then compiles to require(), which Jest can load
+    // without --experimental-vm-modules.
+    "module": "CommonJS",
+    "moduleResolution": "Bundler",
+    "types": ["node", "jest"]
   },
   "include": ["src/**/*"]
 }

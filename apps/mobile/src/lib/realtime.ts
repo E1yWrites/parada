@@ -8,16 +8,16 @@ import {
   isRealtimeSyncFrame,
   type RealtimeEventType,
 } from "@parada/types";
+import { API_ROOT } from "@/lib/api/client";
 import { getToken } from "@/lib/auth/session";
 import { queryKeys } from "@/lib/query";
 
 export type RealtimeStatus = "CONNECTED" | "DISCONNECTED" | "RECONNECTING" | "ERROR";
 
-const API_ROOT = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4100").replace(/\/+$/, "");
-
 const INVALIDATIONS: Record<RealtimeEventType, (readonly unknown[])[]> = {
   ZONE_OCCUPANCY_UPDATED: [queryKeys.zones],
-  PARKING_SESSION_STARTED: [queryKeys.activeSession, queryKeys.sessions],
+  // A camera ENTRY flips the driver's reservation to ACTIVE in the same transaction.
+  PARKING_SESSION_STARTED: [queryKeys.activeSession, queryKeys.sessions, queryKeys.reservations],
   PARKING_SESSION_COMPLETED: [queryKeys.activeSession, queryKeys.sessions],
   RESERVATION_CREATED: [queryKeys.reservations],
   RESERVATION_CANCELLED: [queryKeys.reservations],

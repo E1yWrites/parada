@@ -75,7 +75,7 @@ export function ErrorState({
   onRetry?: () => void;
 }) {
   return (
-    <Card className="flex flex-col items-center justify-center px-6 py-12 text-center">
+    <Card role="alert" className="flex flex-col items-center justify-center px-6 py-12 text-center">
       <Scene Icon={AlertTriangle} tone="danger" />
       <h3 className="mt-5 font-display text-lg font-black tracking-tight text-charcoal">
         {title ?? "We couldn't load this data."}

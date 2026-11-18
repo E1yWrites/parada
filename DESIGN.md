@@ -299,7 +299,7 @@ Space Grotesk has no 900 cut, so hierarchy on mobile comes from size, not weight
 - **History** — completed sessions and past reservations, read-only.
 - **Account** — appearance (System / Light / Dark), My Vehicles, Payments & Fees, Edit profile, Change password, Violations, Sign out. The role pill shows only for ADMIN.
 
-Scroll content clears the floating tab bar with `tabClearance(insets.bottom)`, never a fixed number. Every tab header shows the connection state under the title: **"Live"** only while the realtime stream is connected, otherwise **"Reconnecting…"** or **"Not live"** plus **"Updated hh:mm"**, announced through a polite live region.
+Scroll content clears the floating tab bar with `tabClearance(insets.bottom)`, never a fixed number. Now and Zones show the connection state under the title: **"Live"** only while the realtime stream is connected, otherwise **"Reconnecting…"** or **"Not live"** plus **"Updated hh:mm"**, announced through a polite live region.
 
 **Admin.** A 240px sidebar (`w-60`) from `lg` up and a modal drawer below it, a sticky header, and a main column capped at 88rem. Navigation groups are headings, never collapsible:
 
@@ -334,7 +334,7 @@ Both surfaces share the **PARADA cut**: three soft corners plus one sharp corner
 ### Buttons
 One filled button per screen or form (**The One Filled Button Rule**).
 - **Mobile** (`Button`): primary / secondary / danger / ghost; 48pt tall (44pt small); cut corners. Primary is a `primary` fill with `onAccent` text, `primaryDeep` when pressed. Press scales to 0.96 and springs back. `loading` shows a busy state and blocks presses.
-- **Admin** (`.btn-*`): primary / secondary / ghost / success / danger; 44px tall (36px small); cut corners. Primary is a `brand` fill with `on-accent` text, `brand-hover` on hover, `active:scale-[0.98]`. `Button` takes `loading` and sets `aria-busy`.
+- **Admin** (`.btn-*`): primary / secondary / ghost / success / danger; 44px tall (the small size too, so every control meets the touch-target rule); cut corners. Primary is a `brand` fill with `on-accent` text, `brand-hover` on hover, `active:scale-[0.98]`. `Button` takes `loading` and sets `aria-busy`.
 
 ### Cards and panels
 - **Mobile** `Card`: `surface` fill, hairline border, radius 20 with the cut, 16pt padding; tappable cards spring on press like buttons. `GlassCard` is used only on onboarding.

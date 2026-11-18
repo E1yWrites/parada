@@ -1,10 +1,15 @@
-import { formatDate, formatDateTime, formatDuration, formatPct } from "@/lib/format";
+import { formatDay, formatTime, formatDateTime, formatDuration, formatPct } from "@/lib/format";
 
 describe("format helpers", () => {
   const fixed = new Date("2026-01-02T03:04:05.000Z").getTime();
 
   it("formats date/time for display", () => {
-    expect(formatDate(fixed)).toMatch(/^\d{2}:\d{2}:\d{2} (AM|PM)$/);
+    expect(formatTime(fixed)).toMatch(/^\d{2}:\d{2}:\d{2} (AM|PM)$/);
+  });
+
+  it("formats a calendar day that includes the year", () => {
+    expect(formatDay(fixed)).toContain("2026");
+    expect(formatDay(null)).toBe("—");
   });
 
   it("formats date+time with locale string", () => {
@@ -13,9 +18,9 @@ describe("format helpers", () => {
   });
 
   it("returns a dash for null/invalid values", () => {
-    expect(formatDate(null)).toBe("—");
+    expect(formatTime(null)).toBe("—");
     expect(formatDateTime(undefined)).toBe("—");
-    expect(formatDate("not-a-date")).toBe("—");
+    expect(formatTime("not-a-date")).toBe("—");
   });
 
   it("formats durations as HH:MM:SS", () => {

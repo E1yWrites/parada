@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { prisma } from "@parada/database";
 import { BadRequestError, NotFoundError } from "../http/errors";
 import { OccupancyService, type OccupancyInput } from "./occupancy";
@@ -53,8 +54,14 @@ export class SimulatorService {
   private runs = 0;
   private eventsProcessed = 0;
   private lastRunAt: string | null = null;
-  /** Monotonic sequence guaranteeing unique sourceEventIds across every run. */
+  /** Monotonic sequence keeping sourceEventIds unique across runs in this process. */
   private sequence = 0;
+  /**
+   * Per-process prefix: the sequence restarts at 0 with the API, while earlier
+   * simulator events stay in the database, so without it the first runs after
+   * a restart collide with stored ids and are rejected as duplicates.
+   */
+  private readonly instanceId = randomBytes(4).toString("hex");
 
   constructor(occupancy: OccupancyService) {
     this.occupancy = occupancy;
@@ -69,17 +76,19 @@ export class SimulatorService {
     };
   }
 
-  /** Resolve the zone's entry and exit cameras (first of each gate type). */
+  /**
+   * Resolve the zone's entry and exit cameras. A dedicated ENTRY/EXIT gate wins;
+   * otherwise a BIDIRECTIONAL gate serves that direction, exactly as
+   * OccupancyService accepts it (the seeded campus gates are all BIDIRECTIONAL).
+   */
   private async resolveCameras(zoneId: string) {
-    const entry = await prisma.camera.findFirst({
-      where: { zoneId, gateType: "ENTRY" },
-      orderBy: { id: "asc" },
-    });
-    const exit = await prisma.camera.findFirst({
-      where: { zoneId, gateType: "EXIT" },
-      orderBy: { id: "asc" },
-    });
-    return { entry, exit };
+    const first = (gateType: "ENTRY" | "EXIT" | "BIDIRECTIONAL") =>
+      prisma.camera.findFirst({ where: { zoneId, gateType }, orderBy: { id: "asc" } });
+    const bidirectional = await first("BIDIRECTIONAL");
+    return {
+      entry: (await first("ENTRY")) ?? bidirectional,
+      exit: (await first("EXIT")) ?? bidirectional,
+    };
   }
 
   private async resolveZone(zoneId?: string) {
@@ -131,12 +140,12 @@ export class SimulatorService {
     this.eventsProcessed += 1;
   }
 
-  /** Deterministic source-event id for a given scenario run step. */
+  /** Source-event id for a given scenario run step (unique per process and run). */
   private sourceEventId(zoneCode: string, name: string, n: number): string {
     // The leading sequence value keeps ids unique even when a scenario is
     // re-run against the same zone/camera (e.g. FILL_ZONE twice in a test).
     this.sequence += 1;
-    return `sim-${zoneCode}-${name}-${this.sequence}-${n}`;
+    return `sim-${zoneCode}-${name}-${this.instanceId}-${this.sequence}-${n}`;
   }
 
   async runScenario(request: ScenarioRequest) {
@@ -144,7 +153,7 @@ export class SimulatorService {
     const { entry, exit } = await this.resolveCameras(zone.id);
     if (!entry || !exit) {
       throw new BadRequestError(
-        `Zone '${zone.code}' must have both an ENTRY and an EXIT camera to simulate.`
+        `Zone '${zone.code}' needs a camera for each direction (ENTRY and EXIT, or one BIDIRECTIONAL) to simulate.`
       );
     }
 

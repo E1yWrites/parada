@@ -10,6 +10,7 @@ jest.mock("@/lib/api/client", () => {
     api: {
       notifications: jest.fn(),
       markNotificationRead: jest.fn(),
+      markAllNotificationsRead: jest.fn(),
     },
   };
 });
@@ -44,7 +45,7 @@ describe("notifications screen", () => {
       unreadCount: 1,
     });
 
-    renderWithProviders(<NotificationsScreen />);
+    await renderWithProviders(<NotificationsScreen />);
 
     expect(await screen.findByText("TODAY")).toBeOnTheScreen();
     expect(screen.getByText("EARLIER")).toBeOnTheScreen();
@@ -54,7 +55,7 @@ describe("notifications screen", () => {
 
   it("shows an empty state with no notifications", async () => {
     (api.notifications as jest.Mock).mockResolvedValue({ notifications: [], unreadCount: 0 });
-    renderWithProviders(<NotificationsScreen />);
+    await renderWithProviders(<NotificationsScreen />);
 
     expect(await screen.findByText("No notifications yet")).toBeOnTheScreen();
   });
@@ -63,10 +64,10 @@ describe("notifications screen", () => {
     (api.notifications as jest.Mock)
       .mockRejectedValueOnce(new ApiError("NETWORK", "Cannot reach the PARADA server.", 0))
       .mockResolvedValueOnce({ notifications: [], unreadCount: 0 });
-    renderWithProviders(<NotificationsScreen />);
+    await renderWithProviders(<NotificationsScreen />);
 
     expect(await screen.findByText("Cannot reach the PARADA server.")).toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId("notifications-error-retry"));
+    await fireEvent.press(screen.getByTestId("notifications-error-retry"));
     await waitFor(() => expect(screen.getByText("No notifications yet")).toBeOnTheScreen());
   });
 
@@ -75,10 +76,43 @@ describe("notifications screen", () => {
       notifications: [base({ id: "n1", read: false })],
       unreadCount: 1,
     });
-    renderWithProviders(<NotificationsScreen />);
+    await renderWithProviders(<NotificationsScreen />);
 
-    fireEvent.press(await screen.findByTestId("notification-n1"));
+    await fireEvent.press(await screen.findByTestId("notification-n1"));
     await waitFor(() => expect(api.markNotificationRead).toHaveBeenCalledWith("n1"));
+  });
+
+  it("marks everything read with one bulk request and no per-row calls", async () => {
+    (api.markAllNotificationsRead as jest.Mock).mockResolvedValue({ updated: 2 });
+    (api.notifications as jest.Mock).mockResolvedValue({
+      notifications: [base({ id: "n1", read: false }), base({ id: "n2", read: false })],
+      unreadCount: 2,
+    });
+    await renderWithProviders(<NotificationsScreen />);
+
+    await fireEvent.press(await screen.findByTestId("notifications-mark-all-read"));
+    await waitFor(() => expect(api.markAllNotificationsRead).toHaveBeenCalledTimes(1));
+    expect(api.markNotificationRead).not.toHaveBeenCalled();
+  });
+
+  it("gives Mark all read a 44pt target and exposes its busy state", async () => {
+    (api.markAllNotificationsRead as jest.Mock).mockReturnValue(new Promise(() => {}));
+    (api.notifications as jest.Mock).mockResolvedValue({
+      notifications: [base({ id: "n1", read: false })],
+      unreadCount: 1,
+    });
+    await renderWithProviders(<NotificationsScreen />);
+
+    const button = await screen.findByTestId("notifications-mark-all-read");
+    const style = [button.props.style].flat(Infinity).reduce((a, x) => ({ ...a, ...(x || {}) }), {});
+    expect(style.minHeight).toBeGreaterThanOrEqual(44);
+    await fireEvent.press(button);
+    await waitFor(() =>
+      expect(screen.getByTestId("notifications-mark-all-read").props.accessibilityState).toMatchObject({
+        busy: true,
+        disabled: true,
+      }),
+    );
   });
 
   it("does not re-mark an already-read notification", async () => {
@@ -86,9 +120,9 @@ describe("notifications screen", () => {
       notifications: [base({ id: "n1", read: true })],
       unreadCount: 0,
     });
-    renderWithProviders(<NotificationsScreen />);
+    await renderWithProviders(<NotificationsScreen />);
 
-    fireEvent.press(await screen.findByTestId("notification-n1"));
+    await fireEvent.press(await screen.findByTestId("notification-n1"));
     expect(api.markNotificationRead).not.toHaveBeenCalled();
   });
 });

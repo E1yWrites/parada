@@ -25,7 +25,7 @@ jest.mock("expo-constants", () => {
   const expo = require("../app.json").expo;
   return {
     __esModule: true,
-    default: { expoConfig: { ...expo, sdkVersion: "57.0.0" }, manifest: null, manifest2: null },
+    default: { expoConfig: { ...expo, sdkVersion: "58.0.0" }, manifest: null, manifest2: null },
     ExecutionEnvironment: { StoreClient: "storeClient" },
   };
 });
@@ -52,8 +52,17 @@ function RootLayout() {
     </ThemeProvider>
   );
 }
+// Expo Router 58 shows only the screens a layout declares, so the stub
+// declares the same tabs as app/(tabs)/_layout.tsx.
 function TabsLayout() {
-  return <Tabs screenOptions={{ headerShown: false }} />;
+  return (
+    <Tabs screenOptions={{ headerShown: false }}>
+      <Tabs.Screen name="parking" />
+      <Tabs.Screen name="park" />
+      <Tabs.Screen name="sessions" />
+      <Tabs.Screen name="account" />
+    </Tabs>
+  );
 }
 
 const routes = {
@@ -65,7 +74,6 @@ const routes = {
   "(tabs)/parking": page("parking"),
   "(tabs)/park": page("park"),
   "(tabs)/sessions": page("sessions"),
-  "(tabs)/vehicles": page("vehicles"),
   login: page("login"),
   notifications: page("notifications"),
   payments: page("payments"),
@@ -76,6 +84,7 @@ const routes = {
   "reset-password": page("reset-password"),
   "account/profile": page("account/profile"),
   "account/password": page("account/password"),
+  "vehicles/index": page("vehicles/index"),
   "vehicles/[id]": page("vehicles/[id]"),
   "violations/[id]": page("violations/[id]"),
   "violations/index": page("violations/index"),
@@ -83,7 +92,7 @@ const routes = {
 };
 
 async function renderAt(initialUrl: string) {
-  renderRouter(routes, { initialUrl });
+  await renderRouter(routes, { initialUrl });
   await waitFor(() => expect(screen.queryByText(/^(PAGE|NOTFOUND):/)).toBeTruthy());
 }
 
@@ -134,10 +143,17 @@ describe("route tree (real expo-router)", () => {
   it("still resolves the other entry points directly", async () => {
     await renderAt("/login");
     expect(screen.getByText("PAGE:login@/login")).toBeTruthy();
-    screen.unmount();
+    await screen.unmount();
 
     await renderAt("/zones/z1");
     expect(screen.getByText("PAGE:zones/[id]@/zones/z1")).toBeTruthy();
+  });
+
+  it('opens "/vehicles" (Account > My Vehicles) instead of bouncing to the first tab', async () => {
+    // Expo Router 58 redirects a focused hidden tab (href: null) to the
+    // initial tab, so Vehicles must stay a stack route, not a hidden tab.
+    await renderAt("/vehicles");
+    expect(screen.getByText("PAGE:vehicles/index@/vehicles")).toBeTruthy();
   });
 
   it("keeps unknown paths on the not-found route (no accidental catch-all)", async () => {

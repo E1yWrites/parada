@@ -6,7 +6,13 @@ async function main() {
   const env = loadEnv();
   const app = createApp();
 
-  const server = app.listen(env.port, env.host, () => {
+  // Express 5 hands a listen failure (e.g. EADDRINUSE) to this callback
+  // instead of throwing, so it must be checked here.
+  const server = app.listen(env.port, env.host, (error?: Error) => {
+    if (error) {
+      console.error(`[api] failed to start on ${env.host}:${env.port}:`, error.message);
+      process.exit(1);
+    }
     console.log(`[api] PARADA API listening on http://${env.host}:${env.port}`);
   });
 

@@ -10,7 +10,7 @@ import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import { ANOMALY_LABEL, AvailabilityBadge, PlateChip } from "@/components/ui/Badge";
 import { FacilityStrip, MetricCard } from "@/components/ui/MetricCard";
 import { OccupancyBar } from "@/components/ui/OccupancyBar";
-import { formatDate, formatDateTime, formatPct, plural } from "@/lib/format";
+import { formatTime, formatDateTime, formatPct, plural } from "@/lib/format";
 import { EVENT_LABEL, SOURCE_LABEL, labelFor } from "@/lib/labels";
 import type { AdminAnomaly, AdminDashboard, AdminNotification } from "@/lib/api/types";
 
@@ -67,29 +67,25 @@ function OccupancyTrendChart({ trend }: { trend: { at: string; totalOccupied: nu
 }
 
 /**
- * What an operator should act on now, from existing endpoints only: open
- * anomalies (GET /admin/anomalies?resolved=false), appeals awaiting a
- * decision, and zones the backend reports FULL. Each item links to the page
+ * What an operator should act on now, from the dashboard payload alone: open
+ * anomaly and pending appeal counts, and zones the backend reports FULL. Each item links to the page
  * where it is acted on. Nothing here is inferred or simulated.
  */
-function NeedsAttention({ fullZones }: { fullZones: AdminDashboard["fullZones"] }) {
-  const anomalies = useQuery({
-    queryKey: ["anomalies", "unresolved"],
-    queryFn: () => api.unresolvedAnomalies(),
-    refetchInterval: 30_000,
-  });
-  const appeals = useQuery({ queryKey: ["appeals"], queryFn: () => api.appeals(), refetchInterval: 30_000 });
-
-  const openAnomalies = anomalies.data?.length ?? 0;
-  const pendingAppeals = appeals.data?.filter((a) => a.status === "PENDING").length ?? 0;
-  const settled = anomalies.status !== "pending" && appeals.status !== "pending";
-
+function NeedsAttention({
+  openAnomalies,
+  pendingAppeals,
+  fullZones,
+}: {
+  openAnomalies: number;
+  pendingAppeals: number;
+  fullZones: AdminDashboard["fullZones"];
+}) {
   const items: { key: string; href: string; text: string }[] = [];
   if (openAnomalies > 0) {
     items.push({
       key: "anomalies",
       href: "/anomalies",
-      text: `${openAnomalies >= 500 ? "500+" : openAnomalies} unresolved ${openAnomalies === 1 ? "anomaly" : "anomalies"}`,
+      text: `${openAnomalies} unresolved ${openAnomalies === 1 ? "anomaly" : "anomalies"}`,
     });
   }
   if (pendingAppeals > 0) {
@@ -108,7 +104,7 @@ function NeedsAttention({ fullZones }: { fullZones: AdminDashboard["fullZones"] 
             <li key={item.key}>
               <Link
                 href={item.href}
-                className="flex min-h-[44px] items-center justify-between gap-3 px-5 py-3 text-sm font-semibold text-charcoal transition-colors duration-100 hover:bg-raised/60 focus-visible:outline-none focus-visible:shadow-focus"
+                className="flex min-h-[44px] items-center justify-between gap-3 px-5 py-3 text-sm font-semibold text-charcoal transition-colors duration-100 hover:bg-raised/60 focus-visible:outline-hidden focus-visible:shadow-focus"
               >
                 <span className="flex items-center gap-3">
                   <TriangleAlert className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
@@ -119,17 +115,9 @@ function NeedsAttention({ fullZones }: { fullZones: AdminDashboard["fullZones"] 
             </li>
           ))}
         </ul>
-      ) : settled ? (
-        <p className="p-5 text-sm text-muted">Nothing needs attention.</p>
       ) : (
-        <p className="p-5 text-sm text-muted">Checking…</p>
+        <p className="p-5 text-sm text-muted">Nothing needs attention.</p>
       )}
-      {anomalies.isError || appeals.isError ? (
-        <p role="alert" className="border-t border-line px-5 py-3 text-xs font-semibold text-danger">
-          {anomalies.isError ? "Couldn't load anomalies. " : ""}
-          {appeals.isError ? "Couldn't load appeals." : ""}
-        </p>
-      ) : null}
     </Card>
   );
 }
@@ -167,7 +155,7 @@ export default function DashboardPage() {
     <div>
       <PageHeader
         title="Dashboard"
-        description={dashboard.dataUpdatedAt ? `Updated ${formatDate(dashboard.dataUpdatedAt)}` : undefined}
+        description={dashboard.dataUpdatedAt ? `Updated ${formatTime(dashboard.dataUpdatedAt)}` : undefined}
       />
 
       <QueryBoundary
@@ -178,7 +166,11 @@ export default function DashboardPage() {
       >
         {data ? (
           <div className="space-y-6">
-            <NeedsAttention fullZones={data.fullZones} />
+            <NeedsAttention
+              openAnomalies={data.summary.openAnomalies}
+              pendingAppeals={data.summary.pendingAppeals}
+              fullZones={data.fullZones}
+            />
 
             {/* One figure component for every number (MetricCard in a strip). */}
             <FacilityStrip label="Facility figures">
@@ -281,7 +273,7 @@ export default function DashboardPage() {
                     <li key={z.id}>
                       <Link
                         href={`/zones/${z.id}`}
-                        className="grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-2 px-5 py-3 transition-colors duration-100 hover:bg-raised/60 focus-visible:outline-none focus-visible:bg-raised focus-visible:shadow-focus sm:grid-cols-[auto_minmax(0,1.4fr)_minmax(8rem,1fr)_auto]"
+                        className="grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-2 px-5 py-3 transition-colors duration-100 hover:bg-raised/60 focus-visible:outline-hidden focus-visible:bg-raised focus-visible:shadow-focus sm:grid-cols-[auto_minmax(0,1.4fr)_minmax(8rem,1fr)_auto]"
                       >
                         <PlateChip>{z.code}</PlateChip>
                         <span className="min-w-0 truncate text-sm font-bold text-charcoal">{z.name}</span>

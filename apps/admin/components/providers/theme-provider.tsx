@@ -55,6 +55,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const next = resolve(mode);
+    // Reads the OS colour scheme (an external system) and mirrors it to the DOM.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setScheme(next);
     document.documentElement.setAttribute("data-theme", next);
   }, [mode]);

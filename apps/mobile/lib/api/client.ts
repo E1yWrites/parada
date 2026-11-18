@@ -35,16 +35,6 @@ export type PublicZone = {
   navigationLng: number | null;
 };
 
-/** GET /zones/:zoneId/occupancy payload (backend returns `zoneId`, not `id`). */
-export type ZoneOccupancy = Pick<
-  PublicZone,
-  "name" | "code" | "capacity" | "occupiedCount" | "availableCount"
-> & {
-  zoneId: string;
-  status: "ACTIVE" | "INACTIVE";
-  availability: ZoneAvailability;
-};
-
 /** Enriched session DTO as returned by /sessions and /sessions/active. */
 export type SessionDto = ParkingSessionResponse;
 
@@ -103,7 +93,7 @@ type RequestOptions = {
   invalidateOnUnauthorized?: boolean;
 };
 
-const API_ROOT = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4100").replace(/\/+$/, "");
+export const API_ROOT = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4100").replace(/\/+$/, "");
 const REQUEST_TIMEOUT_MS = 20_000;
 
 async function fetchWithTimeout(path: string, init: RequestInit): Promise<Response> {
@@ -473,7 +463,6 @@ export const api = {
   removeAvatar: () => request<UserDto>("/auth/me/avatar", { method: "DELETE" }),
 
   zones: () => request<PublicZone[]>("/zones", { public: true }),
-  zoneOccupancy: (zoneId: string) => request<ZoneOccupancy>(`/zones/${zoneId}/occupancy`, { public: true }),
   recommendedZone: async () =>
     requireValidatedObject(
       await request<ZoneRecommendation>("/zones/recommendation", { public: true }),
@@ -555,6 +544,8 @@ export const api = {
     ),
   markNotificationRead: (id: string) =>
     request<{ id: string; read: boolean }>(`/notifications/${id}/read`, { method: "PATCH" }),
+  markAllNotificationsRead: () =>
+    request<{ updated: number }>("/notifications/read-all", { method: "PATCH" }),
 
   violations: async () =>
     requireValidatedList(

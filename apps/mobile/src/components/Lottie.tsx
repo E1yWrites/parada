@@ -44,8 +44,8 @@ export function Lottie({ size = 120, interactive = false, testID }: LottieProps)
   const [frame, setFrame] = useState<LottieFrame>("calm");
   const reacting = useRef(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const rise = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
-  const float = useRef(new Animated.Value(0)).current;
+  const [rise] = useState(() => new Animated.Value(reducedMotion ? 1 : 0));
+  const [float] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     const pending = timers.current;

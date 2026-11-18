@@ -22,7 +22,7 @@ describe("GlassCard", () => {
   });
 
   it("renders a blur layer and its children by default", async () => {
-    render(
+    await render(
       <GlassCard testID="hero">
         <Text>Parked</Text>
       </GlassCard>,
@@ -36,7 +36,7 @@ describe("GlassCard", () => {
   it("falls back to a solid surface when Reduce Transparency is enabled", async () => {
     jest.spyOn(AccessibilityInfo, "isReduceTransparencyEnabled").mockResolvedValue(true);
 
-    render(
+    await render(
       <GlassCard testID="hero">
         <Text>Parked</Text>
       </GlassCard>,
@@ -49,7 +49,7 @@ describe("GlassCard", () => {
   });
 
   it("applies the caller's style (e.g. gap) to the node that holds its children", async () => {
-    render(
+    await render(
       <GlassCard testID="hero" style={{ gap: 24 }}>
         <Text>Parked</Text>
       </GlassCard>,
@@ -61,7 +61,7 @@ describe("GlassCard", () => {
 
   it("renders the accent stripe and stays pressable, like Card", async () => {
     const onPress = jest.fn();
-    render(
+    await render(
       <GlassCard testID="hero" accent="#CA0013" onPress={onPress}>
         <Text>Parked</Text>
       </GlassCard>,

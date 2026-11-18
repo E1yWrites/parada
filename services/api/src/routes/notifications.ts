@@ -51,6 +51,18 @@ export function notificationsRouter(): Router {
     })
   );
 
+  // One round trip instead of one PATCH per row (a 100-row list used to fire 100).
+  router.patch(
+    "/notifications/read-all",
+    asyncHandler(async (_req, res) => {
+      const { count } = await prisma.notification.updateMany({
+        where: { userId: currentUserId(res), targetRole: "USER", read: false },
+        data: { read: true },
+      });
+      res.json(ok({ updated: count }));
+    })
+  );
+
   router.patch(
     "/notifications/:id/read",
     asyncHandler(async (req, res) => {

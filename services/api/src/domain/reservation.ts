@@ -5,6 +5,8 @@ import {
   ForbiddenError,
   NotFoundError,
 } from "../http/errors";
+import { assertNoOtherPlan, lockUserPlan } from "./plan";
+import { requireOwnedActiveVehicle } from "./vehicles";
 import type { ConfigService } from "./config";
 import type { ReservationResponse } from "@parada/types";
 
@@ -79,6 +81,20 @@ export class ReservationService {
    * entry — that vehicle is already counted in `occupiedCount`, so counting it
    * here too would hold a phantom second space until the window lapsed.
    */
+  /** The reservations that still protect capacity at `now` (see countActiveProtection). */
+  private protectionWhere(windowMinutes: number, now: Date): Prisma.ReservationWhereInput {
+    return {
+      status: { in: ["PENDING", "CONFIRMED"] },
+      // Bounded on BOTH sides: a reservation only protects capacity around
+      // its own arrival window. Without the upper bound a booking weeks out
+      // would consume a space today.
+      startAt: {
+        gte: new Date(now.getTime() - windowMinutes * 60 * 1000),
+        lte: new Date(now.getTime() + windowMinutes * 60 * 1000),
+      },
+    };
+  }
+
   private countActiveProtection(
     tx: Prisma.TransactionClient,
     zoneId: string,
@@ -89,19 +105,27 @@ export class ReservationService {
     return tx.reservation.count({
       where: {
         zoneId,
-        status: { in: ["PENDING", "CONFIRMED"] },
-        // Bounded on BOTH sides: a reservation only protects capacity around
-        // its own arrival window. Without the upper bound a booking weeks out
-        // would consume a space today.
-        startAt: {
-          gte: new Date(now.getTime() - windowMinutes * 60 * 1000),
-          lte: new Date(now.getTime() + windowMinutes * 60 * 1000),
-        },
+        ...this.protectionWhere(windowMinutes, now),
         ...(exclude
           ? { NOT: { userId: exclude.userId, vehicleId: exclude.vehicleId } }
           : {}),
       },
     });
+  }
+
+  /**
+   * Spaces currently held by reservations, per zone (one grouped query), for
+   * public availability. Read-only: overdue rows are excluded by the window
+   * bound itself, so no expiry write is needed.
+   */
+  async protectingCountsByZone(): Promise<Map<string, number>> {
+    const windowMinutes = await this.config.getReservationWindowMinutes();
+    const groups = await prisma.reservation.groupBy({
+      by: ["zoneId"],
+      where: this.protectionWhere(windowMinutes, new Date()),
+      _count: { _all: true },
+    });
+    return new Map(groups.map((g) => [g.zoneId, g._count._all]));
   }
 
   /**
@@ -162,24 +186,13 @@ export class ReservationService {
     return true;
   }
 
-  /** Owned AND registered: an unregistered (INACTIVE) vehicle is not eligible for new parking activity. */
-  private async requireOwnedVehicle(userId: string, vehicleId: string) {
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, userId, status: "ACTIVE" },
-    });
-    if (!vehicle) {
-      throw new NotFoundError("Vehicle not found.");
-    }
-    return vehicle;
-  }
-
   async create(
     userId: string,
     input: { zoneId: string; vehicleId: string; startAt?: string; endAt?: string }
   ) {
     const windowMinutes = await this.config.getReservationWindowMinutes();
 
-    const vehicle = await this.requireOwnedVehicle(userId, input.vehicleId);
+    const vehicle = await requireOwnedActiveVehicle(userId, input.vehicleId);
 
     const zone = await prisma.parkingZone.findUnique({ where: { id: input.zoneId } });
     if (!zone || zone.status !== "ACTIVE") {
@@ -204,6 +217,10 @@ export class ReservationService {
 
     try {
       return await prisma.$transaction(async (tx) => {
+        // One current plan per driver. Taken before the zone lock (the assignment
+        // path takes only this one), so the two paths cannot deadlock.
+        await lockUserPlan(tx, userId);
+
         // Serialize reservations for THIS zone. Two concurrent creates for the
         // same zone must not both pass the capacity check, so each creator
         // takes a PostgreSQL advisory transaction lock keyed by the zone id.
@@ -244,6 +261,7 @@ export class ReservationService {
         if (conflicting) {
           throw new ConflictError("A reservation for this vehicle in this zone already overlaps the requested window.");
         }
+        await assertNoOtherPlan(tx, userId, "RESERVATION");
 
         const protecting = await this.countActiveProtection(tx, zone.id, windowMinutes, now);
         if (currentZone.occupiedCount + protecting >= currentZone.capacity) {

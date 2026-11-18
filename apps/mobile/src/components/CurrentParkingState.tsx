@@ -176,12 +176,12 @@ export function CurrentParkingState({
       ) : null}
       {assignmentError ? (
         <Text variant="caption" color={colors.danger} testID="assignment-load-note">
-          We couldn't load your assignment info. Pull to refresh to try again.
+          We couldn&apos;t load your assignment info. Pull to refresh to try again.
         </Text>
       ) : null}
       {reservationError ? (
         <Text variant="caption" color={colors.danger} testID="reservation-load-note">
-          We couldn't load your reservation info. Pull to refresh to try again.
+          We couldn&apos;t load your reservation info. Pull to refresh to try again.
         </Text>
       ) : null}
     </View>
@@ -248,7 +248,7 @@ function SessionState({
             ) : null}
             {assignmentError && !assignment ? (
               <Text variant="caption" testID="session-assignment-note">
-                Couldn't load your assignment info.
+                Couldn&apos;t load your assignment info.
               </Text>
             ) : null}
           </View>
@@ -350,7 +350,7 @@ function AssignmentState({ assignment, destination, destinationReady, onCancel }
             testID="assignment-cancel"
           />
           {cancelError ? (
-            <Text variant="caption" color={colors.danger} accessibilityRole="alert" testID="assignment-cancel-error">
+            <Text variant="caption" color={colors.danger} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="assignment-cancel-error">
               {cancelError}
             </Text>
           ) : (
@@ -470,7 +470,7 @@ function ReservationState({ reservation, destination, destinationReady, onCancel
             />
           )}
           {cancelError ? (
-            <Text variant="caption" color={colors.danger} accessibilityRole="alert" testID="reservation-cancel-error">
+            <Text variant="caption" color={colors.danger} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="reservation-cancel-error">
               {cancelError}
             </Text>
           ) : null}

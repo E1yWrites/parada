@@ -29,6 +29,7 @@ npm-debug.log*
 
 # Prisma
 packages/database/generated/
+packages/database/src/generated/
 packages/database/.embedded-pg/
 
 # Vision service (Python)

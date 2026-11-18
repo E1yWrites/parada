@@ -98,6 +98,29 @@ describe("POST /zones/:zoneId/events publishes ZONE_OCCUPANCY_UPDATED after comm
     expect(countAfterDup).toBe(countAfterFirst);
   });
 
+  it("tells an already-parked vehicle apart from a replayed event id (both 409)", async () => {
+    const app = createApp({ auth, realtimeHub: new RealtimeHub() });
+    const user = await prisma.user.findFirstOrThrow({ where: { email: `rt-driver-${runId}@test.local` } });
+    const plate = `RTP-${plateSuffix}`;
+    await prisma.vehicle.create({
+      data: { userId: user.id, plateNumber: plate, normalizedPlate: `RTP${plateSuffix}`, vehicleType: "CAR", status: "ACTIVE" },
+    });
+    const send = (sourceEventId: string, eventType: "ENTRY" | "EXIT") =>
+      request(app).post(`/zones/${zoneId}/events`).send({ cameraIdentifier, sourceEventId, eventType, detectedPlate: plate, ocrConfidence: 0.95 });
+
+    expect((await send("evt-parked-1", "ENTRY")).status).toBe(201);
+
+    const again = await send("evt-parked-2", "ENTRY");
+    expect(again.status).toBe(409);
+    expect(again.body.error.message).toBe("This vehicle already has an active parking session; the ENTRY was not recorded.");
+
+    const replay = await send("evt-parked-1", "ENTRY");
+    expect(replay.status).toBe(409);
+    expect(replay.body.error.message).toBe("Duplicate camera event for sourceEventId 'evt-parked-1'.");
+
+    expect((await send("evt-parked-3", "EXIT")).status).toBe(201);
+  });
+
   it("requires the configured camera API key before processing an event", async () => {
     const app = createApp({ auth, cameraApiKey: "trusted-camera-key" });
 

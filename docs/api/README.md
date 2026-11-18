@@ -342,6 +342,8 @@ using the JWT stored in the `HttpOnly` `parada_admin_token` cookie.
 | GET | `/admin/users` | All users with vehicle/session counts (no hashes) |
 | GET | `/admin/vehicles` | All registered vehicles with owners |
 | GET | `/admin/notifications` | ADMIN-targeted notifications + `unreadCount` |
+| PATCH | `/admin/anomalies/:id/resolve` | Mark an anomaly resolved (idempotent; `404` if unknown). Returns the anomaly. |
+| PATCH | `/admin/notifications/read-all` | Mark every ADMIN-targeted notification read (`{updated}`) |
 | PATCH | `/admin/notifications/:id/read` | Mark one notification read (`200` + the updated notification) |
 | GET | `/admin/anomalies` | Occupancy anomalies for admin review |
 | POST | `/admin/zones` | Create a zone (unique `code`; duplicate is `409`) |
@@ -388,18 +390,19 @@ client-supplied user id is never trusted.
 | Method | Path | Notes |
 |--------|------|-------|
 | GET | `/zones/recommendation` | Least-occupied suitable zone, or `{ recommendedZone: null }`. Public. A recommendation is NOT an assignment. |
-| GET | `/zones/establishment` | Navigation destination; `null` until an admin configures one. |
 | POST | `/assignments` | Accept a zone (`{zoneId, vehicleId}`). One ACTIVE assignment per vehicle; expired ones are released automatically. |
 | GET | `/assignments`, `/assignments/:id` | The user's assignments. |
 | PATCH | `/assignments/:id/cancel` | Release an accepted recommendation **before entry**. Only the owner, only while `ACTIVE` and unexpired, and only while the vehicle has no ACTIVE parking session (`409` otherwise). The row stays as history with status `CANCELLED`; nothing about occupancy, reservations or sessions changes, and the vehicle may be assigned again immediately. Publishes `ASSIGNMENT_CANCELLED`. |
 | POST | `/reservations` | Hold a zone (`{zoneId, vehicleId, startAt?, endAt?}`). Reservations are serialized per zone (PostgreSQL advisory lock) and refused when capacity plus existing holds would be exceeded; overlapping duplicates for the same user/vehicle/zone return `409 CONFLICT`, non-overlapping windows are allowed. A hold protects a space only until the holder arrives: a successful entry (camera or `POST /sessions/entry`) flips it to `ACTIVE`, and an `ACTIVE` reservation no longer counts against capacity because the vehicle is now in `occupiedCount` (Phase 13). |
 | GET | `/reservations`, `/reservations/:id` | The user's reservations; window-expired ones are flipped to EXPIRED lazily. |
 | PATCH | `/reservations/:id/cancel` | Cancel an own reservation. |
-| POST | `/sessions/entry` | User-initiated entry (`{vehicleId, zoneId, enteredAt?}`). |
+| — | plan rule | `POST /assignments` and `POST /reservations` return `409 ACTIVE_PLAN_EXISTS` (`details.existing`: `ASSIGNMENT` or `RESERVATION`) when the driver already has the other kind of current plan. Checked inside the create transaction under a per-user advisory lock. |
+| POST | `/sessions/entry` | User-initiated entry (`{vehicleId, zoneId}`). Entry and exit times are server time; client timestamps are ignored. |
 | POST | `/sessions/:id/exit` | User-initiated exit; computes and persists the fee. |
 | GET | `/violations` | The user's own establishment violations. |
 | POST | `/violations/:id/appeal` | Dispute an own violation (`{reason}`). One appeal per violation, only while PENDING. |
 | GET | `/notifications` | The user's own alerts (`?unread=true`, `?limit=`). Returns `{notifications, unreadCount}`. |
+| PATCH | `/notifications/read-all` | Mark all of the user's own notifications read (`{updated}`). |
 | PATCH | `/notifications/:id/read` | Mark one of the user's own notifications read. |
 
 ### Fees
@@ -671,5 +674,5 @@ only, zones carry no geometry):
 |------|------|---------:|------------------------------------------|
 | Main Loop | `A` | 30 | `cam-a-main-gate` (P. Herrera cor. Doña Aurelia), `cam-a-north-gate` (Doña Aurelia) |
 
-The establishment navigation destination is the main gate,
-`13.76447, 121.06462` (`EstablishmentConfig.location`).
+The seeded main gate is `13.76447, 121.06462` (kept in `EstablishmentConfig.location`,
+which is no longer exposed or editable; mobile navigates to each zone's own coordinates).

@@ -30,7 +30,6 @@ jest.mock("@/lib/api/client", () => {
       register: jest.fn(),
       logout: jest.fn(),
       zones: jest.fn(),
-      zoneOccupancy: jest.fn(),
       vehicles: jest.fn(),
       createVehicle: jest.fn(),
       sessions: jest.fn(),
@@ -135,7 +134,7 @@ type Overrides = Partial<
   React.ComponentProps<typeof CurrentParkingState>
 >;
 
-function renderState(overrides: Overrides = {}) {
+async function renderState(overrides: Overrides = {}) {
   const props: React.ComponentProps<typeof CurrentParkingState> = {
     session: null,
     assignment: null,
@@ -152,43 +151,43 @@ function renderState(overrides: Overrides = {}) {
     onRetry: jest.fn(),
     ...overrides,
   };
-  renderWithProviders(<CurrentParkingState {...props} />);
+  await renderWithProviders(<CurrentParkingState {...props} />);
   return props;
 }
 
 describe("current parking state: active session", () => {
   it("renders the active session as the primary current parking state", async () => {
-    renderState({ session });
+    await renderState({ session });
     expect(screen.getByTestId("active-banner")).toBeOnTheScreen();
     expect(screen.getByTestId("active-banner-zone")).toHaveTextContent("Zone A");
     expect(screen.getByTestId("active-banner-plate")).toHaveTextContent("ABC-1234");
   });
 
-  it("shows the backend session start time", () => {
-    renderState({ session });
+  it("shows the backend session start time", async () => {
+    await renderState({ session });
     expect(screen.getByTestId("session-started")).toHaveTextContent(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
   });
 
-  it("shows no fee when the backend returns null", () => {
-    renderState({ session });
+  it("shows no fee when the backend returns null", async () => {
+    await renderState({ session });
     expect(screen.queryByTestId("session-fee")).not.toBeOnTheScreen();
     expect(screen.queryByText(/₱/)).not.toBeOnTheScreen();
   });
 
-  it("shows the fee when the backend returns one", () => {
-    renderState({ session: { ...session, feeAmount: 42.5 } });
+  it("shows the fee when the backend returns one", async () => {
+    await renderState({ session: { ...session, feeAmount: 42.5 } });
     expect(screen.getByTestId("session-fee")).toHaveTextContent("₱42.50");
   });
 
-  it("keeps the assignment as contextual information under an active session", () => {
-    renderState({ session, assignment });
+  it("keeps the assignment as contextual information under an active session", async () => {
+    await renderState({ session, assignment });
     expect(screen.getByTestId("session-assignment")).toHaveTextContent("Assigned zone: Zone B (B)");
     expect(screen.queryByTestId("assignment-current")).not.toBeOnTheScreen();
     expect(screen.queryByTestId("reservation-current")).not.toBeOnTheScreen();
   });
 
-  it("exposes an accessible current-parking summary", () => {
-    renderState({ session, assignment });
+  it("exposes an accessible current-parking summary", async () => {
+    await renderState({ session, assignment });
     const label = screen.getByTestId("session-summary").props.accessibilityLabel;
     expect(label).toMatch(/Parked in Zone A\./);
     expect(label).toMatch(/Vehicle ABC-1234\./);
@@ -204,7 +203,7 @@ describe("current parking state: navigation over active session", () => {
   });
 
   it("shows a usable navigate action when a destination exists", async () => {
-    renderState({
+    await renderState({
       session,
       destinationFor: (zoneId) => (zoneId === session.zoneId ? destination : null),
       destinationReady: true,
@@ -214,7 +213,7 @@ describe("current parking state: navigation over active session", () => {
 
     const button = screen.getByTestId("current-state-navigate");
     expect(button.props.accessibilityState).toMatchObject({ disabled: false });
-    fireEvent.press(button);
+    await fireEvent.press(button);
 
     await waitFor(() =>
       expect(Linking.openURL).toHaveBeenCalledWith(
@@ -223,23 +222,23 @@ describe("current parking state: navigation over active session", () => {
     );
   });
 
-  it("shows navigation as unavailable, not hidden, when no destination exists", () => {
-    renderState({ session, destinationFor: () => null, destinationReady: true });
+  it("shows navigation as unavailable, not hidden, when no destination exists", async () => {
+    await renderState({ session, destinationFor: () => null, destinationReady: true });
     expect(screen.getByTestId("current-state-navigate")).toBeDisabled();
     expect(screen.getByTestId("current-state-navigate-unavailable")).toHaveTextContent(
       "Navigation coordinates for this zone haven't been configured yet.",
     );
   });
 
-  it("hides navigation while the destination is still loading", () => {
-    renderState({ session, destinationFor: () => null, destinationReady: false });
+  it("hides navigation while the destination is still loading", async () => {
+    await renderState({ session, destinationFor: () => null, destinationReady: false });
     expect(screen.queryByTestId("current-state-navigate")).not.toBeOnTheScreen();
   });
 });
 
 describe("current parking state: assignment", () => {
-  it("shows the active assignment as current state with zone, code, vehicle and validity", () => {
-    renderState({ assignment, destinationReady: false });
+  it("shows the active assignment as current state with zone, code, vehicle and validity", async () => {
+    await renderState({ assignment, destinationReady: false });
     expect(screen.getByTestId("assignment-current")).toBeOnTheScreen();
     expect(screen.getByTestId("assignment-current-zone")).toHaveTextContent("Zone B");
     expect(screen.getByTestId("assignment-current-vehicle")).toHaveTextContent(/ABC-1234/);
@@ -249,8 +248,8 @@ describe("current parking state: assignment", () => {
     expect(screen.queryByTestId("assignment-current-badge")).not.toBeOnTheScreen();
   });
 
-  it("states that an assignment keeps no space and what entering another zone costs", () => {
-    renderState({ assignment, destinationReady: false });
+  it("states that an assignment keeps no space and what entering another zone costs", async () => {
+    await renderState({ assignment, destinationReady: false });
     // Only a reservation protects capacity; the camera path warns, then fines.
     expect(screen.getByTestId("assignment-current-terms")).toHaveTextContent(
       "No space is kept for you. Entering another zone gets a wrong-zone warning, then a fine.",
@@ -259,8 +258,8 @@ describe("current parking state: assignment", () => {
     expect(screen.queryByText(/₱/)).not.toBeOnTheScreen();
   });
 
-  it("exposes an accessible assignment summary", () => {
-    renderState({ assignment });
+  it("exposes an accessible assignment summary", async () => {
+    await renderState({ assignment });
     const label = screen.getByTestId("assignment-summary").props.accessibilityLabel;
     expect(label).toMatch(/Assigned zone Zone B\./);
     expect(label).toMatch(/Vehicle ABC-1234\./);
@@ -268,8 +267,8 @@ describe("current parking state: assignment", () => {
     expect(label).toMatch(/No space is kept for you\./);
   });
 
-  it("does not treat a REVOKED assignment as current", () => {
-    renderState({
+  it("does not treat a REVOKED assignment as current", async () => {
+    await renderState({
       assignment: { ...assignment, status: "REVOKED", expiresAt: null },
       destinationReady: false,
     });
@@ -278,8 +277,8 @@ describe("current parking state: assignment", () => {
 });
 
 describe("current parking state: reservation", () => {
-  it("shows the valid reservation as current state, clearly distinct from an assignment", () => {
-    renderState({ reservation });
+  it("shows the valid reservation as current state, clearly distinct from an assignment", async () => {
+    await renderState({ reservation });
     expect(screen.getByTestId("reservation-current")).toBeOnTheScreen();
     expect(screen.getByTestId("reservation-current-zone")).toHaveTextContent("Zone B");
     expect(screen.getByTestId("reservation-current-vehicle")).toHaveTextContent(/ABC-1234/);
@@ -288,80 +287,80 @@ describe("current parking state: reservation", () => {
     expect(screen.queryByText("ASSIGNED ZONE")).not.toBeOnTheScreen();
   });
 
-  it("shows the reservation start/end window", () => {
-    renderState({ reservation });
+  it("shows the reservation start/end window", async () => {
+    await renderState({ reservation });
     // A reservation protects capacity for its window, so the window is named as that.
     expect(screen.getByTestId("reservation-current-window")).toHaveTextContent(/^Space kept .* – /);
   });
 
-  it("does not treat an EXPIRED reservation as current", () => {
-    renderState({ reservation: { ...reservation, status: "EXPIRED" } });
+  it("does not treat an EXPIRED reservation as current", async () => {
+    await renderState({ reservation: { ...reservation, status: "EXPIRED" } });
     expect(screen.queryByTestId("reservation-current")).not.toBeOnTheScreen();
   });
 });
 
 describe("current parking state: combinations", () => {
-  it("shows assignment and reservation together without merging or reconciling them", () => {
-    renderState({ assignment, reservation });
+  it("shows assignment and reservation together without merging or reconciling them", async () => {
+    await renderState({ assignment, reservation });
     expect(screen.getByTestId("assignment-current")).toBeOnTheScreen();
     expect(screen.getByTestId("reservation-current")).toBeOnTheScreen();
     expect(screen.getByText("ASSIGNED ZONE")).toBeOnTheScreen();
     expect(screen.getByText("RESERVED")).toBeOnTheScreen();
   });
 
-  it("suppresses suggestion-state blocks when nothing is current, showing an empty state", () => {
-    renderState();
+  it("suppresses suggestion-state blocks when nothing is current, showing an empty state", async () => {
+    await renderState();
     expect(screen.getByTestId("current-state-empty")).toHaveTextContent(/Nothing planned/);
     expect(screen.queryByTestId("assignment-current")).not.toBeOnTheScreen();
     expect(screen.queryByTestId("reservation-current")).not.toBeOnTheScreen();
     expect(screen.queryByText(/recommendation/i)).not.toBeOnTheScreen();
   });
 
-  it("offers a Find a zone button (not cross-tab copy) when idle", () => {
+  it("offers a Find a zone button (not cross-tab copy) when idle", async () => {
     const onFindZone = jest.fn();
-    renderState({ onFindZone });
-    fireEvent.press(screen.getByTestId("current-state-find-zone"));
+    await renderState({ onFindZone });
+    await fireEvent.press(screen.getByTestId("current-state-find-zone"));
     expect(onFindZone).toHaveBeenCalledTimes(1);
   });
 
-  it("shows a loading state while the session is unknown", () => {
-    renderState({ activePending: true });
+  it("shows a loading state while the session is unknown", async () => {
+    await renderState({ activePending: true });
     expect(screen.getByTestId("current-state-loading")).toBeOnTheScreen();
   });
 
-  it("shows a loading state while assignment state is still resolving", () => {
-    renderState({ statePending: true });
+  it("shows a loading state while assignment state is still resolving", async () => {
+    await renderState({ statePending: true });
     expect(screen.getByTestId("current-state-loading")).toBeOnTheScreen();
   });
 
-  it("shows a friendly error with retry when the active session cannot be loaded", () => {
+  it("shows a friendly error with retry when the active session cannot be loaded", async () => {
     const onRetry = jest.fn();
-    renderState({ activeError: true, activeErrorMessage: "We couldn't load your parking session.", onRetry });
+    await renderState({ activeError: true, activeErrorMessage: "We couldn't load your parking session.", onRetry });
     expect(screen.getByText("We couldn't load your parking session.")).toBeOnTheScreen();
     expect(screen.queryByText(/502|status|stack/i)).not.toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId("active-session-error-retry"));
+    await fireEvent.press(screen.getByTestId("active-session-error-retry"));
     expect(onRetry).toHaveBeenCalled();
   });
 
-  it("shows a retry-able error when assignment and reservation both fail", () => {
+  it("shows a retry-able error when assignment and reservation both fail", async () => {
     const onRetry = jest.fn();
-    renderState({ assignmentError: true, reservationError: true, onRetry });
+    await renderState({ assignmentError: true, reservationError: true, onRetry });
     expect(screen.getByTestId("current-state-error")).toBeOnTheScreen();
     expect(screen.getByText("We couldn't load your current parking status.")).toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId("current-state-error-retry"));
+    await fireEvent.press(screen.getByTestId("current-state-error-retry"));
     expect(onRetry).toHaveBeenCalled();
   });
 
-  it("degrades gracefully: reservation still shown when assignment info fails to load", () => {
-    renderState({ reservation, assignmentError: true });
+  it("degrades gracefully: reservation still shown when assignment info fails to load", async () => {
+    await renderState({ reservation, assignmentError: true });
     expect(screen.getByTestId("reservation-current")).toBeOnTheScreen();
     expect(screen.getByTestId("assignment-load-note")).toHaveTextContent(
       "We couldn't load your assignment info. Pull to refresh to try again.",
     );
   });
 
-  it("does not replace an active session with an error when assignment info fails", () => {
-    renderState({ session, assignmentError: true });
+  it("does not replace an active session with an error when assignment info fails", async () => {
+    await renderState({ session, assignmentError: true });
     expect(screen.getByTestId("active-banner")).toBeOnTheScreen();
     expect(screen.getByTestId("session-assignment-note")).toBeOnTheScreen();
     expect(screen.queryByTestId("active-session-error")).not.toBeOnTheScreen();
@@ -386,7 +385,7 @@ describe("parking screen: Phase 9.6 integration", () => {
     (api.activeSession as jest.Mock).mockResolvedValue(session);
     (api.assignments as jest.Mock).mockResolvedValue([assignment]);
     (api.reservations as jest.Mock).mockResolvedValue([reservation]);
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
 
     await waitFor(() => expect(screen.getByTestId("active-banner")).toBeOnTheScreen());
     expect(screen.queryByTestId("assignment-current")).not.toBeOnTheScreen();
@@ -397,7 +396,7 @@ describe("parking screen: Phase 9.6 integration", () => {
 
   it("keeps the recommendation hidden while an assignment is current", async () => {
     (api.assignments as jest.Mock).mockResolvedValue([assignment]);
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
 
     await waitFor(() => expect(screen.getByTestId("assignment-current")).toBeOnTheScreen());
     expect(screen.queryByTestId("parking-recommendation")).not.toBeOnTheScreen();
@@ -406,14 +405,14 @@ describe("parking screen: Phase 9.6 integration", () => {
 
   it("keeps the recommendation hidden while a reservation is current", async () => {
     (api.reservations as jest.Mock).mockResolvedValue([reservation]);
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
 
     await waitFor(() => expect(screen.getByTestId("reservation-current")).toBeOnTheScreen());
     expect(screen.queryByTestId("parking-recommendation")).not.toBeOnTheScreen();
   });
 
   it("shows 'Nothing planned' with a Find a zone button when nothing is current (no suggestion card on Now)", async () => {
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
 
     await waitFor(() => expect(screen.getByTestId("current-state-empty")).toBeOnTheScreen());
     expect(screen.getByTestId("current-state-find-zone")).toBeOnTheScreen();
@@ -426,7 +425,7 @@ describe("parking screen: Phase 9.6 integration", () => {
     (api.assignments as jest.Mock).mockResolvedValue([
       { ...assignment, expiresAt: new Date(Date.now() - 60_000).toISOString() },
     ]);
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
 
     await waitFor(() => expect(screen.getByTestId("current-state-empty")).toBeOnTheScreen());
     expect(screen.queryByTestId("assignment-current")).not.toBeOnTheScreen();
@@ -452,13 +451,13 @@ describe("parking screen: Phase 9.6 integration", () => {
         navigationLng: 121.0402,
       },
     ]);
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
 
     await waitFor(() => expect(screen.getByTestId("assignment-current")).toBeOnTheScreen());
     (LocationMock as LocationModule).__setPermission({ granted: true, canAskAgain: true });
     (LocationMock as LocationModule).__setPosition({ latitude: 14.5995, longitude: 120.9842 });
 
-    fireEvent.press(screen.getByTestId("assignment-navigate"));
+    await fireEvent.press(screen.getByTestId("assignment-navigate"));
     await waitFor(() =>
       expect(Linking.openURL).toHaveBeenCalledWith(
         expect.stringContaining("maps://?saddr=14.5995,120.9842&daddr=14.5502,121.0402"),
@@ -474,7 +473,7 @@ describe("parking screen: Phase 9.6 integration", () => {
     (api.activeSession as jest.Mock).mockRejectedValue(
       new ApiError("BAD_GATEWAY", "The server is down.", 502),
     );
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
 
     await waitFor(() => expect(screen.getByTestId("active-session-error")).toBeOnTheScreen());
     expect(screen.getByText("The server is down.")).toBeOnTheScreen();
@@ -499,14 +498,14 @@ describe("redesign: the live reservation is cancelled from Now", () => {
       (api.reservations as jest.Mock).mockResolvedValue([{ ...reservation, status: "CANCELLED" }]);
       return { ...reservation, id, status: "CANCELLED" };
     });
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
     await waitFor(() => expect(screen.getByTestId("reservation-current")).toBeOnTheScreen());
 
-    fireEvent.press(screen.getByTestId("reservation-cancel"));
+    await fireEvent.press(screen.getByTestId("reservation-cancel"));
     // Releasing a kept space is confirmed first (an assignment keeps nothing, so it isn't).
     expect(screen.getByTestId("reservation-cancel-confirm")).toHaveTextContent(/kept space is released/);
     expect(api.cancelReservation).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByTestId("reservation-cancel-confirm-btn"));
+    await fireEvent.press(screen.getByTestId("reservation-cancel-confirm-btn"));
 
     await waitFor(() => expect(api.cancelReservation).toHaveBeenCalledWith("r1"));
     await waitFor(() => expect(screen.queryByTestId("reservation-current")).toBeNull());
@@ -514,10 +513,10 @@ describe("redesign: the live reservation is cancelled from Now", () => {
   });
 
   it("can back out of the confirmation without calling the API", async () => {
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
     await waitFor(() => expect(screen.getByTestId("reservation-current")).toBeOnTheScreen());
-    fireEvent.press(screen.getByTestId("reservation-cancel"));
-    fireEvent.press(screen.getByTestId("reservation-cancel-keep"));
+    await fireEvent.press(screen.getByTestId("reservation-cancel"));
+    await fireEvent.press(screen.getByTestId("reservation-cancel-keep"));
     expect(screen.getByTestId("reservation-cancel")).toBeOnTheScreen();
     expect(api.cancelReservation).not.toHaveBeenCalled();
   });
@@ -526,10 +525,10 @@ describe("redesign: the live reservation is cancelled from Now", () => {
     (api.cancelReservation as jest.Mock).mockRejectedValue(
       new ApiError("FORBIDDEN", "This reservation can no longer be cancelled.", 403),
     );
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
     await waitFor(() => expect(screen.getByTestId("reservation-current")).toBeOnTheScreen());
-    fireEvent.press(screen.getByTestId("reservation-cancel"));
-    fireEvent.press(screen.getByTestId("reservation-cancel-confirm-btn"));
+    await fireEvent.press(screen.getByTestId("reservation-cancel"));
+    await fireEvent.press(screen.getByTestId("reservation-cancel-confirm-btn"));
     await waitFor(() =>
       expect(screen.getByTestId("reservation-cancel-error")).toHaveTextContent("This reservation can no longer be cancelled."),
     );
@@ -555,13 +554,13 @@ describe("redesign: a reservation made on Zones becomes Now's current state", ()
   });
 
   async function reserveZoneA() {
-    fireEvent.press(await screen.findByTestId("zone-A"));
-    fireEvent.press(await screen.findByTestId("parking-action-reserve"));
+    await fireEvent.press(await screen.findByTestId("zone-A"));
+    await fireEvent.press(await screen.findByTestId("parking-action-reserve"));
     return screen.findByTestId("reservation-create");
   }
 
   it("flips Now to the reservation without an empty-state contradiction", async () => {
-    renderWithProviders(
+    await renderWithProviders(
       <>
         <ParkingScreen />
         <ParkScreen />
@@ -573,7 +572,7 @@ describe("redesign: a reservation made on Zones becomes Now's current state", ()
     // After the POST, the backend list contains the CONFIRMED reservation, so
     // the invalidation refetch confirms what the mutation cache-write bridged.
     (api.reservations as jest.Mock).mockResolvedValue([reservation]);
-    fireEvent.press(create);
+    await fireEvent.press(create);
 
     await waitFor(() => expect(api.createReservation).toHaveBeenCalledTimes(1));
     expect(api.createReservation).toHaveBeenCalledWith(expect.objectContaining({ zoneId: "z1", vehicleId: "v1" }));
@@ -593,7 +592,7 @@ describe("redesign: a reservation made on Zones becomes Now's current state", ()
         resolveReserve = resolve;
       }),
     );
-    renderWithProviders(
+    await renderWithProviders(
       <>
         <ParkingScreen />
         <ParkScreen />
@@ -601,9 +600,10 @@ describe("redesign: a reservation made on Zones becomes Now's current state", ()
     );
     const create = await reserveZoneA();
 
-    fireEvent.press(create);
+    await fireEvent.press(create);
     await waitFor(() => expect(api.createReservation).toHaveBeenCalledTimes(1));
-    fireEvent.press(create);
+    // Press the button as it is now rendered (pending), not the element captured before the re-render.
+    await fireEvent.press(screen.getByTestId("reservation-create"));
     await waitFor(() => expect(api.createReservation).toHaveBeenCalledTimes(1));
     expect(api.createAssignment).not.toHaveBeenCalled();
 
@@ -632,17 +632,17 @@ describe("phase 9.7: manual assignment → current state", () => {
     // client in production (both mount under the app's single root
     // QueryClientProvider). Reproduce that here: confirm on Park, then mount
     // Home against the *same* client and assert the promotion is immediate.
-    const { client, rerender } = renderWithProviders(<ParkScreen />);
-    fireEvent.press(await screen.findByTestId("zone-A"));
+    const { client, rerender } = await renderWithProviders(<ParkScreen />);
+    await fireEvent.press(await screen.findByTestId("zone-A"));
     const submit = await screen.findByTestId("assignment-submit");
     expect(submit.props.accessibilityState).toMatchObject({ disabled: false });
 
     // The backend list confirms the ACTIVE assignment on refetch.
     (api.assignments as jest.Mock).mockResolvedValue([assignment]);
-    fireEvent.press(submit);
-    await waitFor(() => expect(screen.getByTestId("assignment-already-assigned")).toBeOnTheScreen());
+    await fireEvent.press(submit);
+    await waitFor(() => expect(screen.getByTestId("zones-current-plan")).toBeOnTheScreen());
 
-    rerender(
+    await rerender(
       <SafeAreaProvider
         initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
         <ThemeProvider>
@@ -673,16 +673,16 @@ describe("phase 9.7: reservation create → current state", () => {
   });
 
   it("promotes a confirmed reservation into current state exactly once (no duplicate cards)", async () => {
-    const { client, rerender } = renderWithProviders(<ParkScreen />);
-    fireEvent.press(await screen.findByTestId("zone-A"));
-    fireEvent.press(await screen.findByTestId("parking-action-reserve"));
+    const { client, rerender } = await renderWithProviders(<ParkScreen />);
+    await fireEvent.press(await screen.findByTestId("zone-A"));
+    await fireEvent.press(await screen.findByTestId("parking-action-reserve"));
 
     // The backend list confirms the CONFIRMED reservation on refetch.
     (api.reservations as jest.Mock).mockResolvedValue([reservation]);
-    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() => expect(api.createReservation).toHaveBeenCalled());
 
-    rerender(
+    await rerender(
       <SafeAreaProvider
         initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
         <ThemeProvider>
@@ -716,9 +716,9 @@ describe("reservation on Now: GPS navigation (moved from the retired least-busy 
     );
     (LocationMock as LocationModule).__setPermission({ granted: true, canAskAgain: true });
     (LocationMock as LocationModule).__setPosition({ latitude: 14.5995, longitude: 120.9842 });
-    renderState({ reservation, destinationFor, destinationReady: true });
+    await renderState({ reservation, destinationFor, destinationReady: true });
 
-    fireEvent.press(screen.getByTestId("reservation-navigate"));
+    await fireEvent.press(screen.getByTestId("reservation-navigate"));
     await waitFor(() =>
       expect(Linking.openURL).toHaveBeenCalledWith(
         expect.stringContaining("maps://?saddr=14.5995,120.9842&daddr=14.5502,121.0402"),
@@ -730,29 +730,29 @@ describe("reservation on Now: GPS navigation (moved from the retired least-busy 
     expect(api.cancelReservation).not.toHaveBeenCalled();
   });
 
-  it("explains that navigation is unavailable when the zone has no coordinates", () => {
-    renderState({ reservation, destinationFor: () => null, destinationReady: true });
+  it("explains that navigation is unavailable when the zone has no coordinates", async () => {
+    await renderState({ reservation, destinationFor: () => null, destinationReady: true });
     expect(screen.getByTestId("reservation-navigate")).toBeDisabled();
     expect(screen.getByTestId("reservation-navigate-unavailable")).toHaveTextContent(
       "Navigation coordinates for this zone haven't been configured yet.",
     );
   });
 
-  it("does not offer navigation while the zones (coordinates) are still loading", () => {
-    renderState({ reservation, destinationFor: () => null, destinationReady: false });
+  it("does not offer navigation while the zones (coordinates) are still loading", async () => {
+    await renderState({ reservation, destinationFor: () => null, destinationReady: false });
     expect(screen.queryByTestId("reservation-navigate")).not.toBeOnTheScreen();
   });
 });
 
 describe("current parking state: Lottie on the idle card only", () => {
-  it("shows Lottie, unnamed, when nothing is planned", () => {
-    renderState();
+  it("shows Lottie, unnamed, when nothing is planned", async () => {
+    await renderState();
     expect(screen.getByTestId("current-state-lottie", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByTestId("current-state-empty")).not.toHaveTextContent(/Lottie/);
   });
 
-  it("hides Lottie once something is current", () => {
-    renderState({ assignment });
+  it("hides Lottie once something is current", async () => {
+    await renderState({ assignment });
     expect(screen.queryByTestId("current-state-lottie", { includeHiddenElements: true })).toBeNull();
   });
 });

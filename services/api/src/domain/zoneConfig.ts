@@ -74,8 +74,11 @@ export class ZoneConfigService {
       return {
         ...this.toSummary(z),
         cameras: z.cameras,
-        entryCamera: z.cameras.find((c) => c.gateType === "ENTRY") ?? null,
-        exitCamera: z.cameras.find((c) => c.gateType === "EXIT") ?? null,
+        // A BIDIRECTIONAL gate serves both directions, as OccupancyService accepts it.
+        entryCamera:
+          z.cameras.find((c) => c.gateType === "ENTRY") ?? z.cameras.find((c) => c.gateType === "BIDIRECTIONAL") ?? null,
+        exitCamera:
+          z.cameras.find((c) => c.gateType === "EXIT") ?? z.cameras.find((c) => c.gateType === "BIDIRECTIONAL") ?? null,
         physicalInventory,
       };
     });
@@ -98,16 +101,38 @@ export class ZoneConfigService {
       return this.toSummary(created);
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-        throw new ConflictError("A zone with this name or code already exists.");
+        throw await this.zoneConflict({ name, code });
       }
       throw err;
     }
   }
 
+  /**
+   * The 409 for a zone write the name/code unique indexes refused. Those
+   * indexes stay the authority (this runs only after the database said no);
+   * the lookup only decides which input to name. If both are taken, the code
+   * is named: Postgres would report only the first index it checks.
+   */
+  private async zoneConflict(written: { name?: string; code?: string }, zoneId?: string) {
+    const taken = async (where: Prisma.ParkingZoneWhereInput) =>
+      (await prisma.parkingZone.count({ where: zoneId ? { ...where, NOT: { id: zoneId } } : where })) > 0;
+    const field =
+      written.code !== undefined && (await taken({ code: written.code }))
+        ? "code"
+        : written.name !== undefined && (await taken({ name: written.name }))
+          ? "name"
+          : undefined;
+    return field
+      ? new ConflictError(`A zone with this ${field} already exists.`, { field })
+      : new ConflictError("A zone with this name or code already exists.");
+  }
+
   async updateZone(zoneId: string, input: AdminZoneUpdateInput) {
     const data: Prisma.ParkingZoneUpdateInput = {};
-    if (input.name !== undefined) data.name = requiredLabel("name", input.name);
-    if (input.code !== undefined) data.code = requiredLabel("code", input.code);
+    const name = input.name !== undefined ? requiredLabel("name", input.name) : undefined;
+    const code = input.code !== undefined ? requiredLabel("code", input.code) : undefined;
+    if (name !== undefined) data.name = name;
+    if (code !== undefined) data.code = code;
     if (input.description !== undefined) data.description = normalizeDescription(input.description);
     if (input.status !== undefined) {
       if (input.status !== "ACTIVE" && input.status !== "INACTIVE") {
@@ -142,7 +167,8 @@ export class ZoneConfigService {
           if (capacityRequested < current.occupiedCount) {
             throw new ConflictError(
               `You cannot reduce this zone below its current occupancy. ` +
-                `${current.occupiedCount} of ${current.capacity} spaces are currently occupied.`
+                `${current.occupiedCount} of ${current.capacity} spaces are currently occupied.`,
+              { field: "capacity" }
             );
           }
           const protecting = this.reservations
@@ -151,7 +177,8 @@ export class ZoneConfigService {
           if (capacityRequested <= current.occupiedCount + protecting) {
             throw new ConflictError(
               `You cannot reduce this zone below its occupied and reserved capacity. ` +
-                `(${current.occupiedCount} occupied, ${protecting} reserved, capacity ${current.capacity}).`
+                `(${current.occupiedCount} occupied, ${protecting} reserved, capacity ${current.capacity}).`,
+              { field: "capacity" }
             );
           }
           data.capacity = capacityRequested;
@@ -167,7 +194,7 @@ export class ZoneConfigService {
       return this.toSummary(updated);
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-        throw new ConflictError("A zone with this name or code already exists.");
+        throw await this.zoneConflict({ name, code }, zoneId);
       }
       throw err;
     }
@@ -299,7 +326,7 @@ export class ZoneConfigService {
       return this.toCamera(created);
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-        throw new ConflictError("Camera identifier already exists.");
+        throw new ConflictError("Camera identifier already exists.", { field: "identifier" });
       }
       throw err;
     }
@@ -443,18 +470,18 @@ export class ZoneConfigService {
 
 function requiredLabel(field: "name" | "code" | "identifier" | "slot code", value: unknown): string {
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new BadRequestError(`'${field}' is required.`);
+    throw new BadRequestError(`'${field}' is required.`, { field });
   }
   const trimmed = value.trim();
   if (trimmed.length > 120) {
-    throw new BadRequestError(`'${field}' must be 120 characters or fewer.`);
+    throw new BadRequestError(`'${field}' must be 120 characters or fewer.`, { field });
   }
   return trimmed;
 }
 
 function validateCapacity(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
-    throw new BadRequestError("Zone capacity must be a positive integer.");
+    throw new BadRequestError("Zone capacity must be a positive integer.", { field: "capacity" });
   }
   return value;
 }

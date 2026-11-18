@@ -77,35 +77,6 @@ describe("api client: success envelopes", () => {
     await expect(api.activeSession()).resolves.toEqual(guest);
   });
 
-  it("zoneOccupancy matches the backend zoneId contract", async () => {
-    (global.fetch as unknown as jest.Mock) = mockFetch({
-      data: {
-        zoneId: "z1",
-        name: "Zone A",
-        code: "A",
-        capacity: 20,
-        occupiedCount: 15,
-        availableCount: 5,
-        status: "ACTIVE",
-        availability: "LOW_AVAILABILITY",
-        navigationLat: null,
-        navigationLng: null,
-      },
-    });
-    await expect(api.zoneOccupancy("z1")).resolves.toMatchObject({
-      zoneId: "z1",
-      name: "Zone A",
-      code: "A",
-      capacity: 20,
-      occupiedCount: 15,
-      availableCount: 5,
-      status: "ACTIVE",
-      availability: "LOW_AVAILABILITY",
-      navigationLat: null,
-      navigationLng: null,
-    });
-  });
-
   it("attaches the Bearer token when present", async () => {
     await setToken("tok-123");
     const fetchMock = mockFetch({ data: [] });
@@ -491,6 +462,15 @@ describe("api client: notifications and violations", () => {
     const err = (await api.notifications().catch((e: unknown) => e)) as ApiError;
     expect(err.code).toBe("INVALID_NOTIFICATIONS_RESPONSE");
     expect(err.message).toBe("We couldn't load your notifications.");
+  });
+
+  it("markAllNotificationsRead PATCHes the bulk endpoint", async () => {
+    const fetchMock = mockFetch({ data: { updated: 3 } });
+    (global.fetch as unknown as jest.Mock) = fetchMock;
+    await expect(api.markAllNotificationsRead()).resolves.toEqual({ updated: 3 });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/notifications\/read-all$/);
+    expect(init.method).toBe("PATCH");
   });
 
   it("markNotificationRead PATCHes the notification", async () => {

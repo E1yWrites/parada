@@ -359,6 +359,49 @@ describe("Phase 6 — occupancy simulator & admin infrastructure", () => {
 
       expect(res.body.data.occupancy.occupiedCount).toBe(0);
     });
+
+    it("runs on a zone whose only gate is BIDIRECTIONAL (the seeded campus layout)", async () => {
+      await prisma.camera.deleteMany({ where: { zoneId: ctx.zoneId } });
+      await prisma.camera.create({
+        data: { zoneId: ctx.zoneId, name: "Main Gate", identifier: "cam-sim-both", gateType: "BIDIRECTIONAL", status: "ONLINE" },
+      });
+
+      const res = await request(ctx.app)
+        .post("/simulator/run")
+        .set("Authorization", `Bearer ${ctx.adminToken}`)
+        .send({ scenario: "COMPLETE_PARKING_LIFECYCLE", zoneId: ctx.zoneId, vehicleIds: ctx.vehicleIds })
+        .expect(201);
+
+      const session = res.body.data.events.find((e: Record<string, unknown>) => e.kind === "PARKING_SESSION").session;
+      expect(session.status).toBe("COMPLETED");
+      expect(res.body.data.occupancy.occupiedCount).toBe(0);
+      const events = await prisma.occupancyEvent.findMany({ where: { zoneId: ctx.zoneId }, include: { camera: true } });
+      expect(events.map((e) => e.camera?.identifier)).toEqual(["cam-sim-both", "cam-sim-both"]);
+    });
+
+    it("still runs after an API restart (a fresh simulator must not reuse stored event ids)", async () => {
+      const run = (app: ReturnType<typeof createApp>) =>
+        request(app)
+          .post("/simulator/run")
+          .set("Authorization", `Bearer ${ctx.adminToken}`)
+          .send({ scenario: "COMPLETE_PARKING_LIFECYCLE", zoneId: ctx.zoneId, vehicleIds: ctx.vehicleIds });
+
+      await run(ctx.app).expect(201);
+      const restarted = createApp(); // new process: the in-memory sequence starts over
+      const res = await run(restarted).expect(201);
+      expect(res.body.data.rejects ?? []).toEqual([]);
+      expect(await prisma.occupancyEvent.count({ where: { zoneId: ctx.zoneId } })).toBe(4);
+    });
+
+    it("explains which cameras are missing when a zone has none", async () => {
+      await prisma.camera.deleteMany({ where: { zoneId: ctx.zoneId } });
+      const res = await request(ctx.app)
+        .post("/simulator/run")
+        .set("Authorization", `Bearer ${ctx.adminToken}`)
+        .send({ scenario: "SINGLE_ENTRY", zoneId: ctx.zoneId, vehicleIds: ctx.vehicleIds })
+        .expect(400);
+      expect(res.body.error.message).toContain("one BIDIRECTIONAL");
+    });
   });
 
   describe("Occupancy history (admin)", () => {
@@ -525,6 +568,56 @@ describe("Phase 6 — occupancy simulator & admin infrastructure", () => {
       expect((await occupancy(tiny.app, tiny.zoneId)).occupiedCount).toBe(occBefore);
       expect(await prisma.notification.count({ where: { zoneId: tiny.zoneId } })).toBe(3);
       expect(await prisma.occupancyEvent.count({ where: { zoneId: tiny.zoneId } })).toBe(2);
+    });
+  });
+
+  // UAT 2026-11-17 (T6): a newly registered driver found no fee after a
+  // simulated entry + exit. The admin page sends every active vehicle id in
+  // /admin/vehicles order (by plate), and single-vehicle scenarios use the
+  // first, so the session and fee went to whichever plate sorts first.
+  describe("Simulated lifecycle fee lands on the chosen driver", () => {
+    async function uatDriver() {
+      const driver = await prisma.user.create({
+        data: { name: "UAT Driver", email: "uat-driver@test.local", passwordHash: "x", role: "USER" },
+      });
+      // TUV-777 sorts after the seeded SIM-001, like a real new driver's plate after ABC-1234.
+      const vehicle = await prisma.vehicle.create({
+        data: { userId: driver.id, plateNumber: "TUV-777", normalizedPlate: "TUV777", vehicleType: "CAR", status: "ACTIVE" },
+      });
+      return { vehicleId: vehicle.id, token: tokenService.sign({ id: driver.id, role: "USER" }).token };
+    }
+
+    async function feesFor(token: string) {
+      const res = await request(ctx.app).get("/sessions").set("Authorization", `Bearer ${token}`).expect(200);
+      return (res.body.data as { status: string; feeAmount: number | null }[]).filter((s) => s.feeAmount != null);
+    }
+
+    it("an all-vehicles payload (the admin page's 'All registered vehicles' default) charges the first plate, not the new driver", async () => {
+      const uat = await uatDriver();
+      const all = await request(ctx.app).get("/admin/vehicles").set("Authorization", `Bearer ${ctx.adminToken}`).expect(200);
+      const ids = (all.body.data as { id: string }[]).map((v) => v.id);
+      expect(ids).toContain(uat.vehicleId);
+
+      await request(ctx.app)
+        .post("/simulator/run")
+        .set("Authorization", `Bearer ${ctx.adminToken}`)
+        .send({ scenario: "COMPLETE_PARKING_LIFECYCLE", zoneId: ctx.zoneId, vehicleIds: ids })
+        .expect(201);
+
+      expect(await feesFor(uat.token)).toEqual([]);
+      expect(await feesFor(ctx.userToken)).toEqual([expect.objectContaining({ status: "COMPLETED", feeAmount: 20 })]);
+    });
+
+    it("a single chosen vehicle id puts the completed session and its fee on that driver", async () => {
+      const uat = await uatDriver();
+      await request(ctx.app)
+        .post("/simulator/run")
+        .set("Authorization", `Bearer ${ctx.adminToken}`)
+        .send({ scenario: "COMPLETE_PARKING_LIFECYCLE", zoneId: ctx.zoneId, vehicleIds: [uat.vehicleId] })
+        .expect(201);
+
+      expect(await feesFor(uat.token)).toEqual([expect.objectContaining({ status: "COMPLETED", feeAmount: 20 })]);
+      expect(await feesFor(ctx.userToken)).toEqual([]);
     });
   });
 });

@@ -9,7 +9,7 @@ jest.mock("next/link", () => {
   return ({ children, ...props }: { children: React.ReactNode }) => <a {...props}>{children}</a>;
 });
 
-const mockAuth = { user: null, loading: true, error: null, signIn: jest.fn(), signOut: jest.fn() };
+const mockAuth: { user: unknown; loading: boolean; error: string | null; signIn: jest.Mock; signOut: jest.Mock } = { user: null, loading: true, error: null, signIn: jest.fn(), signOut: jest.fn() };
 
 jest.mock("@/components/providers/auth-provider", () => ({
   useAuth: () => mockAuth,
@@ -42,6 +42,29 @@ describe("AppShell — role protection", () => {
     );
     expect(screen.getByText("Admin access required")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute("href", "/login");
+  });
+
+  it("says the API is unreachable, not 'Admin access required', when the session check failed", () => {
+    setAuth({ user: null, loading: false, error: "Unable to reach the PARADA API." });
+    render(
+      <AppShell>
+        <div>content</div>
+      </AppShell>
+    );
+    expect(screen.getByText("Unable to reach the PARADA API.")).toBeInTheDocument();
+    expect(screen.queryByText("Admin access required")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("gives every nav link a 44px minimum height", () => {
+    setAuth({ user: { id: "u1", email: "admin@parada.local", role: "ADMIN" } as never, loading: false });
+    render(
+      <AppShell>
+        <div>content</div>
+      </AppShell>
+    );
+    const link = screen.getAllByRole("link", { name: /Dashboard/ })[0];
+    expect(link.className).toContain("min-h-[44px]");
   });
 
   it("blocks USER accounts with a forbidden message", () => {

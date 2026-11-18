@@ -8,6 +8,17 @@ import { ApiError } from "@/lib/api/client";
 import { fonts, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 
+type FieldErrors = { name?: string; email?: string; password?: string; confirm?: string };
+
+// Same rule the API enforces (services/api/src/http/validate.ts).
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/** The field a server rejection names in `details.field`, if this form has it. */
+function serverField(err: ApiError): keyof FieldErrors | null {
+  const field = (err.details as { field?: unknown } | undefined)?.field;
+  return field === "name" || field === "email" || field === "password" ? field : null;
+}
+
 export default function RegisterScreen() {
   const colors = useColors();
   const { signUp } = useSession();
@@ -16,7 +27,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; email?: string; password?: string; confirm?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -24,8 +35,10 @@ export default function RegisterScreen() {
     const next: typeof fieldErrors = {};
     if (name.trim().length < 2) {
       next.name = "Enter your name.";
+    } else if (name.trim().length > 80) {
+      next.name = "Name must be 2–80 characters.";
     }
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+    if (!EMAIL_RE.test(email.trim())) {
       next.email = "Enter a valid email address.";
     }
     if (password.length < 8) {
@@ -50,7 +63,18 @@ export default function RegisterScreen() {
       // confirmed before sign-in is possible.
       router.replace({ pathname: "/verify-email", params: { email: result.user.email } });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to create your account. Please try again.");
+      const field = err instanceof ApiError ? serverField(err) : null;
+      if (err instanceof ApiError && field) {
+        // Show it under the field the backend rejected, not only in a banner.
+        setFieldErrors({
+          [field]:
+            err.code === "CONFLICT" && field === "email"
+              ? "This email already has an account. Sign in instead."
+              : err.message,
+        });
+      } else {
+        setError(err instanceof ApiError ? err.message : "Unable to create your account. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -118,6 +142,7 @@ export default function RegisterScreen() {
         autoCapitalize="none"
         textContentType="password"
         autoComplete="new-password"
+        hint="At least 8 characters. You'll confirm your email with a 6-digit code next."
         error={fieldErrors.password}
       />
       <Input

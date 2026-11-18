@@ -1,4 +1,4 @@
-import type { GateType } from "@prisma/client";
+import type { GateType } from "../generated/prisma/client";
 
 /**
  * LPU-Batangas Main Campus deployment data (Capitol Site, Kumintang Ibaba,

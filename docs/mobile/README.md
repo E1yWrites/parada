@@ -1,6 +1,6 @@
 # PARADA Mobile Application
 
-User-facing driver app (Phase 8). React Native + **Expo SDK 57** + TypeScript,
+User-facing driver app (Phase 8). React Native + **Expo SDK 58** + TypeScript,
 with **Expo Router** (file-based navigation) and **TanStack Query** for data
 caching. Talks to the `services/api` backend over HTTPS/HTTP.
 
@@ -8,7 +8,7 @@ caching. Talks to the `services/api` backend over HTTPS/HTTP.
 
 | Concern | Choice |
 |---------|--------|
-| Framework | Expo SDK 57 (`expo@~57.0.22`; Phase 11D) |
+| Framework | Expo SDK 58 (`expo@~58.0.25`, React Native 0.88, React 19.3) |
 | React / React Native | `react@19.2.3` / `react-native@0.86.3` |
 | Navigation | `expo-router@~57.0.21` (typed, file-based tabs) |
 | Data layer | `@tanstack/react-query@^5` on the `lib/api/client.ts` fetch wrapper |
@@ -16,7 +16,7 @@ caching. Talks to the `services/api` backend over HTTPS/HTTP.
 | Fonts | `@expo-google-fonts/*` (Inter, Space Grotesk, JetBrains Mono) |
 | Styling | Design tokens in `src/theme` (no styling library) |
 | Tests | `jest-expo` + `@testing-library/react-native` (RNTL v13) |
-| Lint / types | `eslint-config-expo` (legacy `.eslintrc.js`) / `tsc --noEmit` |
+| Lint / types | `eslint-config-expo/flat` (`eslint.config.mjs`, ESLint 9) / `tsc --noEmit` (TypeScript 6) |
 
 ## Getting started
 
@@ -86,7 +86,7 @@ apps/mobile
 | `/account/profile` | Name/username (`PATCH /auth/me`), email change (`POST /auth/me/email` → code sent to the NEW address → `…/confirm`; current email stays authoritative until then), phone change (code sent to the verified email) or clear |
 | `/account/password` | Current + new + confirm → `POST /auth/password`; the fresh token the server returns replaces the stored one so this device stays signed in while every other session is invalidated |
 | `/vehicles/[id]` | Edit plate / type / make / model / color (`PATCH /vehicles/:id`) and unregister (`DELETE /vehicles/:id`, confirmed with a native alert). Domain refusals (parked / assigned / reserved) are shown verbatim from the API |
-| `/(tabs)/parking` | Live zones (public `GET /zones` with availability badges) + active-session banner + recommended-zone card (`GET /zones/recommendation` with an explicit "Accept Recommendation" → `POST /assignments` flow when no session is active) + manual zone assignment: select a zone on the grid → pick a registered vehicle → `POST /assignments`, confirmed only from the backend response, full/offline zones and already-assigned vehicles blocked, refresh of zone/recommendation/assignment data on success + zone reservations: select a zone → pick a registered vehicle → explicit "Reserve" → `POST /reservations` (backend-held zone capacity, arrival window from config), backend-confirmed display only, `GET /reservations` list with status badges and timestamps, two-tap explicit cancel via `PATCH /reservations/:id/cancel`, full-zone/network/conflict errors mapped to friendly messages + actual navigation (Phase 9.5): the confirmed-assignment card shows a "Navigate to assigned zone" action that reads the device GPS (foreground `expo-location` permission + one-shot position, no background tracking/persistence), resolves the establishment destination from public `GET /zones/establishment`, and launches the platform maps app (Apple Maps `maps://`, Google navigation `google.navigation:`, `geo:` fallback); missing permission, unavailable location, no configured destination, or no maps app all degrade to friendly in-app messages |
+| `/(tabs)/parking` | Live zones (public `GET /zones` with availability badges) + active-session banner + recommended-zone card (`GET /zones/recommendation` with an explicit "Accept Recommendation" → `POST /assignments` flow when no session is active) + manual zone assignment: select a zone on the grid → pick a registered vehicle → `POST /assignments`, confirmed only from the backend response, full/offline zones and already-assigned vehicles blocked, refresh of zone/recommendation/assignment data on success + zone reservations: select a zone → pick a registered vehicle → explicit "Reserve" → `POST /reservations` (backend-held zone capacity, arrival window from config), backend-confirmed display only, `GET /reservations` list with status badges and timestamps, two-tap explicit cancel via `PATCH /reservations/:id/cancel`, full-zone/network/conflict errors mapped to friendly messages + actual navigation (Phase 9.5): the confirmed-assignment card shows a "Navigate to assigned zone" action that reads the device GPS (foreground `expo-location` permission + one-shot position, no background tracking/persistence), resolves the zone's own navigation coordinates from `GET /zones` (the old `GET /zones/establishment` was removed), and launches the platform maps app (Apple Maps `maps://`, Google navigation `google.navigation:`, `geo:` fallback); missing permission, unavailable location, no configured destination, or no maps app all degrade to friendly in-app messages |
 | `/(tabs)/parking` current state (Phase 9.6) | Single authoritative "current parking" section on top, ordered by backend semantics: active session (`GET /sessions/active`, strongest state) → active assignment (`GET /assignments`, ACTIVE + not past `expiresAt`) → valid reservation (`GET /reservations`, PENDING/CONFIRMED/ACTIVE) → explicit empty state when nothing is current. Assignment and reservation are always rendered as distinct cards, never merged/reconciled; an active session suppresses suggestion flows and shows its assignment only as a context line. The confirmed-assignment card was moved out of `ZoneAssignmentPanel` (which now shows a lightweight hint and hides the assign form) to eliminate the previous duplicate rendering, and the recommendation card is hidden whenever any current state exists or is still loading. Session, assignment and reservation cards each offer GPS navigation (Phase 9.5 `NavigateButton`, hidden while the establishment is loading, disabled without a destination), friendly error states keep `active-session-error`, and partial failures show what is known plus a pull-to-refresh note |
 | Mobile integration / E2E regression (Phase 9.7) | Closes the two real integration defects found during the audit. (1) Recommendation → assignment transition: `POST /assignments` and `POST /reservations` mutation results (backend-confirmed) are now written into their canonical list caches via `upsertAssignment`/`upsertReservation` on `onSuccess`, so the screen's current-state derivation sees the confirmed assignment/reservation in the same commit — eliminating the transient window where the recommendation claimed "Your assignment" while the current-state section still showed "No active parking". Invalidations still refetch in `onSettled`, replacing the cache with the full server list (never optimistic). (2) The reservation panel's duplicate `reservation-confirmed` card (create result + list entry after refetch) was removed — the list is the single source of truth. Four screen-level regression tests assert the transitions (no empty-state contradiction, recommendation unmount at confirmation, no duplicate submission while pending, exactly one assignment card, no duplicate reservation card). Mobile suite: 19 suites / 255 tests at the time |
 | Mobile final polish (Phase 9.8) | UX/accessibility/responsiveness audit on top of Phase 8–9.7. Loading presented once (`NavigateButton` no longer duplicates "Getting your location…" — the button title + spinner now carry the state alone, with a regression test pinning single presentation); the vehicles header loading placeholder is now "Loading…" like sessions; the account degraded-cache "RETRY" got the 44pt touch-target baseline; `CurrentParkingState` and `ActiveSessionBanner` header rows anchor label + status badge to the top so badges never float mid-row; `ReservationCard`'s confirm row wraps on narrow screens and both `ReservationCard`/`ZoneCard` zone names now wrap to 2 lines instead of hard-clipping; validation/network error texts (Input, login, register) are announced via `accessibilityRole="alert"` surfaced through the `Text` primitive. Mobile suite: 20 suites / 267 tests at the time |
@@ -144,10 +144,11 @@ All gates are wired into Turborepo (`npx turbo typecheck lint test`).
 
 ## Monorepo notes (why the bits are the way they are)
 
-- **Dual npm tree.** `apps/admin` pins React 18 while Expo SDK 57 needs React 19,
-  so npm keeps the SDK tree inside `apps/mobile/node_modules` and nests a few
-  packages under `node_modules/expo/node_modules/`. The root `postinstall`
-  (`scripts/ensure-expo-link.cjs`) bridges the gaps with idempotent symlinks:
+- **One React.** `apps/admin` and `apps/mobile` pin the same React (19.3.0), so
+  npm hoists React and the Expo SDK tree to the repo root. The root `postinstall`
+  (`scripts/ensure-expo-link.cjs`) is then a no-op; it stays for the case where a
+  version split pushes the SDK tree back into `apps/mobile/node_modules`, and then
+  bridges the gaps with idempotent symlinks:
   `node_modules/expo` and `node_modules/react-native` at the repo root, plus
   nested SDK packages lifted into `apps/mobile/node_modules`. After any
   `npm install`/`ci`/`dedupe`, re-run it (`node scripts/ensure-expo-link.cjs`);

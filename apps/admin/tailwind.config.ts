@@ -30,6 +30,7 @@ const config: Config = {
         faint: withOpacity("--faint"),
         line: withOpacity("--line"),
         "line-strong": withOpacity("--line-strong"),
+        control: withOpacity("--control-border"),
         brand: {
           DEFAULT: withOpacity("--brand"),
           dark: withOpacity("--brand-dark"),

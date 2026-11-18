@@ -5,7 +5,7 @@ import { avatarSrc } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionHeader } from "@/components/ui/Card";
 import { Pill } from "@/components/ui/Badge";
-import { formatDate } from "@/lib/format";
+import { formatDay } from "@/lib/format";
 
 export default function AccountPage() {
   const { user, signOut } = useAuth();
@@ -38,7 +38,7 @@ export default function AccountPage() {
                 )
               }
             />
-            <Row label="Joined" value={user ? formatDate(user.createdAt) : "—"} />
+            <Row label="Joined" value={user ? formatDay(user.createdAt) : "—"} />
           </dl>
         </Card>
 

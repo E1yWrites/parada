@@ -89,6 +89,20 @@ export interface ProcessEventOptions {
   overrideAdminUserId?: string;
 }
 
+/**
+ * What a P2002 violated: column names or the index name. Prisma 5 put this in
+ * `meta.target`; Prisma 7's pg driver adapter reports it as
+ * `meta.driverAdapterError.cause.constraint` ({ fields } or { index }).
+ */
+export function uniqueViolationTarget(err: Prisma.PrismaClientKnownRequestError): string[] {
+  const meta = err.meta as
+    | { target?: unknown; driverAdapterError?: { cause?: { constraint?: { fields?: unknown; index?: unknown } } } }
+    | undefined;
+  const constraint = meta?.driverAdapterError?.cause?.constraint;
+  const raw = [meta?.target, constraint?.fields, constraint?.index].flat();
+  return raw.filter((value): value is string => typeof value === "string");
+}
+
 export class OccupancyService {
   private readonly ocrPlateConfidenceThreshold: number;
   private readonly config?: ConfigService;
@@ -271,9 +285,18 @@ export class OccupancyService {
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        const target = uniqueViolationTarget(err);
+        // parking_sessions_one_active_per_vehicle: an ENTRY for a vehicle that is
+        // already parked. Same 409 and rollback, but not a duplicate event id.
+        if (target.some((t) => t.includes("vehicleId") || t === "parking_sessions_one_active_per_vehicle")) {
+          throw new ConflictError(
+            "This vehicle already has an active parking session; the ENTRY was not recorded.",
+            { target }
+          );
+        }
         throw new ConflictError(
           `Duplicate camera event for sourceEventId '${sourceEventId}'.`,
-          { target: err.meta?.target }
+          { target }
         );
       }
       throw err;
@@ -374,7 +397,7 @@ export class OccupancyService {
   private async processRegisteredVehicle(
     tx: Prisma.TransactionClient,
     ctx: {
-      zone: { id: string; capacity: number; occupiedCount: number };
+      zone: { id: string; code: string; capacity: number; occupiedCount: number };
       camera: { id: string };
       match: VehicleMatch;
       eventType: OccupancyEventType;
@@ -525,7 +548,7 @@ export class OccupancyService {
             vehicleId,
             detectedPlate: match.detectedPlate,
             anomalyType: "WRONG_ZONE_WARNING",
-            description: `Vehicle is assigned to zone '${assignedZoneCode}' but entered zone '${zone.id}'.`,
+            description: `Vehicle is assigned to zone '${assignedZoneCode}' but entered zone '${zone.code}'.`,
             resolved: false,
           },
         });

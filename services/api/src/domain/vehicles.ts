@@ -29,6 +29,15 @@ function validateType(raw: unknown): VehicleType {
   return raw as VehicleType;
 }
 
+/** Owned AND registered: an unregistered (INACTIVE) vehicle is not eligible for new parking activity. */
+export async function requireOwnedActiveVehicle(userId: string, vehicleId: string) {
+  const vehicle = await prisma.vehicle.findFirst({ where: { id: vehicleId, userId, status: "ACTIVE" } });
+  if (!vehicle) {
+    throw new NotFoundError("Vehicle not found.");
+  }
+  return vehicle;
+}
+
 /**
  * Driver-owned vehicle lifecycle. The plate is the gate identity, so every
  * change that could confuse the camera pipeline (re-plating or unregistering

@@ -1,7 +1,8 @@
 import * as SecureStore from "expo-secure-store";
-import { renderWithAppProviders, screen, waitFor } from "@/src/test/utils";
+import { fireEvent, renderWithAppProviders, screen, waitFor } from "@/src/test/utils";
 import TabsLayout from "@/app/(tabs)/_layout";
-import { api } from "@/lib/api/client";
+import { api, ApiError } from "@/lib/api/client";
+import { getToken } from "@/lib/auth/session";
 import { sessionStatusMeta } from "@/src/components/StatusBadge";
 import { colors } from "@/src/theme";
 
@@ -15,7 +16,6 @@ jest.mock("@/lib/api/client", () => {
       register: jest.fn(),
       logout: jest.fn(),
       zones: jest.fn(),
-      zoneOccupancy: jest.fn(),
       vehicles: jest.fn(),
       createVehicle: jest.fn(),
       sessions: jest.fn(),
@@ -40,15 +40,42 @@ beforeEach(() => {
 
 describe("access control", () => {
   it("redirects an anonymous user to /login", async () => {
-    renderWithAppProviders(<TabsLayout />);
+    await renderWithAppProviders(<TabsLayout />);
     await waitFor(() => expect(screen.getByTestId("redirect-/login")).toBeOnTheScreen());
+  });
+
+  it("shows a can't-reach-server state, not the login redirect, when the session check fails offline", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-alive");
+    (api.me as jest.Mock).mockRejectedValueOnce(new ApiError("NETWORK", "Cannot reach the PARADA server.", 0));
+
+    await renderWithAppProviders(<TabsLayout />);
+
+    expect(await screen.findByTestId("boot-error")).toBeOnTheScreen();
+    expect(screen.queryByTestId("redirect-/login")).not.toBeOnTheScreen();
+    await expect(getToken()).resolves.toBe("tok-alive");
+
+    // Back online: Retry re-checks the stored token and renders the tabs.
+    (api.me as jest.Mock).mockResolvedValue(user);
+    await fireEvent.press(screen.getByTestId("boot-error-state-retry"));
+    await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
+  });
+
+  it("still sends an explicit 401 to /login and clears the token", async () => {
+    await SecureStore.setItemAsync("parada.session.token", "tok-dead");
+    (api.me as jest.Mock).mockRejectedValue(new ApiError("UNAUTHORIZED", "Session expired.", 401));
+
+    await renderWithAppProviders(<TabsLayout />);
+
+    await waitFor(() => expect(screen.getByTestId("redirect-/login")).toBeOnTheScreen());
+    expect(screen.queryByTestId("boot-error")).not.toBeOnTheScreen();
+    await expect(getToken()).resolves.toBeNull();
   });
 
   it("renders the four tabs for an authenticated user", async () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-ok");
     (api.me as jest.Mock).mockResolvedValue(user);
 
-    renderWithAppProviders(<TabsLayout />);
+    await renderWithAppProviders(<TabsLayout />);
 
     await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
     expect(screen.getByText("Now")).toBeOnTheScreen();
@@ -63,7 +90,7 @@ describe("access control", () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-ok");
     (api.me as jest.Mock).mockResolvedValue(user);
 
-    renderWithAppProviders(<TabsLayout />);
+    await renderWithAppProviders(<TabsLayout />);
 
     await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
     expect(screen.queryByText("Vehicles")).not.toBeOnTheScreen();
@@ -73,7 +100,7 @@ describe("access control", () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-ok");
     (api.me as jest.Mock).mockResolvedValue(user);
 
-    renderWithAppProviders(<TabsLayout />);
+    await renderWithAppProviders(<TabsLayout />);
 
     await waitFor(() => expect(screen.getByTestId("tabs")).toBeOnTheScreen());
     for (const label of ["Now", "Zones", "History", "Account"]) {

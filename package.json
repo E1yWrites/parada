@@ -25,8 +25,12 @@
     "postinstall": "node scripts/ensure-expo-link.cjs"
   },
   "devDependencies": {
-    "cross-env": "^7.0.3",
-    "turbo": "^2.3.0"
+    "cross-env": "^10.1.0",
+    "turbo": "^2.3.0",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.0",
+    "globals": "^17.14.0",
+    "typescript-eslint": "^8.72.2"
   },
   "packageManager": "npm@9.2.0",
   "overrides": {
@@ -35,10 +39,10 @@
   "allowScripts": {
     "@embedded-postgres/linux-x64@18.4.0-beta.17": true,
     "@embedded-postgres/windows-x64@18.4.0-beta.17": true,
-    "@prisma/client@5.22.0": true,
-    "@prisma/engines@5.22.0": true,
-    "argon2@0.45.1": true,
-    "prisma@5.22.0": true,
+    "@prisma/client@7.10.1": true,
+    "@prisma/engines@7.10.1": true,
+    "argon2@0.45.2": true,
+    "prisma@7.10.1": true,
     "unrs-resolver@1.12.2": true
   }
 }

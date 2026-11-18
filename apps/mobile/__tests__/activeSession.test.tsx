@@ -25,8 +25,8 @@ const active: SessionDto = {
 const now = new Date(2026, 8, 1, 10, 42, 0);
 
 describe("ActiveSessionBanner", () => {
-  it("renders the correct parked vehicle, zone and live elapsed time", () => {
-    render(<ActiveSessionBanner session={active} now={now} testID="banner" />);
+  it("renders the correct parked vehicle, zone and live elapsed time", async () => {
+    await render(<ActiveSessionBanner session={active} now={now} testID="banner" />);
 
     expect(screen.getByTestId("banner-zone")).toHaveTextContent("Zone A");
     expect(screen.getByTestId("banner-plate")).toHaveTextContent("ABC-1234");
@@ -34,8 +34,8 @@ describe("ActiveSessionBanner", () => {
     expect(screen.getByTestId("banner-badge")).toHaveTextContent(/Parked/);
   });
 
-  it("renders GUEST identity for an account-less active session", () => {
-    render(
+  it("renders GUEST identity for an account-less active session", async () => {
+    await render(
       <ActiveSessionBanner
         session={{ ...active, userId: null, vehicleId: null, vehicle: null }}
         now={now}
@@ -49,16 +49,16 @@ describe("ActiveSessionBanner", () => {
 });
 
 describe("SessionCard (active)", () => {
-  it("shows live elapsed for an active session", () => {
-    render(<SessionCard session={active} now={now} testID="card" />);
+  it("shows live elapsed for an active session", async () => {
+    await render(<SessionCard session={active} now={now} testID="card" />);
 
     expect(screen.getByTestId("card-plate")).toHaveTextContent("ABC-1234");
     expect(screen.getByTestId("card-status")).toHaveTextContent(/Active/);
     expect(screen.getByTestId("card-elapsed")).toHaveTextContent("42m");
   });
 
-  it("does not fabricate a fee for an active session without one", () => {
-    render(<SessionCard session={{ ...active, feeAmount: null }} now={now} testID="card" />);
+  it("does not fabricate a fee for an active session without one", async () => {
+    await render(<SessionCard session={{ ...active, feeAmount: null }} now={now} testID="card" />);
 
     expect(screen.getByTestId("card-plate")).toHaveTextContent("ABC-1234");
     expect(screen.queryByTestId("card-fee")).not.toBeOnTheScreen();
@@ -76,22 +76,22 @@ describe("SessionCard (completed)", () => {
     exitEvent: { id: "e2", detectedAt: new Date(2026, 8, 1, 11, 51, 0).toISOString() },
   };
 
-  it("shows exit time and fixed duration", () => {
-    render(<SessionCard session={completed} testID="card" />);
+  it("shows exit time and fixed duration", async () => {
+    await render(<SessionCard session={completed} testID="card" />);
 
     expect(screen.getByTestId("card-status")).toHaveTextContent(/Completed/);
     expect(screen.getByTestId("card-exited")).toHaveTextContent("2026-09-01 11:51");
     expect(screen.getByTestId("card-duration")).toHaveTextContent("1h 51m");
   });
 
-  it("shows the backend fee for a completed session", () => {
-    render(<SessionCard session={{ ...completed, feeAmount: 30 }} testID="card" />);
+  it("shows the backend fee for a completed session", async () => {
+    await render(<SessionCard session={{ ...completed, feeAmount: 30 }} testID="card" />);
 
     expect(screen.getByTestId("card-fee")).toHaveTextContent("₱30.00");
   });
 
-  it("does not show a fee row when feeAmount is null", () => {
-    render(<SessionCard session={{ ...completed, feeAmount: null }} testID="card" />);
+  it("does not show a fee row when feeAmount is null", async () => {
+    await render(<SessionCard session={{ ...completed, feeAmount: null }} testID="card" />);
 
     expect(screen.queryByTestId("card-fee")).not.toBeOnTheScreen();
   });

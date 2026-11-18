@@ -36,7 +36,7 @@ beforeEach(() => {
 describe("zone detail screen", () => {
   it("shows live capacity, availability and the wayfinding description", async () => {
     (api.zones as jest.Mock).mockResolvedValue([zoneB]);
-    renderWithProviders(<ZoneDetailScreen />);
+    await renderWithProviders(<ZoneDetailScreen />);
 
     expect(await screen.findByText("Zone B")).toBeOnTheScreen();
     expect(screen.getByText("B")).toBeOnTheScreen();
@@ -49,18 +49,18 @@ describe("zone detail screen", () => {
     (api.zones as jest.Mock)
       .mockRejectedValueOnce(new ApiError("NETWORK", "Cannot reach the PARADA server.", 0))
       .mockResolvedValueOnce([zoneB]);
-    renderWithProviders(<ZoneDetailScreen />);
+    await renderWithProviders(<ZoneDetailScreen />);
 
     expect(await screen.findByText("Cannot reach the PARADA server.")).toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId("zone-detail-error-retry"));
+    await fireEvent.press(screen.getByTestId("zone-detail-error-retry"));
     expect(await screen.findByText("Zone B")).toBeOnTheScreen();
   });
 
   it("routes to Parking when asked to reserve", async () => {
     (api.zones as jest.Mock).mockResolvedValue([zoneB]);
-    renderWithProviders(<ZoneDetailScreen />);
+    await renderWithProviders(<ZoneDetailScreen />);
 
-    fireEvent.press(await screen.findByTestId("zone-detail-reserve"));
+    await fireEvent.press(await screen.findByTestId("zone-detail-reserve"));
     expect(__router.push).toHaveBeenCalledWith("/(tabs)/parking");
   });
 });

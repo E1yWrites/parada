@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -130,11 +130,9 @@ export function VehiclePicker({
   // action — picking a vehicle should never yank the list out from under
   // the driver's finger the instant `needsVehicleChoice` resolves.
   const [expanded, setExpanded] = useState(needsVehicleChoice);
-  useEffect(() => {
-    if (needsVehicleChoice) {
-      setExpanded(true);
-    }
-  }, [needsVehicleChoice]);
+  if (needsVehicleChoice && !expanded) {
+    setExpanded(true);
+  }
 
   if (selection.isPending) {
     return <LoadingState label="Loading your vehicles…" testID={`${testIDPrefix}-vehicles-loading`} />;

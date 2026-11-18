@@ -85,7 +85,7 @@ export default function ViolationDetailScreen() {
               <Text variant="micro">FINE</Text>
               <ViolationBadge status={violation.status} testID="violation-summary-status" />
             </View>
-            <Text variant="display" color={violationColor}>
+            <Text variant="display" numberOfLines={1} adjustsFontSizeToFit color={violationColor} testID="violation-fine-amount">
               {formatCurrency(violation.fineAmount)}
             </Text>
             <Text variant="body" color={colors.muted}>
@@ -185,10 +185,10 @@ export default function ViolationDetailScreen() {
             <Card tone="tinted" style={styles.appealBox} testID="violation-appeal-pending">
               <Text variant="title">Appeal under review</Text>
               <Text variant="caption" color={colors.muted}>
-                We'll notify you once this is resolved. You can't submit another appeal for this violation.
+                We&apos;ll notify you once this is resolved. You can&apos;t submit another appeal for this violation.
               </Text>
               <Text variant="body" style={styles.quote}>
-                "{violation.appeal.reason}"
+                &quot;{violation.appeal.reason}&quot;
               </Text>
             </Card>
           ) : null}

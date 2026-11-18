@@ -1,7 +1,7 @@
 import { renderWithAppProviders, renderWithProviders, screen } from "@/src/test/utils";
 import ParkingScreen from "@/app/(tabs)/parking";
 import ParkScreen from "@/app/(tabs)/park";
-import VehiclesScreen from "@/app/(tabs)/vehicles";
+import VehiclesScreen from "@/app/vehicles";
 import SessionsScreen from "@/app/(tabs)/sessions";
 import AccountScreen from "@/app/(tabs)/account";
 import { api, type PublicZone, type SessionDto } from "@/lib/api/client";
@@ -17,7 +17,6 @@ jest.mock("@/lib/api/client", () => {
       register: jest.fn(),
       logout: jest.fn(),
       zones: jest.fn(),
-      zoneOccupancy: jest.fn(),
       vehicles: jest.fn(),
       createVehicle: jest.fn(),
       sessions: jest.fn(),
@@ -110,27 +109,27 @@ beforeEach(() => {
 
 describe("tab route smoke tests", () => {
   it("renders the Now route", async () => {
-    renderWithProviders(<ParkingScreen />);
+    await renderWithProviders(<ParkingScreen />);
     expect(await screen.findByTestId("parking-screen-title")).toHaveTextContent("Now");
   });
 
   it("renders the Zones route", async () => {
-    renderWithProviders(<ParkScreen />);
+    await renderWithProviders(<ParkScreen />);
     expect(await screen.findByTestId("park-screen-title")).toHaveTextContent("Zones");
   });
 
   it("renders the Vehicles route", async () => {
-    renderWithProviders(<VehiclesScreen />);
+    await renderWithProviders(<VehiclesScreen />);
     expect(await screen.findByTestId("vehicles-list")).toBeOnTheScreen();
   });
 
   it("renders the Sessions route", async () => {
-    renderWithProviders(<SessionsScreen />);
+    await renderWithProviders(<SessionsScreen />);
     expect(await screen.findByTestId("sessions-list")).toBeOnTheScreen();
   });
 
   it("renders the Account route", async () => {
-    renderWithAppProviders(<AccountScreen />);
+    await renderWithAppProviders(<AccountScreen />);
     expect(await screen.findByTestId("account-screen-title")).toHaveTextContent("Account");
   });
 });

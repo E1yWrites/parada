@@ -10,6 +10,7 @@ module.exports = {
       {
         tsconfig: {
           jsx: "react-jsx",
+          rootDir: ".",
         },
       },
     ],

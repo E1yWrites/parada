@@ -3,7 +3,6 @@ import { QueryClient } from "@tanstack/react-query";
 export const queryKeys = {
   account: ["account"] as const,
   zones: ["zones"] as const,
-  zoneOccupancy: (zoneId: string) => ["zones", zoneId, "occupancy"] as const,
   recommendation: ["zones", "recommendation"] as const,
   assignments: ["assignments"] as const,
   reservations: ["reservations"] as const,

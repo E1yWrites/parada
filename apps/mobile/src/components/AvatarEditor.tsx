@@ -128,7 +128,7 @@ export function AvatarEditor({ user, testID = "avatar-editor" }: AvatarEditorPro
         </View>
       </View>
       {error ? (
-        <Text variant="caption" color={colors.danger} accessibilityRole="alert" testID={`${testID}-error`}>
+        <Text variant="caption" color={colors.danger} accessibilityRole="alert" accessibilityLiveRegion="polite" testID={`${testID}-error`}>
           {error}
         </Text>
       ) : (

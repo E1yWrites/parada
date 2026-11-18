@@ -1,5 +1,5 @@
 import { fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
-import VehiclesScreen from "@/app/(tabs)/vehicles";
+import VehiclesScreen from "@/app/vehicles";
 import { api, ApiError } from "@/lib/api/client";
 import type { Vehicle } from "@parada/types";
 
@@ -13,7 +13,6 @@ jest.mock("@/lib/api/client", () => {
       register: jest.fn(),
       logout: jest.fn(),
       zones: jest.fn(),
-      zoneOccupancy: jest.fn(),
       vehicles: jest.fn(),
       createVehicle: jest.fn(),
       sessions: jest.fn(),
@@ -60,7 +59,7 @@ beforeEach(() => {
 
 describe("vehicles screen", () => {
   it("lists registered vehicles with plates and types", async () => {
-    renderWithProviders(<VehiclesScreen />);
+    await renderWithProviders(<VehiclesScreen />);
 
     expect(await screen.findByText("XYZ-5678")).toBeOnTheScreen();
     expect(screen.getByText("ABC-1234")).toBeOnTheScreen();
@@ -69,7 +68,7 @@ describe("vehicles screen", () => {
   });
 
   it("marks the primary vehicle in the list", async () => {
-    renderWithProviders(<VehiclesScreen />);
+    await renderWithProviders(<VehiclesScreen />);
 
     await waitFor(() => expect(screen.getByTestId("vehicle-XYZ-5678-primary")).toBeOnTheScreen());
     expect(screen.queryByTestId("vehicle-ABC-1234-primary")).not.toBeOnTheScreen();
@@ -77,7 +76,7 @@ describe("vehicles screen", () => {
 
   it("shows an empty state when there are no vehicles", async () => {
     (api.vehicles as jest.Mock).mockResolvedValue([]);
-    renderWithProviders(<VehiclesScreen />);
+    await renderWithProviders(<VehiclesScreen />);
 
     expect(await screen.findByText("No vehicles registered")).toBeOnTheScreen();
   });
@@ -88,12 +87,12 @@ describe("vehicles screen", () => {
       .mockResolvedValueOnce(vehicles)
       .mockResolvedValue([...vehicles, addedVehicle]);
 
-    renderWithProviders(<VehiclesScreen />);
+    await renderWithProviders(<VehiclesScreen />);
 
-    fireEvent.press(await screen.findByTestId("vehicles-add-button"));
-    fireEvent.changeText(screen.getByTestId("vehicle-plate"), "qrs-9999");
-    fireEvent.press(screen.getByTestId("vehicle-type-MOTORCYCLE"));
-    fireEvent.press(screen.getByTestId("vehicle-submit"));
+    await fireEvent.press(await screen.findByTestId("vehicles-add-button"));
+    await fireEvent.changeText(screen.getByTestId("vehicle-plate"), "qrs-9999");
+    await fireEvent.press(screen.getByTestId("vehicle-type-MOTORCYCLE"));
+    await fireEvent.press(screen.getByTestId("vehicle-submit"));
 
     await waitFor(() =>
       expect(api.createVehicle).toHaveBeenCalledWith({
@@ -113,11 +112,11 @@ describe("vehicles screen", () => {
       new ApiError("UNPROCESSABLE", "You already have a vehicle with this plate number.", 422),
     );
 
-    renderWithProviders(<VehiclesScreen />);
+    await renderWithProviders(<VehiclesScreen />);
 
-    fireEvent.press(await screen.findByTestId("vehicles-add-button"));
-    fireEvent.changeText(screen.getByTestId("vehicle-plate"), "ABC-1234");
-    fireEvent.press(screen.getByTestId("vehicle-submit"));
+    await fireEvent.press(await screen.findByTestId("vehicles-add-button"));
+    await fireEvent.changeText(screen.getByTestId("vehicle-plate"), "ABC-1234");
+    await fireEvent.press(screen.getByTestId("vehicle-submit"));
 
     await waitFor(() =>
       expect(screen.getByText("You already have a vehicle with this plate number.")).toBeOnTheScreen(),
@@ -125,11 +124,11 @@ describe("vehicles screen", () => {
   });
 
   it("rejects an empty plate locally", async () => {
-    renderWithProviders(<VehiclesScreen />);
+    await renderWithProviders(<VehiclesScreen />);
 
-    fireEvent.press(await screen.findByTestId("vehicles-add-button"));
-    fireEvent.changeText(screen.getByTestId("vehicle-plate"), "   ");
-    fireEvent.press(screen.getByTestId("vehicle-submit"));
+    await fireEvent.press(await screen.findByTestId("vehicles-add-button"));
+    await fireEvent.changeText(screen.getByTestId("vehicle-plate"), "   ");
+    await fireEvent.press(screen.getByTestId("vehicle-submit"));
 
     expect(screen.getByText("Enter a plate number.")).toBeOnTheScreen();
     expect(api.createVehicle).not.toHaveBeenCalled();

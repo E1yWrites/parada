@@ -39,6 +39,8 @@ export default function VerifyEmailScreen() {
   const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
+    // Syncs with the wall clock (an external system) when the deadline changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCooldown(secondsUntil(resendAvailableAt));
     if (!resendAvailableAt) {
       return;

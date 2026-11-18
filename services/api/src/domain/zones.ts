@@ -2,15 +2,35 @@ import { prisma } from "@parada/database";
 import { NotFoundError } from "../http/errors";
 import { availabilityOf } from "./availability";
 import type { ZoneRecommendation } from "@parada/types";
+import { ConfigService } from "./config";
+import { ReservationService } from "./reservation";
 
 /**
  * Zone read/availability domain operations.
  *
  * PARADA is zone-based: occupancy is tracked per parking zone and
- * `availableCount` is always DERIVED as `capacity - occupiedCount`
- * (never stored). Slot-level information is not exposed here.
+ * `availableCount` is always DERIVED (never stored) as
+ * `max(0, capacity - occupiedCount - reservation holds)`: a reservation keeps a
+ * space even though nobody has arrived yet, so it is not offered to others.
+ * `occupiedCount` stays the raw physical count. Slot-level information is not
+ * exposed here.
  */
 export class ZoneService {
+  private readonly reservations: ReservationService;
+
+  constructor(reservations: ReservationService = new ReservationService(new ConfigService())) {
+    this.reservations = reservations;
+  }
+
+  /** capacity - occupied - held, floored at 0, and the availability class that matches it. */
+  private effective(z: { capacity: number; occupiedCount: number; status: "ACTIVE" | "INACTIVE" }, held: number) {
+    const taken = Math.min(z.capacity, z.occupiedCount + held);
+    return {
+      availableCount: Math.max(0, z.capacity - taken),
+      availability: availabilityOf(taken, z.capacity, z.status),
+    };
+  }
+
   async list() {
     const zones = await prisma.parkingZone.findMany({
       where: { status: "ACTIVE" },
@@ -27,6 +47,7 @@ export class ZoneService {
         navigationLng: true,
       },
     });
+    const held = await this.reservations.protectingCountsByZone();
     return zones.map((z) => ({
       id: z.id,
       name: z.name,
@@ -34,9 +55,8 @@ export class ZoneService {
       description: z.description,
       capacity: z.capacity,
       occupiedCount: z.occupiedCount,
-      availableCount: z.capacity - z.occupiedCount,
       status: z.status,
-      availability: availabilityOf(z.occupiedCount, z.capacity, z.status),
+      ...this.effective(z, held.get(z.id) ?? 0),
       navigationLat: z.navigationLat,
       navigationLng: z.navigationLng,
     }));
@@ -60,6 +80,7 @@ export class ZoneService {
     if (!z) {
       throw new NotFoundError(`Zone '${zoneId}' not found.`);
     }
+    const held = (await this.reservations.protectingCountsByZone()).get(z.id) ?? 0;
     return {
       id: z.id,
       name: z.name,
@@ -67,9 +88,8 @@ export class ZoneService {
       description: z.description,
       capacity: z.capacity,
       occupiedCount: z.occupiedCount,
-      availableCount: z.capacity - z.occupiedCount,
       status: z.status,
-      availability: availabilityOf(z.occupiedCount, z.capacity, z.status),
+      ...this.effective(z, held),
       navigationLat: z.navigationLat,
       navigationLng: z.navigationLng,
     };
@@ -103,11 +123,15 @@ export class ZoneService {
       },
     });
 
+    // Held spaces count as taken: a zone whose every free space is reserved is not "least busy".
+    const held = await this.reservations.protectingCountsByZone();
+    const taken = (z: { id: string; capacity: number; occupiedCount: number }) =>
+      Math.min(z.capacity, z.occupiedCount + (held.get(z.id) ?? 0));
     const suitable = zones
-      .filter((z) => z.capacity > 0 && z.occupiedCount < z.capacity)
+      .filter((z) => z.capacity > 0 && taken(z) < z.capacity)
       .sort((a, b) => {
-        const ratioA = a.occupiedCount / a.capacity;
-        const ratioB = b.occupiedCount / b.capacity;
+        const ratioA = taken(a) / a.capacity;
+        const ratioB = taken(b) / b.capacity;
         if (ratioA !== ratioB) {
           return ratioA - ratioB;
         }
@@ -131,7 +155,7 @@ export class ZoneService {
         code: best.code,
         capacity: best.capacity,
         occupiedCount: best.occupiedCount,
-        availableCount: best.capacity - best.occupiedCount,
+        availableCount: Math.max(0, best.capacity - taken(best)),
         status: best.status,
         navigationLat: best.navigationLat,
         navigationLng: best.navigationLng,

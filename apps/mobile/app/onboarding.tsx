@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Button, GlassCard, Illustration, Lottie, Screen, Text } from "@/src/components";
@@ -50,7 +50,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const reducedMotion = usePrefersReducedMotion();
   const [index, setIndex] = useState(0);
-  const reveal = useRef(new Animated.Value(1)).current;
+  const [reveal] = useState(() => new Animated.Value(1));
   const slide = slides[index]!;
   const last = index === slides.length - 1;
 

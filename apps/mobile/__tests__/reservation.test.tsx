@@ -18,7 +18,6 @@ jest.mock("@/lib/api/client", () => {
       register: jest.fn(),
       logout: jest.fn(),
       zones: jest.fn(),
-      zoneOccupancy: jest.fn(),
       vehicles: jest.fn(),
       createVehicle: jest.fn(),
       sessions: jest.fn(),
@@ -141,7 +140,7 @@ function WaitHarness() {
 
 describe("reservation panel: zone gating", () => {
   it("hints to pick a zone and disables creation without one", async () => {
-    renderWithProviders(<ReservationPanel selectedZone={null} />);
+    await renderWithProviders(<ReservationPanel selectedZone={null} />);
     expect(screen.getByTestId("reservation-zone-hint")).toHaveTextContent(
       /Choose a zone above to reserve a space/,
     );
@@ -151,19 +150,19 @@ describe("reservation panel: zone gating", () => {
   });
 
   it("shows the selected zone summary and enables the vehicle flow", async () => {
-    renderWithProviders(<Harness />);
+    await renderWithProviders(<Harness />);
     const summary = await screen.findByTestId("reservation-summary");
     expect(summary).toHaveTextContent(/Zone A/);
     expect(summary).toHaveTextContent(/8 spaces available/);
   });
 
   it("blocks a zone that is already full", async () => {
-    renderWithProviders(<ReservationPanel selectedZone={fullZone} />);
+    await renderWithProviders(<ReservationPanel selectedZone={fullZone} />);
     expect(screen.getByTestId("reservation-zone-full")).toHaveTextContent(/This zone is now full/);
     const create = await screen.findByTestId("reservation-create");
     expect(create).toHaveTextContent("Select another zone");
     expect(create.props.accessibilityState).toMatchObject({ disabled: true });
-    fireEvent.press(create);
+    await fireEvent.press(create);
     expect(api.createReservation).not.toHaveBeenCalled();
   });
 });
@@ -171,31 +170,31 @@ describe("reservation panel: zone gating", () => {
 describe("reservation panel: vehicle requirement", () => {
   it("blocks creation and routes to /vehicles when there is no vehicle", async () => {
     (api.vehicles as jest.Mock).mockResolvedValue([]);
-    renderWithProviders(<Harness />);
+    await renderWithProviders(<Harness />);
     expect(await screen.findByTestId("reservation-no-vehicle")).toHaveTextContent(
       /Add a vehicle first to make a reservation\./,
     );
-    fireEvent.press(screen.getByTestId("reservation-add-vehicle"));
+    await fireEvent.press(screen.getByTestId("reservation-add-vehicle"));
     expect(require("@/__mocks__/expo-router").__router.push).toHaveBeenCalledWith("/vehicles");
     expect(screen.queryByTestId("reservation-create")).not.toBeOnTheScreen();
     expect(api.createReservation).not.toHaveBeenCalled();
   });
 
   it("auto-uses the single active vehicle", async () => {
-    renderWithProviders(<Harness />);
+    await renderWithProviders(<Harness />);
     await waitFor(() => expect(screen.getByTestId("reservation-vehicle")).toHaveTextContent(/ABC-1234/));
     expect(screen.queryByTestId("reservation-vehicle-v1")).not.toBeOnTheScreen();
   });
 
   it("requires an explicit choice when several vehicles are registered", async () => {
     (api.vehicles as jest.Mock).mockResolvedValue([activeVehicle, secondVehicle]);
-    renderWithProviders(<Harness />);
+    await renderWithProviders(<Harness />);
     const create = await screen.findByTestId("reservation-create");
     expect(screen.getByTestId("reservation-vehicle-v1")).toBeOnTheScreen();
     expect(create).toHaveTextContent("Select a vehicle");
     expect(create.props.accessibilityState).toMatchObject({ disabled: true });
 
-    fireEvent.press(screen.getByTestId("reservation-vehicle-v2"));
+    await fireEvent.press(screen.getByTestId("reservation-vehicle-v2"));
     expect(api.createReservation).not.toHaveBeenCalled();
     expect(create).toHaveTextContent("Reserve XYZ-5678 in Zone A");
     expect(create.props.accessibilityState).toMatchObject({ disabled: false });
@@ -203,7 +202,7 @@ describe("reservation panel: vehicle requirement", () => {
 
   it("never auto-picks a vehicle when several exist and nothing is chosen", async () => {
     (api.vehicles as jest.Mock).mockResolvedValue([activeVehicle, secondVehicle]);
-    renderWithProviders(<Harness />);
+    await renderWithProviders(<Harness />);
     const create = await screen.findByTestId("reservation-create");
     expect(create).toHaveTextContent("Select a vehicle");
     expect(create.props.accessibilityState).toMatchObject({ disabled: true });
@@ -212,8 +211,8 @@ describe("reservation panel: vehicle requirement", () => {
 
 describe("reservation panel: submission", () => {
   it("creates the reservation only on explicit action with the chosen inputs", async () => {
-    renderWithProviders(<Harness />);
-    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await renderWithProviders(<Harness />);
+    await fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() => expect(api.createReservation).toHaveBeenCalledTimes(1));
     expect(api.createReservation).toHaveBeenCalledWith(
       expect.objectContaining({ zoneId: "z1", vehicleId: "v1" }),
@@ -230,28 +229,27 @@ describe("reservation panel: submission", () => {
     (api.reservations as jest.Mock)
       .mockResolvedValueOnce([])
       .mockResolvedValue([reservation()]);
-    renderWithProviders(<Harness />);
-    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await renderWithProviders(<Harness />);
+    await fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() => expect(screen.getByTestId("reservation-create")).toHaveTextContent("Reserving…"));
     const create = screen.getByTestId("reservation-create");
     expect(create.props.accessibilityState).toMatchObject({ busy: true, disabled: true });
 
-    fireEvent.press(create);
+    await fireEvent.press(create);
     expect(api.createReservation).toHaveBeenCalledTimes(1);
     resolveCreate(reservation());
-    await waitFor(() => expect(screen.getByTestId("reservation-confirmed-notice")).toBeOnTheScreen());
+    await waitFor(() => expect(screen.getByTestId("reservation-create")).not.toHaveTextContent("Reserving…"));
   });
 
   it("confirms from the backend response only after success, and keeps the live reservation out of History", async () => {
     (api.reservations as jest.Mock)
       .mockResolvedValueOnce([])
       .mockResolvedValue([reservation()]);
-    renderWithProviders(<Harness />);
+    await renderWithProviders(<Harness />);
+    await fireEvent.press(await screen.findByTestId("reservation-create"));
+    // The confirmation is rendered by the Zones screen from the reservations cache, not by this panel.
+    await waitFor(() => expect(api.createReservation).toHaveBeenCalledTimes(1));
     expect(screen.queryByTestId("reservation-confirmed-notice")).not.toBeOnTheScreen();
-    fireEvent.press(await screen.findByTestId("reservation-create"));
-    await waitFor(() =>
-      expect(screen.getByTestId("reservation-confirmed-notice")).toHaveTextContent(/Reserved Zone A\. Space kept/),
-    );
     // A live reservation is shown once, on Now — never also in the History list.
     await waitFor(() => expect(api.reservations).toHaveBeenCalledTimes(2));
     expect(screen.queryByTestId("reservation-r1")).not.toBeOnTheScreen();
@@ -262,8 +260,8 @@ describe("reservation panel: submission", () => {
     (api.createReservation as jest.Mock).mockRejectedValue(
       new ApiError("CONFLICT", `Zone 'z1' has no available reservation capacity.`, 409),
     );
-    renderWithProviders(<Harness />);
-    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await renderWithProviders(<Harness />);
+    await fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() => expect(screen.getByTestId("reservation-error")).toHaveTextContent(/can't take this reservation for that time/));
     expect(screen.queryByTestId("reservation-r1")).not.toBeOnTheScreen();
     expect(screen.queryByTestId("reservation-confirmed")).not.toBeOnTheScreen();
@@ -275,8 +273,8 @@ describe("reservation panel: failures", () => {
     (api.createReservation as jest.Mock).mockRejectedValue(
       new ApiError("CONFLICT", `Zone 'z1' has no available reservation capacity.`, 409),
     );
-    renderWithProviders(<Harness />);
-    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await renderWithProviders(<Harness />);
+    await fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() =>
       expect(screen.getByTestId("reservation-error")).toHaveTextContent(
         "Zone A can't take this reservation for that time. Try another time or zone.",
@@ -291,8 +289,8 @@ describe("reservation panel: failures", () => {
     (api.createReservation as jest.Mock).mockRejectedValue(
       new ApiError("NETWORK", "Could not connect.", 0),
     );
-    renderWithProviders(<Harness />);
-    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await renderWithProviders(<Harness />);
+    await fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() =>
       expect(screen.getByTestId("reservation-error")).toHaveTextContent(
         "We couldn't connect to the parking service. Please try again.",
@@ -304,8 +302,8 @@ describe("reservation panel: failures", () => {
 
   it("maps a generic backend failure to a friendly message", async () => {
     (api.createReservation as jest.Mock).mockRejectedValue(new Error("boom"));
-    renderWithProviders(<Harness />);
-    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await renderWithProviders(<Harness />);
+    await fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() =>
       expect(screen.getByTestId("reservation-error")).toHaveTextContent(
         "We couldn't make this reservation. Please try again.",
@@ -317,8 +315,8 @@ describe("reservation panel: failures", () => {
     (api.createReservation as jest.Mock).mockRejectedValue(
       new ApiError("NOT_FOUND", "Zone 'zzz' not found.", 404),
     );
-    renderWithProviders(<Harness />);
-    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await renderWithProviders(<Harness />);
+    await fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() =>
       expect(screen.getByTestId("reservation-error")).toHaveTextContent(
         "Something went wrong. Please try again.",
@@ -338,13 +336,13 @@ describe("reservation panel: reservation list", () => {
         resolveList = r;
       }),
     );
-    renderWithProviders(<Harness />);
+    await renderWithProviders(<Harness />);
     expect(await screen.findByTestId("reservations-loading")).toBeOnTheScreen();
     resolveList([]);
   });
 
   it("shows an empty state when there are no past reservations", async () => {
-    renderWithProviders(<Harness />);
+    await renderWithProviders(<Harness />);
     await waitFor(() => expect(screen.getByTestId("reservations-empty")).toBeOnTheScreen());
     expect(screen.getByText("No past reservations")).toBeOnTheScreen();
     // No pointer to a control on another tab.
@@ -353,7 +351,7 @@ describe("reservation panel: reservation list", () => {
 
   it("renders past reservations from backend data with status and window", async () => {
     (api.reservations as jest.Mock).mockResolvedValue([{ ...listReservation, status: "CANCELLED" }]);
-    renderWithProviders(<Harness />);
+    await renderWithProviders(<Harness />);
     const card = await screen.findByTestId("reservation-r1");
     expect(card).toHaveTextContent(/Zone A/);
     expect(card).toHaveTextContent(/ABC-1234/);
@@ -365,7 +363,7 @@ describe("reservation panel: reservation list", () => {
     "keeps a live %s reservation out of History (it is shown on Now)",
     async (status) => {
       (api.reservations as jest.Mock).mockResolvedValue([{ ...listReservation, status }]);
-      renderWithProviders(<Harness />);
+      await renderWithProviders(<Harness />);
       await waitFor(() => expect(screen.getByTestId("reservations-empty")).toBeOnTheScreen());
       expect(screen.queryByTestId("reservation-r1")).not.toBeOnTheScreen();
     },
@@ -375,7 +373,7 @@ describe("reservation panel: reservation list", () => {
     (api.reservations as jest.Mock).mockResolvedValue([
       { ...listReservation, status: "EXPIRED" },
     ]);
-    renderWithProviders(<Harness />);
+    await renderWithProviders(<Harness />);
     await screen.findByTestId("reservation-r1");
     expect(screen.getByTestId("reservation-r1-status")).toHaveTextContent(/Expired/);
     // Expired reservations cannot be cancelled.
@@ -383,7 +381,7 @@ describe("reservation panel: reservation list", () => {
   });
 
   it("does not offer cancellation when onCancel is unsupported", async () => {
-    renderWithProviders(<ReservationPanel selectedZone={null} />);
+    await renderWithProviders(<ReservationPanel selectedZone={null} />);
     expect(screen.queryByTestId("reservation-r1-cancel")).not.toBeOnTheScreen();
   });
 });
@@ -391,15 +389,14 @@ describe("reservation panel: reservation list", () => {
 describe("reservation panel: refresh after actions", () => {
   it("refreshes reservation and zone data after a successful creation", async () => {
     (api.zones as jest.Mock).mockResolvedValue([zoneA]);
-    renderWithProviders(<WaitHarness />);
+    await renderWithProviders(<WaitHarness />);
     await waitFor(() => expect(screen.getByTestId("harness-count")).toHaveTextContent("0"));
     await waitFor(() => expect(screen.getByTestId("harness-zones")).toHaveTextContent("1"));
 
     (api.reservations as jest.Mock).mockResolvedValue([reservation()]);
     const zonesCalls = (api.zones as jest.Mock).mock.calls.length;
-    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() => expect(screen.getByTestId("harness-count")).toHaveTextContent("1"));
-    await waitFor(() => expect(screen.getByTestId("reservation-confirmed-notice")).toBeOnTheScreen());
     await waitFor(() =>
       expect((api.zones as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(zonesCalls + 1),
     );
@@ -413,8 +410,8 @@ describe("reservation panel: auth is never revoked by a failed reservation", () 
   it("keeps the stored token when the reservation fails with a non-401 error", async () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-alive");
     (api.createReservation as jest.Mock).mockRejectedValue(new ApiError("BAD_GATEWAY", "The server is down.", 502));
-    renderWithProviders(<Harness />);
-    fireEvent.press(await screen.findByTestId("reservation-create"));
+    await renderWithProviders(<Harness />);
+    await fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() => expect(screen.getByTestId("reservation-error")).toBeOnTheScreen());
     expect(await SecureStore.getItemAsync("parada.session.token")).toBe("tok-alive");
     expect(screen.queryByText(/502|BAD_GATEWAY/)).toBeNull();

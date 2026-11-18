@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { act, render, waitFor } from "@testing-library/react-native";
 import * as SecureStore from "expo-secure-store";
 import MockEventSource from "react-native-sse";
@@ -40,16 +41,19 @@ const MockES = MockEventSource as unknown as { instances: Instance[] };
 const alex = { id: "u1", name: "Alex", email: "alex@parada.test", role: "USER", status: "ACTIVE", createdAt: "2026-01-01T00:00:00.000Z" };
 const sam = { id: "u2", name: "Sam", email: "sam@parada.test", role: "USER", status: "ACTIVE", createdAt: "2026-01-01T00:00:00.000Z" };
 
-let session: ReturnType<typeof useSession> | null = null;
+const probe: { session: ReturnType<typeof useSession> | null } = { session: null };
 function Probe() {
-  session = useSession();
+  const current = useSession();
+  useEffect(() => {
+    probe.session = current;
+  });
   return null;
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
   MockES.instances = [];
-  session = null;
+  probe.session = null;
   (SecureStore as typeof SecureStore & { __reset: () => void }).__reset();
 });
 
@@ -59,12 +63,12 @@ describe("realtime connection follows the signed-in session", () => {
     (api.login as jest.Mock).mockResolvedValue({ user: alex, token: "tok-alex" });
     (api.logout as jest.Mock).mockResolvedValue(undefined);
 
-    render(
+    await render(
       <AppProviders>
         <Probe />
       </AppProviders>,
     );
-    await waitFor(() => expect(session?.isLoading).toBe(false));
+    await waitFor(() => expect(probe.session?.isLoading).toBe(false));
 
     // Signed out: no bearer token exists yet, so no stream may be opened —
     // a stream created now would carry no Authorization header for its
@@ -72,7 +76,7 @@ describe("realtime connection follows the signed-in session", () => {
     expect(MockES.instances).toHaveLength(0);
 
     await act(async () => {
-      await session!.signIn("alex@parada.test", "password123");
+      await probe.session!.signIn("alex@parada.test", "password123");
     });
     await waitFor(() => expect(MockES.instances).toHaveLength(1));
     expect(MockES.instances[0]!.url).toMatch(/\/realtime\/stream$/);
@@ -80,7 +84,7 @@ describe("realtime connection follows the signed-in session", () => {
     expect(MockES.instances[0]!.closed).toBe(false);
 
     await act(async () => {
-      await session!.signOut();
+      await probe.session!.signOut();
     });
     await waitFor(() => expect(MockES.instances[0]!.closed).toBe(true));
     expect(MockES.instances).toHaveLength(1);
@@ -93,22 +97,22 @@ describe("realtime connection follows the signed-in session", () => {
       .mockResolvedValueOnce({ user: alex, token: "tok-alex" })
       .mockResolvedValueOnce({ user: sam, token: "tok-sam" });
 
-    render(
+    await render(
       <AppProviders>
         <Probe />
       </AppProviders>,
     );
-    await waitFor(() => expect(session?.isLoading).toBe(false));
+    await waitFor(() => expect(probe.session?.isLoading).toBe(false));
 
     await act(async () => {
-      await session!.signIn("alex@parada.test", "password123");
+      await probe.session!.signIn("alex@parada.test", "password123");
     });
     await waitFor(() => expect(MockES.instances).toHaveLength(1));
     await act(async () => {
-      await session!.signOut();
+      await probe.session!.signOut();
     });
     await act(async () => {
-      await session!.signIn("sam@parada.test", "password123");
+      await probe.session!.signIn("sam@parada.test", "password123");
     });
 
     await waitFor(() => expect(MockES.instances).toHaveLength(2));
@@ -122,34 +126,34 @@ describe("realtime connection follows the signed-in session", () => {
     (api.login as jest.Mock).mockResolvedValueOnce({ user: alex, token: "tok-alex" });
     (api.changePassword as jest.Mock).mockResolvedValueOnce({ user: alex, token: "tok-alex-2" });
 
-    render(
+    await render(
       <AppProviders>
         <Probe />
       </AppProviders>,
     );
-    await waitFor(() => expect(session?.isLoading).toBe(false));
+    await waitFor(() => expect(probe.session?.isLoading).toBe(false));
     await act(async () => {
-      await session!.signIn("alex@parada.test", "password123");
+      await probe.session!.signIn("alex@parada.test", "password123");
     });
     await waitFor(() => expect(MockES.instances).toHaveLength(1));
     expect(MockES.instances[0]!.options.headers?.Authorization).toBe("Bearer tok-alex");
 
     await act(async () => {
-      await session!.changePassword("password123", "password456");
+      await probe.session!.changePassword("password123", "password456");
     });
 
     await waitFor(() => expect(MockES.instances).toHaveLength(2));
     expect(MockES.instances[0]!.closed).toBe(true);
     expect(MockES.instances[1]!.options.headers?.Authorization).toBe("Bearer tok-alex-2");
     expect(MockES.instances[1]!.closed).toBe(false);
-    expect(session!.token).toBe("tok-alex-2");
+    expect(probe.session!.token).toBe("tok-alex-2");
   });
 
   it("opens the stream on launch when a stored token is still valid", async () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-stored");
     (api.me as jest.Mock).mockResolvedValue(alex);
 
-    render(
+    await render(
       <AppProviders>
         <Probe />
       </AppProviders>,

@@ -11,8 +11,8 @@ import LoginScreen from "@/app/login";
 /** Phase 5 accessibility fixes from the Rams audit (E-M-A2, E-M9.3, E-M9.4). */
 
 describe("headers and live regions", () => {
-  it("marks the screen title and section titles as headers", () => {
-    renderWithProviders(
+  it("marks the screen title and section titles as headers", async () => {
+    await renderWithProviders(
       <Screen title="Now" subtitle="Live" testID="s">
         <SectionHeader title="Past reservations" testID="sec" />
       </Screen>,
@@ -21,8 +21,8 @@ describe("headers and live regions", () => {
     expect(screen.getByTestId("sec-title").props.accessibilityRole).toBe("header");
   });
 
-  it("announces changes to the connection line (polite live region)", () => {
-    renderWithProviders(
+  it("announces changes to the connection line (polite live region)", async () => {
+    await renderWithProviders(
       <Screen title="Now" subtitle="Reconnecting…" testID="s">
         <RNText>body</RNText>
       </Screen>,
@@ -32,8 +32,8 @@ describe("headers and live regions", () => {
 });
 
 describe("touch targets and radio state", () => {
-  it("gives every segment a full 44pt height", () => {
-    render(
+  it("gives every segment a full 44pt height", async () => {
+    await render(
       <SegmentedControl
         value="a"
         onChange={jest.fn()}
@@ -51,13 +51,13 @@ describe("touch targets and radio state", () => {
     expect(style.minHeight).toBeGreaterThanOrEqual(touchTarget);
   });
 
-  it("exposes checked on radio chips (Android reads checked, iOS selected)", () => {
-    render(<ChoiceChip label="In 30 min" selected onPress={jest.fn()} testID="chip" />);
+  it("exposes checked on radio chips (Android reads checked, iOS selected)", async () => {
+    await render(<ChoiceChip label="In 30 min" selected onPress={jest.fn()} testID="chip" />);
     expect(screen.getByTestId("chip").props.accessibilityState).toMatchObject({ checked: true, selected: true });
   });
 
-  it("gives the login links a 44pt tap area", () => {
-    renderWithAppProviders(<LoginScreen />);
+  it("gives the login links a 44pt tap area", async () => {
+    await renderWithAppProviders(<LoginScreen />);
     for (const id of ["login-goto-forgot", "login-goto-register", "login-goto-onboarding"]) {
       // The mock Link renders a View around its asChild Pressable.
       const pressable = within(screen.getByTestId(id)).getByRole("link");
@@ -81,19 +81,19 @@ describe("system settings are followed", () => {
       return { remove };
     }) as never);
 
-    const { result, unmount } = renderHook(() => usePrefersReducedMotion());
+    const { result, unmount } = await renderHook(() => usePrefersReducedMotion());
     await act(async () => {});
     expect(result.current).toBe(false);
-    act(() => listener?.(true));
+    await act(() => listener?.(true));
     expect(result.current).toBe(true);
-    unmount();
+    await unmount();
     expect(remove).toHaveBeenCalled();
   });
 });
 
 describe("login: Lottie", () => {
-  it("shows Lottie with a plain-text greeting that names her", () => {
-    renderWithAppProviders(<LoginScreen />);
+  it("shows Lottie with a plain-text greeting that names her", async () => {
+    await renderWithAppProviders(<LoginScreen />);
     expect(screen.getByTestId("login-greeting")).toHaveTextContent("Lottie's on duty.");
     expect(screen.getByTestId("login-lottie", { includeHiddenElements: true })).toBeTruthy();
   });

@@ -63,8 +63,10 @@ beforeEach(async () => {
 });
 
 function wrapper(queryClient: QueryClient) {
-  return ({ children }: { children: ReactNode }) =>
-    createElement(QueryClientProvider, { client: queryClient }, children);
+  function Wrapper({ children }: { children: ReactNode }) {
+    return createElement(QueryClientProvider, { client: queryClient }, children);
+  }
+  return Wrapper;
 }
 
 function sessionCompleted(seq: number) {
@@ -79,7 +81,7 @@ function sessionCompleted(seq: number) {
 describe("useRealtime (mobile)", () => {
   it("connects with the stored bearer token as a header", async () => {
     const qc = new QueryClient();
-    renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+    await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
 
     await waitFor(() => expect(MockES.instances.length).toBe(1));
     expect(MockES.instances[0]!.options.headers?.Authorization).toBe("Bearer test-jwt");
@@ -88,7 +90,7 @@ describe("useRealtime (mobile)", () => {
   it("invalidates the active-session query on PARKING_SESSION_COMPLETED", async () => {
     const qc = new QueryClient();
     const spy = jest.spyOn(qc, "invalidateQueries");
-    renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+    await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
     await waitFor(() => expect(MockES.instances.length).toBe(1));
 
     MockES.instances[0]!.emit("PARKING_SESSION_COMPLETED", sessionCompleted(1));
@@ -99,7 +101,7 @@ describe("useRealtime (mobile)", () => {
   it("recovers missed events on reconnect by invalidating core queries, not by trusting event continuity", async () => {
     const qc = new QueryClient();
     const spy = jest.spyOn(qc, "invalidateQueries");
-    renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+    await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
     await waitFor(() => expect(MockES.instances.length).toBe(1));
 
     const source = MockES.instances[0]!;
@@ -114,7 +116,7 @@ describe("useRealtime (mobile)", () => {
   it("a realtime connection error never calls notifyAuthInvalidated — only an explicit 401 from the REST client does", async () => {
     const notifySpy = jest.spyOn(authSessionModule, "notifyAuthInvalidated");
     const qc = new QueryClient();
-    renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+    await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
     await waitFor(() => expect(MockES.instances.length).toBe(1));
 
     MockES.instances[0]!.listeners.get("error")?.({ data: "" });
@@ -122,11 +124,27 @@ describe("useRealtime (mobile)", () => {
     expect(notifySpy).not.toHaveBeenCalled();
   });
 
+  it("refetches reservations when a session starts (entry consumes the reservation)", async () => {
+    const qc = new QueryClient();
+    const spy = jest.spyOn(qc, "invalidateQueries");
+    await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+    await waitFor(() => expect(MockES.instances.length).toBe(1));
+
+    MockES.instances[0]!.emit("PARKING_SESSION_STARTED", {
+      type: "PARKING_SESSION_STARTED",
+      occurredAt: new Date().toISOString(),
+      seq: 1,
+      payload: { id: "s1", status: "ACTIVE" },
+    });
+
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["reservations"] });
+  });
+
   describe("stale and out-of-order frames", () => {
     it("ignores a replayed event whose seq it has already acted on", async () => {
       const qc = new QueryClient();
       const spy = jest.spyOn(qc, "invalidateQueries");
-      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
       await waitFor(() => expect(MockES.instances.length).toBe(1));
 
       MockES.instances[0]!.emit("PARKING_SESSION_COMPLETED", sessionCompleted(7));
@@ -139,7 +157,7 @@ describe("useRealtime (mobile)", () => {
     it("ignores an out-of-order event that arrives behind a newer one", async () => {
       const qc = new QueryClient();
       const spy = jest.spyOn(qc, "invalidateQueries");
-      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
       await waitFor(() => expect(MockES.instances.length).toBe(1));
 
       MockES.instances[0]!.emit("PARKING_SESSION_COMPLETED", sessionCompleted(7));
@@ -157,7 +175,7 @@ describe("useRealtime (mobile)", () => {
     it("keeps its cursor across a reconnect, so a replayed duplicate is still dropped", async () => {
       const qc = new QueryClient();
       const spy = jest.spyOn(qc, "invalidateQueries");
-      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
       await waitFor(() => expect(MockES.instances.length).toBe(1));
 
       const source = MockES.instances[0]!;
@@ -176,7 +194,7 @@ describe("useRealtime (mobile)", () => {
     it("ignores a frame with no seq — an unsequenced frame cannot be placed in order", async () => {
       const qc = new QueryClient();
       const spy = jest.spyOn(qc, "invalidateQueries");
-      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
       await waitFor(() => expect(MockES.instances.length).toBe(1));
 
       const { seq: _seq, ...unsequenced } = sessionCompleted(1);
@@ -188,7 +206,7 @@ describe("useRealtime (mobile)", () => {
     it("ignores a malformed frame without throwing", async () => {
       const qc = new QueryClient();
       const spy = jest.spyOn(qc, "invalidateQueries");
-      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
       await waitFor(() => expect(MockES.instances.length).toBe(1));
 
       const listener = MockES.instances[0]!.listeners.get("PARKING_SESSION_COMPLETED");
@@ -201,7 +219,7 @@ describe("useRealtime (mobile)", () => {
     it("refetches core queries when the backend reports an unrecoverable gap", async () => {
       const qc = new QueryClient();
       const spy = jest.spyOn(qc, "invalidateQueries");
-      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
       await waitFor(() => expect(MockES.instances.length).toBe(1));
 
       MockES.instances[0]!.emit("SYNC", { reason: "GAP", sinceSeq: 0, headSeq: 40 });
@@ -213,7 +231,7 @@ describe("useRealtime (mobile)", () => {
     it("never writes cache data from a SYNC frame — it carries no parking state", async () => {
       const qc = new QueryClient();
       const setSpy = jest.spyOn(qc, "setQueryData");
-      renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
       await waitFor(() => expect(MockES.instances.length).toBe(1));
 
       MockES.instances[0]!.emit("SYNC", { reason: "GAP", sinceSeq: 0, headSeq: 40 });

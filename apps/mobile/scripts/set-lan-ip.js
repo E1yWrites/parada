@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-env node */
 // Detects this machine's LAN IPv4 address and writes it into
 // EXPO_PUBLIC_API_URL (.env) and REACT_NATIVE_PACKAGER_HOSTNAME (.env.local)
 // so the mobile app and Metro bundler stay reachable when the dev machine

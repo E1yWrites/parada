@@ -36,16 +36,35 @@ beforeEach(async () => {
 
 describe("root route (/) — startup order", () => {
   it("first installation: shows a single loading state, then onboarding (not login)", async () => {
-    renderWithAppProviders(<Index />);
-    expect(screen.getByTestId("startup-loading")).toBeTruthy();
-    await waitFor(() => expect(screen.getByTestId("redirect-/onboarding")).toBeTruthy());
+    // Hold the marker read open: the awaited render (RNTL 14) would otherwise
+    // flush straight past the loading state.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    configureOnboardingStore({
+      read: async () => {
+        await held;
+        return false;
+      },
+      write: async () => undefined,
+      clear: async () => undefined,
+    });
+    try {
+      await renderWithAppProviders(<Index />);
+      expect(screen.getByTestId("startup-loading")).toBeTruthy();
+      release();
+      await waitFor(() => expect(screen.getByTestId("redirect-/onboarding")).toBeTruthy());
+    } finally {
+      configureOnboardingStore(null);
+    }
     expect(screen.queryByTestId("redirect-/login")).toBeNull();
     expect(screen.queryByTestId("redirect-/(tabs)/parking")).toBeNull();
   });
 
   it("after onboarding was completed or skipped on this installation: login", async () => {
     await markOnboardingCompleted();
-    renderWithAppProviders(<Index />);
+    await renderWithAppProviders(<Index />);
     await waitFor(() => expect(screen.getByTestId("redirect-/login")).toBeTruthy());
     expect(screen.queryByTestId("redirect-/onboarding")).toBeNull();
   });
@@ -53,7 +72,7 @@ describe("root route (/) — startup order", () => {
   it("restored session: straight into the authenticated app, never through onboarding or login", async () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-persisted");
     (api.me as jest.Mock).mockResolvedValue(user);
-    renderWithAppProviders(<Index />);
+    await renderWithAppProviders(<Index />);
     await waitFor(() => expect(screen.getByTestId("redirect-/(tabs)/parking")).toBeTruthy());
     expect(screen.queryByTestId("redirect-/onboarding")).toBeNull();
     expect(screen.queryByTestId("redirect-/login")).toBeNull();
@@ -63,7 +82,7 @@ describe("root route (/) — startup order", () => {
     await SecureStore.setItemAsync("parada.session.token", "tok-persisted");
     (api.me as jest.Mock).mockResolvedValue(user);
     expect(await isOnboardingCompleted()).toBe(false);
-    renderWithAppProviders(<Index />);
+    await renderWithAppProviders(<Index />);
     await waitFor(() => expect(screen.getByTestId("redirect-/(tabs)/parking")).toBeTruthy());
   });
 
@@ -76,7 +95,7 @@ describe("root route (/) — startup order", () => {
       clear: async () => undefined,
     });
     try {
-      renderWithAppProviders(<Index />);
+      await renderWithAppProviders(<Index />);
       await waitFor(() => expect(screen.getByTestId("redirect-/onboarding")).toBeTruthy());
     } finally {
       configureOnboardingStore(null);

@@ -45,7 +45,7 @@ beforeEach(() => {
 describe("violations list screen", () => {
   it("lists violations with fine and status", async () => {
     (api.violations as jest.Mock).mockResolvedValue([violation({})]);
-    renderWithProviders(<ViolationsScreen />);
+    await renderWithProviders(<ViolationsScreen />);
 
     expect(await screen.findByText("Zone C")).toBeOnTheScreen();
     expect(screen.getByText("NDW-4471")).toBeOnTheScreen();
@@ -55,16 +55,16 @@ describe("violations list screen", () => {
 
   it("shows an empty state with no violations", async () => {
     (api.violations as jest.Mock).mockResolvedValue([]);
-    renderWithProviders(<ViolationsScreen />);
+    await renderWithProviders(<ViolationsScreen />);
 
     expect(await screen.findByText("No violations")).toBeOnTheScreen();
   });
 
   it("navigates to the detail screen on tap", async () => {
     (api.violations as jest.Mock).mockResolvedValue([violation({})]);
-    renderWithProviders(<ViolationsScreen />);
+    await renderWithProviders(<ViolationsScreen />);
 
-    fireEvent.press(await screen.findByTestId("violation-v1"));
+    await fireEvent.press(await screen.findByTestId("violation-v1"));
     expect(__router.push).toHaveBeenCalledWith("/violations/v1");
   });
 });
@@ -76,14 +76,14 @@ describe("violation detail screen", () => {
 
   it("shows a not-found state for an unknown id", async () => {
     (api.violations as jest.Mock).mockResolvedValue([violation({ id: "other" })]);
-    renderWithProviders(<ViolationDetailScreen />);
+    await renderWithProviders(<ViolationDetailScreen />);
 
     expect(await screen.findByText("Violation not found")).toBeOnTheScreen();
   });
 
   it("shows the appeal form for a pending, unappealed violation", async () => {
     (api.violations as jest.Mock).mockResolvedValue([violation({})]);
-    renderWithProviders(<ViolationDetailScreen />);
+    await renderWithProviders(<ViolationDetailScreen />);
 
     expect(await screen.findByTestId("violation-appeal-form")).toBeOnTheScreen();
     expect(screen.getByText("NDW-4471")).toBeOnTheScreen();
@@ -110,20 +110,27 @@ describe("violation detail screen", () => {
       updatedAt: "2026-09-04T09:00:00.000Z",
     });
 
-    renderWithProviders(<ViolationDetailScreen />);
+    await renderWithProviders(<ViolationDetailScreen />);
 
-    fireEvent.changeText(await screen.findByTestId("violation-appeal-reason"), "It was a mistake.");
-    fireEvent.press(screen.getByTestId("violation-appeal-submit"));
+    await fireEvent.changeText(await screen.findByTestId("violation-appeal-reason"), "It was a mistake.");
+    await fireEvent.press(screen.getByTestId("violation-appeal-submit"));
 
     await waitFor(() => expect(api.appealViolation).toHaveBeenCalledWith("v1", "It was a mistake."));
     expect(await screen.findByTestId("violation-appeal-pending")).toBeOnTheScreen();
   });
 
+  it("keeps the fine amount on one line, shrinking at large text sizes", async () => {
+    await renderWithProviders(<ViolationDetailScreen />);
+    const amount = await screen.findByTestId("violation-fine-amount");
+    expect(amount.props.numberOfLines).toBe(1);
+    expect(amount.props.adjustsFontSizeToFit).toBe(true);
+  });
+
   it("disables submit until a reason is entered", async () => {
     (api.violations as jest.Mock).mockResolvedValue([violation({})]);
-    renderWithProviders(<ViolationDetailScreen />);
+    await renderWithProviders(<ViolationDetailScreen />);
 
-    fireEvent.press(await screen.findByTestId("violation-appeal-submit"));
+    await fireEvent.press(await screen.findByTestId("violation-appeal-submit"));
     expect(api.appealViolation).not.toHaveBeenCalled();
   });
 
@@ -140,7 +147,7 @@ describe("violation detail screen", () => {
         },
       }),
     ]);
-    renderWithProviders(<ViolationDetailScreen />);
+    await renderWithProviders(<ViolationDetailScreen />);
 
     expect(await screen.findByText("Appeal approved")).toBeOnTheScreen();
     expect(screen.getByText("Dismissed")).toBeOnTheScreen();
@@ -151,10 +158,10 @@ describe("violation detail screen", () => {
     (api.appealViolation as jest.Mock).mockRejectedValue(
       new ApiError("CONFLICT", "This violation has already been appealed.", 409),
     );
-    renderWithProviders(<ViolationDetailScreen />);
+    await renderWithProviders(<ViolationDetailScreen />);
 
-    fireEvent.changeText(await screen.findByTestId("violation-appeal-reason"), "Reason text");
-    fireEvent.press(screen.getByTestId("violation-appeal-submit"));
+    await fireEvent.changeText(await screen.findByTestId("violation-appeal-reason"), "Reason text");
+    await fireEvent.press(screen.getByTestId("violation-appeal-submit"));
 
     await waitFor(() =>
       expect(screen.getByText("This violation has already been appealed.")).toBeOnTheScreen(),

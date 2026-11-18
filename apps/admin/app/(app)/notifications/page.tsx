@@ -33,12 +33,7 @@ export default function NotificationsPage() {
   });
 
   const marksAll = useMutation({
-    mutationFn: async () => {
-      const ids = (notifications.data?.notifications ?? [])
-        .filter((n) => !n.read)
-        .map((n) => n.id);
-      for (const id of ids) await api.markNotificationRead(id);
-    },
+    mutationFn: () => api.markAllNotificationsRead(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -78,7 +73,7 @@ export default function NotificationsPage() {
               className="segmented-item uppercase tracking-[0.06em]"
               aria-pressed={filter === f}
             >
-              {f}
+              {f === "ALL" ? "All" : "Unread"}
               {f === "UNREAD" && unreadCount > 0 ? (
                 <span className="ml-1.5 rounded-full bg-brand px-2 py-0.5 font-display text-micro font-black text-on-accent">
                   {unreadCount}

@@ -1,6 +1,7 @@
 import type {
   CameraStatus,
   GateType,
+  NotificationType,
   OccupancySource,
   OccupancyEventType,
   ParkingSessionStatus,
@@ -87,16 +88,6 @@ export interface AdminSlot {
   status: SlotStatus;
 }
 
-export interface ZoneOccupancy {
-  zoneId: string;
-  name: string;
-  code: string;
-  capacity: number;
-  occupiedCount: number;
-  availableCount: number;
-  status: string;
-}
-
 export interface AdminCameraEvent {
   id: string;
   cameraId: string | null;
@@ -159,15 +150,7 @@ export interface AdminVehicle {
 export interface AdminNotification {
   id: string;
   zoneId: string | null;
-  type:
-    | "ZONE_FULL"
-    | "ZONE_LOW_AVAILABILITY"
-    | "RESERVATION_EXPIRING"
-    | "GUEST_ADMISSION_ISSUE"
-    | "WRONG_ZONE_WARNING"
-    | "VIOLATION_ISSUED"
-    | "VIOLATION_APPEAL_SUBMITTED"
-    | "VIOLATION_APPEAL_RESULT";
+  type: NotificationType;
   message: string;
   targetRole: Role;
   read: boolean;
@@ -306,6 +289,8 @@ export interface AdminDashboard {
     totalAvailable: number;
     occupancyPct: number;
     activeSessions: number;
+    openAnomalies: number;
+    pendingAppeals: number;
     onlineCameras: number;
     offlineCameras: number;
   };
@@ -352,5 +337,5 @@ export interface SimulatorResult {
 }
 
 export interface ApiErrorBody {
-  error?: { code?: string; message?: string };
+  error?: { code?: string; message?: string; details?: { field?: unknown } };
 }

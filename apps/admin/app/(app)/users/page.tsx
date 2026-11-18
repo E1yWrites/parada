@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import { Pill } from "@/components/ui/Badge";
-import { formatDate } from "@/lib/format";
+import { formatDay } from "@/lib/format";
 import type { AdminUser } from "@/lib/api/types";
 
 export default function UsersPage() {
@@ -84,7 +84,7 @@ export default function UsersPage() {
     {
       key: "created",
       header: "Joined",
-      cell: (u) => <span className="font-mono text-xs font-semibold text-muted">{formatDate(u.createdAt)}</span>,
+      cell: (u) => <span className="font-mono text-xs font-semibold text-muted">{formatDay(u.createdAt)}</span>,
     },
   ];
 

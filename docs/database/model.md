@@ -36,7 +36,7 @@ records with distinct lifecycles and are never collapsed into one another.
 ## Key Design Decisions
 
 ### Zone-level occupancy is authoritative
-`availableCount = capacity - occupiedCount`. `availableCount` is **derived** and never stored.
+`availableCount` is **derived** and never stored. The public zone API (`GET /zones`, `/zones/recommendation`, the `ZONE_OCCUPANCY_UPDATED` snapshot) reports `max(0, capacity - occupiedCount - active reservation holds)`; `occupiedCount` stays the raw physical count.
 
 ### `occupiedCount` is cached on the zone
 Stored for O(1) reads on mobile/admin, kept consistent transactionally. Bounded by a

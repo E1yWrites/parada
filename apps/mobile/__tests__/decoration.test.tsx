@@ -35,8 +35,8 @@ describe("routine screens carry no ambient decoration", () => {
     expect(source).not.toMatch(/\bGradientMesh\b/);
   });
 
-  it("Screen paints a flat background with no mesh layer", () => {
-    renderWithProviders(
+  it("Screen paints a flat background with no mesh layer", async () => {
+    await renderWithProviders(
       <Screen title="Now" testID="s">
         <Text>content</Text>
       </Screen>,
@@ -77,8 +77,8 @@ describe("mascot placement", () => {
     expect(users.sort()).toEqual(["app/login.tsx", "app/onboarding.tsx", "src/components/CurrentParkingState.tsx"]);
   });
 
-  it("renders illustrations as a plain icon hidden from screen readers", () => {
-    renderWithProviders(<Illustration name="offline" testID="ill" />);
+  it("renders illustrations as a plain icon hidden from screen readers", async () => {
+    await renderWithProviders(<Illustration name="offline" testID="ill" />);
     expect(screen.queryByTestId("ill")).toBeNull();
     const ill = screen.getByTestId("ill", { includeHiddenElements: true });
     expect(ill).toHaveProp("accessibilityElementsHidden", true);

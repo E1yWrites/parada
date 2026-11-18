@@ -97,4 +97,73 @@ describe("Admin zone detail — navigation coordinates", () => {
     fireEvent.click(screen.getByRole("button", { name: /save zone/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/between -180 and 180/);
   });
+
+  it("puts a capacity rejection that names its field under Capacity (UAT 2026-11-17)", async () => {
+    mockedApi.zones.mockResolvedValue([zone]);
+    const { ApiError } = jest.requireActual("@/lib/api/client");
+    mockedApi.updateZone.mockRejectedValue(
+      new ApiError("CONFLICT", "You cannot reduce this zone below its current occupancy.", 409, "capacity")
+    );
+    renderPage();
+    await screen.findByLabelText("Capacity");
+    fireEvent.change(screen.getByLabelText("Capacity"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: /save zone/i }));
+
+    const capacity = screen.getByLabelText("Capacity");
+    await waitFor(() => expect(capacity).toHaveAttribute("aria-invalid", "true"));
+    expect(capacity).toHaveAccessibleDescription("You cannot reduce this zone below its current occupancy.");
+    expect(capacity).toHaveFocus();
+  });
+
+  // Walkthrough 2026-11-18: a duplicate name/code is marked on its own input.
+  it.each([
+    ["name", "Name", "A zone with this name already exists."],
+    ["code", "Code", "A zone with this code already exists."],
+  ])("puts a duplicate %s under the %s input", async (field, label, message) => {
+    mockedApi.zones.mockResolvedValue([zone]);
+    const { ApiError } = jest.requireActual("@/lib/api/client");
+    mockedApi.updateZone.mockRejectedValue(new ApiError("CONFLICT", message, 409, field));
+    renderPage();
+    await screen.findByLabelText(label);
+    fireEvent.click(screen.getByRole("button", { name: /save zone/i }));
+
+    const input = screen.getByLabelText(label);
+    await waitFor(() => expect(input).toHaveAttribute("aria-invalid", "true"));
+    expect(input).toHaveAccessibleDescription(message);
+    expect(input).toHaveFocus();
+    expect(screen.queryAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByLabelText(label === "Name" ? "Code" : "Name")).not.toHaveAttribute("aria-invalid");
+  });
+});
+
+describe("Admin zone detail — gate cameras", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedApi.zoneSlots.mockResolvedValue([]);
+    mockedApi.history.mockResolvedValue({
+      zone: { id: "z1", name: "Main Loop", code: "A", capacity: 30 },
+      from: null,
+      to: null,
+      limit: 30,
+      entries: [],
+    });
+  });
+
+  it("lists every camera, including BIDIRECTIONAL gates (the seeded campus layout)", async () => {
+    const main = { id: "c1", identifier: "cam-a-main-gate", name: "Main Gate", gateType: "BIDIRECTIONAL" as const, status: "ONLINE" as const };
+    const north = { id: "c2", identifier: "cam-a-north-gate", name: "North Gate", gateType: "BIDIRECTIONAL" as const, status: "OFFLINE" as const };
+    mockedApi.zones.mockResolvedValue([{ ...zone, cameras: [main, north], entryCamera: main, exitCamera: main }]);
+    renderPage();
+
+    expect(await screen.findByText("cam-a-main-gate")).toBeInTheDocument();
+    expect(screen.getByText("cam-a-north-gate")).toBeInTheDocument();
+    expect(screen.getAllByText("Entry and exit gate")).toHaveLength(2);
+    expect(screen.queryByText(/No cameras assigned/)).not.toBeInTheDocument();
+  });
+
+  it("explains how to add cameras when the zone has none", async () => {
+    mockedApi.zones.mockResolvedValue([zone]);
+    renderPage();
+    expect(await screen.findByText(/No cameras assigned to this zone/)).toBeInTheDocument();
+  });
 });

@@ -19,7 +19,6 @@ import type {
   SimulatorResult,
   SimulatorStatus,
   ZoneHistory,
-  ZoneOccupancy,
   GuestAdmitRequest,
   GuestAdmitResult,
   EstablishmentSettings,
@@ -34,12 +33,15 @@ import type {
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
+  /** The input the backend rejected (`error.details.field`), when it names one. */
+  readonly field?: string;
 
-  constructor(code: string, message: string, status: number) {
+  constructor(code: string, message: string, status: number, field?: string) {
     super(message);
     this.name = "ApiError";
     this.code = code;
     this.status = status;
+    this.field = field;
   }
 }
 
@@ -54,6 +56,15 @@ export function avatarSrc(user: { id: string; avatarUpdatedAt?: string | null } 
   if (!user || !user.avatarUpdatedAt) return null;
   return `${PROXY_BASE}/users/${encodeURIComponent(user.id)}/avatar?v=${encodeURIComponent(user.avatarUpdatedAt)}`;
 }
+
+/** Full-page redirect to the login screen. An object so tests can spy on it (jsdom's location is unforgeable). */
+export const navigation = {
+  toLogin(): void {
+    // A full page load on purpose: it drops every cached query of the ended session.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign("/login");
+  },
+};
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
@@ -72,11 +83,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     if (res.status === 401 && typeof window !== "undefined") {
-      window.location.assign("/login");
+      navigation.toLogin();
     }
     const code = body?.error?.code ?? "ERROR";
     const message = body?.error?.message ?? `Request failed (${res.status}).`;
-    throw new ApiError(code, message, res.status);
+    const field = body?.error?.details?.field;
+    throw new ApiError(code, message, res.status, typeof field === "string" ? field : undefined);
   }
 
   return (body?.data ?? undefined) as T;
@@ -98,7 +110,6 @@ export interface ApiClient {
   dashboard(): Promise<AdminDashboard>;
 
   zones(): Promise<AdminZoneDetail[]>;
-  zoneOccupancy(zoneId: string): Promise<ZoneOccupancy>;
   createZone(payload: AdminZoneCreateInput): Promise<AdminZone>;
   updateZone(zoneId: string, payload: AdminZoneUpdateInput): Promise<AdminZone>;
   zoneSlots(zoneId: string): Promise<AdminSlot[]>;
@@ -114,6 +125,7 @@ export interface ApiClient {
 
   notifications(): Promise<NotificationList>;
   markNotificationRead(id: string): Promise<unknown>;
+  markAllNotificationsRead(): Promise<{ updated: number }>;
   guestAdmit(payload: GuestAdmitRequest): Promise<GuestAdmitResult>;
   config(): Promise<EstablishmentSettings>;
   updateConfig(payload: EstablishmentSettings): Promise<EstablishmentSettings>;
@@ -126,8 +138,7 @@ export interface ApiClient {
   analytics(params?: { from?: string; to?: string }): Promise<AdminAnalytics>;
 
   anomalies(): Promise<AdminAnomaly[]>;
-  /** Open anomalies only (GET /admin/anomalies?resolved=false), newest first, capped at the API maximum of 500. */
-  unresolvedAnomalies(): Promise<AdminAnomaly[]>;
+  resolveAnomaly(id: string): Promise<AdminAnomaly>;
 
   history(zoneId: string, params?: { from?: string; to?: string; limit?: number }): Promise<ZoneHistory>;
 
@@ -164,9 +175,6 @@ function buildClient(): ApiClient {
 
     zones: () => request<AdminZoneDetail[]>("admin/zones"),
 
-    zoneOccupancy: (zoneId) =>
-      request<ZoneOccupancy>(`zones/${encodeURIComponent(zoneId)}/occupancy`),
-
     createZone: (payload) => request<AdminZone>("admin/zones", jsonInit("POST", payload)),
 
     updateZone: (zoneId, payload) =>
@@ -199,6 +207,9 @@ function buildClient(): ApiClient {
     markNotificationRead: (id) =>
       request(`admin/notifications/${encodeURIComponent(id)}/read`, jsonInit("PATCH")),
 
+    markAllNotificationsRead: () =>
+      request<{ updated: number }>("admin/notifications/read-all", jsonInit("PATCH")),
+
     guestAdmit: (payload) => request<GuestAdmitResult>("admin/guest-admit", jsonInit("POST", payload)),
 
     config: () => request<EstablishmentSettings>("admin/config"),
@@ -227,7 +238,9 @@ function buildClient(): ApiClient {
 
     anomalies: () => request<AdminAnomaly[]>("admin/anomalies"),
 
-    unresolvedAnomalies: () => request<AdminAnomaly[]>("admin/anomalies?resolved=false&limit=500"),
+    resolveAnomaly: (id) =>
+      request<AdminAnomaly>(`admin/anomalies/${encodeURIComponent(id)}/resolve`, jsonInit("PATCH")),
+
 
     async history(zoneId, params) {
       const q = new URLSearchParams();

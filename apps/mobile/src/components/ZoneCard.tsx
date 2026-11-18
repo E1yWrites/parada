@@ -147,7 +147,8 @@ function buildStyles(colors: ColorTokens) {
     },
     cardSelected: {
       backgroundColor: colors.primarySoft,
-      borderColor: colors.primary,
+      // primary is ~2:1 on a light surface; the selection cue must reach 3:1 (WCAG 1.4.11).
+      borderColor: colors.primaryDeep,
     },
     headerRow: {
       flexDirection: "row",

@@ -181,11 +181,9 @@ describe("PARADA API", () => {
     });
   });
 
-  describe("GET /zones/establishment — Phase 9.5 navigation destination", () => {
-    let adminToken: string;
-
-    beforeEach(async () => {
-      await prisma.user.create({
+  describe("establishment navigation location is not exposed", () => {
+    it("has no /zones/establishment route and the settings contract carries no location", async () => {
+      const admin = await prisma.user.create({
         data: {
           name: "Admin User",
           email: "est-admin@test.local",
@@ -195,61 +193,27 @@ describe("PARADA API", () => {
           status: "ACTIVE",
         },
       });
-      const adminLogin = await request(app)
+      const login = await request(app)
         .post("/auth/login")
         .send({ email: "est-admin@test.local", password: "AdminPass123!" })
         .expect(200);
-      adminToken = adminLogin.body.data.token;
-    });
-
-    it("returns a null location when none is configured (no fabricated coordinates)", async () => {
-      const res = await request(app)
-        .get("/zones/establishment")
-        .set("Authorization", `Bearer ${adminToken}`)
-        .expect(200);
-      expect(res.body.data.location).toBeNull();
-    });
-
-    it("requires authentication — the facility address is not public", async () => {
-      await request(app).get("/zones/establishment").expect(401);
-    });
-
-    it("returns the admin-configured establishment location to signed-in drivers", async () => {
+      expect(admin.id).toBeTruthy();
       await request(app)
+        .get("/zones/establishment")
+        .set("Authorization", `Bearer ${login.body.data.token}`)
+        .expect(404);
+      const res = await request(app)
         .put("/admin/config")
-        .set("Authorization", `Bearer ${adminToken}`)
+        .set("Authorization", `Bearer ${login.body.data.token}`)
         .send({
           parkingFee: { baseFee: 20, baseDurationHours: 2, additionalFeePerHour: 10 },
           guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: null, maxDurationHours: 8, allowWhenFull: false },
           zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
           violations: [],
-          location: { address: "123 Test Ave, Demo", latitude: 14.5, longitude: 121.25 },
+          location: { address: "Ignored", latitude: 14.5, longitude: 121.25 },
         })
         .expect(200);
-
-      const res = await request(app)
-        .get("/zones/establishment")
-        .set("Authorization", `Bearer ${adminToken}`)
-        .expect(200);
-      expect(res.body.data.location).toEqual({
-        address: "123 Test Ave, Demo",
-        latitude: 14.5,
-        longitude: 121.25,
-      });
-    });
-
-    it("rejects establishment locations with out-of-range coordinates", async () => {
-      await request(app)
-        .put("/admin/config")
-        .set("Authorization", `Bearer ${adminToken}`)
-        .send({
-          parkingFee: { baseFee: 20, baseDurationHours: 2, additionalFeePerHour: 10 },
-          guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: null, maxDurationHours: 8, allowWhenFull: false },
-          zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
-          violations: [],
-          location: { address: "Nowhere", latitude: 121.25, longitude: 14.5 },
-        })
-        .expect(400);
+      expect(res.body.data).not.toHaveProperty("location");
     });
   });
 
@@ -511,17 +475,33 @@ describe("Authentication & Authorization", () => {
         .expect(201);
       await verifyAllUsers();
 
-      await request(app)
+      const res = await request(app)
         .post("/auth/register")
         .send({ name: "Test User 2", email: "dup@test.local", password: "Password123!" })
         .expect(409);
+      // Names the field so the form can show the message under Email (UAT 2026-11-17).
+      expect(res.body.error).toMatchObject({ code: "CONFLICT", details: { field: "email" } });
     });
 
     it("rejects weak password", async () => {
-      await request(app)
+      const res = await request(app)
         .post("/auth/register")
         .send({ name: "Test User", email: "weak@test.local", password: "short" })
         .expect(422);
+      expect(res.body.error).toMatchObject({ code: "UNPROCESSABLE", details: { field: "password" } });
+    });
+
+    it("names the invalid field in 422s for name and email", async () => {
+      const badEmail = await request(app)
+        .post("/auth/register")
+        .send({ name: "Test User", email: "a@b.c", password: "Password123!" })
+        .expect(422);
+      expect(badEmail.body.error).toMatchObject({ message: "Enter a valid email address.", details: { field: "email" } });
+      const badName = await request(app)
+        .post("/auth/register")
+        .send({ name: "x", email: "name@test.local", password: "Password123!" })
+        .expect(422);
+      expect(badName.body.error.details).toEqual({ field: "name" });
     });
 
     it("rejects missing fields", async () => {
@@ -1819,36 +1799,44 @@ describe("Phase 3 — Session entry & exit (user-initiated)", () => {
     ).toBe(0);
   });
 
-  it("completes an exit, decrements occupancy, and persists the fee", async () => {
+  /** Enter via the API, then backdate the stored entry so the elapsed time is real, not client-supplied. */
+  async function enterBackdated(plate: string, elapsedMs: number, body: Record<string, unknown> = {}) {
     const vehicle = await request(app)
       .post("/vehicles")
       .set("Authorization", `Bearer ${tokenA}`)
-      .send({ plateNumber: "ENT-007", vehicleType: "CAR" })
+      .send({ plateNumber: plate, vehicleType: "CAR" })
       .expect(201);
-
-    const enteredAt = new Date("2026-09-04T10:00:00.000Z");
-    const exitedAt = new Date("2026-09-04T13:00:00.000Z"); // exactly 3h
-
     const entry = await request(app)
       .post("/sessions/entry")
       .set("Authorization", `Bearer ${tokenA}`)
-      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id, enteredAt: enteredAt.toISOString() })
+      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id, ...body })
       .expect(201);
-    const sessionId = entry.body.data.session.id;
+    const sessionId = entry.body.data.session.id as string;
+    const backdated = new Date(Date.now() - elapsedMs);
+    await prisma.parkingSession.update({ where: { id: sessionId }, data: { enteredAt: backdated } });
+    return { sessionId, backdated };
+  }
+
+  const TWO_H_59_M = (2 * 3600 + 59 * 60) * 1000;
+
+  it("completes an exit, decrements occupancy, and persists the fee", async () => {
+    // 2h59m (not exactly 3h): the exit time is the server clock, so elapsed seconds only add.
+    const { sessionId } = await enterBackdated("ENT-007", TWO_H_59_M);
 
     const before = await prisma.parkingZone.findUniqueOrThrow({ where: { id: ctx.zoneId } });
 
     const res = await request(app)
       .post(`/sessions/${sessionId}/exit`)
       .set("Authorization", `Bearer ${tokenA}`)
-      .send({ exitedAt: exitedAt.toISOString() })
+      .send({})
       .expect(200);
 
     const saved = await prisma.parkingSession.findUniqueOrThrow({ where: { id: sessionId } });
     expect(saved.status).toBe("COMPLETED");
-    // 3h exactly -> base (2h) + 1 additional started hour = 20 + 10 = 30.
+    // Just under 3h -> base (2h) + 1 additional started hour = 20 + 10 = 30.
     expect(saved.feeAmount).toBe(30);
-    expect(saved.durationSeconds).toBe(3 * 60 * 60);
+    expect(saved.durationSeconds).toBeGreaterThanOrEqual(10740);
+    expect(saved.durationSeconds).toBeLessThanOrEqual(10800);
 
     const feeRow = await prisma.parkingFee.findFirstOrThrow({ where: { sessionId } });
     expect(feeRow.amount).toBe(saved.feeAmount);
@@ -1858,6 +1846,35 @@ describe("Phase 3 — Session entry & exit (user-initiated)", () => {
     expect(after.occupiedCount).toBe(before.occupiedCount - 1);
 
     expect(res.body.data.fee).toMatchObject({ amount: saved.feeAmount, status: "PENDING" });
+  });
+
+  it("ignores a client-supplied exitedAt", async () => {
+    const { sessionId, backdated } = await enterBackdated("ENT-0A1", TWO_H_59_M);
+
+    await request(app)
+      .post(`/sessions/${sessionId}/exit`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ exitedAt: backdated.toISOString() })
+      .expect(200);
+
+    const saved = await prisma.parkingSession.findUniqueOrThrow({ where: { id: sessionId } });
+    expect(saved.durationSeconds).toBeGreaterThanOrEqual(10740);
+    expect(saved.feeAmount).toBe(30);
+  });
+
+  it("ignores a client-supplied enteredAt", async () => {
+    const vehicle = await request(app)
+      .post("/vehicles")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ plateNumber: "ENT-0A2", vehicleType: "CAR" })
+      .expect(201);
+    const entry = await request(app)
+      .post("/sessions/entry")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({ zoneId: ctx.zoneId, vehicleId: vehicle.body.data.id, enteredAt: "2020-01-01T00:00:00Z" })
+      .expect(201);
+    const saved = await prisma.parkingSession.findUniqueOrThrow({ where: { id: entry.body.data.session.id } });
+    expect(Math.abs(saved.enteredAt.getTime() - Date.now())).toBeLessThan(60_000);
   });
 
   it("rejects a duplicate exit for an already-completed session", async () => {
@@ -2286,7 +2303,7 @@ describe("Phase 4 — Authentication security coverage", () => {
         .expect(401);
 
       expect(nonexistent.body.error.message).toBe(wrongPass.body.error.message);
-      expect(nonexistent.body.error).not.toContain("nobody@test.local");
+      expect(JSON.stringify(nonexistent.body.error)).not.toContain("nobody@test.local");
     });
   });
 
@@ -2442,6 +2459,25 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
   });
 
   describe("ADMIN zone CRUD", () => {
+    it("reports a BIDIRECTIONAL gate as the zone's entry and exit camera", async () => {
+      const zone = await prisma.parkingZone.create({ data: { name: "Loop", code: "L", capacity: 10 } });
+      await prisma.camera.create({
+        data: { zoneId: zone.id, name: "Main Gate", identifier: "cam-l-main", gateType: "BIDIRECTIONAL", status: "ONLINE" },
+      });
+      const res = await request(app).get("/admin/zones").set("Authorization", `Bearer ${adminToken}`).expect(200);
+      const listed = res.body.data.find((z: { id: string }) => z.id === zone.id);
+      expect(listed.entryCamera.identifier).toBe("cam-l-main");
+      expect(listed.exitCamera.identifier).toBe("cam-l-main");
+
+      await prisma.camera.create({
+        data: { zoneId: zone.id, name: "Exit Gate", identifier: "cam-l-exit", gateType: "EXIT", status: "ONLINE" },
+      });
+      const again = await request(app).get("/admin/zones").set("Authorization", `Bearer ${adminToken}`).expect(200);
+      const relisted = again.body.data.find((z: { id: string }) => z.id === zone.id);
+      expect(relisted.entryCamera.identifier).toBe("cam-l-main");
+      expect(relisted.exitCamera.identifier).toBe("cam-l-exit");
+    });
+
     it("creates a zone and exposes it to the public/mobile /zones contract", async () => {
       await request(app)
         .post("/admin/zones")
@@ -2460,11 +2496,74 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
         .set("Authorization", `Bearer ${adminToken}`)
         .send({ name: "Zone A", code: "A", capacity: 10 })
         .expect(201);
-      await request(app)
+      const res = await request(app)
         .post("/admin/zones")
         .set("Authorization", `Bearer ${adminToken}`)
         .send({ name: "Zone Dupe", code: "A", capacity: 10 })
         .expect(409);
+      expect(res.body.error).toMatchObject({
+        code: "CONFLICT",
+        message: "A zone with this code already exists.",
+        details: { field: "code" },
+      });
+    });
+
+    // Walkthrough 2026-11-18: the duplicate is named so the form can mark that input.
+    it("names the duplicate field on create: name, or code when both are taken", async () => {
+      const auth = { Authorization: `Bearer ${adminToken}` };
+      await request(app).post("/admin/zones").set(auth).send({ name: "Zone A", code: "A", capacity: 10 }).expect(201);
+
+      const dupName = await request(app)
+        .post("/admin/zones")
+        .set(auth)
+        .send({ name: " Zone A ", code: "NEW", capacity: 10 })
+        .expect(409);
+      expect(dupName.body.error).toMatchObject({
+        code: "CONFLICT",
+        message: "A zone with this name already exists.",
+        details: { field: "name" },
+      });
+
+      const both = await request(app).post("/admin/zones").set(auth).send({ name: "Zone A", code: "A", capacity: 10 }).expect(409);
+      expect(both.body.error).toMatchObject({ message: "A zone with this code already exists.", details: { field: "code" } });
+      expect(await prisma.parkingZone.count()).toBe(1);
+    });
+
+    it("names the duplicate field on edit and leaves the zone unchanged", async () => {
+      const auth = { Authorization: `Bearer ${adminToken}` };
+      await prisma.parkingZone.create({ data: { name: "Taken", code: "T", capacity: 10 } });
+      const zone = await prisma.parkingZone.create({ data: { name: "Mine", code: "M", capacity: 10 } });
+
+      // A name-only edit must not be blamed on the (unsent) code.
+      const nameOnly = await request(app).patch(`/admin/zones/${zone.id}`).set(auth).send({ name: "Taken" }).expect(409);
+      expect(nameOnly.body.error).toMatchObject({ code: "CONFLICT", details: { field: "name" } });
+
+      // The edit form resends the zone's own code; that is not a conflict.
+      const withOwnCode = await request(app)
+        .patch(`/admin/zones/${zone.id}`)
+        .set(auth)
+        .send({ name: "Taken", code: "M" })
+        .expect(409);
+      expect(withOwnCode.body.error).toMatchObject({
+        message: "A zone with this name already exists.",
+        details: { field: "name" },
+      });
+
+      const dupCode = await request(app).patch(`/admin/zones/${zone.id}`).set(auth).send({ name: "Mine", code: "T" }).expect(409);
+      expect(dupCode.body.error).toMatchObject({
+        message: "A zone with this code already exists.",
+        details: { field: "code" },
+      });
+
+      const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } });
+      expect(after).toMatchObject({ name: "Mine", code: "M" });
+    });
+
+    it("answers 400, not 500, to admin writes sent without a body (Express 5 leaves req.body undefined)", async () => {
+      const auth = { Authorization: `Bearer ${adminToken}` };
+      await request(app).post("/admin/zones").set(auth).expect(400);
+      await request(app).post("/admin/cameras").set(auth).expect(400);
+      await request(app).put("/admin/config").set(auth).expect(400);
     });
 
     it("rejects a non-positive capacity", async () => {
@@ -2474,6 +2573,19 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
         .send({ name: "Bad", code: "BAD", capacity: 0 })
         .expect(400);
       expect(res.body.error.code).toBe("BAD_REQUEST");
+      expect(res.body.error.details).toEqual({ field: "capacity" });
+    });
+
+    it("names the missing field and the out-of-range coordinate", async () => {
+      const auth = { Authorization: `Bearer ${adminToken}` };
+      const noCode = await request(app).post("/admin/zones").set(auth).send({ name: "No Code", capacity: 5 }).expect(400);
+      expect(noCode.body.error.details).toEqual({ field: "code" });
+      const badLng = await request(app)
+        .post("/admin/zones")
+        .set(auth)
+        .send({ name: "Far", code: "FAR", capacity: 5, navigationLat: 13.7, navigationLng: 500 })
+        .expect(422);
+      expect(badLng.body.error.details).toEqual({ field: "navigationLng" });
     });
 
     it("edits a zone name/code/status without changing occupancy", async () => {
@@ -2509,7 +2621,8 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
         .patch(`/admin/zones/${zone.id}`)
         .set("Authorization", `Bearer ${adminToken}`)
         .send({ capacity: 5 })
-        .expect(409);
+        .expect(409)
+        .expect((res) => expect(res.body.error.details).toEqual({ field: "capacity" }));
       const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } });
       expect(after.capacity).toBe(10);
       expect(after.occupiedCount).toBe(6);
@@ -2537,7 +2650,8 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
         .patch(`/admin/zones/${zone.id}`)
         .set("Authorization", `Bearer ${adminToken}`)
         .send({ capacity: 3 })
-        .expect(409);
+        .expect(409)
+        .expect((res) => expect(res.body.error.details).toEqual({ field: "capacity" }));
       const after = await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } });
       expect(after.capacity).toBe(10);
     });
@@ -2634,7 +2748,8 @@ describe("Phase 11A — Admin establishment resource & camera configuration", ()
         .post("/admin/cameras")
         .set("Authorization", `Bearer ${adminToken}`)
         .send({ zoneId: zone.id, identifier: "CAM-DUP", gateType: "EXIT" })
-        .expect(409);
+        .expect(409)
+        .expect((res) => expect(res.body.error.details).toEqual({ field: "identifier" }));
     });
 
     it("rejects an invalid gate direction", async () => {
@@ -2823,6 +2938,196 @@ describe("Admin dashboard — occupancy trend (24h)", () => {
     // No occupancy_history rows exist for this zone yet — every point must
     // fall back to its real current occupiedCount (3), never 0 or fabricated.
     expect(trend.every((p) => p.totalOccupied === 3 && p.totalCapacity === 8)).toBe(true);
+  });
+});
+
+describe("Admin dashboard — needs-attention counts", () => {
+  const tokens = new TokenService({
+    secret: "test-secret-key-for-testing-only-32chars",
+    issuer: "parada-api-test",
+    expiresIn: "1d",
+  });
+
+  beforeEach(async () => {
+    await cleanDatabase();
+  });
+
+  it("counts unresolved anomalies and PENDING appeals only", async () => {
+    const app = createApp();
+    const admin = await prisma.user.create({
+      data: { name: "Count Admin", email: "count-admin@test.local", passwordHash: "x", role: "ADMIN" },
+    });
+    const driver = await prisma.user.create({
+      data: { name: "Count Driver", email: "count-driver@test.local", passwordHash: "x", role: "USER" },
+    });
+    const token = tokens.sign({ id: admin.id, role: "ADMIN" }).token;
+    const zone = await prisma.parkingZone.create({ data: { name: "Count Zone", code: "CNT", capacity: 5 } });
+
+    const anomaly = async (resolved: boolean) => {
+      const event = await prisma.occupancyEvent.create({
+        data: {
+          zoneId: zone.id,
+          eventType: "ENTRY",
+          previousOccupied: 0,
+          newOccupied: 0,
+          availableCount: 5,
+          detectedAt: new Date(),
+        },
+      });
+      await prisma.occupancyAnomaly.create({
+        data: { occupancyEventId: event.id, anomalyType: "UNREGISTERED_PLATE", resolved },
+      });
+    };
+    await anomaly(false);
+    await anomaly(false);
+    await anomaly(true);
+
+    const appeal = async (status: "PENDING" | "APPROVED") => {
+      const violation = await prisma.violation.create({
+        data: { userId: driver.id, zoneId: zone.id, violationType: "OVERSTAY", fineAmount: 100 },
+      });
+      await prisma.violationAppeal.create({
+        data: { violationId: violation.id, userId: driver.id, reason: "r", status },
+      });
+    };
+    await appeal("PENDING");
+    await appeal("APPROVED");
+
+    const res = await request(app).get("/admin/dashboard").set("Authorization", `Bearer ${token}`).expect(200);
+    expect(res.body.data.summary.openAnomalies).toBe(2);
+    expect(res.body.data.summary.pendingAppeals).toBe(1);
+  });
+});
+
+describe("Admin anomalies — resolve", () => {
+  const tokens = new TokenService({
+    secret: "test-secret-key-for-testing-only-32chars",
+    issuer: "parada-api-test",
+    expiresIn: "1d",
+  });
+
+  beforeEach(async () => {
+    await cleanDatabase();
+  });
+
+  async function seed() {
+    const admin = await prisma.user.create({
+      data: { name: "Resolve Admin", email: "resolve-admin@test.local", passwordHash: "x", role: "ADMIN" },
+    });
+    const driver = await prisma.user.create({
+      data: { name: "Resolve Driver", email: "resolve-driver@test.local", passwordHash: "x", role: "USER" },
+    });
+    const zone = await prisma.parkingZone.create({ data: { name: "Resolve Zone", code: "RSV", capacity: 5 } });
+    const event = await prisma.occupancyEvent.create({
+      data: { zoneId: zone.id, eventType: "ENTRY", previousOccupied: 0, newOccupied: 0, availableCount: 5, detectedAt: new Date() },
+    });
+    const anomaly = await prisma.occupancyAnomaly.create({
+      data: { occupancyEventId: event.id, anomalyType: "UNREGISTERED_PLATE" },
+    });
+    return {
+      anomaly,
+      adminToken: tokens.sign({ id: admin.id, role: "ADMIN" }).token,
+      userToken: tokens.sign({ id: driver.id, role: "USER" }).token,
+    };
+  }
+
+  it("marks the anomaly resolved and drops it from ?resolved=false", async () => {
+    const app = createApp();
+    const { anomaly, adminToken } = await seed();
+
+    const res = await request(app)
+      .patch(`/admin/anomalies/${anomaly.id}/resolve`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    expect(res.body.data).toMatchObject({ id: anomaly.id, resolved: true });
+    expect((await prisma.occupancyAnomaly.findUniqueOrThrow({ where: { id: anomaly.id } })).resolved).toBe(true);
+
+    const open = await request(app)
+      .get("/admin/anomalies?resolved=false")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    expect(open.body.data.some((a: { id: string }) => a.id === anomaly.id)).toBe(false);
+    // Idempotent: resolving again is not an error.
+    await request(app).patch(`/admin/anomalies/${anomaly.id}/resolve`).set("Authorization", `Bearer ${adminToken}`).expect(200);
+  });
+
+  it("404s for an unknown anomaly", async () => {
+    const app = createApp();
+    const { adminToken } = await seed();
+    await request(app)
+      .patch("/admin/anomalies/does-not-exist/resolve")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(404);
+  });
+
+  it("refuses a USER with 403 and leaves the anomaly open", async () => {
+    const app = createApp();
+    const { anomaly, userToken } = await seed();
+    await request(app).patch(`/admin/anomalies/${anomaly.id}/resolve`).set("Authorization", `Bearer ${userToken}`).expect(403);
+    expect((await prisma.occupancyAnomaly.findUniqueOrThrow({ where: { id: anomaly.id } })).resolved).toBe(false);
+  });
+});
+
+describe("Zone availability subtracts reservation holds", () => {
+  beforeEach(async () => {
+    await cleanDatabase();
+  });
+
+  async function seed() {
+    const driver = await prisma.user.create({
+      data: { name: "Hold Driver", email: "hold-driver@test.local", passwordHash: "x", role: "USER" },
+    });
+    const vehicle = await prisma.vehicle.create({
+      data: { userId: driver.id, plateNumber: "HLD-001", normalizedPlate: "HLD001", vehicleType: "CAR" },
+    });
+    // A has 2 free spaces and B has 6; the tests below hold A's free spaces.
+    const a = await prisma.parkingZone.create({ data: { name: "Hold A", code: "HA", capacity: 4, occupiedCount: 2 } });
+    const b = await prisma.parkingZone.create({ data: { name: "Hold B", code: "HB", capacity: 10, occupiedCount: 4 } });
+    const hold = (zoneId: string, status: "CONFIRMED" | "CANCELLED" | "ACTIVE" = "CONFIRMED", startOffsetMin = 0) =>
+      prisma.reservation.create({
+        data: {
+          userId: driver.id,
+          vehicleId: vehicle.id,
+          zoneId,
+          status,
+          startAt: new Date(Date.now() + startOffsetMin * 60_000),
+          endAt: new Date(Date.now() + (startOffsetMin + 15) * 60_000),
+        },
+      });
+    return { a, b, hold };
+  }
+
+  it("lists availableCount = capacity - occupied - active holds, floored at 0, occupiedCount untouched", async () => {
+    const app = createApp();
+    const { a, hold } = await seed();
+    await hold(a.id);
+    await hold(a.id);
+    await hold(a.id); // one more than the 2 free spaces: must floor at 0, not go negative
+    await hold(a.id, "CANCELLED"); // cancelled and consumed holds protect nothing
+    await hold(a.id, "ACTIVE");
+    await hold(a.id, "CONFIRMED", 24 * 60); // far-future booking does not hold a space today
+
+    const res = await request(app).get("/zones").expect(200);
+    const zone = res.body.data.find((z: { id: string }) => z.id === a.id);
+    expect(zone).toMatchObject({ occupiedCount: 2, availableCount: 0, availability: "FULL" });
+  });
+
+  it("does not recommend a zone whose free spaces are all held, and ranks by held-adjusted load", async () => {
+    const app = createApp();
+    const { a, b, hold } = await seed();
+    await hold(a.id);
+    await hold(a.id);
+
+    const res = await request(app).get("/zones/recommendation").expect(200);
+    expect(res.body.data.recommendedZone.id).toBe(b.id);
+    expect(res.body.data.recommendedZone.availableCount).toBe(6);
+  });
+
+  it("shows the full raw availability again once the hold is cancelled", async () => {
+    const app = createApp();
+    const { a } = await seed();
+    const res = await request(app).get("/zones").expect(200);
+    expect(res.body.data.find((z: { id: string }) => z.id === a.id)).toMatchObject({ availableCount: 2 });
   });
 });
 

@@ -309,6 +309,11 @@ CAMERA_SOURCE=rtsp VIDEO_SOURCE=rtsp://10.0.0.15:554/stream1 CAMERA_IDENTIFIER=C
   and a live camera dropped the session after ~30 s. If no new frame arrives
   within 2 s, the read fails and the normal reconnect logic takes over.
 - For an exit-gate camera, run a second runtime with `CAMERA_EVENT_TYPE=EXIT`.
+- A runtime cannot tell which way a car is moving, so it reports its one
+  `CAMERA_EVENT_TYPE` for every plate. A single runtime on a `BIDIRECTIONAL`
+  camera (the seeded zone A cameras) therefore records entries only; cars never
+  exit through it. Use one camera per direction: an `ENTRY` runtime and an
+  `EXIT` runtime.
 - Real-hardware checks so far: two TP-Link VIGI C320I cameras opened in `test`
   mode (1920x1080), and the ~30 s session drop above was reproduced against
   them. The background reader itself is unit-tested against a fake capture;

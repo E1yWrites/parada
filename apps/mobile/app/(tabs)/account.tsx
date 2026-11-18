@@ -51,7 +51,7 @@ export default function AccountScreen() {
             <View style={styles.degraded} testID="account-cache-note">
               <Ionicons name="cloud-offline-outline" size={18} color={colors.warning} />
               <Text variant="caption" color={colors.warning} style={styles.degradedText}>
-                Couldn't refresh your profile. Showing your saved details.
+                Couldn&apos;t refresh your profile. Showing your saved details.
               </Text>
               <Pressable
                 accessibilityRole="button"

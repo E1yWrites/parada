@@ -38,6 +38,8 @@ export default function SimulatorPage() {
   const [fillTo, setFillTo] = useState<number>(0);
   const [unknownPlate, setUnknownPlate] = useState<string>("");
   const [zoneId, setZoneId] = useState<string>("");
+  // "" = every registered vehicle; single-vehicle scenarios then use the first plate.
+  const [vehicleId, setVehicleId] = useState<string>("");
 
   const status = useQuery({
     queryKey: ["simulator-status"],
@@ -58,14 +60,21 @@ export default function SimulatorPage() {
   });
 
   const activeScenario = SCENARIO_OPTIONS.find((s) => s.value === scenario)!;
+  const chosenVehicle = vehicles.data?.find((v) => v.id === vehicleId);
+  const firstVehicle = vehicles.data?.[0];
 
   const run = useMutation({
     mutationFn: () =>
       api.simulatorRun({
         scenario,
         zoneId: zoneId || undefined,
-        vehicleIds:
-          activeScenario.needsVehicles && vehicles.data?.length ? vehicles.data.map((v) => v.id) : undefined,
+        vehicleIds: !activeScenario.needsVehicles
+          ? undefined
+          : chosenVehicle
+            ? [chosenVehicle.id]
+            : vehicles.data?.length
+              ? vehicles.data.map((v) => v.id)
+              : undefined,
         fillTo: activeScenario.isFill && fillTo > 0 ? fillTo : undefined,
         unknownPlate: !activeScenario.needsVehicles && !activeScenario.isFill && unknownPlate ? unknownPlate : undefined,
       }),
@@ -166,9 +175,35 @@ export default function SimulatorPage() {
             ) : null}
 
             {activeScenario.needsVehicles ? (
-              <p className="text-micro font-semibold text-muted">
-                Will use {vehicles.data?.length ?? 0} registered active vehicles.
-              </p>
+              <div>
+                <label htmlFor="sim-vehicle" className="label">
+                  Vehicle
+                </label>
+                <select
+                  id="sim-vehicle"
+                  className="input"
+                  value={vehicleId}
+                  onChange={(e) => setVehicleId(e.target.value)}
+                  aria-describedby="sim-vehicle-help"
+                >
+                  <option value="">All registered vehicles</option>
+                  {vehicles.data?.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.plateNumber} — {v.user.name}
+                    </option>
+                  ))}
+                </select>
+                <p id="sim-vehicle-help" className="field-help">
+                  {chosenVehicle ? (
+                    <>Will use {chosenVehicle.plateNumber}; its driver sees the session and fee.</>
+                  ) : (
+                    <>
+                      Will use {vehicles.data?.length ?? 0} registered active vehicles.
+                      {firstVehicle ? ` Single-vehicle scenarios use the first plate, ${firstVehicle.plateNumber} (${firstVehicle.user.name}).` : ""}
+                    </>
+                  )}
+                </p>
+              </div>
             ) : null}
 
             <Button type="submit" variant="primary" className="w-full" disabled={run.isPending}>

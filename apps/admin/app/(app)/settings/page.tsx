@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Save } from "lucide-react";
 import { api, ApiError } from "@/lib/api/client";
@@ -35,7 +35,7 @@ function AppearanceCard() {
               role="radio"
               aria-checked={selected}
               onClick={() => setMode(option.value)}
-              className={`inline-flex min-h-[40px] items-center gap-2 rounded-control rounded-tr-control-cut border px-4 text-sm font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:shadow-focus ${
+              className={`inline-flex min-h-[44px] items-center gap-2 rounded-control rounded-tr-control-cut border px-4 text-sm font-bold transition-colors duration-150 focus-visible:outline-hidden focus-visible:shadow-focus ${
                 selected ? "border-brand bg-brand text-on-accent" : "border-line bg-card text-muted hover:bg-raised hover:text-charcoal"
               }`}
               data-testid={`appearance-${option.value}`}
@@ -55,41 +55,7 @@ const EMPTY: EstablishmentSettings = {
   guestPolicy: { policy: "PRIMARY_ZONE", primaryZoneId: null },
   zoneDefaults: { maxReservationDurationMinutes: 15, occupancyLowThreshold: 0.2 },
   violations: [],
-  location: null,
 };
-
-/** Text-field state for the navigation destination; blank address = none configured. */
-type LocationForm = { address: string; latitude: string; longitude: string };
-
-const NO_LOCATION: LocationForm = { address: "", latitude: "", longitude: "" };
-
-function toLocationForm(location: EstablishmentSettings["location"]): LocationForm {
-  return location
-    ? { address: location.address, latitude: String(location.latitude), longitude: String(location.longitude) }
-    : NO_LOCATION;
-}
-
-/**
- * Converts the text fields back into the API's `location` contract. A blank
- * address clears the destination (null); otherwise both coordinates must be
- * finite numbers in range — the backend validates again, this only gives the
- * operator an immediate message.
- */
-function parseLocation(form: LocationForm): { location: EstablishmentSettings["location"] } | { error: string } {
-  const address = form.address.trim();
-  if (address.length === 0) {
-    return { location: null };
-  }
-  const latitude = Number(form.latitude);
-  const longitude = Number(form.longitude);
-  if (form.latitude.trim() === "" || !Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
-    return { error: "Latitude must be a number between -90 and 90." };
-  }
-  if (form.longitude.trim() === "" || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-    return { error: "Longitude must be a number between -180 and 180." };
-  }
-  return { location: { address, latitude, longitude } };
-}
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -97,24 +63,22 @@ export default function SettingsPage() {
   const zones = useQuery({ queryKey: ["zones"], queryFn: () => api.zones() });
   const [form, setForm] = useState<EstablishmentSettings>(EMPTY);
   const [violationsText, setViolationsText] = useState("[]");
-  const [locationForm, setLocationForm] = useState<LocationForm>(NO_LOCATION);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    if (settings.data) {
-      setForm(settings.data);
-      setViolationsText(JSON.stringify(settings.data.violations, null, 2));
-      setLocationForm(toLocationForm(settings.data.location));
-    }
-  }, [settings.data]);
+  // Load fetched settings into the form whenever a new copy arrives
+  // (adjust state during render instead of an effect).
+  const [loaded, setLoaded] = useState<EstablishmentSettings | undefined>(undefined);
+  if (settings.data && settings.data !== loaded) {
+    setLoaded(settings.data);
+    setForm(settings.data);
+    setViolationsText(JSON.stringify(settings.data.violations, null, 2));
+  }
 
   const save = useMutation({
-    mutationFn: (location: EstablishmentSettings["location"]) =>
-      api.updateConfig({ ...form, location, violations: JSON.parse(violationsText) }),
+    mutationFn: () => api.updateConfig({ ...form, violations: JSON.parse(violationsText) }),
     onSuccess: (next) => {
       setForm(next);
-      setLocationForm(toLocationForm(next.location));
       setSaved(true);
       queryClient.setQueryData(["config"], next);
     },
@@ -134,20 +98,15 @@ export default function SettingsPage() {
       setValidationError("Violation rules must be a valid JSON array.");
       return;
     }
-    const location = parseLocation(locationForm);
-    if ("error" in location) {
-      setValidationError(location.error);
-      return;
-    }
     setValidationError(null);
-    save.mutate(location.location);
+    save.mutate();
   }
 
   return (
     <div>
       <PageHeader
         title="Establishment Settings"
-        description="Fees, guest admission, reservation windows, navigation destination and violation rules. One save applies everything."
+        description="Fees, guest admission, reservation windows and violation rules. One save applies everything."
       />
       <div className="mb-5">
         <AppearanceCard />
@@ -189,53 +148,6 @@ export default function SettingsPage() {
             <div className="space-y-4 p-5">
               <Field label="Reservation window (minutes)" value={form.zoneDefaults.maxReservationDurationMinutes} onChange={(value) => setForm({ ...form, zoneDefaults: { ...form.zoneDefaults, maxReservationDurationMinutes: value } })} />
               <Field label="Low-availability threshold (0–1)" value={form.zoneDefaults.occupancyLowThreshold} step="0.01" onChange={(value) => setForm({ ...form, zoneDefaults: { ...form.zoneDefaults, occupancyLowThreshold: value } })} />
-            </div>
-          </Card>
-          <Card>
-            <SectionHeader title="Navigation destination" description="Where the mobile app sends drivers" />
-            <div className="space-y-4 p-5">
-              <p className="text-xs text-muted">
-                Leave the address blank to clear the destination — the app never invents one.
-              </p>
-              <div>
-                <label htmlFor="location-address" className="label">Address</label>
-                <input
-                  id="location-address"
-                  type="text"
-                  className="input"
-                  placeholder="e.g. LPU Batangas, Capitol Site"
-                  value={locationForm.address}
-                  onChange={(e) => setLocationForm({ ...locationForm, address: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="location-latitude" className="label">Latitude</label>
-                  <input
-                    id="location-latitude"
-                    type="number"
-                    step="any"
-                    min="-90"
-                    max="90"
-                    className="input font-mono"
-                    value={locationForm.latitude}
-                    onChange={(e) => setLocationForm({ ...locationForm, latitude: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="location-longitude" className="label">Longitude</label>
-                  <input
-                    id="location-longitude"
-                    type="number"
-                    step="any"
-                    min="-180"
-                    max="180"
-                    className="input font-mono"
-                    value={locationForm.longitude}
-                    onChange={(e) => setLocationForm({ ...locationForm, longitude: e.target.value })}
-                  />
-                </div>
-              </div>
             </div>
           </Card>
           <Card>

@@ -72,6 +72,8 @@ export type ColorTokens = {
   disabledForeground: string;
   /** Text/icon placed on top of primary/warning fills. */
   onAccent: string;
+  /** Text/icon placed on top of a solid `danger` fill (e.g. the unread badge). */
+  onDanger: string;
   /** Ordered hues for charts/series (occupancy trend, analytics). Never used for status. */
   data: readonly [string, string, string, string];
 };
@@ -114,6 +116,7 @@ const dark: ColorTokens = {
   disabledSurface: "#38455F",
   disabledForeground: "#A79D8E",
   onAccent: "#15111C",
+  onDanger: "#15111C",
   data: ["#FC7643", "#3DDC84", "#82ACFF", "#FFC65C"],
 };
 
@@ -152,6 +155,7 @@ const light: ColorTokens = {
   disabledSurface: "#E7EBF7",
   disabledForeground: "#9BA0BE",
   onAccent: "#15111C",
+  onDanger: "#FFFFFF",
   data: ["#8A5A00", "#146C43", "#1D4ED8", "#8A4B00"],
 };
 

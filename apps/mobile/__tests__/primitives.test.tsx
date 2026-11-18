@@ -17,13 +17,13 @@ function flattenStyle(style: unknown): Record<string, unknown> {
 }
 
 describe("Text: font scaling", () => {
-  it("caps font scaling at 1.8 by default", () => {
-    render(<Text testID="t">Hello</Text>);
+  it("caps font scaling at 1.8 by default", async () => {
+    await render(<Text testID="t">Hello</Text>);
     expect(screen.getByTestId("t").props.maxFontSizeMultiplier).toBe(1.8);
   });
 
-  it("accepts an explicit maxFontSizeMultiplier override", () => {
-    render(
+  it("accepts an explicit maxFontSizeMultiplier override", async () => {
+    await render(
       <Text testID="t" maxFontSizeMultiplier={2}>
         Hello
       </Text>,
@@ -33,34 +33,34 @@ describe("Text: font scaling", () => {
 });
 
 describe("Button: accessibility states", () => {
-  it("marks a disabled button and ignores presses", () => {
+  it("marks a disabled button and ignores presses", async () => {
     const onPress = jest.fn();
-    render(<Button testID="btn" title="Save" disabled onPress={onPress} />);
+    await render(<Button testID="btn" title="Save" disabled onPress={onPress} />);
 
     expect(screen.getByTestId("btn").props.accessibilityState).toMatchObject({ disabled: true });
-    fireEvent.press(screen.getByTestId("btn"));
+    await fireEvent.press(screen.getByTestId("btn"));
     expect(onPress).not.toHaveBeenCalled();
   });
 
-  it("shows a spinner and busy state while loading", () => {
+  it("shows a spinner and busy state while loading", async () => {
     const onPress = jest.fn();
-    render(<Button testID="btn" title="Save" loading onPress={onPress} />);
+    await render(<Button testID="btn" title="Save" loading onPress={onPress} />);
 
     expect(screen.getByTestId("button-spinner")).toBeOnTheScreen();
     expect(screen.getByTestId("btn").props.accessibilityState).toMatchObject({ busy: true });
-    fireEvent.press(screen.getByTestId("btn"));
+    await fireEvent.press(screen.getByTestId("btn"));
     expect(onPress).not.toHaveBeenCalled();
   });
 
-  it("defaults its accessibility label to the title", () => {
-    render(<Button testID="btn" title="Sign In" onPress={jest.fn()} />);
+  it("defaults its accessibility label to the title", async () => {
+    await render(<Button testID="btn" title="Sign In" onPress={jest.fn()} />);
     expect(screen.getByTestId("btn").props.accessibilityLabel).toBe("Sign In");
   });
 });
 
 describe("StatusBadge: icon + text + label", () => {
-  it("pairs a text label with the status and exposes it to screen readers", () => {
-    render(<StatusBadge meta={parkingStatusMeta("AVAILABLE", colors)} testID="badge" />);
+  it("pairs a text label with the status and exposes it to screen readers", async () => {
+    await render(<StatusBadge meta={parkingStatusMeta("AVAILABLE", colors)} testID="badge" />);
 
     expect(screen.getByText("Available")).toBeOnTheScreen();
     expect(screen.getByTestId("badge").props.accessibilityLabel).toBe("Available");
@@ -80,8 +80,8 @@ describe("StatusBadge: icon + text + label", () => {
 });
 
 describe("Input: label, error and mono behavior", () => {
-  it("uppercases the label and renders an inline error", () => {
-    render(
+  it("uppercases the label and renders an inline error", async () => {
+    await render(
       <Input testID="email" label="Email" value="" onChangeText={jest.fn()} error="Bad email." />,
     );
 
@@ -89,8 +89,8 @@ describe("Input: label, error and mono behavior", () => {
     expect(screen.getByTestId("email-error")).toHaveTextContent("Bad email.");
   });
 
-  it("styles the mono variant with the plate font", () => {
-    render(<Input testID="plate" label="Plate number" value="" variant="mono" onChangeText={jest.fn()} />);
+  it("styles the mono variant with the plate font", async () => {
+    await render(<Input testID="plate" label="Plate number" value="" variant="mono" onChangeText={jest.fn()} />);
 
     const style = flattenStyle(screen.getByTestId("plate").props.style);
     expect(style.fontFamily).toBe(fonts.monoBold);

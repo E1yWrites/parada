@@ -12,7 +12,55 @@ import type { ViolationService } from "../domain/violations";
 import { ZoneConfigService } from "../domain/zoneConfig";
 import { rateLimit } from "../http/rateLimit";
 import type { RealtimeHub } from "../realtime/hub";
-import { publishOccupancyOutcome, publishZoneSnapshot, withoutNotifications } from "../realtime/occupancyEvents";
+import {
+  notificationCreatedPayload,
+  publishOccupancyOutcome,
+  publishViolationUpdated,
+  publishZoneSnapshot,
+  withoutNotifications,
+} from "../realtime/occupancyEvents";
+
+const ANOMALY_SELECT = {
+  id: true,
+  occupancyEventId: true,
+  cameraId: true,
+  vehicleId: true,
+  detectedPlate: true,
+  anomalyType: true,
+  description: true,
+  resolved: true,
+  createdAt: true,
+  event: {
+    select: {
+      id: true,
+      zoneId: true,
+      eventType: true,
+      source: true,
+      zone: { select: { code: true } },
+      camera: { select: { identifier: true } },
+    },
+  },
+} as const;
+
+/** Wire shape of an anomaly row, shared by the dashboard and the anomalies list. */
+function toAnomalyDto(a: Prisma.OccupancyAnomalyGetPayload<{ select: typeof ANOMALY_SELECT }>) {
+  return {
+    id: a.id,
+    occupancyEventId: a.occupancyEventId,
+    cameraId: a.cameraId,
+    vehicleId: a.vehicleId,
+    detectedPlate: a.detectedPlate,
+    anomalyType: a.anomalyType,
+    description: a.description,
+    resolved: a.resolved,
+    createdAt: a.createdAt,
+    zoneId: a.event?.zoneId ?? null,
+    zoneCode: a.event?.zone.code ?? null,
+    cameraIdentifier: a.event?.camera?.identifier ?? null,
+    eventType: a.event?.eventType ?? null,
+    source: a.event?.source ?? null,
+  };
+}
 
 /**
  * 24h occupancy trend, one point per hour boundary (25 points: T-24h..T-0h).
@@ -154,27 +202,6 @@ export function adminRouter(deps: {
     })
   );
 
-  // Re-read the committed violation and address it to its owner. Publishing the
-  // row we just read (rather than a mutation's return value) keeps this on the
-  // same footing as the occupancy pipeline: a client that invalidates on the
-  // event always refetches state the database has actually settled.
-  const publishViolationUpdated = async (violationId: string) => {
-    if (!deps.realtimeHub) return;
-    const violation = await prisma.violation.findUnique({
-      where: { id: violationId },
-      include: {
-        vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
-        zone: { select: { id: true, name: true, code: true } },
-        appeal: true,
-      },
-    });
-    if (!violation) return;
-    deps.realtimeHub.publish(
-      { type: "VIOLATION_UPDATED", occurredAt: new Date().toISOString(), payload: violation as never },
-      { audience: "USER", userId: violation.userId }
-    );
-  };
-
   router.get(
     "/admin/violations",
     asyncHandler(async (_req, res) => {
@@ -203,7 +230,7 @@ export function adminRouter(deps: {
       // The domain state machine decides whether this transition is legal; the
       // route holds no transition logic and never trusts a body reviewer id.
       const updated = await deps.violations.adminUpdateStatus(req.params["id"]!, status as ViolationStatus);
-      await publishViolationUpdated(updated.id);
+      if (deps.realtimeHub) await publishViolationUpdated(deps.realtimeHub, updated.id);
       res.json(ok(updated));
     })
   );
@@ -235,22 +262,14 @@ export function adminRouter(deps: {
         {
           type: "NOTIFICATION_CREATED",
           occurredAt: new Date().toISOString(),
-          payload: {
-            id: notification.id,
-            zoneId: notification.zoneId,
-            userId: notification.userId,
-            type: notification.type,
-            message: notification.message,
-            targetRole: notification.targetRole,
-            createdAt: notification.createdAt.toISOString(),
-          },
+          payload: notificationCreatedPayload(notification),
         },
         // The appeal's owner is the recipient. ViolationAppeal.userId is
         // non-null in the schema, unlike Notification.userId (nullable for
         // ADMIN-targeted rows), so this needs no assertion.
         { audience: "USER", userId: appeal.userId }
       );
-      await publishViolationUpdated(appeal.violationId);
+      if (deps.realtimeHub) await publishViolationUpdated(deps.realtimeHub, appeal.violationId);
       res.json(ok(appeal));
     })
   );
@@ -267,7 +286,7 @@ export function adminRouter(deps: {
     "/admin/config",
     asyncHandler(async (req, res) => {
       if (!deps.config) throw new NotFoundError("Configuration service unavailable.");
-      res.json(ok(await deps.config.updateEstablishmentSettings(req.body)));
+      res.json(ok(await deps.config.updateEstablishmentSettings(req.body ?? {})));
     })
   );
 
@@ -292,9 +311,11 @@ export function adminRouter(deps: {
       const totalAvailable = Math.max(0, totalCapacity - totalOccupied);
       const now = new Date();
 
-      const [activeSessions, cameraCounts, recentEvents, anomalies, notifications, trend] =
+      const [activeSessions, openAnomalies, pendingAppeals, cameraCounts, recentEvents, anomalies, notifications, trend] =
         await Promise.all([
           prisma.parkingSession.count({ where: { status: "ACTIVE" } }),
+          prisma.occupancyAnomaly.count({ where: { resolved: false } }),
+          prisma.violationAppeal.count({ where: { status: "PENDING" } }),
           prisma.camera.groupBy({ by: ["status"], _count: { _all: true } }),
           prisma.occupancyEvent.findMany({
             orderBy: { detectedAt: "desc" },
@@ -311,26 +332,7 @@ export function adminRouter(deps: {
           prisma.occupancyAnomaly.findMany({
             orderBy: { createdAt: "desc" },
             take: 8,
-            select: {
-              id: true,
-              occupancyEventId: true,
-              cameraId: true,
-              vehicleId: true,
-              detectedPlate: true,
-              anomalyType: true,
-              description: true,
-              resolved: true,
-              createdAt: true,
-              event: {
-                select: {
-                  zoneId: true,
-                  eventType: true,
-                  source: true,
-                  zone: { select: { code: true } },
-                  camera: { select: { identifier: true } },
-                },
-              },
-            },
+            select: ANOMALY_SELECT,
           }),
           prisma.notification.findMany({
             orderBy: { createdAt: "desc" },
@@ -361,6 +363,8 @@ export function adminRouter(deps: {
             totalAvailable,
             occupancyPct: totalCapacity > 0 ? (totalOccupied / totalCapacity) * 100 : 0,
             activeSessions,
+            openAnomalies,
+            pendingAppeals,
             onlineCameras,
             offlineCameras,
           },
@@ -368,22 +372,7 @@ export function adminRouter(deps: {
           lowZones: zones.filter((z) => z.availability === "LOW_AVAILABILITY"),
           fullZones: zones.filter((z) => z.availability === "FULL"),
           recentEvents,
-          recentAnomalies: anomalies.map((a) => ({
-            id: a.id,
-            occupancyEventId: a.occupancyEventId,
-            cameraId: a.cameraId,
-            vehicleId: a.vehicleId,
-            detectedPlate: a.detectedPlate,
-            anomalyType: a.anomalyType,
-            description: a.description,
-            resolved: a.resolved,
-            createdAt: a.createdAt,
-            zoneId: a.event?.zoneId ?? null,
-            zoneCode: a.event?.zone.code ?? null,
-            cameraIdentifier: a.event?.camera?.identifier ?? null,
-            eventType: a.event?.eventType ?? null,
-            source: a.event?.source ?? null,
-          })),
+          recentAnomalies: anomalies.map(toAnomalyDto),
           recentNotifications: notifications,
           trend,
         })
@@ -435,7 +424,7 @@ export function adminRouter(deps: {
   router.post(
     "/admin/zones",
     asyncHandler(async (req, res) => {
-      const created = await zoneConfig.createZone(req.body);
+      const created = await zoneConfig.createZone(req.body ?? {});
       res.status(201).json(ok(created));
     })
   );
@@ -443,7 +432,7 @@ export function adminRouter(deps: {
   router.patch(
     "/admin/zones/:id",
     asyncHandler(async (req, res) => {
-      const updated = await zoneConfig.updateZone(req.params["id"]!, req.body);
+      const updated = await zoneConfig.updateZone(req.params["id"]!, req.body ?? {});
       // Capacity/status edits change availability without an occupancy
       // event, so push the committed snapshot to every zone consumer.
       if (deps.realtimeHub) {
@@ -463,7 +452,7 @@ export function adminRouter(deps: {
   router.post(
     "/admin/zones/:id/slots",
     asyncHandler(async (req, res) => {
-      const slots = await zoneConfig.setSlots(req.params["id"]!, req.body);
+      const slots = await zoneConfig.setSlots(req.params["id"]!, req.body ?? {});
       res.status(201).json(ok(slots));
     })
   );
@@ -525,7 +514,7 @@ export function adminRouter(deps: {
   router.post(
     "/admin/cameras",
     asyncHandler(async (req, res) => {
-      const created = await zoneConfig.createCamera(req.body);
+      const created = await zoneConfig.createCamera(req.body ?? {});
       res.status(201).json(ok(created));
     })
   );
@@ -533,7 +522,7 @@ export function adminRouter(deps: {
   router.patch(
     "/admin/cameras/:id",
     asyncHandler(async (req, res) => {
-      const updated = await zoneConfig.updateCamera(req.params["id"]!, req.body);
+      const updated = await zoneConfig.updateCamera(req.params["id"]!, req.body ?? {});
       res.json(ok(updated));
     })
   );
@@ -576,6 +565,17 @@ export function adminRouter(deps: {
       });
 
       res.json(ok({ notifications, unreadCount }));
+    })
+  );
+
+  router.patch(
+    "/admin/notifications/read-all",
+    asyncHandler(async (_req, res) => {
+      const { count } = await prisma.notification.updateMany({
+        where: { targetRole: "ADMIN", read: false },
+        data: { read: true },
+      });
+      res.json(ok({ updated: count }));
     })
   );
 
@@ -632,49 +632,28 @@ export function adminRouter(deps: {
         where,
         orderBy: { createdAt: "desc" },
         take: limit,
-        select: {
-          id: true,
-          occupancyEventId: true,
-          cameraId: true,
-          vehicleId: true,
-          detectedPlate: true,
-          anomalyType: true,
-          description: true,
-          resolved: true,
-          createdAt: true,
-          event: {
-            select: {
-              id: true,
-              zoneId: true,
-              eventType: true,
-              source: true,
-              zone: { select: { code: true } },
-              camera: { select: { identifier: true } },
-            },
-          },
-        },
+        select: ANOMALY_SELECT,
       });
 
       res.json(
         ok(
-          anomalies.map((a) => ({
-            id: a.id,
-            occupancyEventId: a.occupancyEventId,
-            cameraId: a.cameraId,
-            vehicleId: a.vehicleId,
-            detectedPlate: a.detectedPlate,
-            anomalyType: a.anomalyType,
-            description: a.description,
-            resolved: a.resolved,
-            createdAt: a.createdAt,
-            zoneId: a.event?.zoneId ?? null,
-            zoneCode: a.event?.zone.code ?? null,
-            cameraIdentifier: a.event?.camera?.identifier ?? null,
-            eventType: a.event?.eventType ?? null,
-            source: a.event?.source ?? null,
-          }))
+          anomalies.map(toAnomalyDto)
         )
       );
+    })
+  );
+
+  // Resolving is idempotent: marking an already-resolved anomaly again is a no-op, not an error.
+  router.patch(
+    "/admin/anomalies/:id/resolve",
+    asyncHandler(async (req, res) => {
+      const id = req.params["id"]!;
+      const { count } = await prisma.occupancyAnomaly.updateMany({ where: { id }, data: { resolved: true } });
+      if (count === 0) {
+        throw new NotFoundError("Anomaly not found.");
+      }
+      const anomaly = await prisma.occupancyAnomaly.findUniqueOrThrow({ where: { id }, select: ANOMALY_SELECT });
+      res.json(ok(toAnomalyDto(anomaly)));
     })
   );
 

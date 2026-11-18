@@ -260,10 +260,12 @@ export class AccountService {
     if (!mimeType) {
       throw new UnprocessableError("Profile pictures must be a JPEG, PNG or WebP image.");
     }
+    // Prisma 7 Bytes columns take a Uint8Array over a plain ArrayBuffer.
+    const data = new Uint8Array(bytes);
     await prisma.userAvatar.upsert({
       where: { userId },
-      update: { mimeType, sizeBytes: bytes.length, data: bytes },
-      create: { userId, mimeType, sizeBytes: bytes.length, data: bytes },
+      update: { mimeType, sizeBytes: bytes.length, data },
+      create: { userId, mimeType, sizeBytes: bytes.length, data },
     });
     return this.loadPublic(userId);
   }
