@@ -293,6 +293,26 @@
     @apply inline-flex items-center rounded-chip bg-brand-soft px-2 py-0.5 font-mono text-xs font-bold tracking-[0.08em] text-brand-ink;
   }
 
+  /* ---- Map picker pin (Leaflet divIcon markup, so plain classes) ----
+     A rotated square with one sharp corner: the tip is the exact point. */
+  .map-pin-icon {
+    background: transparent;
+    border: 0;
+  }
+
+  .map-pin {
+    display: block;
+    box-sizing: border-box;
+    width: 28px;
+    height: 28px;
+    border: 3px solid #fff;
+    border-radius: 50% 50% 50% 0;
+    background: rgb(var(--brand));
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.45);
+    transform: rotate(-45deg);
+    cursor: grab;
+  }
+
   /* ---- Tables: dense registry rows with hairline seams ---- */
   .table-base {
     @apply w-full text-left text-sm;

@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/Button";
 import { formatDateTime, formatPct } from "@/lib/format";
 import { GATE_LABEL, labelFor } from "@/lib/labels";
 import type { AdminZoneDetail, AdminSlot } from "@/lib/api/types";
-import { parseCoordinates } from "@/lib/coordinates";
+import { mapFallbackCenter, parseCoordinates, pinFromFields, type MapPoint } from "@/lib/coordinates";
+import { MapPicker } from "@/components/MapPicker";
 import { FieldError, focusField, invalidProps } from "@/components/ui/FieldError";
 
 /** API field name -> input id, so a rejection is shown under its input. */
@@ -34,7 +35,7 @@ function generateCodes(zoneCode: string, count: number): string[] {
   return Array.from({ length: count }, (_, i) => `${zoneCode}${String(i + 1).padStart(2, "0")}`);
 }
 
-function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
+function EditZoneForm({ zone, fallbackCenter }: { zone: AdminZoneDetail; fallbackCenter: MapPoint | null }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     name: zone.name,
@@ -179,6 +180,21 @@ function EditZoneForm({ zone }: { zone: AdminZoneDetail }) {
           />
           <FieldError id="edit-zone-lng" message={fieldError("edit-zone-lng")} />
           <p className="field-help">-180 to 180. Leave both empty to disable Directions for this zone.</p>
+        </div>
+        <div className="sm:col-span-2">
+          <p className="label">Pin on map</p>
+          <MapPicker
+            id="edit-zone-map"
+            label="Directions target map"
+            describedBy="edit-zone-map-help"
+            value={pinFromFields(form.navigationLat, form.navigationLng)}
+            fallbackCenter={fallbackCenter}
+            onPick={(lat, lng) => setForm((prev) => ({ ...prev, navigationLat: lat, navigationLng: lng }))}
+          />
+          <p id="edit-zone-map-help" className="field-help">
+            Click the map or drag the pin onto the parking area drivers should be sent to. The latitude and
+            longitude above update to match; save the zone to apply it.
+          </p>
         </div>
         <div>
           <label htmlFor="edit-zone-status" className="label">Status</label>
@@ -406,7 +422,7 @@ export default function ZoneDetailPage() {
             </FacilityStrip>
 
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-              <EditZoneForm zone={zone} />
+              <EditZoneForm zone={zone} fallbackCenter={mapFallbackCenter(zones.data, zone.id)} />
               <PhysicalInventory zoneId={zone.id} zoneCode={zone.code} capacity={zone.capacity} />
             </div>
 
