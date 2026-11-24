@@ -18,6 +18,7 @@ module.exports = {
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
+    "\\.css$": "<rootDir>/test/styleMock.js",
   },
   clearMocks: true,
 };

@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LogIn, LogOut, Plus, Power, Play, Save, AlertCircle, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api/client";
-import { parseCoordinates } from "@/lib/coordinates";
+import { mapFallbackCenter, parseCoordinates, pinFromFields, type MapPoint } from "@/lib/coordinates";
+import { MapPicker } from "@/components/MapPicker";
 import { PageHeader } from "@/components/PageHeader";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import { AvailabilityBadge, PlateChip } from "@/components/ui/Badge";
@@ -24,7 +25,16 @@ const CREATE_FIELD_IDS: Record<string, string | undefined> = {
   navigationLng: "zone-lng",
 };
 
-function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => void; onClose: () => void }) {
+function CreateZoneForm({
+  onCreated,
+  onClose,
+  fallbackCenter,
+}: {
+  onCreated: (name: string) => void;
+  onClose: () => void;
+  /** Where the map opens before a pin is placed (another zone's pin). */
+  fallbackCenter: MapPoint | null;
+}) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<AdminZoneCreateInput>({
     name: "",
@@ -182,6 +192,24 @@ function CreateZoneForm({ onCreated, onClose }: { onCreated: (name: string) => v
           />
           <FieldError id="zone-lng" message={fieldError("zone-lng")} />
         </div>
+        <div className="sm:col-span-2">
+          <p className="label">Pin on map</p>
+          <MapPicker
+            id="zone-map"
+            label="Directions target map"
+            describedBy="zone-map-help"
+            value={pinFromFields(navigationLat, navigationLng)}
+            fallbackCenter={fallbackCenter}
+            onPick={(lat, lng) => {
+              setNavigationLat(lat);
+              setNavigationLng(lng);
+            }}
+          />
+          <p id="zone-map-help" className="field-help">
+            Click the map or drag the pin onto the parking area drivers should be sent to. The latitude and
+            longitude above update to match.
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4 sm:col-span-2">
           <Button type="submit" variant="primary" disabled={create.isPending}>
             <Save className="h-4 w-4" aria-hidden="true" />
@@ -299,6 +327,7 @@ export default function ZonesPage() {
 
       {creating ? (
         <CreateZoneForm
+          fallbackCenter={mapFallbackCenter(zones.data)}
           onCreated={(name) => {
             setCreating(false);
             announce(`Zone ${name} created.`);

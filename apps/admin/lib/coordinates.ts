@@ -29,3 +29,37 @@ export function parseCoordinates(
   }
   return { navigationLat: latNum, navigationLng: lngNum };
 }
+
+/** A point on the map picker. */
+export type MapPoint = { lat: number; lng: number };
+
+/**
+ * The pin the map should show for the typed fields: a point only when both
+ * parse as valid coordinates, otherwise null (no pin; the map keeps its view).
+ */
+export function pinFromFields(latRaw: string, lngRaw: string): MapPoint | null {
+  const parsed = parseCoordinates(latRaw, lngRaw);
+  if ("error" in parsed || parsed.navigationLat === null || parsed.navigationLng === null) return null;
+  return { lat: parsed.navigationLat, lng: parsed.navigationLng };
+}
+
+/**
+ * Text for a coordinate the operator picked on the map. Six decimals is about
+ * 0.1 m, finer than map imagery can place a pin; trailing zeros are dropped.
+ */
+export function formatPickedCoordinate(value: number): string {
+  return String(Number(value.toFixed(6)));
+}
+
+/**
+ * Where the map opens when this zone has no pin yet: the first other zone that
+ * already has one. PARADA stores no establishment-wide map centre, so with no
+ * configured zone at all the picker shows the whole map instead of guessing.
+ */
+export function mapFallbackCenter(
+  zones: ReadonlyArray<{ id: string; navigationLat: number | null; navigationLng: number | null }> | undefined,
+  excludeId?: string
+): MapPoint | null {
+  const other = zones?.find((z) => z.id !== excludeId && z.navigationLat !== null && z.navigationLng !== null);
+  return other ? { lat: other.navigationLat as number, lng: other.navigationLng as number } : null;
+}
