@@ -33,6 +33,7 @@ import { BrandLogo } from "./BrandLogo";
 import { ConnectionIndicator } from "./ConnectionIndicator";
 import { FullPageSpinner } from "./ui/State";
 import { Toaster } from "./Toaster";
+import { GateTicker } from "./GateTicker";
 import { useTheme } from "./providers/theme-provider";
 
 interface NavItem {
@@ -421,6 +422,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         <Toaster />
+        <GateTicker />
       </div>
     </div>
   );
