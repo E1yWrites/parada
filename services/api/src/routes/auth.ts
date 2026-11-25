@@ -19,13 +19,13 @@ import {
 
 export function authRouter(
   auth: AuthService,
-  authMiddleware?: RequestHandler,
+  authMiddleware: RequestHandler,
   options: {
     rateLimit?: { limit: number; windowMs: number };
     account?: AccountService;
     /** Open SSE streams of a user are dropped when their tokens are invalidated. */
-    realtimeHub?: RealtimeHub;
-  } = {}
+    realtimeHub: RealtimeHub;
+  }
 ): Router {
   const router = Router();
   const account =
@@ -118,21 +118,10 @@ export function authRouter(
       const token = validateResetToken(body["token"]);
       const newPassword = requireString(body, "newPassword");
       const user = await auth.resetPassword({ token, newPassword });
-      options.realtimeHub?.disconnectUser(user.id);
+      options.realtimeHub.disconnectUser(user.id);
       res.json(ok({ user }));
     })
   );
-
-  if (!authMiddleware) {
-    const denied = asyncHandler(async () => {
-      throw new UnauthorizedError("Authentication required.");
-    });
-    router.post("/logout", denied);
-    router.get("/me", denied);
-    router.patch("/me", denied);
-    router.post("/password", denied);
-    return router;
-  }
 
   router.post("/logout", authMiddleware, asyncHandler(async (req, res) => {
     const authHeader = req.headers["authorization"];
@@ -187,7 +176,7 @@ export function authRouter(
     const result = await auth.changePassword(userId, { currentPassword, newPassword });
     // Every earlier token is now invalid; streams opened with one must not
     // keep flowing. The caller reconnects with the fresh token it receives.
-    options.realtimeHub?.disconnectUser(userId);
+    options.realtimeHub.disconnectUser(userId);
     res.json(ok({ user: result.user, token: result.token }));
   }));
 

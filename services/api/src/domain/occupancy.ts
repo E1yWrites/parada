@@ -701,7 +701,9 @@ export class OccupancyService {
           },
         });
       }
-      return event;
+      // Carry the zone FULL / LOW notifications maybeNotify just created, so
+      // the route publishes them over realtime like any camera event's.
+      return { ...event, notifications };
     }
 
     // ---------------- CAMERA-sourced guest ----------------

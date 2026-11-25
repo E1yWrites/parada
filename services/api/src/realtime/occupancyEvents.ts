@@ -11,8 +11,7 @@ type ProcessEventResult = Awaited<ReturnType<OccupancyService["processEvent"]>>;
 /**
  * The pipeline's `notifications` list exists only so routes can publish it
  * over realtime; it is never part of an HTTP response. Returns the result
- * without that key (the SIMULATOR guest path returns a bare event and is
- * passed through unchanged).
+ * without that key.
  */
 export function withoutNotifications<T extends ProcessEventResult>(
   result: T
@@ -74,10 +73,15 @@ export async function publishOccupancyOutcome(
       );
     }
     if (violation) {
-      hub.publish(
-        { type: "VIOLATION_CREATED", occurredAt, payload: violation as never },
-        { audience: "USER", userId: violation.userId }
-      );
+      // Re-read with the same shape GET /violations returns (zone, vehicle,
+      // appeal summary) — the bare row lacks zone/vehicle, which clients render.
+      const full = await readViolation(violation.id);
+      if (full) {
+        hub.publish(
+          { type: "VIOLATION_CREATED", occurredAt, payload: full as never },
+          { audience: "USER", userId: full.userId }
+        );
+      }
     }
   } else if ("admitted" in result) {
     hub.publish(
@@ -128,15 +132,21 @@ export function notificationCreatedPayload(n: Notification): NotificationCreated
  * row just read (not a mutation's return value) means a client that invalidates
  * on the event always refetches state the database has actually settled.
  */
-export async function publishViolationUpdated(hub: RealtimeHub, violationId: string): Promise<void> {
-  const violation = await prisma.violation.findUnique({
+/** A violation as `GET /violations` returns it. The appeal summary omits
+ *  `reviewedBy` (an admin id) — drivers receive this payload too. */
+function readViolation(violationId: string) {
+  return prisma.violation.findUnique({
     where: { id: violationId },
     include: {
       vehicle: { select: { id: true, plateNumber: true, vehicleType: true } },
       zone: { select: { id: true, name: true, code: true } },
-      appeal: true,
+      appeal: { select: { id: true, status: true, reason: true, reviewedAt: true, createdAt: true } },
     },
   });
+}
+
+export async function publishViolationUpdated(hub: RealtimeHub, violationId: string): Promise<void> {
+  const violation = await readViolation(violationId);
   if (!violation) return;
   hub.publish(
     { type: "VIOLATION_UPDATED", occurredAt: new Date().toISOString(), payload: violation as never },

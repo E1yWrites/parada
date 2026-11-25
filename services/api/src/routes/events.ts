@@ -29,7 +29,7 @@ export interface EventsRouterOptions {
   /** Per-camera event-ingestion rate limit. Defaults to a generous 300/min. */
   rateLimit?: { limit: number; windowMs: number };
   /** Publishes ZONE_OCCUPANCY_UPDATED after a successful, committed event. */
-  realtimeHub?: RealtimeHub;
+  realtimeHub: RealtimeHub;
 }
 
 /** Constant-time string comparison (length-guarded) to avoid timing leaks. */
@@ -42,7 +42,7 @@ function secureEqual(a: string, b: string): boolean {
   return timingSafeEqual(aBuf, bBuf);
 }
 
-export function eventsRouter(occupancy: OccupancyService, options: EventsRouterOptions = {}): Router {
+export function eventsRouter(occupancy: OccupancyService, options: EventsRouterOptions): Router {
   const router = Router();
   const cameraApiKey = options.cameraApiKey ?? null;
   const zones = new ZoneService();
@@ -138,9 +138,7 @@ export function eventsRouter(occupancy: OccupancyService, options: EventsRouterO
       // Publish AFTER processEvent's transaction has committed. Everything is
       // read back from the database (zone, session), never taken from the
       // mutation's own return value.
-      if (options.realtimeHub) {
-        await publishOccupancyOutcome(options.realtimeHub, zoneId, result, zones);
-      }
+      await publishOccupancyOutcome(options.realtimeHub, zoneId, result, zones);
 
       res.status(201).json(ok(occupancyEvent));
     })

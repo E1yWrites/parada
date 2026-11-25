@@ -8,7 +8,7 @@ import { sessionInclude, sessionResponse, type ParkingSessionService } from "../
 import type { RealtimeHub } from "../realtime/hub";
 import { notificationCreatedPayload, publishZoneSnapshot } from "../realtime/occupancyEvents";
 
-export function sessionsRouter(sessionService?: ParkingSessionService, realtimeHub?: RealtimeHub): Router {
+export function sessionsRouter(sessionService: ParkingSessionService, realtimeHub: RealtimeHub): Router {
   const router = Router();
 
   router.get(
@@ -58,9 +58,6 @@ export function sessionsRouter(sessionService?: ParkingSessionService, realtimeH
   router.post(
     "/sessions/entry",
     asyncHandler(async (req, res) => {
-      if (!sessionService) {
-        throw new BadRequestError("Session entry is not configured.");
-      }
       const userId = currentUserId(res);
       const body: Record<string, unknown> = req.body ?? {};
 
@@ -76,12 +73,12 @@ export function sessionsRouter(sessionService?: ParkingSessionService, realtimeH
 
       const session = await sessionService.entry(userId, { vehicleId, zoneId });
       const occurredAt = new Date().toISOString();
-      realtimeHub?.publish(
+      realtimeHub.publish(
         { type: "PARKING_SESSION_STARTED", occurredAt, payload: session },
         { audience: "USER", userId }
       );
       // Entering takes a space, so the zone snapshot every client renders moved.
-      if (realtimeHub) await publishZoneSnapshot(realtimeHub, session.zoneId, undefined, occurredAt);
+      await publishZoneSnapshot(realtimeHub, session.zoneId, undefined, occurredAt);
       res.status(201).json(ok({ session }));
     })
   );
@@ -89,18 +86,15 @@ export function sessionsRouter(sessionService?: ParkingSessionService, realtimeH
   router.post(
     "/sessions/:id/exit",
     asyncHandler(async (req, res) => {
-      if (!sessionService) {
-        throw new BadRequestError("Session exit is not configured.");
-      }
       const userId = currentUserId(res);
       const { notification, ...result } = await sessionService.exit(userId, req.params["id"]!);
       const occurredAt = new Date().toISOString();
-      realtimeHub?.publish(
+      realtimeHub.publish(
         { type: "PARKING_SESSION_COMPLETED", occurredAt, payload: result.session },
         { audience: "USER", userId }
       );
       if (notification) {
-        realtimeHub?.publish(
+        realtimeHub.publish(
           {
             type: "NOTIFICATION_CREATED",
             occurredAt,
@@ -110,7 +104,7 @@ export function sessionsRouter(sessionService?: ParkingSessionService, realtimeH
         );
       }
       // Exiting frees a space, so the zone snapshot every client renders moved.
-      if (realtimeHub) await publishZoneSnapshot(realtimeHub, result.session.zoneId, undefined, occurredAt);
+      await publishZoneSnapshot(realtimeHub, result.session.zoneId, undefined, occurredAt);
       res.json(ok(result));
     })
   );

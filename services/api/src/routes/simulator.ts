@@ -4,7 +4,7 @@ import { BadRequestError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
 import { requireRole } from "../middleware/auth";
 import { SimulatorService, SIMULATOR_SCENARIOS, type SimulatorScenario } from "../domain/simulator";
-import { publishZoneSnapshot } from "../realtime/occupancyEvents";
+import { publishOccupancyOutcome, publishZoneSnapshot } from "../realtime/occupancyEvents";
 import type { RealtimeHub } from "../realtime/hub";
 
 /**
@@ -12,7 +12,7 @@ import type { RealtimeHub } from "../realtime/hub";
  * artificially change parking occupancy, so every route here requires
  * authentication + the ADMIN role (route-level requireRole("ADMIN")).
  */
-export function simulatorRouter(simulator: SimulatorService, realtimeHub?: RealtimeHub): Router {
+export function simulatorRouter(simulator: SimulatorService, realtimeHub: RealtimeHub): Router {
   const router = Router();
 
   router.use(requireRole("ADMIN"));
@@ -48,14 +48,16 @@ export function simulatorRouter(simulator: SimulatorService, realtimeHub?: Realt
         fillTo: typeof fillTo === "number" ? fillTo : undefined,
       });
 
-      // A scenario drives the real pipeline, so every other connected client
-      // (dashboards, mobile zone lists) sees the committed zone state at once
-      // instead of waiting for its next poll.
-      if (realtimeHub) {
-        await publishZoneSnapshot(realtimeHub, result.zone.id);
+      // A scenario drives the real pipeline, so it publishes what a camera
+      // event would: the zone snapshot for everyone, and each event's session
+      // start/end and notifications to the driver it concerns.
+      const { outcomes, ...response } = result;
+      if (outcomes.length === 0) await publishZoneSnapshot(realtimeHub, result.zone.id);
+      for (const outcome of outcomes) {
+        await publishOccupancyOutcome(realtimeHub, result.zone.id, outcome);
       }
 
-      res.status(201).json(ok(result));
+      res.status(201).json(ok(response));
     })
   );
 
