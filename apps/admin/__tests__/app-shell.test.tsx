@@ -1,5 +1,22 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { act, fireEvent, render as rtlRender, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+
+jest.mock("@/lib/api/client", () => ({
+  api: { notifications: jest.fn().mockResolvedValue({ notifications: [], unreadCount: 0 }) },
+}));
+
+/** The shell's header now holds the notification bell (a query) and the theme toggle. */
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(
+    <ThemeProvider>
+      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+    </ThemeProvider>
+  );
+}
 
 jest.mock("next/navigation", () => ({
   usePathname: () => "/",
@@ -179,7 +196,7 @@ describe("AppShell — role protection", () => {
         <div>content</div>
       </AppShell>
     );
-    const pill = () => container.querySelector('nav[aria-label="Primary"] span.bg-brand-soft');
+    const pill = () => container.querySelector('nav[aria-label="Primary"] span[data-nav-pill]');
     expect(pill()).toBeNull();
 
     visible = true;

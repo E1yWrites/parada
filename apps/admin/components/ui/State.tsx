@@ -12,7 +12,7 @@ export function LoadingState({
   return (
     <div aria-busy="true" aria-live="polite" className="card p-5">
       <div className="flex items-center gap-2 text-muted">
-        <Loader2 className="h-4 w-4 animate-spin text-brand-ink" aria-hidden="true" />
+        <Loader2 className="h-4 w-4 animate-spin text-muted" aria-hidden="true" />
         <span className="text-sm font-semibold">{label}</span>
       </div>
       <div className="mt-4 space-y-2.5" role="status">
@@ -32,11 +32,11 @@ export function LoadingState({
  * same three-layer construction as the mobile app's illustrations.
  */
 function Scene({ Icon, tone = "brand" }: { Icon: LucideIcon; tone?: "brand" | "danger" }) {
-  const disc = tone === "danger" ? "bg-danger-soft" : "bg-brand-soft";
-  const glyph = tone === "danger" ? "text-danger" : "text-brand-ink";
+  const disc = tone === "danger" ? "bg-danger-soft" : "bg-raised";
+  const glyph = tone === "danger" ? "text-danger" : "text-muted";
   return (
     <div className={`relative flex h-24 w-24 items-center justify-center rounded-full ${disc}`} aria-hidden="true">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl rounded-tr-panel-cut border border-line bg-card shadow-card">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-line bg-card shadow-card">
         <Icon className={`h-6 w-6 ${glyph}`} />
       </div>
       <span className="absolute -right-1 top-1 h-6 w-6 rounded-lg border border-line bg-card shadow-card" />
@@ -57,7 +57,7 @@ export function EmptyState({
   return (
     <Card className="flex flex-col items-center justify-center px-6 py-14 text-center">
       <Scene Icon={icon ?? Inbox} />
-      <h3 className="mt-5 font-display text-lg font-black tracking-tight text-charcoal">
+      <h3 className="mt-5 font-display text-lg font-semibold tracking-tight text-charcoal">
         {title ?? "No records."}
       </h3>
       {message ? <p className="mt-1 max-w-sm text-sm text-muted">{message}</p> : null}
@@ -77,7 +77,7 @@ export function ErrorState({
   return (
     <Card role="alert" className="flex flex-col items-center justify-center px-6 py-12 text-center">
       <Scene Icon={AlertTriangle} tone="danger" />
-      <h3 className="mt-5 font-display text-lg font-black tracking-tight text-charcoal">
+      <h3 className="mt-5 font-display text-lg font-semibold tracking-tight text-charcoal">
         {title ?? "We couldn't load this data."}
       </h3>
       <p className="mt-1 max-w-md text-sm text-muted">
@@ -97,10 +97,10 @@ export function FullPageSpinner({ label = "Loading…" }: { label?: string }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-3">
       <div
-        className="flex h-14 w-14 items-center justify-center rounded-xl rounded-tr-panel-cut border border-line bg-card shadow-card"
+        className="flex h-14 w-14 items-center justify-center rounded-xl border border-line bg-card shadow-card"
         aria-hidden="true"
       >
-        <Loader2 className="h-6 w-6 animate-spin text-brand-ink" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted" />
       </div>
       <p className="text-sm font-semibold text-muted">{label}</p>
     </div>

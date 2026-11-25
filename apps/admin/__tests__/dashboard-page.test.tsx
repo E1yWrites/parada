@@ -74,7 +74,7 @@ describe("Admin dashboard — honest status copy", () => {
     expect(screen.queryByText(/online|pipeline health|vision pipeline/i)).not.toBeInTheDocument();
   });
 
-  it("calls the alert feed Recent alerts and marks resolved anomalies", async () => {
+  it("merges alerts into one Activity feed (never 'live alerts') and marks resolved anomalies", async () => {
     mockedApi.dashboard.mockResolvedValue(
       dashboard({
         recentAnomalies: [
@@ -84,7 +84,7 @@ describe("Admin dashboard — honest status copy", () => {
       })
     );
     renderPage();
-    expect(await screen.findByText("Recent alerts")).toBeInTheDocument();
+    expect(await screen.findByText("Activity")).toBeInTheDocument();
     expect(screen.queryByText(/live alerts/i)).not.toBeInTheDocument();
     // Human labels from ANOMALY_LABEL, not raw enums.
     expect(screen.getByText("Unknown Plate in Zone A")).toBeInTheDocument();
@@ -92,10 +92,11 @@ describe("Admin dashboard — honest status copy", () => {
     expect(screen.getAllByText(/· Resolved/)).toHaveLength(1);
   });
 
-  it("says No recent alerts (not 'No active alerts') when the feed is empty", async () => {
+  it("says No recent activity (not 'No active alerts') when the feed is empty", async () => {
     mockedApi.dashboard.mockResolvedValue(dashboard());
     renderPage();
-    expect(await screen.findByText("No recent alerts.")).toBeInTheDocument();
+    expect(await screen.findByText("No recent activity.")).toBeInTheDocument();
+    expect(screen.queryByText(/active alerts/i)).not.toBeInTheDocument();
   });
 
   it("makes no real-time claim; shows when the data was last updated", async () => {

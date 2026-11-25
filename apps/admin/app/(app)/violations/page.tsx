@@ -37,7 +37,7 @@ export default function ViolationsPage() {
     mutationFn: ({ id, status }: { id: string; status: string; plate: string }) => api.updateViolationStatus(id, status),
     onSuccess: (_updated, variables) => {
       setNotice((prev) => ({ id: (prev?.id ?? 0) + 1, text: `Violation for ${variables.plate} dismissed.` }));
-      return client.invalidateQueries({ queryKey: ["violations"] });
+      return Promise.all([["violations"], ["appeals"], ["dashboard"]].map((queryKey) => client.invalidateQueries({ queryKey })));
     },
   });
 
@@ -61,7 +61,7 @@ export default function ViolationsPage() {
     {
       key: "fine",
       header: "Fine",
-      cell: (v) => <span className="font-display text-sm font-black tabular-nums text-warning">₱{v.fineAmount.toFixed(2)}</span>,
+      cell: (v) => <span className="font-display text-sm font-semibold tabular-nums text-warning">₱{v.fineAmount.toFixed(2)}</span>,
     },
     {
       key: "status",

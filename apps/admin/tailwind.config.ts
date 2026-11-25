@@ -1,9 +1,8 @@
 import type { Config } from "tailwindcss";
 
 /**
- * PARADA admin design tokens — the "gate control" world: near-black asphalt
- * ground with PARADA orange as the single brand accent, echoing the logo's
- * black/orange cut geometry. Every color resolves through a CSS custom
+ * PARADA admin design tokens — a monochrome console (zinc graphite / white)
+ * with the logo's orange reserved for live data and the one filled action. Every color resolves through a CSS custom
  * property so `[data-theme]` on `<html>` retunes the whole app; the RGB
  * "channel" values (`--paper: 245 242 236`) let Tailwind's opacity modifiers
  * (`bg-brand/10`) keep working, since `rgb(var(--x) / <alpha-value>)` is the
@@ -64,7 +63,8 @@ const config: Config = {
         display: ["48px", { lineHeight: "1" }],
       },
       fontFamily: {
-        display: ["var(--font-display)", "sans-serif"],
+        /* One UI face: headings and figures are Inter at heavier weights. */
+        display: ["var(--font-sans)", "system-ui", "sans-serif"],
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
@@ -78,11 +78,9 @@ const config: Config = {
         focus: "0 0 0 2px rgb(var(--paper)), 0 0 0 4px rgb(var(--focus))",
       },
       borderRadius: {
-        panel: "1.25rem",
-        "panel-cut": "0.1875rem",
-        control: "0.75rem",
-        "control-cut": "0.125rem",
-        chip: "0.5rem",
+        panel: "1rem",
+        control: "0.6875rem",
+        chip: "0.4375rem",
       },
       keyframes: {
         "fade-in": {

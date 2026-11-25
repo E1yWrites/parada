@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { TickMeter, type TickTone } from "./OccupancyBar";
 
 /**
  * Facility strip: several figures on one panel, separated by seams instead of
@@ -22,6 +23,8 @@ export interface MetricCardProps {
   value: ReactNode;
   detail?: ReactNode;
   accent?: "none" | "red" | "green" | "amber" | "info";
+  /** Optional tick meter under the figure; `live` paints it orange (live data). */
+  meter?: { pct: number; tone?: TickTone; ticks?: number };
 }
 
 const ACCENTS: Record<NonNullable<MetricCardProps["accent"]>, string> = {
@@ -33,14 +36,19 @@ const ACCENTS: Record<NonNullable<MetricCardProps["accent"]>, string> = {
 };
 
 /** One figure inside a `FacilityStrip`. */
-export function MetricCard({ label, value, detail, accent = "none" }: MetricCardProps) {
+export function MetricCard({ label, value, detail, accent = "none", meter }: MetricCardProps) {
   return (
     <div className="min-w-0 px-5 py-4">
-      <p className="text-xs font-bold text-muted">{label}</p>
-      <p className={`mt-1 font-display text-3xl font-black leading-none tracking-tight ${ACCENTS[accent]}`}>
+      <p className="text-sm font-medium text-muted">{label}</p>
+      <p className={`mt-1.5 text-3xl font-semibold leading-none tracking-[-0.025em] ${ACCENTS[accent]}`}>
         {value}
       </p>
-      {detail ? <p className="mt-1.5 break-words text-xs font-semibold text-muted">{detail}</p> : null}
+      {meter ? (
+        <div className="mt-3.5">
+          <TickMeter pct={meter.pct} tone={meter.tone} ticks={meter.ticks} />
+        </div>
+      ) : null}
+      {detail ? <p className="mt-2 break-words text-xs font-medium text-muted">{detail}</p> : null}
     </div>
   );
 }

@@ -70,6 +70,7 @@ function CreateZoneForm({
       setNavigationLng("");
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["zones"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       onCreated(created?.name ?? form.name);
     },
     onError: (err) => {
@@ -237,6 +238,7 @@ function ZoneStatusToggle({ zone, onDone }: { zone: AdminZoneDetail; onDone: (me
     onSuccess: (updated) => {
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["zones"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       onDone(`${zone.name} ${updated?.status === "INACTIVE" || zone.status === "ACTIVE" ? "deactivated" : "activated"}.`);
     },
     onError: (err) => {
@@ -356,13 +358,13 @@ export default function ZonesPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <PlateChip>{z.code}</PlateChip>
-                    <p className="truncate font-display text-base font-black text-charcoal">{z.name}</p>
+                    <p className="truncate font-display text-base font-semibold text-charcoal">{z.name}</p>
                   </div>
                   {z.availability !== "AVAILABLE" ? <AvailabilityBadge value={z.availability} /> : null}
                 </div>
 
                 {/* Occupancy once: the count, and the bar that draws it. */}
-                <p className="mt-5 font-display text-3xl font-black leading-none tabular-nums text-charcoal">
+                <p className="mt-5 font-display text-3xl font-semibold leading-none tabular-nums text-charcoal">
                   <span>{z.occupiedCount}</span>
                   <span className="text-base font-bold text-muted"> / {z.capacity} occupied</span>
                 </p>

@@ -26,7 +26,7 @@ Gate-based counting with OCR-assisted cameras gives live zone availability witho
 
 - Facility flow: Camera → Vision/OCR → API → Domain → PostgreSQL. Mobile and Admin talk only to the API (Admin through a Next.js proxy with an HttpOnly cookie).
 - Realtime: Server-Sent Events push occupancy and notification changes to both clients; polling remains as fallback.
-- Driver flow: onboarding → sign in → Parking tab (current state, recommendation, zones) → assign or reserve a zone → navigate (GPS hand-off to the platform maps app) → session → history; notifications and violations/appeals live off the Account tab.
+- Driver flow: onboarding → register → verify email (6-digit code) → first sign-in → first-run tutorial that asks for the driver's vehicle (primary by default) → **Now** tab (the one current thing) → **Zones** (choose a zone, then Go now = assignment or Reserve = hold; vehicle choice shows the primary) → navigate (GPS hand-off to the platform maps app) → session (in-app pop-ups when it starts and ends) → **History** (7-day and month charts, past sessions and reservations); notifications, vehicles, payments and violations/appeals live off **Account**.
 - Admin flow: dashboard → zones/cameras/settings configuration → sessions, reservations, users, violations, appeals, anomalies, notifications, history, analytics; simulator and guest admission are operator tools.
 
 ## Capabilities and Constraints
@@ -37,15 +37,17 @@ Gate-based counting with OCR-assisted cameras gives live zone availability witho
 - GPS is navigation only; the app never invents a destination (the establishment location is admin-configured and may be null).
 - Guests: unregistered plates may be admitted under an audited admin override; guest sessions show as "GUEST".
 - Currency is Philippine peso (₱). Timestamps are shown in the device locale.
-- Stack: Expo SDK 57 / React Native 0.86 (Expo Router, React Query, Ionicons, Nunito + JetBrains Mono via expo-google-fonts, expo-blur); Next.js 14 + Tailwind 3 + lucide-react (Nunito via next/font). No new native modules may be added casually; no dependency downgrades.
+- Stack: Expo SDK 58 / React Native 0.88 (Expo Router, React Query, Ionicons, Inter via expo-google-fonts, expo-blur, react-native-svg); Next.js 16 + Tailwind 4 + lucide-react (Inter and JetBrains Mono via next/font). No new native modules may be added casually; no dependency downgrades.
 - Tests pin many test IDs, labels and copy strings across both apps; UI work preserves them.
-- Undecided: no brand mark/logo asset exists yet; no raster illustrations exist.
+- Brand assets: the PARADA wordmark/logo and the Lottie mascot sprite frames exist and are used unmodified.
+- The driver app has no OS push notifications; in-app pop-ups are driven by the realtime stream.
 
 ## Brand Commitments
 
 - Name: **PARADA** (set in caps in wordmarks). Voice: plain, direct, reassuring; short sentences; never scolding drivers.
-- Accent decision (2026-09-14, owner): move from cardinal red to an **electric blue** primary on clean light surfaces, with coral for alerts/danger, mint/green for available/success, amber for low availability/pending. Red is no longer the brand color.
-- Visual language pinned by the owner's brief: soft, modern, friendly SaaS; rounded cards; light surfaces; controlled whitespace; strong type hierarchy; subtle gradients; soft shadows; colorful status accents; large rounded hero sections; expressive icons; polished empty/loading/error states; purposeful micro-interactions. A dark, orange-accented freight-app screenshot was supplied as *style* reference only; its content, layout and branding are not to be copied.
+- Mobile direction (2026-11-24, owner): **"Clear"** — Apple-like, clean and simple, glassmorphism over a moving wave grid, modern graphs, seamless animations, light and dark tuned separately, Lottie kept (onboarding slide 1, sign-in, the idle Now card, the first-run tutorial and the parked/ended pop-ups). Ink-black/white action button, PARADA orange for data and accents. Earlier directions (electric blue, "The Attendant" navy/gold, Rams-strict) are superseded on mobile.
+- Admin direction (2026-11-25, owner): **"Console"** — a monochrome zinc console (inset floating sidebar, soft panels, tick meters) with logo orange `#F7931A` only for live data and the one filled action; uniform corners, Inter + JetBrains Mono; realtime pop-ups for actionable events. Comps: Design canvas, board A approved.
+- `DESIGN.md` is the source for tokens and component rules; the code wins where they disagree.
 
 ## Evidence on Hand
 

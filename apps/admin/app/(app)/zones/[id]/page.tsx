@@ -9,7 +9,7 @@ import { api, ApiError } from "@/lib/api/client";
 import { Card, SavedNote, SectionHeader } from "@/components/ui/Card";
 import { FacilityStrip, MetricCard } from "@/components/ui/MetricCard";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
-import { AvailabilityBadge, CameraEnabledBadge, Pill, PlateChip, AVAILABILITY_BAR } from "@/components/ui/Badge";
+import { AvailabilityBadge, CameraEnabledBadge, Pill, PlateChip } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatDateTime, formatPct } from "@/lib/format";
 import { GATE_LABEL, labelFor } from "@/lib/labels";
@@ -392,7 +392,7 @@ export default function ZoneDetailPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
                   <PlateChip>{zone.code}</PlateChip>
-                  <h1 className="font-display text-3xl font-black leading-tight tracking-tight text-charcoal">{zone.name}</h1>
+                  <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] text-charcoal">{zone.name}</h1>
                 </div>
                 {zone.description ? <p className="mt-1.5 text-sm text-muted">{zone.description}</p> : null}
                 <p className="mt-1.5 font-mono text-xs font-semibold text-muted" data-testid="zone-navigation-summary">
@@ -437,7 +437,7 @@ export default function ZoneDetailPage() {
                         <div className="flex min-w-0 items-center gap-3">
                           <span
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control ${
-                              isExitOnly ? "bg-brand-soft text-brand-ink" : "bg-success-soft text-success"
+                              isExitOnly ? "bg-raised text-muted" : "bg-success-soft text-success"
                             }`}
                             aria-hidden="true"
                           >
@@ -481,7 +481,7 @@ export default function ZoneDetailPage() {
                             <div
                               key={e.id}
                               title={`${formatDateTime(e.occurredAt)} · ${e.occupiedCount} / ${cap}`}
-                              className={`flex-1 rounded-xs transition-colors duration-150 hover:bg-brand-dark ${AVAILABILITY_BAR[zone.availability]} opacity-80`}
+                              className={`flex-1 rounded-xs transition-colors duration-150 hover:bg-muted bg-raised2`}
                               style={{ height: `${Math.max(4, h)}%` }}
                             />
                           );
@@ -491,7 +491,7 @@ export default function ZoneDetailPage() {
                         {history.data.entries.slice(-6).map((e) => (
                           <li key={e.id} className="flex items-center justify-between py-2 text-sm">
                             <span className="font-mono text-xs font-semibold text-muted">{formatDateTime(e.occurredAt)}</span>
-                            <span className="font-display text-sm font-black tabular-nums text-charcoal">{e.occupiedCount}</span>
+                            <span className="font-display text-sm font-semibold tabular-nums text-charcoal">{e.occupiedCount}</span>
                           </li>
                         ))}
                       </ul>

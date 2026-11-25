@@ -70,12 +70,12 @@ export default function NotificationsPage() {
               key={f}
               type="button"
               onClick={() => setFilter(f)}
-              className="segmented-item uppercase tracking-[0.06em]"
+              className="segmented-item"
               aria-pressed={filter === f}
             >
               {f === "ALL" ? "All" : "Unread"}
               {f === "UNREAD" && unreadCount > 0 ? (
-                <span className="ml-1.5 rounded-full bg-brand px-2 py-0.5 font-display text-micro font-black text-on-accent">
+                <span className="ml-1.5 rounded-full bg-brand px-2 py-0.5 font-display text-micro font-semibold text-on-accent">
                   {unreadCount}
                 </span>
               ) : null}
@@ -106,7 +106,7 @@ export default function NotificationsPage() {
           ) : (
             <ul className="divide-y divide-line">
               {items.map((n: AdminNotification) => (
-                <li key={n.id} className={`flex items-center justify-between gap-4 px-5 py-3.5 ${n.read ? "" : "bg-brand-soft/30"}`}>
+                <li key={n.id} className={`flex items-center justify-between gap-4 px-5 py-3.5 ${n.read ? "" : "bg-raised/60"}`}>
                   <div className="flex min-w-0 items-start gap-3">
                     <div
                       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-control ${

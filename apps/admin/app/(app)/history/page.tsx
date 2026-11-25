@@ -67,7 +67,7 @@ export default function HistoryPage() {
     {
       key: "occupied",
       header: "Occupied",
-      cell: (e) => <span className="font-display text-sm font-black tabular-nums text-charcoal">{e.occupiedCount}</span>,
+      cell: (e) => <span className="font-display text-sm font-semibold tabular-nums text-charcoal">{e.occupiedCount}</span>,
     },
     {
       key: "available",
@@ -178,7 +178,7 @@ function ZoneTimeline({ data }: { data: ZoneHistory }) {
             {entries.map((e) => {
               const ratio = e.occupiedCount / capacity;
               const h = Math.max(2, ratio * 100);
-              const fill = ratio >= 1 ? "bg-danger" : ratio >= 0.8 ? "bg-warning" : "bg-brand";
+              const fill = ratio >= 1 ? "bg-danger" : ratio >= 0.8 ? "bg-warning" : "bg-muted";
               return (
                 <div
                   key={e.id}

@@ -33,37 +33,39 @@
  * `prefers-color-scheme` decides.
  */
 :root {
-  --paper: 18 19 22;
-  --card: 27 29 34;
-  --raised: 35 38 44;
-  --raised2: 44 47 54;
-  --charcoal: 245 244 242;
-  --muted: 144 148 158;
-  --faint: 107 111 122;
-  --line: 36 38 45;
-  --line-strong: 51 54 63;
+  --paper: 11 11 12;
+  --card: 20 20 22;
+  --raised: 28 28 31;
+  --raised2: 34 34 38;
+  --charcoal: 244 244 245;
+  --muted: 161 161 170;
+  --faint: 113 113 122;
+  --line: 39 39 42;
+  --line-strong: 52 52 58;
   /* Form-control boundary: >= 3:1 on card and paper (WCAG 1.4.11); line stays for hairline seams. */
-  --control-border: 110 114 125;
+  --control-border: 113 113 122;
   --brand: 247 147 26;
   --brand-dark: 234 88 12;
-  --brand-soft: 42 32 21;
-  /* Text-safe brand: brand-dark on brand-soft is only 4.48:1 here; brand is 6.95:1. */
+  --brand-soft: 43 31 18;
+  /* Text-safe brand. Orange is reserved for live data and the one filled action. */
   --brand-ink: 247 147 26;
   /* Primary-button hover fill (on-accent text 5.53:1). */
   --brand-hover: 234 88 12;
-  /* Focus ring colour: solid, >=3:1 against card and paper (7.34 / 8.09). */
+  /* Focus ring colour: solid, >=3:1 against card and paper. */
   --focus: 247 147 26;
-  /* Card elevation. Dark grounds take a black shadow; light ones a warm,
-     much lighter one (a black 50% shadow read as a smudge on paper). */
-  --shadow-card: 0 12px 32px -12px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.3);
-  --shadow-card-hover: 0 18px 44px -12px rgb(0 0 0 / 0.6), 0 1px 2px rgb(0 0 0 / 0.3);
-  --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2390949e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  /* Tick meters: empty and filled segments. */
+  --tick: 44 44 49;
+  --tick-fill: 212 212 216;
+  /* Card elevation: panels sit flat; only floating layers (pop-ups, drawer) lift. */
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.02);
+  --shadow-card-hover: 0 18px 40px -12px rgb(0 0 0 / 0.7), 0 2px 8px rgb(0 0 0 / 0.45);
+  --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
   --success: 61 220 132;
-  --success-soft: 21 41 29;
+  --success-soft: 18 40 28;
   --warning: 255 214 0;
-  --warning-soft: 46 42 16;
+  --warning-soft: 44 40 12;
   --danger: 240 82 74;
-  --danger-soft: 46 22 20;
+  --danger-soft: 50 22 21;
   --on-accent: 15 10 5;
   --data-1: 247 147 26;
   --data-2: 61 220 132;
@@ -73,37 +75,36 @@
 }
 
 :root[data-theme="light"] {
-  --paper: 245 242 236;
-  --card: 255 253 249;
-  --raised: 241 235 224;
+  --paper: 244 244 245;
+  --card: 255 255 255;
+  --raised: 244 244 245;
   --raised2: 255 255 255;
-  --charcoal: 24 19 16;
-  --muted: 101 93 83;
-  --faint: 155 145 134;
-  --line: 228 221 207;
-  --line-strong: 217 208 192;
-  --control-border: 135 127 115;
+  --charcoal: 10 10 11;
+  --muted: 82 82 91;
+  --faint: 161 161 170;
+  --line: 228 228 231;
+  --line-strong: 212 212 216;
+  --control-border: 113 113 122;
   --brand: 247 147 26;
-  /* Deliberately darker than dark mode's brand-dark: raw brand orange only
-     reaches ~2.3:1 as text on this warm-white surface. #B23A0A clears 4.5:1
-     on card (5.90), paper (5.37) and brand-soft (5.14; the old #C2410C was
-     4.44 there). This block is duplicated in the prefers-color-scheme
-     block below ON PURPOSE (no-JS fallback) — edit both; a test asserts
-     they match. */
+  /* Raw brand orange is ~2.3:1 as text on white; #B23A0A is the text-safe ink.
+     This block is duplicated in the prefers-color-scheme block below ON
+     PURPOSE (no-JS fallback) — edit both; a test asserts they match. */
   --brand-dark: 178 58 10;
-  --brand-soft: 253 235 211;
+  --brand-soft: 253 240 225;
   --brand-ink: 178 58 10;
   --brand-hover: 232 131 15;
   --focus: 178 58 10;
-  --shadow-card: 0 12px 32px -16px rgb(24 19 16 / 0.14), 0 1px 2px rgb(24 19 16 / 0.08);
-  --shadow-card-hover: 0 18px 44px -16px rgb(24 19 16 / 0.2), 0 1px 2px rgb(24 19 16 / 0.1);
-  --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23655d53' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  --tick: 228 228 231;
+  --tick-fill: 63 63 70;
+  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04);
+  --shadow-card-hover: 0 18px 40px -14px rgb(24 24 27 / 0.22), 0 2px 8px rgb(24 24 27 / 0.07);
+  --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2352525b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
   --success: 23 112 71;
-  --success-soft: 225 240 232;
+  --success-soft: 231 244 236;
   --warning: 138 106 0;
-  --warning-soft: 255 243 204;
+  --warning-soft: 251 243 214;
   --danger: 194 42 38;
-  --danger-soft: 251 228 227;
+  --danger-soft: 251 233 232;
   --on-accent: 15 10 5;
   --data-1: 234 88 12;
   --data-2: 23 112 71;
@@ -114,31 +115,36 @@
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
-    --paper: 245 242 236;
-    --card: 255 253 249;
-    --raised: 241 235 224;
+    --paper: 244 244 245;
+    --card: 255 255 255;
+    --raised: 244 244 245;
     --raised2: 255 255 255;
-    --charcoal: 24 19 16;
-    --muted: 101 93 83;
-    --faint: 155 145 134;
-    --line: 228 221 207;
-    --line-strong: 217 208 192;
-    --control-border: 135 127 115;
+    --charcoal: 10 10 11;
+    --muted: 82 82 91;
+    --faint: 161 161 170;
+    --line: 228 228 231;
+    --line-strong: 212 212 216;
+    --control-border: 113 113 122;
     --brand: 247 147 26;
+    /* Raw brand orange is ~2.3:1 as text on white; #B23A0A is the text-safe ink.
+       This block is duplicated in the prefers-color-scheme block below ON
+       PURPOSE (no-JS fallback) — edit both; a test asserts they match. */
     --brand-dark: 178 58 10;
-    --brand-soft: 253 235 211;
+    --brand-soft: 253 240 225;
     --brand-ink: 178 58 10;
     --brand-hover: 232 131 15;
     --focus: 178 58 10;
-    --shadow-card: 0 12px 32px -16px rgb(24 19 16 / 0.14), 0 1px 2px rgb(24 19 16 / 0.08);
-    --shadow-card-hover: 0 18px 44px -16px rgb(24 19 16 / 0.2), 0 1px 2px rgb(24 19 16 / 0.1);
-    --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23655d53' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+    --tick: 228 228 231;
+    --tick-fill: 63 63 70;
+    --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04);
+    --shadow-card-hover: 0 18px 40px -14px rgb(24 24 27 / 0.22), 0 2px 8px rgb(24 24 27 / 0.07);
+    --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2352525b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
     --success: 23 112 71;
-    --success-soft: 225 240 232;
+    --success-soft: 231 244 236;
     --warning: 138 106 0;
-    --warning-soft: 255 243 204;
+    --warning-soft: 251 243 214;
     --danger: 194 42 38;
-    --danger-soft: 251 228 227;
+    --danger-soft: 251 233 232;
     --on-accent: 15 10 5;
     --data-1: 234 88 12;
     --data-2: 23 112 71;
@@ -159,8 +165,8 @@
   }
 
   ::selection {
-    background: rgb(var(--brand) / 0.28);
-    color: rgb(var(--charcoal));
+    background: rgb(var(--brand));
+    color: rgb(var(--on-accent));
   }
 
   h1,
@@ -192,42 +198,46 @@
 
 /* Applied by the .btn-* variants below, so it must be a utility in Tailwind 4. */
 @utility btn {
-  @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-control rounded-tr-control-cut px-5 text-sm font-bold transition-all duration-150 focus-visible:outline-hidden focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
+  @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-control px-4 text-sm font-semibold transition-all duration-150 focus-visible:outline-hidden focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
 }
 
 @layer components {
-  /* ---- Panels: the registry surface. Three soft corners, one sharp cut
-     (top-right) — the shared PARADA shape, echoing the logo's diagonal cut.
-     Never a plain uniform rounded rectangle. ---- */
+  /* ---- Panels: soft, borderless-feeling surfaces on the ground. Uniform
+     corners; depth comes from the card -> paper step, not a shadow. ---- */
   .card {
-    @apply rounded-panel rounded-tr-panel-cut border border-line bg-card shadow-card;
+    @apply rounded-panel border border-line/60 bg-card shadow-card;
   }
 
   .card-hover {
-    @apply transition-shadow duration-200 hover:shadow-card-hover;
+    @apply transition-colors duration-150 hover:bg-raised/60;
   }
 
   /* Nested row surface inside a panel */
   .surface-panel {
-    @apply rounded-control rounded-tr-control-cut border border-line bg-raised/60;
+    @apply rounded-control bg-raised;
   }
 
-  /* ---- Buttons: same cut as panels — the primary action carries the brand shape ---- */
+  /* Floating layers (pop-ups, menus, drawer): the only things that lift. */
+  .float-panel {
+    @apply rounded-panel border border-line bg-card shadow-card-hover;
+  }
+
+  /* ---- Buttons: one filled orange action per screen; everything else is quiet ---- */
 
   .btn-sm {
     @apply min-h-[44px] px-3.5 text-xs;
   }
 
   .btn-primary {
-    @apply btn bg-brand text-on-accent shadow-primary hover:bg-brand-hover;
+    @apply btn bg-brand text-on-accent hover:bg-brand-hover;
   }
 
   .btn-secondary {
-    @apply btn border border-line bg-card text-charcoal hover:border-line-strong hover:bg-raised;
+    @apply btn border border-line bg-raised text-charcoal hover:border-line-strong hover:bg-raised2;
   }
 
   .btn-ghost {
-    @apply btn border border-transparent text-brand-ink hover:bg-brand-soft;
+    @apply btn border border-transparent text-muted hover:bg-raised hover:text-charcoal;
   }
 
   .btn-success {
@@ -235,12 +245,12 @@
   }
 
   .btn-danger {
-    @apply btn border border-danger/40 bg-card text-danger hover:bg-danger-soft;
+    @apply btn border border-danger/40 bg-raised text-danger hover:bg-danger-soft;
   }
 
   /* ---- Inputs ---- */
   .input {
-    @apply min-h-[44px] w-full rounded-control rounded-tr-control-cut border-[1.5px] border-control bg-card px-4 py-2 text-base font-medium text-charcoal placeholder:font-normal placeholder:text-muted transition-[border-color,box-shadow] duration-150 focus-visible:outline-hidden focus-visible:border-brand focus-visible:shadow-focus disabled:bg-raised disabled:text-muted;
+    @apply min-h-[44px] w-full rounded-control border border-control bg-raised px-3.5 py-2 text-sm font-medium text-charcoal placeholder:font-normal placeholder:text-muted transition-[border-color,box-shadow] duration-150 focus-visible:outline-hidden focus-visible:border-brand focus-visible:shadow-focus disabled:bg-raised disabled:text-muted;
   }
 
   select.input {
@@ -259,11 +269,11 @@
 
   /* ---- Field labels (form labels, not kickers) ---- */
   .label {
-    @apply mb-1.5 block text-xs font-bold text-charcoal;
+    @apply mb-1.5 block text-sm font-semibold text-charcoal;
   }
 
   .label-tech {
-    @apply text-micro font-bold uppercase tracking-[0.08em] text-muted;
+    @apply text-xs font-semibold text-muted;
   }
 
   .field-help {
@@ -279,18 +289,46 @@
     @apply mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-danger;
   }
 
-  /* ---- Status pill: tinted fill, icon + text (chips/badges stay full-pill) ---- */
+  /* ---- Status pill: tinted fill, icon or dot + text ---- */
   .status-pill {
-    @apply inline-flex min-h-[26px] items-center gap-1.5 rounded-full px-2.5 py-0.5 text-micro font-bold;
+    @apply inline-flex min-h-[24px] items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold;
   }
 
-  /* ---- Identifier plate chip (zone codes, plates, camera ids) ---- */
+  /* ---- Identifier chip (zone codes, plates, camera ids) ---- */
   .plate-chip {
-    @apply inline-flex items-center rounded-chip bg-charcoal px-2 py-0.5 font-mono text-xs font-bold tracking-[0.08em] text-paper;
+    @apply inline-flex min-h-[24px] items-center rounded-chip border border-line bg-raised px-2 py-0.5 font-mono text-xs font-bold tracking-[0.04em] text-charcoal;
   }
 
   .plate-chip-soft {
-    @apply inline-flex items-center rounded-chip bg-brand-soft px-2 py-0.5 font-mono text-xs font-bold tracking-[0.08em] text-brand-ink;
+    @apply inline-flex min-h-[24px] items-center rounded-chip bg-brand-soft px-2 py-0.5 font-mono text-xs font-bold tracking-[0.04em] text-brand-ink;
+  }
+
+  /* ---- Tick meter: a quantised bar (fixed segment count = percentage, never one per space) ---- */
+  .tick-meter {
+    display: grid;
+    grid-template-columns: repeat(var(--ticks, 24), minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .tick {
+    @apply h-3 rounded-[2px];
+    background: rgb(var(--tick));
+  }
+
+  .tick-on {
+    background: rgb(var(--tick-fill));
+  }
+
+  .tick-live {
+    background: rgb(var(--brand));
+  }
+
+  .tick-full {
+    background: rgb(var(--danger));
+  }
+
+  .tick-warn {
+    background: rgb(var(--warning));
   }
 
   /* ---- Map picker pin (Leaflet divIcon markup, so plain classes) ----
@@ -313,7 +351,7 @@
     cursor: grab;
   }
 
-  /* ---- Tables: dense registry rows with hairline seams ---- */
+  /* ---- Tables: dense rows with hairline seams ---- */
   .table-base {
     @apply w-full text-left text-sm;
   }
@@ -323,7 +361,7 @@
   }
 
   .table-base thead th {
-    @apply sticky top-0 z-[1] bg-card px-4 py-2.5 text-micro font-bold uppercase tracking-[0.08em] text-muted;
+    @apply sticky top-0 z-[1] bg-card px-4 py-2.5 text-xs font-semibold text-muted;
   }
 
   .table-base tbody tr {
@@ -338,11 +376,6 @@
     @apply whitespace-nowrap px-4 py-3 align-middle;
   }
 
-  /* ---- Occupancy bar with a designed ghost track ---- */
-  .occupancy-bar {
-    @apply relative h-2 w-full overflow-hidden rounded-full border border-line bg-raised;
-  }
-
   /* ---- Inline alert ---- */
   .alert-danger {
     @apply flex items-start gap-2 rounded-control border border-danger/30 bg-danger-soft px-3.5 py-2.5 text-sm font-semibold text-danger;
@@ -354,11 +387,11 @@
 
   /* ---- Segmented filter ---- */
   .segmented {
-    @apply inline-flex items-center gap-1 rounded-control rounded-tr-control-cut border border-control bg-card p-1;
+    @apply inline-flex items-center gap-1 rounded-control border border-control bg-raised p-1;
   }
 
   .segmented-item {
-    @apply min-h-[44px] rounded-chip rounded-tr-control-cut px-3.5 text-xs font-bold text-muted transition-colors duration-150 hover:bg-raised hover:text-charcoal focus-visible:outline-hidden focus-visible:shadow-focus aria-pressed:bg-brand-soft aria-pressed:text-brand-ink;
+    @apply min-h-[44px] rounded-chip px-3.5 text-xs font-semibold text-muted transition-colors duration-150 hover:text-charcoal focus-visible:outline-hidden focus-visible:shadow-focus aria-pressed:bg-card aria-pressed:text-charcoal aria-pressed:shadow-card;
   }
 
   /* ---- Scrollbar ---- */
@@ -379,6 +412,16 @@
 
   ::-webkit-scrollbar-track {
     background: transparent;
+  }
+}
+
+/* Info pop-up countdown bar (paused inline while hovered or focused). */
+@keyframes toast-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
   }
 }
 

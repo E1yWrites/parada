@@ -5,6 +5,7 @@ import { api } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, SectionHeader } from "@/components/ui/Card";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
+import { TickMeter } from "@/components/ui/OccupancyBar";
 import { PlateChip } from "@/components/ui/Badge";
 import { FacilityStrip, MetricCard } from "@/components/ui/MetricCard";
 
@@ -33,17 +34,14 @@ export default function AnalyticsPage() {
                 <ul className="divide-y divide-line">
                   {analytics.data.zones.map((zone) => {
                     const pct = zone.capacity > 0 ? Math.round((zone.occupiedCount / zone.capacity) * 100) : 0;
-                    const fill = pct >= 100 ? "bg-danger" : pct >= 80 ? "bg-warning" : "bg-success";
                     return (
                       <li key={zone.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-4 px-5 py-3">
                         <PlateChip>{zone.code}</PlateChip>
                         <div className="min-w-0">
-                          <div className="occupancy-bar" aria-hidden="true">
-                            <div className={`h-full rounded-full ${fill}`} style={{ width: `${Math.min(100, pct)}%` }} />
-                          </div>
+                          <TickMeter pct={pct} tone={pct >= 100 ? "full" : "on"} />
                           <p className="mt-1.5 text-micro font-semibold text-muted">{zone.availableCount} open · {pct}%</p>
                         </div>
-                        <p className="font-display text-sm font-black tabular-nums text-charcoal">
+                        <p className="font-display text-sm font-semibold tabular-nums text-charcoal">
                           {zone.occupiedCount} <span className="font-bold text-muted">/ {zone.capacity}</span>
                         </p>
                       </li>
@@ -57,13 +55,13 @@ export default function AnalyticsPage() {
                 <dl className="divide-y divide-line px-5">
                   <div className="flex items-center justify-between gap-4 py-3.5">
                     <dt className="text-sm text-muted">Average duration</dt>
-                    <dd className="font-display text-base font-black tabular-nums text-charcoal">
+                    <dd className="font-display text-base font-semibold tabular-nums text-charcoal">
                       {Math.round(analytics.data.sessions.averageDurationSeconds / 60)} min
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-4 py-3.5">
                     <dt className="text-sm text-muted">Peak entry hour</dt>
-                    <dd className="font-display text-base font-black tabular-nums text-charcoal">
+                    <dd className="font-display text-base font-semibold tabular-nums text-charcoal">
                       {analytics.data.peakEntryHour
                         ? `${String(analytics.data.peakEntryHour.hour).padStart(2, "0")}:00`
                         : "Not recorded"}
@@ -71,7 +69,7 @@ export default function AnalyticsPage() {
                   </div>
                   <div className="flex items-center justify-between gap-4 py-3.5">
                     <dt className="text-sm text-muted">Active sessions</dt>
-                    <dd className="font-display text-base font-black tabular-nums text-charcoal">{analytics.data.sessions.active}</dd>
+                    <dd className="font-display text-base font-semibold tabular-nums text-charcoal">{analytics.data.sessions.active}</dd>
                   </div>
                 </dl>
               </Card>

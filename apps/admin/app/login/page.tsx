@@ -50,7 +50,7 @@ export default function LoginPage() {
 
           <Card className="p-6 sm:p-8">
             <div className="mb-6">
-              <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">Sign in</h1>
+              <h1 className="font-display text-2xl font-semibold tracking-tight text-charcoal">Sign in</h1>
               <p className="mt-1.5 text-sm text-muted">Administrator accounts only.</p>
             </div>
 

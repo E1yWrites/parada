@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useRealtime } from "@/lib/realtime";
+import { subscribeRealtimeEvents, useRealtime } from "@/lib/realtime";
 
 class FakeEventSource {
   static instances: FakeEventSource[] = [];
@@ -57,6 +57,46 @@ describe("useRealtime (admin)", () => {
     FakeEventSource.instances[0]!.emitOpen();
 
     await waitFor(() => expect(result.current.status).toBe("CONNECTED"));
+  });
+
+  it("hands each accepted event to subscribers once (pop-ups), and stops after unsubscribe", () => {
+    const qc = new QueryClient();
+    const heard: number[] = [];
+    const unsubscribe = subscribeRealtimeEvents((event) => heard.push(event.seq));
+    renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+
+    FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", zoneEvent(1));
+    FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", zoneEvent(1));
+    unsubscribe();
+    FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", zoneEvent(2));
+
+    expect(heard).toEqual([1]);
+  });
+
+  it("an occupancy update also refreshes sessions, anomalies and history (guest sessions publish only a snapshot)", () => {
+    const qc = new QueryClient();
+    const spy = jest.spyOn(qc, "invalidateQueries");
+    renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+
+    FakeEventSource.instances[0]!.emit("ZONE_OCCUPANCY_UPDATED", zoneEvent(1));
+
+    for (const key of [["sessions"], ["anomalies"], ["history"]]) {
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: key }));
+    }
+  });
+
+  it("a reconnect resyncs appeals and anomalies too (they have no polling fallback for missed events)", () => {
+    const qc = new QueryClient();
+    const spy = jest.spyOn(qc, "invalidateQueries");
+    renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+    FakeEventSource.instances[0]!.emitOpen();
+    FakeEventSource.instances[0]!.emitError();
+    spy.mockClear();
+    FakeEventSource.instances[0]!.emitOpen();
+
+    for (const key of [["appeals"], ["anomalies"], ["analytics"]]) {
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: key }));
+    }
   });
 
   it("invalidates the zones query on ZONE_OCCUPANCY_UPDATED", async () => {

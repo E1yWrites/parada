@@ -23,11 +23,17 @@ import {
   Menu,
   X,
   ShieldAlert,
+  Moon,
+  Sun,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
 import { useAuth } from "./providers/auth-provider";
 import { BrandLogo } from "./BrandLogo";
 import { ConnectionIndicator } from "./ConnectionIndicator";
 import { FullPageSpinner } from "./ui/State";
+import { Toaster } from "./Toaster";
+import { useTheme } from "./providers/theme-provider";
 
 interface NavItem {
   href: string;
@@ -96,9 +102,9 @@ function isActive(href: string, exact: boolean | undefined, pathname: string): b
 
 function Brand() {
   return (
-    <Link href="/" className="flex items-center gap-3 rounded-control focus-visible:outline-hidden focus-visible:shadow-focus">
+    <Link href="/" className="flex flex-col items-start gap-1.5 rounded-control focus-visible:outline-hidden focus-visible:shadow-focus">
       <BrandLogo height={14} priority />
-      <span className="mt-0.5 block text-micro font-semibold text-muted">Operations console</span>
+      <span className="block text-xs font-medium text-muted">Operations console</span>
     </Link>
   );
 }
@@ -114,7 +120,7 @@ function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: stri
         aria-current={active ? "page" : undefined}
         data-active={active ? "true" : undefined}
         className={`relative z-[1] flex min-h-[44px] items-center gap-3 rounded-control px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-hidden focus-visible:shadow-focus ${
-          active ? "text-brand-ink" : "text-muted hover:bg-raised hover:text-charcoal"
+          active ? "text-charcoal" : "text-muted hover:bg-raised/70 hover:text-charcoal"
         }`}
       >
         <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-brand-ink" : "text-muted"}`} aria-hidden="true" />
@@ -163,19 +169,20 @@ function NavList({ label, scope, onNavigate }: { label: string; scope: string; o
   }, [measure]);
 
   return (
-    <nav ref={navRef} className="relative flex-1 overflow-y-auto px-4 py-3" aria-label={label}>
+    <nav ref={navRef} className="relative flex-1 overflow-y-auto px-3 pb-3" aria-label={label}>
       {pill ? (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute left-4 right-4 rounded-control bg-brand-soft motion-safe:transition-[transform,height] motion-safe:duration-200 motion-safe:ease-out"
+          data-nav-pill=""
+          className="pointer-events-none absolute left-3 right-3 rounded-control bg-raised motion-safe:transition-[transform,height] motion-safe:duration-200 motion-safe:ease-out"
           style={{ top: 0, height: pill.height, transform: `translateY(${pill.top}px)` }}
         />
       ) : null}
       {GROUPS.map((group) => {
         const id = groupId(group.label, scope);
         return (
-          <div key={group.label} className="mb-4">
-            <h2 id={id} className="px-3 pb-1 text-micro font-bold uppercase tracking-[0.08em] text-muted">
+          <div key={group.label} className="mt-4 first:mt-1">
+            <h2 id={id} className="px-3 pb-1 text-xs font-medium text-muted">
               {group.label}
             </h2>
             <ul className="mt-1 space-y-0.5" aria-labelledby={id}>
@@ -236,9 +243,9 @@ function Drawer({ onClose, returnFocusTo }: { onClose: () => void; returnFocusTo
         aria-modal="true"
         aria-label="Menu"
         onKeyDown={onKeyDown}
-        className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-line bg-card shadow-card-hover"
+        className="absolute inset-y-2 left-2 flex w-72 flex-col rounded-panel border border-line bg-card shadow-card-hover"
       >
-        <div className="flex items-center justify-between border-b border-line px-4 py-4">
+        <div className="flex items-center justify-between px-4 py-4">
           <Brand />
           <button
             ref={closeRef}
@@ -256,6 +263,42 @@ function Drawer({ onClose, returnFocusTo }: { onClose: () => void; returnFocusTo
   );
 }
 
+/** Header bell: unread admin notifications, from the same query the Notifications page uses. */
+function NotificationBell() {
+  const notifications = useQuery({ queryKey: ["notifications"], queryFn: () => api.notifications() });
+  const unread = notifications.data?.unreadCount ?? 0;
+  return (
+    <Link
+      href="/notifications"
+      aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+      className="relative flex h-11 w-11 items-center justify-center rounded-control bg-card text-charcoal transition-colors duration-150 hover:bg-raised focus-visible:outline-hidden focus-visible:shadow-focus"
+    >
+      <Bell className="h-[18px] w-[18px]" aria-hidden="true" />
+      {unread > 0 ? (
+        <span className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-micro font-bold text-on-accent" aria-hidden="true">
+          {unread > 99 ? "99+" : unread}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+function ThemeToggle() {
+  const { scheme, setMode } = useTheme();
+  const next = scheme === "dark" ? "light" : "dark";
+  const Icon = scheme === "dark" ? Moon : Sun;
+  return (
+    <button
+      type="button"
+      onClick={() => setMode(next)}
+      aria-label={`Switch to ${next} theme`}
+      className="flex h-11 w-11 items-center justify-center rounded-control bg-card text-charcoal transition-colors duration-150 hover:bg-raised focus-visible:outline-hidden focus-visible:shadow-focus"
+    >
+      <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+    </button>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading, error, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -267,7 +310,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center">
         <BrandLogo height={20} />
-        <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">{error}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-charcoal">{error}</h1>
         <p className="max-w-sm text-sm text-muted">
           You are not signed out. Check the connection and try again.
         </p>
@@ -282,7 +325,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center">
         <BrandLogo height={20} />
-        <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">Admin access required</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-charcoal">Admin access required</h1>
         <p className="max-w-sm text-sm text-muted">
           PARADA Operations is restricted to administrators. Sign in with an admin account.
         </p>
@@ -299,7 +342,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-danger-soft" aria-hidden="true">
           <ShieldAlert className="h-7 w-7 text-danger" />
         </div>
-        <h1 className="font-display text-2xl font-black tracking-tight text-charcoal">Forbidden</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-charcoal">Forbidden</h1>
         <p className="max-w-sm text-sm text-muted">
           Your account does not have administrator privileges.
         </p>
@@ -311,7 +354,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen gap-3 lg:p-3">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-control focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-charcoal focus:shadow-focus"
@@ -320,8 +363,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </a>
 
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-card lg:flex">
-        <div className="px-5 pb-3 pt-5">
+      <aside className="sticky top-3 hidden h-[calc(100vh-1.5rem)] w-64 shrink-0 flex-col rounded-panel bg-card lg:flex">
+        <div className="px-5 pb-2 pt-5">
           <Brand />
         </div>
         <NavList label="Primary" scope="side" />
@@ -331,8 +374,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-line bg-card px-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 bg-paper px-4 sm:px-6 lg:top-3 lg:h-14 lg:px-2">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <button
               ref={menuButtonRef}
               type="button"
@@ -347,14 +390,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* One identity (links to Account) and one Log out — each appeared twice before. */}
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+            <NotificationBell />
+            <ThemeToggle />
             <Link
               href="/account"
               aria-label={`Account: ${user.name}, administrator`}
-              className="flex min-h-[44px] items-center gap-2.5 rounded-control rounded-tr-control-cut border border-line bg-card py-1.5 pl-1.5 pr-3 transition-colors duration-150 hover:bg-raised focus-visible:outline-hidden focus-visible:shadow-focus"
+              className="flex min-h-[44px] items-center gap-2.5 rounded-control bg-card py-1.5 pl-1.5 pr-3 transition-colors duration-150 hover:bg-raised focus-visible:outline-hidden focus-visible:shadow-focus"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft" aria-hidden="true">
-                <UserCircle2 className="h-5 w-5 text-brand-ink" />
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-raised" aria-hidden="true">
+                <UserCircle2 className="h-5 w-5 text-muted" />
               </span>
               <span className="hidden min-w-0 leading-tight sm:block">
                 <span className="block max-w-[12rem] truncate text-sm font-bold text-charcoal">{user.name}</span>
@@ -364,17 +409,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => signOut()}
-              className="flex min-h-[44px] items-center gap-2 rounded-control px-3 text-sm font-semibold text-muted transition-colors duration-150 hover:bg-danger-soft hover:text-danger focus-visible:outline-hidden focus-visible:shadow-focus"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-control px-3 text-sm font-semibold text-muted transition-colors duration-150 hover:bg-danger-soft hover:text-danger focus-visible:outline-hidden focus-visible:shadow-focus"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
-              <span>Log out</span>
+              <span className="max-sm:sr-only">Log out</span>
             </button>
           </div>
         </header>
 
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[88rem] flex-1 px-4 py-6 focus:outline-hidden sm:px-6 sm:py-8">
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[88rem] flex-1 px-4 py-5 focus:outline-hidden sm:px-6 lg:px-2 lg:pb-3">
           {children}
         </main>
+        <Toaster />
       </div>
     </div>
   );

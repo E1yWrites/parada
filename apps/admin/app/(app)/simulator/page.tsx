@@ -268,7 +268,7 @@ export default function SimulatorPage() {
                     <div className="surface-panel flex items-center justify-between gap-3 px-4 py-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-card" aria-hidden="true">
-                          <History className="h-4 w-4 text-brand-ink" />
+                          <History className="h-4 w-4 text-muted" />
                         </div>
                         <div className="min-w-0">
                           <PlateChip>{result.zone.code}</PlateChip>
@@ -276,7 +276,7 @@ export default function SimulatorPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-display text-base font-black tabular-nums text-charcoal">
+                        <p className="font-display text-base font-semibold tabular-nums text-charcoal">
                           {result.occupancy?.occupiedCount}
                           <span className="text-muted"> / {result.zone.capacity}</span>
                         </p>
@@ -299,7 +299,7 @@ export default function SimulatorPage() {
                             className="flex items-center gap-3 rounded-control bg-raised px-3.5 py-2"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
-                            <span className="text-micro font-bold uppercase tracking-[0.06em] text-muted">
+                            <span className="text-xs font-semibold text-muted">
                               {String(e.kind).replace(/_/g, " ")}
                             </span>
                             <span className="truncate font-mono text-xs font-bold text-charcoal">
@@ -348,11 +348,11 @@ function StatusMetric({ label, value, icon: Icon }: { label: string; value: stri
   return (
     <div className="surface-panel flex items-center gap-3 p-4">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-card" aria-hidden="true">
-        <Icon className="h-4 w-4 text-brand-ink" />
+        <Icon className="h-4 w-4 text-muted" />
       </span>
       <div className="min-w-0">
         <p className="text-xs font-bold text-muted">{label}</p>
-        <p className="truncate font-display text-lg font-black tabular-nums text-charcoal">{value}</p>
+        <p className="truncate font-display text-lg font-semibold tabular-nums text-charcoal">{value}</p>
       </div>
     </div>
   );

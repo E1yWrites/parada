@@ -34,8 +34,8 @@ export default function UsersPage() {
                 data-testid={`user-avatar-${u.id}`}
               />
             ) : (
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-brand-soft">
-                <Users className="h-4 w-4 text-brand-ink" aria-hidden="true" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-raised">
+                <Users className="h-4 w-4 text-muted" aria-hidden="true" />
               </div>
             )}
             <div className="min-w-0">
@@ -74,12 +74,12 @@ export default function UsersPage() {
     {
       key: "vehicles",
       header: "Vehicles",
-      cell: (u) => <span className="font-display text-sm font-black tabular-nums text-charcoal">{u._count.vehicles}</span>,
+      cell: (u) => <span className="font-display text-sm font-semibold tabular-nums text-charcoal">{u._count.vehicles}</span>,
     },
     {
       key: "sessions",
       header: "Sessions",
-      cell: (u) => <span className="font-display text-sm font-black tabular-nums text-charcoal">{u._count.sessions}</span>,
+      cell: (u) => <span className="font-display text-sm font-semibold tabular-nums text-charcoal">{u._count.sessions}</span>,
     },
     {
       key: "created",

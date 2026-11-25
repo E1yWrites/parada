@@ -281,6 +281,8 @@ export interface GuestAdmitResult {
   guestSessionId: string | null;
 }
 
+export type AdminZoneSummary = Omit<AdminZone, "navigationLat" | "navigationLng">;
+
 export interface AdminDashboard {
   summary: {
     totalZones: number;
@@ -294,9 +296,10 @@ export interface AdminDashboard {
     onlineCameras: number;
     offlineCameras: number;
   };
-  zones: AdminZone[];
-  lowZones: AdminZone[];
-  fullZones: AdminZone[];
+  /** The dashboard's zone summary carries no navigation fields. */
+  zones: AdminZoneSummary[];
+  lowZones: AdminZoneSummary[];
+  fullZones: AdminZoneSummary[];
   recentEvents: {
     id: string;
     zoneId: string;
