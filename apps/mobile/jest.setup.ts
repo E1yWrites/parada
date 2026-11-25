@@ -34,5 +34,12 @@ jest.mock("expo-secure-store", () => {
   };
 });
 
+// The map is a WebView (native); tests render a plain view with its props.
+jest.mock("react-native-webview", () => {
+  const { createElement, forwardRef } = jest.requireActual("react");
+  const { View } = jest.requireActual("react-native");
+  return { WebView: forwardRef((props: Record<string, unknown>, _ref: unknown) => createElement(View, props)) };
+});
+
 // Deterministic wall-clock rendering for date helpers in jsdom.
 process.env.TZ = "UTC";

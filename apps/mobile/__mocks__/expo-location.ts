@@ -20,6 +20,9 @@ export const Accuracy = {
 
 export const requestForegroundPermissionsAsync = jest.fn(async () => defaultPermission);
 export const getCurrentPositionAsync = jest.fn(async () => defaultPosition);
+/** The map only reads an existing grant; default "not granted" keeps it quiet in tests. */
+export const getForegroundPermissionsAsync = jest.fn(async () => ({ granted: false, canAskAgain: true, status: "undetermined" }));
+export const watchPositionAsync = jest.fn(async () => ({ remove: jest.fn() }));
 
 export const __setPermission = (result: {
   granted: boolean;

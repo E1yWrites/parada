@@ -1,21 +1,22 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { StyleSheet, View } from "react-native";
 import {
   Button,
+  Card,
   EmptyState,
   ErrorState,
   FormAlert,
   LoadingState,
-  ReservationPanel,
   Screen,
   SectionHeader,
-  SegmentedControl,
-  ZoneAssignmentPanel,
+  Text,
+  ZoneActionSheet,
   ZoneCard,
 } from "@/src/components";
 import { api, ApiError, type PublicZone } from "@/lib/api/client";
+import type { ZoneAction } from "@/src/components/ZoneActionSheet";
 import { activeAssignmentFrom } from "@/lib/assignment";
 import { currentReservationFrom } from "@/lib/current";
 import { formatDateTime, plural } from "@/lib/format";
@@ -23,21 +24,31 @@ import { queryKeys } from "@/lib/query";
 import { useConnectionLabel } from "@/src/providers/RealtimeStatusProvider";
 import { spacing } from "@/src/theme";
 
-/** Tile width for the horizontal zone rail — wide enough for a 2-line zone
- *  name and the full capacity bar, narrow enough that 2+ tiles peek at once. */
-const ZONE_TILE_WIDTH = 208;
-
 /**
- * Zones: choose a zone, then either "Go to this zone" (an assignment — keeps
- * no space) or "Reserve a space" (a reservation — keeps one space for its
- * window). The backend's least-occupied zone is tagged "Least busy" in the
+ * Zones: tap a zone and a sheet rises with the whole decision — "Go to this
+ * zone" (an assignment — keeps no space) or "Reserve a space" (a reservation —
+ * keeps one space for its window) — and the one button that finishes it. The backend's least-occupied zone is tagged "Least busy" in the
  * list. What the driver has already committed to lives on the Now tab; zone
  * selection is gated on it (no second plan while one is current).
  */
 export default function ParkScreen() {
   const router = useRouter();
-  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
-  const [actionMode, setActionMode] = useState<"assign" | "reserve">("assign");
+  // Zone detail's "Choose this zone" opens this tab with `?zone=<id>`.
+  const { zone: zoneParam, change } = useLocalSearchParams<{ zone?: string; change?: string }>();
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(
+    typeof zoneParam === "string" ? zoneParam : null,
+  );
+  // The tab stays mounted, so a later hand-over changes the param in place:
+  // adopt it during render (React's "adjust state on prop change" pattern).
+  const [handedZone, setHandedZone] = useState(zoneParam);
+  if (zoneParam !== handedZone) {
+    setHandedZone(zoneParam);
+    if (typeof zoneParam === "string") {
+      setSelectedZoneId(zoneParam);
+    }
+  }
+  // Go now is the frequent case, so it is the default (frequency of use).
+  const [actionMode, setActionMode] = useState<ZoneAction>("assign");
   const zones = useQuery({
     queryKey: queryKeys.zones,
     queryFn: api.zones,
@@ -78,8 +89,20 @@ export default function ParkScreen() {
   const assignment = activeAssignmentFrom(assignmentList.data);
   const reservation = currentReservationFrom(reservationList.data);
   const hasCurrentState = activeSession !== null || assignment !== null || reservation !== null;
+  // Now › Change zone opens Zones with ?change=1: while only an assignment is
+  // current (no session, no reservation), zones are choosable again and the
+  // sheet swaps the assignment.
+  const changing = change === "1" && assignment !== null && activeSession === null && reservation === null;
+  const locked = hasCurrentState && !changing;
+  const finish = () => {
+    setSelectedZoneId(null);
+    router.setParams({ change: undefined });
+    router.push("/parking");
+  };
   // One plan at a time: a selection made before a plan existed must not survive it.
-  const selectedZone = hasCurrentState
+  const leastBusyZone =
+    zones.data?.find((zone) => zone.id === leastBusyId && zone.status === "ACTIVE" && zone.availableCount > 0) ?? null;
+  const selectedZone = locked
     ? null
     : (zones.data?.find((zone) => zone.id === selectedZoneId) ?? null);
 
@@ -90,6 +113,22 @@ export default function ParkScreen() {
       refreshing={refreshing}
       onRefresh={refresh}
       testID="park-screen">
+      {changing && assignment ? (
+        <View style={styles.parkingAction} testID="zones-changing">
+          <FormAlert
+            tone="notice"
+            message={`Pick a new zone. ${assignment.zone.name} stays yours until you confirm.`}
+            testID="zones-changing-notice"
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            title={`Keep ${assignment.zone.name}`}
+            onPress={finish}
+            testID="zones-changing-keep"
+          />
+        </View>
+      ) : null}
       {zones.data && zones.data.length > 0 ? (
         <SectionHeader
           title={`${zones.data.filter((z) => z.status === "ACTIVE" && z.availableCount > 0).length} of ${plural(zones.data.length, "zone")} open`}
@@ -112,29 +151,40 @@ export default function ParkScreen() {
           testID="zones-empty"
         />
       ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          snapToInterval={ZONE_TILE_WIDTH + spacing.lg}
-          snapToAlignment="start"
-          style={styles.railScroller}
-          contentContainerStyle={styles.rail}
-          testID="zones-grid">
+        <View style={styles.list} testID="zones-grid">
+          {leastBusyZone && !locked && selectedZoneId !== leastBusyZone.id && leastBusyZone.id !== (changing ? assignment?.zoneId : null) ? (
+            <Card padding={spacing.xl} testID="zones-least-busy-card">
+              <View style={styles.leastRow}>
+                <View style={styles.leastText}>
+                  <Text variant="caption">Least busy now</Text>
+                  <Text variant="bodySemi" numberOfLines={1}>
+                    {leastBusyZone.name} · {leastBusyZone.availableCount} free
+                  </Text>
+                </View>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  title="Choose"
+                  accessibilityLabel={`Choose ${leastBusyZone.name}`}
+                  onPress={() => setSelectedZoneId(leastBusyZone.id)}
+                  testID="zones-least-busy-choose"
+                />
+              </View>
+            </Card>
+          ) : null}
           {(zones.data ?? []).map((zone: PublicZone) => (
-            <View key={zone.id} style={styles.tile}>
-              <ZoneCard
-                zone={zone}
-                onPress={hasCurrentState ? null : () => setSelectedZoneId(zone.id)}
-                selected={!hasCurrentState && selectedZoneId === zone.id}
-                leastBusy={zone.id === leastBusyId}
-                testID={`zone-${zone.code}`}
-              />
-            </View>
+            <ZoneCard
+              key={zone.id}
+              zone={zone}
+              onPress={locked || (changing && zone.id === assignment?.zoneId) ? null : () => setSelectedZoneId(zone.id)}
+              selected={!locked && selectedZoneId === zone.id}
+              leastBusy={zone.id === leastBusyId}
+              testID={`zone-${zone.code}`}
+            />
           ))}
-        </ScrollView>
+        </View>
       )}
-      {activeSession ? null : assignment || reservation ? (
+      {activeSession || changing ? null : assignment || reservation ? (
         <View style={styles.parkingAction}>
           <FormAlert
             tone="notice"
@@ -154,54 +204,33 @@ export default function ParkScreen() {
             testID="zones-open-now"
           />
         </View>
-      ) : (
-        <View style={styles.parkingAction} testID="parking-action">
-          <View testID="parking-action-toggle">
-            <SegmentedControl
-              value={actionMode}
-              onChange={(mode) => setActionMode(mode as "assign" | "reserve")}
-              options={[
-                {
-                  value: "assign",
-                  label: "Go to this zone",
-                  accessibilityLabel: "Go to this zone: no space is kept",
-                  testID: "parking-action-assign",
-                },
-                {
-                  value: "reserve",
-                  label: "Reserve a space",
-                  accessibilityLabel: "Reserve a space: keeps one space from your arrival time",
-                  testID: "parking-action-reserve",
-                },
-              ]}
-            />
-          </View>
-          {actionMode === "assign" ? (
-            <ZoneAssignmentPanel selectedZone={selectedZone} />
-          ) : (
-            <ReservationPanel selectedZone={selectedZone} />
-          )}
-        </View>
-      )}
+      ) : null}
+      {/* Tap a zone → the sheet holds the whole decision: choose, finish, done. */}
+      <ZoneActionSheet
+        zone={selectedZone}
+        mode={actionMode}
+        onModeChange={setActionMode}
+        onClose={() => setSelectedZoneId(null)}
+        onDone={finish}
+        replacing={changing ? assignment : null}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  // The bleed lives on the ScrollView's own frame (`style`), not its content
-  // container — a negative margin on `contentContainerStyle` shifts where
-  // content starts but never widens the scroll viewport itself, so a tile
-  // meant to "peek" past Screen's padding was actually just clipped there.
-  railScroller: {
-    marginHorizontal: -spacing.xl2,
+  list: {
+    gap: spacing.md,
   },
-  rail: {
+  leastRow: {
     flexDirection: "row",
+    alignItems: "center",
     gap: spacing.lg,
-    paddingHorizontal: spacing.xl2,
   },
-  tile: {
-    width: ZONE_TILE_WIDTH,
+  leastText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
   },
   parkingAction: {
     gap: spacing.xl,

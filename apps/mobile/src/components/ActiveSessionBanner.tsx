@@ -9,7 +9,7 @@ import { Text } from "./Text";
 import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
 import { motion, radii, spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
-import { withAlpha, type ColorTokens } from "@/src/theme/colors";
+import type { ColorTokens } from "@/src/theme/colors";
 import { formatElapsed } from "@/lib/format";
 import type { SessionDto } from "@/lib/api/client";
 
@@ -74,30 +74,29 @@ export function ActiveSessionBanner({ session, now, children, testID }: ActiveSe
           </View>
           <Stamp label="Parked" icon="car" color={colors.primaryDeep} testID={testID ? `${testID}-badge` : undefined} />
         </View>
-        <View style={styles.rightGroup}>
-          <PlateChip value={session.zone.code} tone="soft" />
-        </View>
       </View>
 
       <View style={styles.content}>
-        <Text variant="hero" numberOfLines={2} testID={testID ? `${testID}-zone` : undefined}>
-          {session.zone.name}
-        </Text>
-        <Text variant="plate" numberOfLines={1} testID={testID ? `${testID}-plate` : undefined}>
-          {session.vehicle?.plateNumber ?? "GUEST"}
-        </Text>
-      </View>
-
-      <View style={styles.elapsedRow}>
-        <View style={styles.elapsedIcon}>
-          <Ionicons name="time" size={18} color={colors.primaryDeep} />
+        <View style={styles.rightGroup}>
+          <Text variant="hero" numberOfLines={2} style={styles.elapsedText} testID={testID ? `${testID}-zone` : undefined}>
+            {session.zone.name}
+          </Text>
+          <PlateChip value={session.zone.code} tone="soft" size="sm" />
         </View>
-        <View style={styles.elapsedText}>
-          <Text variant="micro">SESSION ELAPSED</Text>
-          <Text variant="display" numberOfLines={1} adjustsFontSizeToFit testID={testID ? `${testID}-elapsed` : undefined}>
-            {formatElapsed(session.enteredAt, now)}
+        <View style={styles.rightGroup}>
+          <Ionicons name="car-outline" size={15} color={colors.muted} />
+          <Text variant="caption" color={colors.foreground} numberOfLines={1} testID={testID ? `${testID}-plate` : undefined}>
+            {session.vehicle?.plateNumber ?? "GUEST"}
           </Text>
         </View>
+      </View>
+
+      {/* The one number that changes while parked is the hero; no label box around it. */}
+      <View style={styles.elapsedRow}>
+        <Text variant="display" numberOfLines={1} adjustsFontSizeToFit testID={testID ? `${testID}-elapsed` : undefined}>
+          {formatElapsed(session.enteredAt, now)}
+        </Text>
+        <Text variant="caption">parked so far</Text>
       </View>
       {children}
     </Card>
@@ -124,7 +123,7 @@ function buildStyles(colors: ColorTokens) {
     rightGroup: {
       flexDirection: "row",
       alignItems: "center",
-      gap: spacing.md,
+      gap: spacing.sm,
     },
     dotWrap: {
       width: 16,
@@ -137,38 +136,25 @@ function buildStyles(colors: ColorTokens) {
       width: 20,
       height: 20,
       borderRadius: radii.full,
-      backgroundColor: colors.primary,
+      // The live pulse is the orange accent, not the ink button colour.
+      backgroundColor: colors.primaryDeep,
     },
     dot: {
       width: 8,
       height: 8,
       borderRadius: radii.full,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.primaryDeep,
     },
     content: {
-      gap: spacing.lg,
+      gap: spacing.sm,
     },
     elapsedRow: {
       flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.lg,
-      backgroundColor: withAlpha(colors.surface, 0.7),
-      borderRadius: radii.lg,
-      borderTopRightRadius: radii.cut,
-      padding: spacing.lg,
-    },
-    elapsedIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: radii.sm,
-      borderTopRightRadius: radii.cut,
-      backgroundColor: colors.primarySoft,
-      alignItems: "center",
-      justifyContent: "center",
+      alignItems: "baseline",
+      gap: spacing.md,
     },
     elapsedText: {
-      flex: 1,
-      gap: spacing.xs,
+      flexShrink: 1,
     },
   });
 }

@@ -53,7 +53,7 @@ export default function NotificationsScreen() {
         <View style={styles.headerRow}>
           <View style={styles.unreadBadge} testID="notifications-unread-count">
             <Text variant="micro" color={colors.danger}>
-              {unreadCount}
+              {unreadCount} UNREAD
             </Text>
           </View>
           <Pressable

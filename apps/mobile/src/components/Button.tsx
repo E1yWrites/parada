@@ -6,6 +6,7 @@ import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
 import { Text } from "./Text";
+import { pulseWaves } from "./WaveGrid";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 type ButtonSize = "md" | "sm";
@@ -21,6 +22,7 @@ type ButtonProps = {
   disabled?: boolean;
   icon?: ReactNode;
   accessibilityLabel?: string;
+  accessibilityHint?: string;
   testID?: string;
 };
 
@@ -55,6 +57,7 @@ export function Button({
   disabled = false,
   icon,
   accessibilityLabel,
+  accessibilityHint,
   testID,
 }: ButtonProps) {
   const colors = useColors();
@@ -62,6 +65,7 @@ export function Button({
   const styles = useMemo(() => buildStyles(colors), [colors]);
   const isDisabled = disabled || loading;
   const palette = variantColors[variant];
+  // 1 = rest, 0 = squashed; the release spring overshoots past 1 (stretch) and settles.
   const [scale] = useState(() => new Animated.Value(1));
   const reducedMotion = usePrefersReducedMotion();
   return (
@@ -69,12 +73,15 @@ export function Button({
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       onPress={onPress}
       onPressIn={() => {
         if (!isDisabled && !reducedMotion) {
-          Animated.spring(scale, { toValue: 0.96, friction: 7, tension: 300, useNativeDriver: true }).start();
+          pulseWaves(0.8);
+          // Squash: wider and flatter under the thumb (anticipation of the action).
+          Animated.spring(scale, { toValue: 0, friction: 7, tension: 320, useNativeDriver: true }).start();
         }
       }}
       onPressOut={() => {
@@ -98,7 +105,16 @@ export function Button({
         },
         variant === "primary" && !isDisabled ? styles.primaryShadow : undefined,
       ]}>
-      <Animated.View style={[styles.content, { transform: [{ scale }] }]}>
+      <Animated.View
+        style={[
+          styles.content,
+          {
+            transform: [
+              { scaleX: scale.interpolate({ inputRange: [-0.5, 0, 1, 1.5], outputRange: [0.98, 1.04, 1, 0.98] }) },
+              { scaleY: scale.interpolate({ inputRange: [-0.5, 0, 1, 1.5], outputRange: [1.06, 0.9, 1, 1.04] }) },
+            ],
+          },
+        ]}>
         {loading ? (
           <ActivityIndicator testID="button-spinner" color={isDisabled ? colors.disabledForeground : palette.foreground} />
         ) : null}
@@ -125,7 +141,6 @@ function buildStyles(colors: ColorTokens) {
       paddingHorizontal: spacing.xl2,
       paddingVertical: spacing.lg,
       borderRadius: radii.md,
-      borderTopRightRadius: radii.cut,
     },
     small: {
       minHeight: touchTarget,

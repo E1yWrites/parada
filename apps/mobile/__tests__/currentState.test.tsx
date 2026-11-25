@@ -251,9 +251,7 @@ describe("current parking state: assignment", () => {
   it("states that an assignment keeps no space and what entering another zone costs", async () => {
     await renderState({ assignment, destinationReady: false });
     // Only a reservation protects capacity; the camera path warns, then fines.
-    expect(screen.getByTestId("assignment-current-terms")).toHaveTextContent(
-      "No space is kept for you. Entering another zone gets a wrong-zone warning, then a fine.",
-    );
+    expect(screen.getByTestId("assignment-current-terms")).toHaveTextContent("No space kept · another zone: warning, then fine");
     expect(screen.queryByText(/all set/i)).not.toBeOnTheScreen();
     expect(screen.queryByText(/₱/)).not.toBeOnTheScreen();
   });
@@ -416,9 +414,10 @@ describe("parking screen: Phase 9.6 integration", () => {
 
     await waitFor(() => expect(screen.getByTestId("current-state-empty")).toBeOnTheScreen());
     expect(screen.getByTestId("current-state-find-zone")).toBeOnTheScreen();
-    // The least-busy pick lives on Zones now; Now shows only what is current.
+    // No suggestion card on Now. Since the owner's 25 Nov 2026 review the idle
+    // Now tab does read the least-busy zone — for Lottie's tip and the campus
+    // overview — but it never offers it as a recommendation card.
     expect(screen.queryByTestId("parking-recommendation")).not.toBeOnTheScreen();
-    expect(api.recommendedZone).not.toHaveBeenCalled();
   });
 
   it("excludes an expired assignment from current state and falls back to the empty state", async () => {
@@ -463,6 +462,11 @@ describe("parking screen: Phase 9.6 integration", () => {
         expect.stringContaining("maps://?saddr=14.5995,120.9842&daddr=14.5502,121.0402"),
       ),
     );
+    // Change zone hands over to Zones in change mode (it changes nothing itself).
+    const { __router } = jest.requireMock("expo-router") as { __router: { push: jest.Mock } };
+    __router.push.mockClear();
+    await fireEvent.press(screen.getByTestId("assignment-change-zone"));
+    expect(__router.push).toHaveBeenCalledWith("/park?change=1");
     // Navigation never mutates backend state.
     expect(api.createAssignment).not.toHaveBeenCalled();
     expect(api.createReservation).not.toHaveBeenCalled();
@@ -504,6 +508,8 @@ describe("redesign: the live reservation is cancelled from Now", () => {
     await fireEvent.press(screen.getByTestId("reservation-cancel"));
     // Releasing a kept space is confirmed first (an assignment keeps nothing, so it isn't).
     expect(screen.getByTestId("reservation-cancel-confirm")).toHaveTextContent(/kept space is released/);
+    // At large text sizes "Yes, cancel" and "Keep it" wrap instead of pushing "Keep it" off the card.
+    expect(screen.getByTestId("reservation-cancel-confirm-row")).toHaveStyle({ flexDirection: "row", flexWrap: "wrap" });
     expect(api.cancelReservation).not.toHaveBeenCalled();
     await fireEvent.press(screen.getByTestId("reservation-cancel-confirm-btn"));
 

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import {
   Avatar,
+  CampusOverview,
   CurrentParkingState,
   IconButton,
   Screen,
@@ -15,6 +16,7 @@ import { resolveZoneDestination } from "@/lib/navigation";
 import { queryKeys } from "@/lib/query";
 import { useNow } from "@/src/hooks/useNow";
 import { useConnectionLabel } from "@/src/providers/RealtimeStatusProvider";
+import { usePopups } from "@/src/providers/PopupProvider";
 import { useSessionToken, useSessionUser } from "@/src/providers/SessionProvider";
 
 /**
@@ -47,6 +49,8 @@ export default function ParkingScreen() {
     queryFn: api.reservations,
   });
   const notifications = useQuery({ queryKey: queryKeys.notifications, queryFn: api.notifications });
+  const leastBusy = useQuery({ queryKey: queryKeys.recommendation, queryFn: api.recommendedZone, refetchInterval: 30_000 });
+  const vehicles = useQuery({ queryKey: queryKeys.vehicles, queryFn: api.vehicles });
 
   const activeSession = active.data ?? null;
   const connection = useConnectionLabel(active.dataUpdatedAt);
@@ -84,12 +88,14 @@ export default function ParkingScreen() {
   // PATCH /reservations/:id/cancel. The backend response replaces the cached
   // entry, so Now stops showing the reservation in the same commit; zones are
   // refetched because the released space changes availability.
+  const { showToast } = usePopups();
   const cancelReservation = useMutation({
     mutationFn: (reservationId: string) => api.cancelReservation(reservationId),
     onSuccess: (cancelled) => {
       queryClient.setQueryData(queryKeys.reservations, (old: ReservationResponse[] | undefined) =>
         (old ?? []).map((item) => (item.id === cancelled.id ? cancelled : item)),
       );
+      showToast({ title: "Reservation cancelled", body: "The kept space is released." });
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.reservations });
@@ -114,6 +120,27 @@ export default function ParkingScreen() {
   const statePending =
     activeSession === null &&
     (assignmentList.status === "pending" || reservationList.status === "pending");
+
+  const idle =
+    activeSession === null &&
+    assignment === null &&
+    reservation === null &&
+    !statePending &&
+    !active.isPending &&
+    !active.isError &&
+    !assignmentList.isError &&
+    !reservationList.isError;
+  const leastBusyZone = leastBusy.data?.recommendedZone ?? null;
+  const zoneList = zones.data ?? [];
+  const openCount = zoneList.filter((z) => z.status === "ACTIVE" && z.availableCount > 0).length;
+  const primaryPlate = (vehicles.data ?? []).find((v) => v.status === "ACTIVE" && v.isPrimary)?.plateNumber ?? null;
+  // Lottie's tips: live facts only, never invented.
+  const guideLines = [
+    leastBusyZone ? `${leastBusyZone.name} has the most room right now.` : null,
+    zoneList.length > 0 ? `${openCount} of ${zoneList.length} zones are open.` : null,
+    primaryPlate ? `You'll park with ${primaryPlate}. Change it in Account › Vehicles.` : "Add a vehicle so the gate knows your plate.",
+    "Go now keeps no space. Reserve holds one for your arrival.",
+  ].filter((line): line is string => line !== null);
 
   return (
     <Screen
@@ -151,7 +178,16 @@ export default function ParkingScreen() {
         reservationError={reservationList.isError}
         onRetry={refresh}
         onFindZone={() => router.push("/park")}
+        guideLines={guideLines}
+        onChangeAssignmentZone={() => router.push("/park?change=1")}
       />
+      {idle && zoneList.length > 0 ? (
+        <CampusOverview
+          zones={zoneList}
+          leastBusyId={leastBusyZone?.id ?? null}
+          onChoose={(zoneId) => router.push(`/park?zone=${encodeURIComponent(zoneId)}`)}
+        />
+      ) : null}
     </Screen>
   );
 }

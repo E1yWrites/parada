@@ -40,7 +40,7 @@ describe("payments screen session fees", () => {
     entryEvent: null, exitEvent: null, ...overrides,
   });
 
-  it("lists a completed session's fee with its plate, ahead of the fines balance", async () => {
+  it("leads with the fines balance, then lists a completed session's fee with its plate", async () => {
     (api.violations as jest.Mock).mockResolvedValue([]);
     (api.sessions as jest.Mock).mockResolvedValue([
       session({ status: "COMPLETED", exitedAt: "2026-11-17T01:05:00.000Z", durationSeconds: 300, feeAmount: 20 }),
@@ -54,7 +54,7 @@ describe("payments screen session fees", () => {
     expect(screen.queryByText(/Outstanding balance|Nothing due/)).not.toBeOnTheScreen();
     // Queries return matches in tree order.
     const order = screen.getAllByTestId(/^payments-(fees-list|outstanding)$/).map((n) => n.props.testID);
-    expect(order).toEqual(["payments-fees-list", "payments-outstanding"]);
+    expect(order).toEqual(["payments-outstanding", "payments-fees-list"]);
   });
 
   it("explains an empty fee list and a session still in progress", async () => {

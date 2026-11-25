@@ -9,6 +9,7 @@ import { api, ApiError } from "@/lib/api/client";
 import { getToken, notifyAuthInvalidated } from "@/lib/auth/session";
 import { queryClient, queryKeys } from "@/lib/query";
 import { act } from "@testing-library/react-native";
+import { configureTutorialStore } from "@/lib/tutorial";
 
 jest.mock("@/lib/api/client", () => {
   const actual = jest.requireActual("@/lib/api/client");
@@ -63,6 +64,24 @@ describe("login screen", () => {
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalled());
     await expect(getToken()).resolves.toBe("tok-uid");
     await waitFor(() => expect(__router.replace).toHaveBeenCalledWith("/(tabs)/parking"));
+  });
+
+  it("sends a brand-new driver with no vehicle to the first-run tutorial", async () => {
+    configureTutorialStore({ read: async () => false, write: async () => undefined });
+    try {
+      (api.login as jest.Mock).mockResolvedValue({ user, token: "tok-new" });
+      (api.vehicles as jest.Mock).mockResolvedValue([]);
+      await renderWithAppProviders(<LoginScreen />);
+      await fireEvent.changeText(screen.getByTestId("login-email"), "Alex@parada.test");
+      await fireEvent.changeText(screen.getByTestId("login-password"), "password123");
+      await fireEvent.press(screen.getByTestId("login-submit"));
+      await waitFor(() =>
+        expect(__router.replace).toHaveBeenCalledWith({ pathname: "/tutorial", params: { email: "alex@parada.test" } }),
+      );
+    } finally {
+      (api.vehicles as jest.Mock).mockReset();
+      configureTutorialStore(null);
+    }
   });
 
   it("continues verification (never re-registers) when the account is unverified", async () => {

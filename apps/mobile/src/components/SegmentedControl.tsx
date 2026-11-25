@@ -60,7 +60,6 @@ function buildStyles(colors: ColorTokens) {
       flexDirection: "row",
       backgroundColor: colors.surfaceElevated,
       borderRadius: radii.md,
-      borderTopRightRadius: radii.cut,
       padding: spacing.xs,
       gap: spacing.xs,
     },
@@ -70,15 +69,10 @@ function buildStyles(colors: ColorTokens) {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: radii.sm,
-      borderTopRightRadius: radii.cut,
     },
     segmentSelected: {
       backgroundColor: colors.primary,
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.24,
-      shadowRadius: 8,
-      elevation: 2,
+      // No shadow: a segment is nested chrome (DESIGN.md, Panel-Level Shadow Rule).
     },
     segmentPressed: {
       backgroundColor: colors.surface,

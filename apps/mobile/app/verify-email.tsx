@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
-import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
+import { Button, CodeInput, FormAlert, Screen, Text } from "@/src/components";
 import { BrandMark } from "@/src/components/BrandMark";
 import { api, ApiError } from "@/lib/api/client";
 import { spacing } from "@/src/theme";
@@ -118,23 +118,17 @@ export default function VerifyEmailScreen() {
         <FormAlert tone="error" message={error} testID="verify-email-error" />
       ) : null}
       <View style={styles.form}>
-        <Input
+        <CodeInput
           testID="verify-email-code"
           label="Verification code"
           value={code}
+          invalid={error != null}
           onChangeText={(value) => {
             setCode(value.replace(/[^0-9]/g, "").slice(0, 6));
             if (error) {
               setError(null);
             }
           }}
-          placeholder="123456"
-          variant="mono"
-          keyboardType="number-pad"
-          textContentType="oneTimeCode"
-          autoComplete="one-time-code"
-          maxLength={6}
-          returnKeyType="go"
           onSubmit={() => void handleVerify()}
           hint="Codes expire after 10 minutes."
         />

@@ -79,9 +79,15 @@ describe("SessionCard (completed)", () => {
   it("shows exit time and fixed duration", async () => {
     await render(<SessionCard session={completed} testID="card" />);
 
-    expect(screen.getByTestId("card-status")).toHaveTextContent(/Completed/);
-    expect(screen.getByTestId("card-exited")).toHaveTextContent("2026-09-01 11:51");
+    // Completed sessions carry no badge; the fee takes that slot.
+    expect(screen.queryByTestId("card-status")).not.toBeOnTheScreen();
+    expect(screen.getByTestId("card-exited")).toHaveTextContent("11:51");
     expect(screen.getByTestId("card-duration")).toHaveTextContent("1h 51m");
+  });
+
+  it("dates the exit when the session ran overnight", async () => {
+    await render(<SessionCard session={{ ...completed, exitedAt: new Date(2026, 8, 2, 7, 5, 0).toISOString() }} testID="card" />);
+    expect(screen.getByTestId("card-exited")).toHaveTextContent("2026-09-02 07:05");
   });
 
   it("shows the backend fee for a completed session", async () => {

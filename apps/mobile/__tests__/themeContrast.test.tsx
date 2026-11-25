@@ -1,5 +1,5 @@
 import { render, screen } from "@/src/test/utils";
-import { Button, Input, StatusBadge } from "@/src/components";
+import { Button, Input, PlateChip, StatusBadge } from "@/src/components";
 import { useColors } from "@/src/providers/ThemeProvider";
 import { inkColor, palettes, softColor, type ColorScheme, type ColorTokens } from "@/src/theme";
 
@@ -67,6 +67,9 @@ describe("theme contrast: solid-fill and non-text pairs", () => {
     it(`${scheme} onDanger on danger is >= 4.5:1 (unread badge text)`, () => {
       expect(contrast(parse(t.onDanger).rgb, parse(t.danger).rgb)).toBeGreaterThanOrEqual(4.5);
     });
+    it(`${scheme} background on foreground is >= 4.5:1 (ink plate chip text)`, () => {
+      expect(contrast(parse(t.background).rgb, parse(t.foreground).rgb)).toBeGreaterThanOrEqual(4.5);
+    });
     for (const ground of ["surface", "surfaceElevated"] as const) {
       it(`${scheme} primaryDeep on ${ground} is >= 3:1 (selected-zone border)`, () => {
         expect(contrast(parse(t.primaryDeep).rgb, parse(t[ground] as string).rgb)).toBeGreaterThanOrEqual(3);
@@ -90,10 +93,12 @@ describe("theme contrast: status ink on its own soft tint", () => {
     }
   }
 
-  it("the raw status hue fails on its tint, which is why ink exists (regression anchor)", () => {
-    const t = palettes.dark;
-    const fill = over(softColor(t.danger, t), t.surface);
-    expect(contrast(parse(t.danger).rgb, fill)).toBeLessThan(4.5);
+  it("text on the ink button fill (primary) stays readable in both themes", () => {
+    // Clear makes `primary` the ink button (near-black light, near-white dark),
+    // so `onAccent` on `primary` is now the most-used text pairing.
+    for (const t of [palettes.light, palettes.dark]) {
+      expect(contrast(parse(t.onAccent).rgb, parse(t.primary).rgb)).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
 
@@ -122,6 +127,25 @@ describe("components use the text-safe tokens", () => {
     const colors = await liveTokens();
     await render(<Input testID="field" label="Email" value="" placeholder="you@lpu.edu.ph" onChangeText={jest.fn()} />);
     expect(screen.getByTestId("field").props.placeholderTextColor).toBe(colors.muted);
+  });
+
+  it("ink plate chip text inverts with the theme (light-mode zone codes were unreadable)", async () => {
+    const colors = await liveTokens();
+    await render(<PlateChip value="A1" />);
+    const style = [screen.getByText("A1").props.style].flat(Infinity).reduce((acc, s) => ({ ...acc, ...(s || {}) }), {});
+    expect(style.color).toBe(colors.background);
+  });
+
+  it("plate chip shrinks instead of pushing a sibling badge off the row", async () => {
+    await render(<PlateChip value="LONGCODE1234" testID="chip" />);
+    expect(screen.getByTestId("chip")).toHaveStyle({ flexShrink: 1 });
+  });
+
+  it("soft plate chip text uses the primary ink token", async () => {
+    const colors = await liveTokens();
+    await render(<PlateChip value="B2" tone="soft" />);
+    const style = [screen.getByText("B2").props.style].flat(Infinity).reduce((acc, s) => ({ ...acc, ...(s || {}) }), {});
+    expect(style.color).toBe(colors.primaryInk);
   });
 
   it("status badge text uses the ink token for its hue", async () => {

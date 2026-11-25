@@ -127,3 +127,12 @@ export function formatCurrency(amount: number | null | undefined): string {
   const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return `${negative ? "-" : ""}₱${grouped}.${cents}`;
 }
+
+/**
+ * Spaces held by window-valid reservations. The public zone list subtracts
+ * holds from `availableCount` but keeps `occupiedCount` raw, so the gap is
+ * the holds; it is never negative.
+ */
+export function heldSpaces(zone: { capacity: number; occupiedCount: number; availableCount: number }): number {
+  return Math.max(0, zone.capacity - zone.occupiedCount - zone.availableCount);
+}

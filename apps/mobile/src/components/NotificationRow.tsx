@@ -90,7 +90,6 @@ function buildStyles(colors: ColorTokens) {
       gap: spacing.lg,
       padding: spacing.lg,
       borderRadius: radii.lg,
-      borderTopRightRadius: radii.cut,
       minHeight: 64,
     },
     unread: {

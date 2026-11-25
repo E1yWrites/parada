@@ -8,6 +8,7 @@ import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 import { Text } from "./Text";
 import { IconButton } from "./IconButton";
+import { WaveGrid, pulseWaves } from "./WaveGrid";
 
 type ScreenProps = {
   children: ReactNode;
@@ -25,6 +26,12 @@ type ScreenProps = {
   refreshing?: boolean;
   onRefresh?: () => void;
   keyboard?: boolean;
+  /** `vivid` is the onboarding / sign-in stage; app screens keep it quiet. */
+  ground?: "quiet" | "vivid";
+  /** Where the wave field starts (fraction of height). Push it down on forms so lines never sit behind links. */
+  horizon?: number;
+  /** See WaveGrid `scrimFrom`. */
+  scrimFrom?: number;
   testID?: string;
 };
 
@@ -45,12 +52,19 @@ export function Screen({
   refreshing,
   onRefresh,
   keyboard = false,
+  ground = "quiet",
+  horizon,
+  scrimFrom,
   testID,
 }: ScreenProps) {
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // Tab roots clear the floating tab bar. A pushed (`back`) screen sits above
+  // the tabs, so it has no bar to clear — reserving one left ~100pt of dead
+  // space under every stack screen's last row.
+  const bottomPadding = back ? insets.bottom + spacing.xl3 : tabClearance(insets.bottom);
   const header =
     back || title ? (
       <View style={styles.header}>
@@ -103,7 +117,8 @@ export function Screen({
     <SafeAreaView edges={["top"]} style={styles.safe}>
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={[styles.padding, { paddingBottom: tabClearance(insets.bottom) }]}
+        contentContainerStyle={[styles.padding, { paddingBottom: bottomPadding }]}
+        testID={testID ? `${testID}-scroll` : undefined}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         // Keyboard handling for forms: on iOS the scroll view adjusts its own
@@ -130,24 +145,31 @@ export function Screen({
     </SafeAreaView>
   );
 
-  if (!scroll) {
-    return (
-      <SafeAreaView
-        edges={["top"]}
-        style={[styles.safe, styles.padding, { paddingBottom: tabClearance(insets.bottom) }]}>
-        {body}
-      </SafeAreaView>
-    );
-  }
-  return scrollView;
+  // The wave ground sits behind every screen so frosted cards have structure to blur.
+  return (
+    // Any touch swells the ground a little (it never consumes the touch).
+    <View style={styles.root} onTouchStart={() => pulseWaves(0.45)}>
+      <WaveGrid intensity={ground} horizon={horizon ?? (ground === "vivid" ? 0.62 : 0.56)} scrimFrom={scrimFrom} testID={testID ? `${testID}-ground` : undefined} />
+      {scroll ? (
+        scrollView
+      ) : (
+        <SafeAreaView edges={["top"]} style={[styles.safe, styles.padding, { paddingBottom: bottomPadding }]}>
+          {body}
+        </SafeAreaView>
+      )}
+    </View>
+  );
 }
 
 function buildStyles(colors: ColorTokens) {
   return StyleSheet.create({
     flex: { flex: 1 },
-    safe: {
+    root: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    safe: {
+      flex: 1,
     },
     padding: {
       paddingHorizontal: spacing.xl2,

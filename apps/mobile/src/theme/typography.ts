@@ -1,58 +1,37 @@
 import {
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_600SemiBold,
-  SpaceGrotesk_700Bold,
-} from "@expo-google-fonts/space-grotesk";
-import {
   Inter_400Regular,
   Inter_500Medium,
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
-import {
-  JetBrainsMono_400Regular,
-  JetBrainsMono_500Medium,
-  JetBrainsMono_700Bold,
-} from "@expo-google-fonts/jetbrains-mono";
 
 /**
- * PARADA type ramp — Space Grotesk (display/headings, geometric, echoes the
- * logo's angular character) + Inter (body/UI) + JetBrains Mono strictly for
- * data: plates, zone codes, timestamps.
- *
- * The google-fonts constants are the actual `.ttf` assets (needed by
- * `useFonts`); `fontFamily` uses the registered human-readable names, which
- * are exactly the constant identifiers (e.g. "SpaceGrotesk_700Bold"). Space
- * Grotesk tops out at 700 (no black/900 cut); at display size it still reads
- * heavy, so the ramp leans on scale rather than a heavier weight that
- * doesn't exist for this family.
+ * PARADA "Clear" type: Inter only — the closest open face to SF Pro, already
+ * bundled. Headings are Inter Bold/SemiBold with tight display tracking;
+ * plates, codes and numbers use Inter SemiBold/Bold with tabular figures
+ * (set where they render) instead of a monospace costume. The `heading*` and
+ * `mono*` token names are kept so every call site keeps working.
  */
 export const fonts = {
-  heading: "SpaceGrotesk_700Bold",
-  headingMedium: "SpaceGrotesk_600SemiBold",
-  heading500: "SpaceGrotesk_600SemiBold",
-  headingRegular: "SpaceGrotesk_500Medium",
+  heading: "Inter_700Bold",
+  headingMedium: "Inter_600SemiBold",
+  heading500: "Inter_600SemiBold",
+  headingRegular: "Inter_500Medium",
   body: "Inter_400Regular",
   bodyMedium: "Inter_500Medium",
   bodySemi: "Inter_600SemiBold",
   bodyBold: "Inter_700Bold",
-  mono: "JetBrainsMono_500Medium",
-  monoRegular: "JetBrainsMono_400Regular",
-  monoBold: "JetBrainsMono_700Bold",
+  mono: "Inter_600SemiBold",
+  monoRegular: "Inter_500Medium",
+  monoBold: "Inter_700Bold",
 } as const;
 
 /** Map of family name → `.ttf` asset, passed to `useFonts`. */
 export const fontAssets = {
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_600SemiBold,
-  SpaceGrotesk_700Bold,
   Inter_400Regular,
   Inter_500Medium,
   Inter_600SemiBold,
   Inter_700Bold,
-  JetBrainsMono_400Regular,
-  JetBrainsMono_500Medium,
-  JetBrainsMono_700Bold,
 } as const;
 
 /**
@@ -61,9 +40,9 @@ export const fontAssets = {
  */
 export const fontSizes = {
   /** Hero numbers (elapsed clock, free-space count). */
-  display: 40,
+  display: 48,
   /** Screen titles and the pass card's zone name. */
-  hero: 30,
+  hero: 34,
   /** Card titles. */
   title: 20,
   /** Section headers. */
@@ -79,8 +58,8 @@ export const fontSizes = {
 } as const;
 
 export const lineHeights = {
-  display: 44,
-  hero: 36,
+  display: 52,
+  hero: 41,
   title: 26,
   section: 24,
   body: 22,
@@ -91,8 +70,8 @@ export const lineHeights = {
 
 /** Negative tracking for display sizes; positive tracking for tiny caps. */
 export const letterSpacing = {
-  display: -0.8,
-  hero: -0.6,
+  display: -1.4,
+  hero: -0.9,
   title: -0.3,
   micro: 0.8,
 } as const;

@@ -53,7 +53,6 @@ function buildStyles(colors: ColorTokens) {
       alignItems: "center",
       gap: spacing.md,
       borderRadius: radii.md,
-      borderTopRightRadius: radii.cut,
       padding: spacing.lg,
     },
     error: {

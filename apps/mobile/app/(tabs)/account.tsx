@@ -108,7 +108,7 @@ export default function AccountScreen() {
             <AccountLink
               icon="person-circle-outline"
               label="Edit profile"
-              caption="Photo, name, username, email and phone"
+              caption="Photo, name, email, phone"
               onPress={() => router.push("/account/profile")}
               testID="account-edit-profile"
             />
@@ -267,7 +267,6 @@ function buildStyles(colors: ColorTokens) {
       gap: spacing.md,
       backgroundColor: colors.warningSoft,
       borderRadius: radii.md,
-      borderTopRightRadius: radii.cut,
       paddingLeft: spacing.lg,
       paddingRight: spacing.sm,
       paddingVertical: spacing.sm,
@@ -308,7 +307,6 @@ function buildStyles(colors: ColorTokens) {
       justifyContent: "center",
       gap: spacing.xs,
       borderRadius: radii.md,
-      borderTopRightRadius: radii.cut,
       backgroundColor: colors.surfaceElevated,
       paddingVertical: spacing.md,
     },

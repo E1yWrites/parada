@@ -77,7 +77,8 @@ describe("sessions screen", () => {
     expect(screen.queryByTestId("active-session")).not.toBeOnTheScreen();
     expect(screen.queryByText("ACT-100")).not.toBeOnTheScreen();
     expect(screen.getByTestId("sessions-screen-title")).toHaveTextContent("History");
-    expect(screen.getByText("Completed")).toBeOnTheScreen();
+    // History is all completed: no per-card "Completed" badge, only live sessions are marked.
+    expect(screen.queryByText("Completed")).not.toBeOnTheScreen();
   });
 
   it("shows completed session details (times, duration)", async () => {

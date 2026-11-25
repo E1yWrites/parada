@@ -31,7 +31,11 @@ export function ViolationCard({ violation, onPress, testID }: ViolationCardProps
         </Text>
         <View style={styles.footRow}>
           <Text variant="caption">Issued {formatDateTime(violation.issuedAt)}</Text>
-          <Text variant="monoBold" color={colors.warning} style={styles.fine}>
+          {/* Only a fine that may still be owed is coloured; a settled one reads as history. */}
+          <Text
+            variant="monoBold"
+            color={violation.status === "DISMISSED" || violation.status === "FINE_PAID" ? colors.muted : colors.warning}
+            style={[styles.fine, violation.status === "DISMISSED" ? { textDecorationLine: "line-through" } : null]}>
             {formatCurrency(violation.fineAmount)}
           </Text>
         </View>

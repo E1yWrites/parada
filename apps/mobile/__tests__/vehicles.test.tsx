@@ -1,5 +1,6 @@
 import { fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
 import VehiclesScreen from "@/app/vehicles";
+import { PopupProvider } from "@/src/providers/PopupProvider";
 import { api, ApiError } from "@/lib/api/client";
 import type { Vehicle } from "@parada/types";
 
@@ -15,6 +16,7 @@ jest.mock("@/lib/api/client", () => {
       zones: jest.fn(),
       vehicles: jest.fn(),
       createVehicle: jest.fn(),
+      setPrimaryVehicle: jest.fn(),
       sessions: jest.fn(),
       activeSession: jest.fn(),
     },
@@ -61,8 +63,8 @@ describe("vehicles screen", () => {
   it("lists registered vehicles with plates and types", async () => {
     await renderWithProviders(<VehiclesScreen />);
 
-    expect(await screen.findByText("XYZ-5678")).toBeOnTheScreen();
-    expect(screen.getByText("ABC-1234")).toBeOnTheScreen();
+    expect(await screen.findByTestId("vehicle-XYZ-5678-plate")).toHaveTextContent("XYZ-5678");
+    expect(screen.getByTestId("vehicle-ABC-1234-plate")).toHaveTextContent("ABC-1234");
     expect(screen.getAllByText("Motorcycle").length).toBeGreaterThan(0);
     expect(screen.getByText("2 registered")).toBeOnTheScreen();
   });
@@ -132,5 +134,64 @@ describe("vehicles screen", () => {
 
     expect(screen.getByText("Enter a plate number.")).toBeOnTheScreen();
     expect(api.createVehicle).not.toHaveBeenCalled();
+  });
+
+  it("shows which vehicle is selected for parking (the primary)", async () => {
+    await renderWithProviders(<VehiclesScreen />);
+    expect(await screen.findByTestId("vehicles-selected-plate")).toHaveTextContent("XYZ-5678");
+  });
+
+  it("makes another vehicle primary from its radio", async () => {
+    (api.setPrimaryVehicle as jest.Mock).mockResolvedValue({ ...vehicles[1], isPrimary: true });
+    await renderWithProviders(<VehiclesScreen />);
+    const radio = await screen.findByTestId("vehicle-ABC-1234-make-primary");
+    expect(radio).toHaveProp("accessibilityRole", "radio");
+    expect(screen.getByTestId("vehicle-XYZ-5678-make-primary")).toBeChecked();
+    expect(radio).not.toBeChecked();
+    await fireEvent.press(radio);
+    await waitFor(() => expect(api.setPrimaryVehicle).toHaveBeenCalledWith("v2"));
+  });
+
+  it("confirms a primary change with a toast when mounted under the pop-up layer", async () => {
+    (api.setPrimaryVehicle as jest.Mock).mockResolvedValue({ ...vehicles[1], isPrimary: true });
+    await renderWithProviders(
+      <PopupProvider>
+        <VehiclesScreen />
+      </PopupProvider>,
+    );
+    await fireEvent.press(await screen.findByTestId("vehicle-ABC-1234-make-primary"));
+    expect(await screen.findByTestId("popup-toast")).toHaveTextContent(/Primary vehicle changed/);
+  });
+
+  it("locks the primary switch on for a driver's first vehicle", async () => {
+    (api.vehicles as jest.Mock).mockResolvedValue([]);
+    await renderWithProviders(<VehiclesScreen />);
+    await fireEvent.press(await screen.findByTestId("vehicles-add-button"));
+    const sw = screen.getByTestId("vehicle-primary-switch");
+    expect(sw).toHaveProp("value", true);
+    expect(sw).toHaveProp("disabled", true);
+  });
+
+  it("makes a later vehicle primary when the switch is on", async () => {
+    (api.createVehicle as jest.Mock).mockResolvedValue(addedVehicle);
+    (api.setPrimaryVehicle as jest.Mock).mockResolvedValue({ ...addedVehicle, isPrimary: true });
+    await renderWithProviders(<VehiclesScreen />);
+    await fireEvent.press(await screen.findByTestId("vehicles-add-button"));
+    const sw = screen.getByTestId("vehicle-primary-switch");
+    expect(sw).toHaveProp("value", false);
+    await fireEvent(sw, "valueChange", true);
+    await fireEvent.changeText(screen.getByTestId("vehicle-plate"), "QRS-9999");
+    await fireEvent.press(screen.getByTestId("vehicle-submit"));
+    await waitFor(() => expect(api.setPrimaryVehicle).toHaveBeenCalledWith("v3"));
+  });
+
+  it("does not touch primary when the switch stays off", async () => {
+    (api.createVehicle as jest.Mock).mockResolvedValue(addedVehicle);
+    await renderWithProviders(<VehiclesScreen />);
+    await fireEvent.press(await screen.findByTestId("vehicles-add-button"));
+    await fireEvent.changeText(screen.getByTestId("vehicle-plate"), "QRS-9999");
+    await fireEvent.press(screen.getByTestId("vehicle-submit"));
+    await waitFor(() => expect(api.createVehicle).toHaveBeenCalled());
+    expect(api.setPrimaryVehicle).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Card } from "./Card";
 import { PlateChip } from "./PlateChip";
 import { SessionBadge } from "./StatusBadge";
@@ -7,7 +8,7 @@ import { Text } from "./Text";
 import { spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
-import { formatCurrency, formatDateTime, formatDurationSeconds, formatElapsed } from "@/lib/format";
+import { formatClockTime, formatCurrency, formatDateTime, formatDurationSeconds, formatElapsed } from "@/lib/format";
 import type { SessionDto } from "@/lib/api/client";
 
 type SessionCardProps = {
@@ -16,106 +17,104 @@ type SessionCardProps = {
   testID?: string;
 };
 
-/** Compact session row: plate, zone, time window and duration. */
+/**
+ * One session, read in one glance: where (zone + code) and what it cost on the
+ * first line, when and how long on the second, which vehicle on the third.
+ * A completed session needs no badge — the list is history; only a live one
+ * is marked.
+ */
 export function SessionCard({ session, now, testID }: SessionCardProps) {
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
   const active = session.status === "ACTIVE";
+  const id = (part: string) => (testID ? `${testID}-${part}` : undefined);
   return (
     <Card style={styles.card} testID={testID}>
       <View style={styles.row}>
-        <View style={styles.left}>
-          <Text variant="plate" testID={testID ? `${testID}-plate` : undefined}>
-            {session.vehicle?.plateNumber ?? "GUEST"}
+        <View style={styles.zone}>
+          <Text variant="title" numberOfLines={2} style={styles.shrink}>
+            {session.zone.name}
           </Text>
-          <View style={styles.zoneLine}>
-            <PlateChip value={session.zone.code} tone="soft" size="sm" />
-            <Text variant="caption" numberOfLines={2} style={styles.zoneName}>
-              Zone {session.zone.name}
-            </Text>
-          </View>
+          <PlateChip value={session.zone.code} tone="soft" size="sm" style={styles.chip} />
         </View>
-        <View style={styles.badgeSlot}>
-          <SessionBadge status={session.status} size="sm" testID={testID ? `${testID}-status` : undefined} />
-        </View>
+        {active ? (
+          <SessionBadge status={session.status} size="sm" testID={id("status")} />
+        ) : session.feeAmount != null ? (
+          <Text variant="monoBold" color={colors.foreground} testID={id("fee")}>
+            {formatCurrency(session.feeAmount)}
+          </Text>
+        ) : null}
       </View>
-      <View style={styles.divider} />
-      <View style={styles.times}>
-        <View style={styles.timeGroup}>
-          <Text variant="micro">ENTERED</Text>
-          <Text variant="mono" testID={testID ? `${testID}-entered` : undefined}>
-            {formatDateTime(session.enteredAt)}
-          </Text>
-        </View>
-        <View style={styles.timeGroup}>
-          <Text variant="micro">{active ? "ELAPSED" : "EXITED"}</Text>
-          {active ? (
-            <Text variant="monoBold" color={colors.primaryDeep} testID={testID ? `${testID}-elapsed` : undefined}>
+      <View style={styles.meta}>
+        <Text variant="caption" testID={id("entered")}>
+          {formatDateTime(session.enteredAt)}
+        </Text>
+        {active ? (
+          <>
+            <Text variant="caption">·</Text>
+            <Text variant="caption" color={colors.primaryDeep} testID={id("elapsed")}>
               {formatElapsed(session.enteredAt, now)}
             </Text>
-          ) : (
-            <>
-              <Text variant="mono" testID={testID ? `${testID}-exited` : undefined}>
-                {formatDateTime(session.exitedAt ?? "")}
-              </Text>
-              <Text variant="mono" color={colors.muted} testID={testID ? `${testID}-duration` : undefined}>
-                {formatDurationSeconds(session.durationSeconds)}
-              </Text>
-            </>
-          )}
-        </View>
-        {session.feeAmount != null ? (
-          <View style={styles.timeGroup}>
-            <Text variant="micro">PARKING FEE</Text>
-            <Text variant="monoBold" color={colors.highlight} testID={testID ? `${testID}-fee` : undefined}>
-              {formatCurrency(session.feeAmount)}
+          </>
+        ) : (
+          <>
+            <Text variant="caption">→</Text>
+            <Text variant="caption" testID={id("exited")}>
+              {exitLabel(session.enteredAt, session.exitedAt)}
             </Text>
-          </View>
-        ) : null}
+            <Text variant="caption">·</Text>
+            <Text variant="caption" color={colors.foreground} testID={id("duration")}>
+              {formatDurationSeconds(session.durationSeconds)}
+            </Text>
+          </>
+        )}
+      </View>
+      <View style={styles.meta}>
+        <Ionicons name="car-outline" size={14} color={colors.muted} />
+        <Text variant="caption" testID={id("plate")}>
+          {session.vehicle?.plateNumber ?? "GUEST"}
+        </Text>
       </View>
     </Card>
   );
 }
 
-function buildStyles(colors: ColorTokens) {
+/** Exit as a clock time on the entry day; the full date when it ran overnight. */
+function exitLabel(enteredAt: string, exitedAt: string | null): string {
+  if (!exitedAt) return "--:--";
+  const full = formatDateTime(exitedAt);
+  return full.slice(0, 10) === formatDateTime(enteredAt).slice(0, 10) ? formatClockTime(exitedAt) : full;
+}
+
+function buildStyles(_colors: ColorTokens) {
   return StyleSheet.create({
     card: {
-      gap: spacing.lg,
+      gap: spacing.sm,
     },
     row: {
       flexDirection: "row",
-      alignItems: "flex-start",
+      alignItems: "center",
       justifyContent: "space-between",
-      gap: spacing.xl,
+      gap: spacing.lg,
     },
-    left: {
-      gap: spacing.md,
+    zone: {
       flex: 1,
       minWidth: 0,
-    },
-    badgeSlot: {
-      flexShrink: 0,
-    },
-    zoneLine: {
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.md,
     },
-    zoneName: {
+    shrink: {
       flexShrink: 1,
     },
-    divider: {
-      height: 1,
-      backgroundColor: colors.border,
+    chip: {
+      flexShrink: 0,
     },
-    times: {
+    meta: {
       flexDirection: "row",
       flexWrap: "wrap",
-      gap: spacing.xl3,
-    },
-    timeGroup: {
+      alignItems: "center",
       gap: spacing.xs,
-      flexShrink: 1,
     },
   });
 }

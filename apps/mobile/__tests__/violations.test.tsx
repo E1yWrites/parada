@@ -166,5 +166,6 @@ describe("violation detail screen", () => {
     await waitFor(() =>
       expect(screen.getByText("This violation has already been appealed.")).toBeOnTheScreen(),
     );
+    expect(screen.getByTestId("violation-appeal-error")).toHaveProp("accessibilityRole", "alert");
   });
 });

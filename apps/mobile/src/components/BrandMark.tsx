@@ -47,7 +47,6 @@ function buildStyles(colors: ColorTokens, shadows: ShadowTokens) {
       paddingHorizontal: spacing.xl,
       paddingVertical: spacing.lg,
       borderRadius: radii.lg,
-      borderTopRightRadius: radii.cut,
       borderWidth: 1,
       borderColor: colors.border,
       ...shadows.card,

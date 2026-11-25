@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { shouldShowTutorial } from "@/lib/tutorial";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Button, FormAlert, Input, Screen, Text } from "@/src/components";
@@ -36,7 +37,12 @@ export default function LoginScreen() {
     setSubmitting(true);
     try {
       await signIn(email.trim(), password);
-      router.replace("/(tabs)/parking");
+      // A brand-new driver (no vehicle yet) gets the first-run tutorial once.
+      if (await shouldShowTutorial(email.trim())) {
+        router.replace({ pathname: "/tutorial", params: { email: email.trim().toLowerCase() } });
+      } else {
+        router.replace("/(tabs)/parking");
+      }
     } catch (err) {
       if (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED") {
         // Correct credentials, unverified account: continue verification
@@ -55,7 +61,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <Screen keyboard testID="login-screen">
+    <Screen keyboard ground="vivid" horizon={0.9} testID="login-screen">
       <View style={styles.brand}>
         <BrandMark />
       </View>

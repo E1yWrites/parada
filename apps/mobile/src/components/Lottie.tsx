@@ -31,6 +31,8 @@ type LottieProps = {
   size?: number;
   /** Tapping plays a short happy reaction. Touch only; she is hidden from screen readers. */
   interactive?: boolean;
+  /** Called on each tap (with `interactive`), e.g. to advance her speech bubble. */
+  onTap?: () => void;
   testID?: string;
 };
 
@@ -39,7 +41,7 @@ type LottieProps = {
  * greeting that names her is plain text beside her. Under Reduce Motion she
  * stays still — no rise-in, float or blink — though a tap still changes pose.
  */
-export function Lottie({ size = 120, interactive = false, testID }: LottieProps) {
+export function Lottie({ size = 120, interactive = false, onTap, testID }: LottieProps) {
   const reducedMotion = usePrefersReducedMotion();
   const [frame, setFrame] = useState<LottieFrame>("calm");
   const reacting = useRef(false);
@@ -95,6 +97,7 @@ export function Lottie({ size = 120, interactive = false, testID }: LottieProps)
   }, [reducedMotion]);
 
   function react() {
+    onTap?.();
     if (reacting.current) return;
     reacting.current = true;
     let at = 0;
