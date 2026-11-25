@@ -1,26 +1,8 @@
 import { NextResponse } from "next/server";
-import { apiBaseUrl, clearSessionToken, getSessionToken } from "@/lib/auth";
+import { apiBaseUrl } from "@/lib/auth";
+import { requireAdminToken } from "@/lib/admin-session";
 
 export const dynamic = "force-dynamic";
-
-type SessionCheck = "ADMIN" | "NOT_ADMIN" | "UNAUTHENTICATED" | "UNAVAILABLE";
-
-/** Confirms with the backend that this session belongs to an ADMIN. Duplicated
- *  from app/api/proxy/[...path]/route.ts rather than shared, matching this
- *  codebase's existing per-route-file convention (no shared route-utils module
- *  exists today). An explicit backend 401 is kept distinct from "not an admin"
- *  so an expired session is relayed as 401, never as 403. */
-async function checkSession(token: string): Promise<SessionCheck> {
-  try {
-    const res = await fetch(`${apiBaseUrl()}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
-    if (res.status === 401) return "UNAUTHENTICATED";
-    if (!res.ok) return "UNAVAILABLE";
-    const body = await res.json().catch(() => null);
-    return body?.data?.role === "ADMIN" ? "ADMIN" : "NOT_ADMIN";
-  } catch {
-    return "UNAVAILABLE";
-  }
-}
 
 /**
  * Same-origin SSE relay. The admin browser's `EventSource` call is same-origin
@@ -30,21 +12,8 @@ async function checkSession(token: string): Promise<SessionCheck> {
  * straight through. The JWT never reaches browser JS.
  */
 export async function GET(req: Request) {
-  const token = await getSessionToken();
-  if (!token) {
-    return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Not authenticated." } }, { status: 401 });
-  }
-  const session = await checkSession(token);
-  if (session === "UNAUTHENTICATED") {
-    await clearSessionToken();
-    return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Your session has expired. Sign in again." } }, { status: 401 });
-  }
-  if (session === "UNAVAILABLE") {
-    return NextResponse.json({ error: { code: "NETWORK", message: "Unable to reach the PARADA API." } }, { status: 503 });
-  }
-  if (session === "NOT_ADMIN") {
-    return NextResponse.json({ error: { code: "FORBIDDEN", message: "Administrator access required." } }, { status: 403 });
-  }
+  const token = await requireAdminToken();
+  if (typeof token !== "string") return token;
 
   // The browser re-sends the last SSE `id:` it saw as Last-Event-ID when its
   // EventSource reconnects. Forward it, or the backend cannot tell this is a

@@ -102,159 +102,111 @@ function jsonInit(method: string, body?: unknown): RequestInit {
   return init;
 }
 
-export interface ApiClient {
-  me(): Promise<SessionUser>;
-  login(email: string, password: string): Promise<SessionUser>;
-  logout(): Promise<void>;
+/** Typed calls to the API through the same-origin proxy (`/api/proxy/*`). */
+export const api = {
+  async me(): Promise<SessionUser> {
+    const res = await fetch("/api/auth/me");
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new ApiError(body?.error?.code ?? "UNAUTHORIZED", body?.error?.message ?? "Not authenticated.", res.status);
+    }
+    return body.data as SessionUser;
+  },
 
-  dashboard(): Promise<AdminDashboard>;
+  async login(email: string, password: string): Promise<SessionUser> {
+    const res = await fetch("/api/auth/login", jsonInit("POST", { email, password }));
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new ApiError(body?.error?.code ?? "UNAUTHORIZED", body?.error?.message ?? "Login failed.", res.status);
+    }
+    const result = body.data as AuthResult;
+    return result.user;
+  },
 
-  zones(): Promise<AdminZoneDetail[]>;
-  createZone(payload: AdminZoneCreateInput): Promise<AdminZone>;
-  updateZone(zoneId: string, payload: AdminZoneUpdateInput): Promise<AdminZone>;
-  zoneSlots(zoneId: string): Promise<AdminSlot[]>;
-  setZoneSlots(zoneId: string, slotCodes: string[]): Promise<AdminSlot[]>;
+  async logout(): Promise<void> {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+  },
 
-  cameras(): Promise<AdminCamera[]>;
-  createCamera(payload: AdminCameraInput): Promise<AdminCamera>;
-  updateCamera(cameraId: string, payload: AdminCameraUpdateInput): Promise<AdminCamera>;
+  dashboard: () => request<AdminDashboard>("admin/dashboard"),
 
-  sessions(): Promise<AdminSession[]>;
-  users(): Promise<AdminUser[]>;
-  vehicles(): Promise<AdminVehicle[]>;
+  zones: () => request<AdminZoneDetail[]>("admin/zones"),
 
-  notifications(): Promise<NotificationList>;
-  markNotificationRead(id: string): Promise<unknown>;
-  markAllNotificationsRead(): Promise<{ updated: number }>;
-  guestAdmit(payload: GuestAdmitRequest): Promise<GuestAdmitResult>;
-  config(): Promise<EstablishmentSettings>;
-  updateConfig(payload: EstablishmentSettings): Promise<EstablishmentSettings>;
-  reservations(): Promise<AdminReservation[]>;
-  cancelReservation(id: string): Promise<AdminReservation>;
-  violations(): Promise<AdminViolation[]>;
-  updateViolationStatus(id: string, status: string): Promise<AdminViolation>;
-  appeals(): Promise<AdminAppeal[]>;
-  updateAppealStatus(id: string, status: "APPROVED" | "REJECTED"): Promise<AdminAppeal>;
-  analytics(params?: { from?: string; to?: string }): Promise<AdminAnalytics>;
+  createZone: (payload: AdminZoneCreateInput) => request<AdminZone>("admin/zones", jsonInit("POST", payload)),
 
-  anomalies(): Promise<AdminAnomaly[]>;
-  resolveAnomaly(id: string): Promise<AdminAnomaly>;
+  updateZone: (zoneId: string, payload: AdminZoneUpdateInput) =>
+    request<AdminZone>(`admin/zones/${encodeURIComponent(zoneId)}`, jsonInit("PATCH", payload)),
 
-  history(zoneId: string, params?: { from?: string; to?: string; limit?: number }): Promise<ZoneHistory>;
+  zoneSlots: (zoneId: string) =>
+    request<AdminSlot[]>(`admin/zones/${encodeURIComponent(zoneId)}/slots`),
 
-  simulatorStatus(): Promise<SimulatorStatus>;
-  simulatorRun(payload: Record<string, unknown>): Promise<SimulatorResult>;
-}
+  setZoneSlots: (zoneId: string, slotCodes: string[]) =>
+    request<AdminSlot[]>(
+      `admin/zones/${encodeURIComponent(zoneId)}/slots`,
+      jsonInit("POST", { slotCodes })
+    ),
 
-function buildClient(): ApiClient {
-  return {
-    async me() {
-      const res = await fetch("/api/auth/me");
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new ApiError(body?.error?.code ?? "UNAUTHORIZED", body?.error?.message ?? "Not authenticated.", res.status);
-      }
-      return body.data as SessionUser;
-    },
+  cameras: () => request<AdminCamera[]>("admin/cameras"),
 
-    async login(email, password) {
-      const res = await fetch("/api/auth/login", jsonInit("POST", { email, password }));
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new ApiError(body?.error?.code ?? "UNAUTHORIZED", body?.error?.message ?? "Login failed.", res.status);
-      }
-      const result = body.data as AuthResult;
-      return result.user;
-    },
+  createCamera: (payload: AdminCameraInput) => request<AdminCamera>("admin/cameras", jsonInit("POST", payload)),
 
-    async logout() {
-      await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    },
+  updateCamera: (cameraId: string, payload: AdminCameraUpdateInput) =>
+    request<AdminCamera>(`admin/cameras/${encodeURIComponent(cameraId)}`, jsonInit("PATCH", payload)),
 
-    dashboard: () => request<AdminDashboard>("admin/dashboard"),
+  sessions: () => request<AdminSession[]>("admin/sessions"),
 
-    zones: () => request<AdminZoneDetail[]>("admin/zones"),
+  users: () => request<AdminUser[]>("admin/users"),
 
-    createZone: (payload) => request<AdminZone>("admin/zones", jsonInit("POST", payload)),
+  vehicles: () => request<AdminVehicle[]>("admin/vehicles"),
 
-    updateZone: (zoneId, payload) =>
-      request<AdminZone>(`admin/zones/${encodeURIComponent(zoneId)}`, jsonInit("PATCH", payload)),
+  notifications: () => request<NotificationList>("admin/notifications"),
 
-    zoneSlots: (zoneId) =>
-      request<AdminSlot[]>(`admin/zones/${encodeURIComponent(zoneId)}/slots`),
+  markNotificationRead: (id: string) =>
+    request(`admin/notifications/${encodeURIComponent(id)}/read`, jsonInit("PATCH")),
 
-    setZoneSlots: (zoneId, slotCodes) =>
-      request<AdminSlot[]>(
-        `admin/zones/${encodeURIComponent(zoneId)}/slots`,
-        jsonInit("POST", { slotCodes })
-      ),
+  markAllNotificationsRead: () =>
+    request<{ updated: number }>("admin/notifications/read-all", jsonInit("PATCH")),
 
-    cameras: () => request<AdminCamera[]>("admin/cameras"),
+  guestAdmit: (payload: GuestAdmitRequest) => request<GuestAdmitResult>("admin/guest-admit", jsonInit("POST", payload)),
 
-    createCamera: (payload) => request<AdminCamera>("admin/cameras", jsonInit("POST", payload)),
+  config: () => request<EstablishmentSettings>("admin/config"),
 
-    updateCamera: (cameraId, payload) =>
-      request<AdminCamera>(`admin/cameras/${encodeURIComponent(cameraId)}`, jsonInit("PATCH", payload)),
+  updateConfig: (payload: EstablishmentSettings) => request<EstablishmentSettings>("admin/config", jsonInit("PUT", payload)),
 
-    sessions: () => request<AdminSession[]>("admin/sessions"),
+  reservations: () => request<AdminReservation[]>("admin/reservations"),
 
-    users: () => request<AdminUser[]>("admin/users"),
+  cancelReservation: (id: string) => request<AdminReservation>(`admin/reservations/${encodeURIComponent(id)}/cancel`, jsonInit("PATCH")),
 
-    vehicles: () => request<AdminVehicle[]>("admin/vehicles"),
+  violations: () => request<AdminViolation[]>("admin/violations"),
 
-    notifications: () => request<NotificationList>("admin/notifications"),
+  updateViolationStatus: (id: string, status: string) => request<AdminViolation>(`admin/violations/${encodeURIComponent(id)}/status`, jsonInit("PATCH", { status })),
 
-    markNotificationRead: (id) =>
-      request(`admin/notifications/${encodeURIComponent(id)}/read`, jsonInit("PATCH")),
+  appeals: () => request<AdminAppeal[]>("admin/appeals"),
 
-    markAllNotificationsRead: () =>
-      request<{ updated: number }>("admin/notifications/read-all", jsonInit("PATCH")),
+  updateAppealStatus: (id: string, status: "APPROVED" | "REJECTED") => request<AdminAppeal>(`admin/appeals/${encodeURIComponent(id)}/status`, jsonInit("PATCH", { status })),
 
-    guestAdmit: (payload) => request<GuestAdmitResult>("admin/guest-admit", jsonInit("POST", payload)),
+  async analytics(params?: { from?: string; to?: string }) {
+    const query = new URLSearchParams();
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request<AdminAnalytics>(`admin/analytics${suffix}`);
+  },
 
-    config: () => request<EstablishmentSettings>("admin/config"),
+  anomalies: () => request<AdminAnomaly[]>("admin/anomalies"),
 
-    updateConfig: (payload) => request<EstablishmentSettings>("admin/config", jsonInit("PUT", payload)),
+  resolveAnomaly: (id: string) =>
+    request<AdminAnomaly>(`admin/anomalies/${encodeURIComponent(id)}/resolve`, jsonInit("PATCH")),
 
-    reservations: () => request<AdminReservation[]>("admin/reservations"),
+  async history(zoneId: string, params?: { from?: string; to?: string; limit?: number }) {
+    const q = new URLSearchParams();
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
+    if (params?.limit) q.set("limit", String(params.limit));
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    return request<ZoneHistory>(`admin/zones/${encodeURIComponent(zoneId)}/history${suffix}`);
+  },
 
-    cancelReservation: (id) => request<AdminReservation>(`admin/reservations/${encodeURIComponent(id)}/cancel`, jsonInit("PATCH")),
+  simulatorStatus: () => request<SimulatorStatus>("simulator/status"),
 
-    violations: () => request<AdminViolation[]>("admin/violations"),
-
-    updateViolationStatus: (id, status) => request<AdminViolation>(`admin/violations/${encodeURIComponent(id)}/status`, jsonInit("PATCH", { status })),
-
-    appeals: () => request<AdminAppeal[]>("admin/appeals"),
-
-    updateAppealStatus: (id, status) => request<AdminAppeal>(`admin/appeals/${encodeURIComponent(id)}/status`, jsonInit("PATCH", { status })),
-
-    async analytics(params) {
-      const query = new URLSearchParams();
-      if (params?.from) query.set("from", params.from);
-      if (params?.to) query.set("to", params.to);
-      const suffix = query.toString() ? `?${query.toString()}` : "";
-      return request<AdminAnalytics>(`admin/analytics${suffix}`);
-    },
-
-    anomalies: () => request<AdminAnomaly[]>("admin/anomalies"),
-
-    resolveAnomaly: (id) =>
-      request<AdminAnomaly>(`admin/anomalies/${encodeURIComponent(id)}/resolve`, jsonInit("PATCH")),
-
-
-    async history(zoneId, params) {
-      const q = new URLSearchParams();
-      if (params?.from) q.set("from", params.from);
-      if (params?.to) q.set("to", params.to);
-      if (params?.limit) q.set("limit", String(params.limit));
-      const suffix = q.toString() ? `?${q.toString()}` : "";
-      return request<ZoneHistory>(`admin/zones/${encodeURIComponent(zoneId)}/history${suffix}`);
-    },
-
-    simulatorStatus: () => request<SimulatorStatus>("simulator/status"),
-
-    simulatorRun: (payload) => request<SimulatorResult>("simulator/run", jsonInit("POST", payload)),
-  };
-}
-
-export const api = buildClient();
+  simulatorRun: (payload: Record<string, unknown>) => request<SimulatorResult>("simulator/run", jsonInit("POST", payload)),
+};

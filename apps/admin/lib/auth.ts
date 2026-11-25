@@ -19,12 +19,6 @@ export async function clearSessionToken(): Promise<void> {
   (await cookies()).delete(AUTH_COOKIE);
 }
 
-export async function authCookieHeader(): Promise<Record<string, string> | null> {
-  const token = await getSessionToken();
-  if (!token) return null;
-  return { Authorization: `Bearer ${token}` };
-}
-
 export function apiBaseUrl(): string {
   return process.env["API_BASE_URL"] ?? "http://localhost:4100";
 }
