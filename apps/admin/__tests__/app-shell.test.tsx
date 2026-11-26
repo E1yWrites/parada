@@ -108,6 +108,32 @@ describe("AppShell — role protection", () => {
     expect(screen.getAllByRole("button", { name: /log ?out/i })).toHaveLength(1);
   });
 
+  it("rings the bell only when the unread count rises, not on first load", async () => {
+    const { api } = jest.requireMock("@/lib/api/client") as { api: { notifications: jest.Mock } };
+    api.notifications.mockResolvedValueOnce({ notifications: [], unreadCount: 2 });
+    setAuth({ user: { id: "u1", email: "admin@parada.local", role: "ADMIN" } as never, loading: false });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    rtlRender(
+      <ThemeProvider>
+        <QueryClientProvider client={client}>
+          <AppShell>
+            <div>content</div>
+          </AppShell>
+        </QueryClientProvider>
+      </ThemeProvider>
+    );
+    const bell = await screen.findByRole("link", { name: "Notifications, 2 unread" });
+    expect(bell).toHaveAttribute("data-rings", "0");
+
+    api.notifications.mockResolvedValueOnce({ notifications: [], unreadCount: 3 });
+    await act(() => client.invalidateQueries({ queryKey: ["notifications"] }));
+    expect(await screen.findByRole("link", { name: "Notifications, 3 unread" })).toHaveAttribute("data-rings", "1");
+
+    api.notifications.mockResolvedValueOnce({ notifications: [], unreadCount: 1 });
+    await act(() => client.invalidateQueries({ queryKey: ["notifications"] }));
+    expect(await screen.findByRole("link", { name: "Notifications, 1 unread" })).toHaveAttribute("data-rings", "1");
+  });
+
   it("marks the active route with aria-current on the soft active container", () => {
     setAuth({ user: { id: "u1", email: "admin@parada.local", role: "ADMIN" } as never, loading: false });
     render(

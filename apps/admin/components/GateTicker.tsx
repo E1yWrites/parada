@@ -69,7 +69,12 @@ export function GateTicker() {
         data-testid="gate-ticker"
         className="pointer-events-auto inline-flex min-h-[44px] max-w-full items-center gap-2 rounded-full border border-line bg-card px-4 text-xs font-semibold text-muted shadow-card-hover animate-fade-in hover:text-charcoal focus-visible:outline-hidden focus-visible:shadow-focus"
       >
-        <Icon className={`h-4 w-4 shrink-0 ${latest.exited ? "text-muted" : "text-success"}`} aria-hidden="true" />
+        {/* Keyed per event so each entry/exit replays: in comes from the left, out from the right. */}
+        <Icon
+          key={entries + exits}
+          className={`h-4 w-4 shrink-0 ${latest.exited ? "text-muted animate-gate-out" : "text-success animate-gate-in"}`}
+          aria-hidden="true"
+        />
         <span className="truncate">{text}</span>
       </Link>
     </div>

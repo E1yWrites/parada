@@ -175,7 +175,7 @@ function NavList({ label, scope, onNavigate }: { label: string; scope: string; o
         <span
           aria-hidden="true"
           data-nav-pill=""
-          className="pointer-events-none absolute left-3 right-3 rounded-control bg-raised motion-safe:transition-[transform,height] motion-safe:duration-200 motion-safe:ease-out"
+          className="pointer-events-none absolute left-3 right-3 rounded-control bg-raised motion-safe:transition-[transform,height] motion-safe:duration-[260ms] motion-safe:ease-[cubic-bezier(0.34,1.32,0.64,1)]"
           style={{ top: 0, height: pill.height, transform: `translateY(${pill.top}px)` }}
         />
       ) : null}
@@ -237,14 +237,14 @@ function Drawer({ onClose, returnFocusTo }: { onClose: () => void; returnFocusTo
 
   return (
     <div className="fixed inset-0 z-40 lg:hidden">
-      <div className="absolute inset-0 bg-charcoal/40" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-charcoal/40 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Menu"
         onKeyDown={onKeyDown}
-        className="absolute inset-y-2 left-2 flex w-72 flex-col rounded-panel border border-line bg-card shadow-card-hover"
+        className="absolute inset-y-2 left-2 flex w-72 flex-col float-panel"
       >
         <div className="flex items-center justify-between px-4 py-4">
           <Brand />
@@ -268,15 +268,34 @@ function Drawer({ onClose, returnFocusTo }: { onClose: () => void; returnFocusTo
 function NotificationBell() {
   const notifications = useQuery({ queryKey: ["notifications"], queryFn: () => api.notifications() });
   const unread = notifications.data?.unreadCount ?? 0;
+  // Ring only when the count rises after the first load; each rise remounts (replays) the motion.
+  const [rings, setRings] = useState(0);
+  const previous = useRef<number | null>(null);
+  useEffect(() => {
+    if (!notifications.data) return;
+    if (previous.current !== null && unread > previous.current) setRings((n) => n + 1);
+    previous.current = unread;
+  }, [notifications.data, unread]);
   return (
     <Link
       href="/notifications"
       aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
-      className="relative flex h-11 w-11 items-center justify-center rounded-control bg-card text-charcoal transition-colors duration-150 hover:bg-raised focus-visible:outline-hidden focus-visible:shadow-focus"
+      data-rings={rings}
+      className="relative flex h-11 w-11 items-center justify-center rounded-control bg-raised text-charcoal transition-colors duration-150 hover:bg-line focus-visible:outline-hidden focus-visible:shadow-focus"
     >
-      <Bell className="h-[18px] w-[18px]" aria-hidden="true" />
+      <Bell
+        key={`bell-${rings}`}
+        className={`h-[18px] w-[18px] origin-top ${rings > 0 ? "animate-bell-ring" : ""}`}
+        aria-hidden="true"
+      />
       {unread > 0 ? (
-        <span className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-micro font-bold text-on-accent" aria-hidden="true">
+        <span
+          key={`badge-${rings}`}
+          className={`absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-micro font-bold text-on-accent ${
+            rings > 0 ? "animate-badge-pop [animation-delay:0.08s]" : ""
+          }`}
+          aria-hidden="true"
+        >
           {unread > 99 ? "99+" : unread}
         </span>
       ) : null}
@@ -293,10 +312,24 @@ function ThemeToggle() {
       type="button"
       onClick={() => setMode(next)}
       aria-label={`Switch to ${next} theme`}
-      className="flex h-11 w-11 items-center justify-center rounded-control bg-card text-charcoal transition-colors duration-150 hover:bg-raised focus-visible:outline-hidden focus-visible:shadow-focus"
+      className="flex h-11 w-11 items-center justify-center rounded-control bg-raised text-charcoal transition-colors duration-150 hover:bg-line focus-visible:outline-hidden focus-visible:shadow-focus"
     >
       <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
     </button>
+  );
+}
+
+/** Full-page gate (unreachable API, signed out, forbidden): one centred panel so the message never floats on the fog. */
+function GatePanel({ children, alert = false }: { children: React.ReactNode; alert?: boolean }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <div
+        role={alert ? "alert" : undefined}
+        className="card flex w-full max-w-md flex-col items-center gap-5 px-6 py-10 text-center sm:px-10"
+      >
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -309,7 +342,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!user && error) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center">
+      <GatePanel alert>
         <BrandLogo height={20} />
         <h1 className="font-display text-2xl font-semibold tracking-tight text-charcoal">{error}</h1>
         <p className="max-w-sm text-sm text-muted">
@@ -318,13 +351,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <button type="button" className="btn-primary mt-2" onClick={() => window.location.reload()}>
           Retry
         </button>
-      </div>
+      </GatePanel>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center">
+      <GatePanel>
         <BrandLogo height={20} />
         <h1 className="font-display text-2xl font-semibold tracking-tight text-charcoal">Admin access required</h1>
         <p className="max-w-sm text-sm text-muted">
@@ -333,13 +366,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Link href="/login" className="btn-primary mt-2">
           Sign in
         </Link>
-      </div>
+      </GatePanel>
     );
   }
 
   if (user.role !== "ADMIN") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+      <GatePanel>
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-danger-soft" aria-hidden="true">
           <ShieldAlert className="h-7 w-7 text-danger" />
         </div>
@@ -350,7 +383,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <button type="button" className="btn-secondary" onClick={() => signOut()}>
           Sign out
         </button>
-      </div>
+      </GatePanel>
     );
   }
 
@@ -364,7 +397,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </a>
 
       {/* Desktop sidebar */}
-      <aside className="sticky top-3 hidden h-[calc(100vh-1.5rem)] w-64 shrink-0 flex-col rounded-panel bg-card lg:flex">
+      <aside className="sticky top-3 hidden h-[calc(100vh-1.5rem)] w-64 shrink-0 flex-col glass rounded-panel lg:flex">
         <div className="px-5 pb-2 pt-5">
           <Brand />
         </div>
@@ -375,7 +408,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 bg-paper px-4 sm:px-6 lg:top-3 lg:h-14 lg:px-2">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 bg-paper px-4 sm:px-6 lg:top-3 lg:h-16 lg:rounded-panel lg:glass lg:px-3">
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <button
               ref={menuButtonRef}
@@ -397,7 +430,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               href="/account"
               aria-label={`Account: ${user.name}, administrator`}
-              className="flex min-h-[44px] items-center gap-2.5 rounded-control bg-card py-1.5 pl-1.5 pr-3 transition-colors duration-150 hover:bg-raised focus-visible:outline-hidden focus-visible:shadow-focus"
+              className="flex min-h-[44px] items-center gap-2.5 rounded-control bg-raised py-1.5 pl-1.5 pr-3 transition-colors duration-150 hover:bg-line focus-visible:outline-hidden focus-visible:shadow-focus"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-raised" aria-hidden="true">
                 <UserCircle2 className="h-5 w-5 text-muted" />

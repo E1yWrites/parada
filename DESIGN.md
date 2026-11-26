@@ -204,7 +204,7 @@ Since the Rams redesign (September 2026) both surfaces follow three rules above 
 
 1. **Honest.** Say only what the backend knows. "Live" only while the realtime stream is connected. Cameras are "enabled", not "online". An assignment keeps no space; only a reservation does.
 2. **One clear action.** Each screen shows the one current thing and its action. Idle screens say so plainly and offer one way forward.
-3. **As little design as possible.** On admin: no ambient animation, no decorative glass, no counting numbers. On mobile, Clear allows exactly one ambient element — the wave grid ground, which exists so the glass has something to blur — and freezes it under Reduce Motion. Lottie appears only in her listed places.
+3. **As little design as possible.** On admin: one ambient fog ground with glass panels over it (owner request, 26 Nov 2026), and no counting numbers. On mobile, Clear allows exactly one ambient element — the wave grid ground, which exists so the glass has something to blur — and freezes it under Reduce Motion. Lottie appears only in her listed places.
 
 **Key characteristics**
 - Mobile: tabs **Now / Zones / History / Account**. Light ground `#E9ECF2`, dark ground `#07080C`; ink button (`#111318` light / `#F4F5F7` dark); PARADA orange `#FC7643` for data, text-safe `#B23C0C` / `#FF9A6B`.
@@ -332,7 +332,7 @@ Tables are dense: sticky header, hairline row seams, hover tint, no zebra stripi
 - **Reduce Transparency:** frost falls back to a flat surface.
 - Shadows at panel level only (`shadows.ts`).
 
-**Admin.** Flat and tonal: soft panels on the ground, depth from the `paper` → `card` → `raised` step, no panel shadow. Only floating layers lift (`.float-panel`: pop-ups, the drawer) with a theme-aware shadow — black on graphite, a zinc ink on white, never black on light. The page ground (`.parada-background`) is one flat colour.
+**Admin.** Glass over the fog (owner request, 26 Nov 2026): `.card`, the sidebar and the `lg` header use the `glass` utility — the card fill at `--glass-alpha` (58% dark / 60% light), a 20px backdrop blur with 150% saturation, and a top-edge sheen (`--glass-edge`). Floating layers (`.float-panel`: pop-ups, the drawer) use the more opaque `--glass-float-alpha` (84% / 86%). Panels fall back to solid where `backdrop-filter` is unsupported or `prefers-reduced-transparency` is set. Muted text stays ≥5.9:1 over the brightest fog behind glass. Nested rows stay solid `raised`. Only floating layers lift (`.float-panel`: pop-ups, the drawer) with a theme-aware shadow — black on graphite, a zinc ink on white, never black on light. The page ground (`.parada-background`) is one flat colour, with one ambient layer over it (owner request, 26 Nov 2026): `ShaderBackground`, a fixed WebGL canvas behind the content. It slowly drifts wave-and-fbm fog (a port of the 21st.dev "Waves" recipe). Its palette comes from the `--fog-*` tokens: a blue ramp (dark: navy `7 10 17` → steel `28 44 70`; light: blue-grey `208 219 233` → near-white) with brand orange blended in at 16% (dark) / 12% (light) along the middle wave edge. The header (from `lg`) and every `PageHeader` sit on their own `card` panels so nothing reads as floating on the fog; header controls use `raised` with a `line` hover. It renders at half resolution and 30fps, pauses while the tab is hidden, shows one still frame under `prefers-reduced-motion`, and leaves the flat ground showing if WebGL is unavailable.
 
 **The Panel-Level Shadow Rule.** Only the outermost surface casts a shadow (or frost); nested rows, chips and pills never do.
 
@@ -383,7 +383,8 @@ One filled button per screen or form (**The One Filled Button Rule**).
 
 ### Empty, loading and error states
 - **Mobile** `EmptyState` / `ErrorState`: a plain icon on a soft disc (`Illustration`, hidden from screen readers), a title, one line of explanation and at most one action. `LoadingState` always carries a text label.
-- **Admin** `QueryBoundary` renders `LoadingState` (skeleton rows with a label), `ErrorState` (with Retry) or `EmptyState` (an icon scene — a clock on History, a bell on Notifications).
+- **Admin** full-page gates (API unreachable — announced as an alert, with Retry; signed out; forbidden) sit in one centred `card` panel (`GatePanel`), and the full-page spinner is a compact `card` pill with its label, so no message floats on the fog.
+- **Admin** `QueryBoundary` renders `LoadingState` (skeleton rows with a label), `ErrorState` (with Retry) or `EmptyState` (one icon badge on a soft disc — a clock on History, a bell on Notifications; no satellite chips).
 
 ### Forms
 Inputs are at least 44px tall with a visible label ; mobile one-time codes use `CodeInput`. On admin, opening a form moves focus to its first field; closing it returns focus to the button that opened it. Mobile radios expose `checked`; segmented controls are 44pt tall.
@@ -412,8 +413,8 @@ Lottie is PARADA's mascot: a cream poodle in a navy parking-officer cap with a g
 ## Motion
 
 - **Mobile — Clear**: one authored moment per screen. Principles in use: squash and stretch on buttons (wider and flatter under the thumb, a slight stretch on release); anticipation and follow-through on the zone sheet (starts small and low, overshoots, settles; slides down before it unmounts); staging (backdrop dims everything but the decision); secondary action (the wave grid swells on touch); slow-in/slow-out springs; snappy 140–220ms timing. UX laws: Hick (two choices in the sheet), Fitts (full-width finishing button in the thumb zone, 44pt+ targets), Jakob (a standard bottom sheet), frequency of use (Go now is the default). The wave grid loop is the one ambient motion. Onboarding and the tutorial carry **one stage across their beats** (pins rise into a hold card that becomes a plate pass; the plate slides under a camera frame that becomes a zone card) on a spring driven by the step. Capacity and History bars grow in; pop-up sheets spring up; banners and toasts drop in; a wrong verification code shakes the boxes. Press feedback 120ms with a press-release spring. Under Reduce Motion every loop, spring and grow stops (values jump to their end state), followed live; the resend countdown keeps counting because it is information.
-- **Admin**: `fade-in` (220ms) for content, `saved-fade` for the "Saved." note, `pulse-dot` for a live status dot, `lottie-float` on the login panel. A global `prefers-reduced-motion` rule cuts every animation and transition to near zero.
-- Admin: nothing moves just to look alive — no ambient backgrounds, no counting numbers. Mobile: the wave grid is the one ambient exception; still no counting numbers.
+- **Admin**: one authored moment, the realtime arrival. A pop-up swings in on a shallow arc and settles (`toast-in`, 420ms), and a critical one rings its icon once. It exits faster, back the way it came (`toast-out`, 160ms); it leaves the accessibility tree at once and the DOM after the exit. The header bell winds up and rings (`bell-ring`), and its badge squashes and stretches (`badge-pop`), only when the unread count rises, never on first load. Supporting feedback: the gate ticker icon slides in from its direction (`gate-in` / `gate-out`); buttons squash on press (wider, flatter, 75ms); the sidebar pill overshoots slightly as it follows the route; the empty-state badge settles onto its disc (`settle-in`). Also `fade-in` (220ms) for content, `saved-fade` for the "Saved." note, `pulse-dot` for a live status dot, and `lottie-float` on the login panel. A global `prefers-reduced-motion` rule cuts every animation and transition to near zero.
+- Admin: nothing moves just to look alive except the one `ShaderBackground` fog; no counting numbers. Mobile: the wave grid is the one ambient exception; still no counting numbers.
 
 ## Accessibility
 
@@ -448,7 +449,7 @@ The copy says what the backend actually does:
 ### Don't
 - **Don't** default a zone selector to a wrapping vertical card grid — use the horizontal rail.
 - **Don't** lay admin figures out as a grid of same-size stat cards, or animate them with a counting tween — use `MetricCard`s in one facility strip.
-- **Don't** add ambient decoration on admin. On mobile, add none beyond the wave grid, and don't put real blur on routine `Card`s.
+- **Don't** add ambient decoration on admin beyond `ShaderBackground`. On mobile, add none beyond the wave grid, and don't put real blur on routine `Card`s.
 - **Don't** put Lottie in empty or error states, behind content, or on Zones, History or Account.
 - **Don't** claim a state the backend doesn't report — no "online" cameras, no "Live" while reconnecting, no kept space for an assignment.
 - **Don't** invert light mode from dark mode; each register is tuned on its own.

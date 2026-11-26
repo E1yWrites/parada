@@ -12,6 +12,8 @@ import { VIOLATION_TYPE_LABEL, labelFor } from "@/lib/labels";
 export const STALE_AFTER_MS = 10 * 60 * 1000;
 /** Info pop-ups hide after this long unless hovered or focused. */
 export const INFO_HIDE_MS = 8000;
+/** A dismissed pop-up leaves the accessibility tree at once and the DOM after its exit motion. */
+export const TOAST_EXIT_MS = 160;
 /** How many pop-ups show at once; the rest fold into "+N more". */
 const MAX_VISIBLE = 3;
 
@@ -135,35 +137,50 @@ const TONE_CLASS: Record<Toast["tone"], string> = {
 
 function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
   const [paused, setPaused] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const remaining = useRef(INFO_HIDE_MS);
   const startedAt = useRef(0);
   const Icon = toast.icon;
   const critical = toast.severity === "critical";
+  const leave = useCallback(() => setLeaving(true), []);
 
   useEffect(() => {
-    if (critical || paused) return;
+    if (critical || paused || leaving) return;
     startedAt.current = Date.now();
-    const timer = setTimeout(() => onDismiss(toast.id), remaining.current);
+    const timer = setTimeout(leave, remaining.current);
     return () => {
       clearTimeout(timer);
       remaining.current -= Date.now() - startedAt.current;
     };
-  }, [critical, paused, onDismiss, toast.id]);
+  }, [critical, paused, leaving, leave]);
+
+  useEffect(() => {
+    if (!leaving) return;
+    const timer = setTimeout(() => onDismiss(toast.id), TOAST_EXIT_MS);
+    return () => clearTimeout(timer);
+  }, [leaving, onDismiss, toast.id]);
 
   return (
     <div
-      role={critical ? "alert" : "status"}
+      role={leaving ? undefined : critical ? "alert" : "status"}
+      aria-hidden={leaving || undefined}
+      inert={leaving}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
       data-severity={toast.severity}
-      className={`float-panel pointer-events-auto w-96 max-w-[calc(100vw-2rem)] overflow-hidden animate-fade-in ${
-        critical ? "border-danger/45" : ""
-      }`}
+      className={`float-panel pointer-events-auto w-96 max-w-[calc(100vw-2rem)] origin-top-right overflow-hidden ${
+        leaving ? "animate-toast-out" : "animate-toast-in"
+      } ${critical ? "border-danger/45" : ""}`}
     >
       <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_2.75rem] gap-3 pl-3.5 pr-1.5 pt-3.5">
-        <span className={`flex h-9 w-9 items-center justify-center rounded-control ${TONE_CLASS[toast.tone]}`} aria-hidden="true">
+        <span
+          className={`flex h-9 w-9 items-center justify-center rounded-control ${TONE_CLASS[toast.tone]} ${
+            critical ? "animate-bell-ring [animation-delay:0.3s]" : ""
+          }`}
+          aria-hidden="true"
+        >
           <Icon className="h-[18px] w-[18px]" />
         </span>
         <div className="min-w-0 pt-0.5">
@@ -172,7 +189,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
         </div>
         <button
           type="button"
-          onClick={() => onDismiss(toast.id)}
+          onClick={leave}
           className="-mt-2 flex h-11 w-11 items-center justify-center rounded-control text-muted hover:bg-raised hover:text-charcoal focus-visible:outline-hidden focus-visible:shadow-focus"
           aria-label={`Dismiss: ${toast.title}`}
         >
@@ -184,7 +201,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
           <Link
             key={action.href + action.label}
             href={action.href}
-            onClick={() => onDismiss(toast.id)}
+            onClick={leave}
             className={critical && i === 0 ? "btn-primary btn-sm" : "btn-secondary btn-sm"}
           >
             {action.label}

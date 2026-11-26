@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { RealtimeEvent } from "@parada/types";
-import { INFO_HIDE_MS, STALE_AFTER_MS, Toaster, toastFor } from "@/components/Toaster";
+import { INFO_HIDE_MS, STALE_AFTER_MS, TOAST_EXIT_MS, Toaster, toastFor } from "@/components/Toaster";
 
 let emit: (event: RealtimeEvent) => void = () => {};
 jest.mock("@/lib/realtime", () => ({
@@ -120,6 +120,20 @@ describe("Toaster", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Dismiss: Gym Annex is full" }));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("drops a dismissed pop-up from the accessibility tree at once and from the DOM after its exit", () => {
+    mount();
+    act(() => emit(notification("ZONE_FULL")));
+    const card = screen.getByRole("alert");
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss: Gym Annex is full" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(card).toBeInTheDocument();
+    expect(card).toHaveAttribute("aria-hidden", "true");
+    act(() => {
+      jest.advanceTimersByTime(TOAST_EXIT_MS);
+    });
+    expect(card).not.toBeInTheDocument();
   });
 
   it("pauses the info countdown while hovered", () => {
