@@ -6,6 +6,7 @@ import {
   REALTIME_SYNC_EVENT,
   isRealtimeEvent,
   isRealtimeSyncFrame,
+  type RealtimeEvent,
   type RealtimeEventType,
 } from "@parada/types";
 import { API_ROOT } from "@/lib/api/client";
@@ -41,6 +42,21 @@ const CORE_QUERY_KEYS: (readonly unknown[])[] = [
 /** Event names the connection subscribes to: every domain event plus the hub's
  *  SYNC control frame. */
 type SubscribedEvent = RealtimeEventType | typeof REALTIME_SYNC_EVENT;
+
+type RealtimeListener = (event: RealtimeEvent) => void;
+const listeners = new Set<RealtimeListener>();
+
+/**
+ * Hear each accepted (in-order, de-duplicated) realtime event after its
+ * queries are invalidated — the in-app pop-ups use this. Returns an
+ * unsubscribe function.
+ */
+export function subscribeRealtimeEvents(listener: RealtimeListener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
 
 /**
  * Direct-to-API SSE connection using the same bearer token every other mobile
@@ -138,6 +154,7 @@ export function useRealtime(): { status: RealtimeStatus } {
           for (const queryKey of INVALIDATIONS[parsed.type]) {
             void queryClient.invalidateQueries({ queryKey: queryKey as readonly unknown[] });
           }
+          for (const listener of listeners) listener(parsed);
         });
       }
     })();

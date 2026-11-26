@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement, type ReactNode } from "react";
-import { useRealtime } from "@/src/lib/realtime";
+import { subscribeRealtimeEvents, useRealtime } from "@/src/lib/realtime";
 import { configureSecureStore, setToken } from "@/lib/auth/session";
 import * as authSessionModule from "@/lib/auth/session";
 import { queryKeys } from "@/lib/query";
@@ -96,6 +96,21 @@ describe("useRealtime (mobile)", () => {
     MockES.instances[0]!.emit("PARKING_SESSION_COMPLETED", sessionCompleted(1));
 
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["sessions", "active"] }));
+  });
+
+  it("hands each accepted event to pop-up listeners once, and never a replayed duplicate", async () => {
+    const qc = new QueryClient();
+    const heard: string[] = [];
+    const unsubscribe = subscribeRealtimeEvents((event) => heard.push(`${event.type}#${event.seq}`));
+    try {
+      await renderHook(() => useRealtime(), { wrapper: wrapper(qc) });
+      await waitFor(() => expect(MockES.instances.length).toBe(1));
+      MockES.instances[0]!.emit("PARKING_SESSION_COMPLETED", sessionCompleted(1));
+      MockES.instances[0]!.emit("PARKING_SESSION_COMPLETED", sessionCompleted(1));
+      expect(heard).toEqual(["PARKING_SESSION_COMPLETED#1"]);
+    } finally {
+      unsubscribe();
+    }
   });
 
   it("recovers missed events on reconnect by invalidating core queries, not by trusting event continuity", async () => {

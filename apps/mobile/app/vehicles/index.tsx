@@ -2,16 +2,17 @@ import { useState } from "react";
 import { useRouter } from "expo-router";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { VehicleCreateInput, VehicleType } from "@parada/types";
+import type { Vehicle } from "@parada/types";
 import {
+  AddVehicleForm,
   Button,
   Card,
-  ChoiceChip,
   EmptyState,
   ErrorState,
+  GlassCard,
   IconButton,
-  Input,
   LoadingState,
+  PlateChip,
   Screen,
   SectionHeader,
   Text,
@@ -19,17 +20,25 @@ import {
 } from "@/src/components";
 import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
-import { formatVehicleType, normalizePlateInput } from "@/lib/format";
 import { spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
-
-const VEHICLE_TYPES: VehicleType[] = ["CAR", "MOTORCYCLE", "VAN", "TRUCK", "OTHER"];
+import { usePopups } from "@/src/providers/PopupProvider";
 
 export default function VehiclesScreen() {
   const colors = useColors();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const vehicles = useQuery({ queryKey: queryKeys.vehicles, queryFn: api.vehicles });
+  const activeVehicles = (vehicles.data ?? []).filter((vehicle) => vehicle.status === "ACTIVE");
+  const queryClient = useQueryClient();
+  const { showToast } = usePopups();
+  const makePrimary = useMutation({
+    mutationFn: (vehicleId: string) => api.setPrimaryVehicle(vehicleId),
+    onSuccess: (vehicle) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.vehicles });
+      showToast({ title: "Primary vehicle changed", body: `${vehicle.plateNumber} is preselected when you park.` });
+    },
+  });
 
   const refresh = () => void vehicles.refetch();
   const refreshing = vehicles.isFetching;
@@ -59,6 +68,7 @@ export default function VehiclesScreen() {
           <VehicleCard
             vehicle={item}
             onPress={() => router.push(`/vehicles/${item.id}`)}
+            onMakePrimary={item.status === "ACTIVE" ? () => makePrimary.mutate(item.id) : undefined}
             testID={`vehicle-${item.plateNumber}`}
           />
         )}
@@ -73,6 +83,8 @@ export default function VehiclesScreen() {
           <ListHeader
             isLoading={vehicles.isPending}
             count={(vehicles.data ?? []).length}
+            activeCount={activeVehicles.length}
+            primary={activeVehicles.find((vehicle) => vehicle.isPrimary) ?? null}
             open={open}
             onClose={() => setOpen(false)}
           />
@@ -104,20 +116,39 @@ export default function VehiclesScreen() {
   );
 }
 
+function SelectedForParking({ plate }: { plate: string }) {
+  return (
+    <GlassCard padding={spacing.xl} testID="vehicles-selected">
+      <View style={styles.selectedRow}>
+        <View style={styles.formHeading}>
+          <Text variant="caption">Selected for parking</Text>
+          <Text variant="bodySemi">Preselected when you go or reserve</Text>
+        </View>
+        <PlateChip value={plate} tone="soft" testID="vehicles-selected-plate" />
+      </View>
+    </GlassCard>
+  );
+}
+
 function ListHeader({
   isLoading,
   count,
+  activeCount,
+  primary,
   open,
   onClose,
 }: {
   isLoading: boolean;
   count: number;
+  activeCount: number;
+  primary: Vehicle | null;
   open: boolean;
   onClose: () => void;
 }) {
   return (
     <View style={styles.header}>
-      {open ? <AddVehicleForm onClose={onClose} /> : null}
+      {open ? <AddVehiclePanel onClose={onClose} isFirstVehicle={activeCount === 0} /> : null}
+      {primary ? <SelectedForParking plate={primary.plateNumber} /> : null}
       {/* The list below already renders its own LoadingState; a second bare
           "Loading…" above it read like leftover scaffolding. */}
       {isLoading ? null : (
@@ -127,47 +158,7 @@ function ListHeader({
   );
 }
 
-function AddVehicleForm({ onClose }: { onClose: () => void }) {
-  const queryClient = useQueryClient();
-  const [plate, setPlate] = useState("");
-  const [type, setType] = useState<VehicleType>("CAR");
-  const [make, setMake] = useState("");
-  const [model, setModel] = useState("");
-  const [color, setColor] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  const mutation = useMutation({
-    mutationFn: (input: VehicleCreateInput) => api.createVehicle(input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.vehicles });
-      setPlate("");
-      setType("CAR");
-      setMake("");
-      setModel("");
-      setColor("");
-      setError(null);
-      onClose();
-    },
-    onError: (err) => {
-      setError(err instanceof ApiError ? err.message : "Could not add vehicle.");
-    },
-  });
-
-  const submit = () => {
-    const cleaned = normalizePlateInput(plate);
-    if (!cleaned) {
-      setError("Enter a plate number.");
-      return;
-    }
-    mutation.mutate({
-      plateNumber: cleaned,
-      vehicleType: type,
-      make: make.trim() || null,
-      model: model.trim() || null,
-      color: color.trim() || null,
-    });
-  };
-
+function AddVehiclePanel({ onClose, isFirstVehicle }: { onClose: () => void; isFirstVehicle: boolean }) {
   return (
     <Card style={styles.form} testID="vehicles-add-form">
       <View style={styles.formHeader}>
@@ -175,53 +166,9 @@ function AddVehicleForm({ onClose }: { onClose: () => void }) {
           <Text variant="title">Register a vehicle</Text>
           <Text variant="caption">The camera reads this plate at the gate.</Text>
         </View>
-        <IconButton
-          icon="close"
-          accessibilityLabel="Cancel adding vehicle"
-          onPress={() => {
-            onClose();
-            setError(null);
-            setPlate("");
-          }}
-          testID="vehicles-add-cancel"
-        />
+        <IconButton icon="close" accessibilityLabel="Cancel adding vehicle" onPress={onClose} testID="vehicles-add-cancel" />
       </View>
-      <Input
-        testID="vehicle-plate"
-        label="Plate number"
-        value={plate}
-        onChangeText={setPlate}
-        placeholder="ABC-1234"
-        variant="mono"
-        autoCapitalize="characters"
-        error={error}
-        onSubmit={submit}
-        returnKeyType="done"
-      />
-      <View style={styles.typeBlock}>
-        <Text variant="micro">VEHICLE TYPE</Text>
-        <View style={styles.typeRow}>
-          {VEHICLE_TYPES.map((t) => (
-            <ChoiceChip
-              key={t}
-              label={formatVehicleType(t)}
-              selected={t === type}
-              accessibilityRole="button"
-              onPress={() => setType(t)}
-              testID={`vehicle-type-${t}`}
-            />
-          ))}
-        </View>
-      </View>
-      <Input testID="vehicle-make" label="Make (optional)" value={make} onChangeText={setMake} placeholder="Toyota" autoCapitalize="words" maxLength={40} />
-      <Input testID="vehicle-model" label="Model (optional)" value={model} onChangeText={setModel} placeholder="Vios" autoCapitalize="words" maxLength={40} />
-      <Input testID="vehicle-color" label="Color (optional)" value={color} onChangeText={setColor} placeholder="Silver" autoCapitalize="words" maxLength={30} />
-      <Button
-        testID="vehicle-submit"
-        title={mutation.isPending ? "Registering…" : "Register vehicle"}
-        loading={mutation.isPending}
-        onPress={submit}
-      />
+      <AddVehicleForm isFirstVehicle={isFirstVehicle} onAdded={onClose} />
     </Card>
   );
 }
@@ -261,12 +208,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: spacing.xs,
   },
-  typeBlock: {
-    gap: spacing.md,
-  },
-  typeRow: {
+  selectedRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.md,
+    alignItems: "center",
+    gap: spacing.lg,
   },
 });

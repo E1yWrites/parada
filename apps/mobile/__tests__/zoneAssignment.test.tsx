@@ -346,6 +346,8 @@ describe("zone assignment: failures", () => {
 
     await waitFor(() => expect(screen.getByTestId("assignment-error")).toBeOnTheScreen());
     expect(screen.getByTestId("assignment-error")).toHaveTextContent(/can't take this car right now\. Choose another zone\./);
+    // Announced to screen readers, not just painted red.
+    expect(screen.getByTestId("assignment-error")).toHaveProp("accessibilityRole", "alert");
     expect(screen.queryByTestId("assignment-confirmed")).not.toBeOnTheScreen();
     expect(screen.queryByText(/409|CONFLICT|z1|cannot accept/)).not.toBeOnTheScreen();
   });

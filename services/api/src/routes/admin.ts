@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { ok } from "../http/response";
-import { BadRequestError, NotFoundError } from "../http/errors";
+import { BadRequestError, ConflictError, NotFoundError } from "../http/errors";
 import { asyncHandler } from "../http/asyncHandler";
-import { prisma, type Prisma, type ViolationStatus } from "@parada/database";
+import { normalizePlate, prisma, type Prisma, type ViolationStatus } from "@parada/database";
 import { requireRole, currentAuth } from "../middleware/auth";
 import { availabilityOf } from "../domain/availability";
 import type { OccupancyService } from "../domain/occupancy";
@@ -134,8 +134,11 @@ function zoneSummary(z: {
   capacity: number;
   occupiedCount: number;
   status: "ACTIVE" | "INACTIVE";
-}) {
-  const availableCount = Math.max(0, z.capacity - z.occupiedCount);
+}, held = 0) {
+  // Same rule drivers see on GET /zones (ZoneService.effective): a reservation
+  // hold keeps a space, so it is not free. occupiedCount stays physical.
+  const taken = Math.min(z.capacity, z.occupiedCount + held);
+  const availableCount = Math.max(0, z.capacity - taken);
   return {
     id: z.id,
     name: z.name,
@@ -146,18 +149,18 @@ function zoneSummary(z: {
     availableCount,
     occupancyPct: z.capacity > 0 ? (z.occupiedCount / z.capacity) * 100 : 0,
     status: z.status,
-    availability: availabilityOf(z.occupiedCount, z.capacity, z.status),
+    availability: availabilityOf(taken, z.capacity, z.status),
   };
 }
 
 export function adminRouter(deps: {
   occupancy: OccupancyService;
-  config?: ConfigService;
-  reservations?: ReservationService;
-  violations?: ViolationService;
+  config: ConfigService;
+  reservations: ReservationService;
+  violations: ViolationService;
   zoneConfig?: ZoneConfigService;
   rateLimit?: { limit: number; windowMs: number };
-  realtimeHub?: RealtimeHub;
+  realtimeHub: RealtimeHub;
 }): Router {
   const router = Router();
   const zoneConfig = deps.zoneConfig ?? new ZoneConfigService({ reservations: deps.reservations });
@@ -184,7 +187,6 @@ export function adminRouter(deps: {
   router.get(
     "/admin/reservations",
     asyncHandler(async (_req, res) => {
-      if (!deps.reservations) throw new NotFoundError("Reservation service unavailable.");
       res.json(ok(await deps.reservations.adminList()));
     })
   );
@@ -192,12 +194,12 @@ export function adminRouter(deps: {
   router.patch(
     "/admin/reservations/:id/cancel",
     asyncHandler(async (req, res) => {
-      if (!deps.reservations) throw new NotFoundError("Reservation service unavailable.");
       const updated = await deps.reservations.adminCancel(req.params["id"]!);
-      deps.realtimeHub?.publish(
+      deps.realtimeHub.publish(
         { type: "RESERVATION_CANCELLED", occurredAt: new Date().toISOString(), payload: updated },
         { audience: "USER", userId: updated.userId }
       );
+      await publishZoneSnapshot(deps.realtimeHub, updated.zoneId);
       res.json(ok(updated));
     })
   );
@@ -226,11 +228,10 @@ export function adminRouter(deps: {
       if (!["PENDING", "APPEALED", "UPHELD", "DISMISSED", "FINE_PAID"].includes(status)) {
         throw new BadRequestError("Invalid violation status.");
       }
-      if (!deps.violations) throw new NotFoundError("Violation service unavailable.");
       // The domain state machine decides whether this transition is legal; the
       // route holds no transition logic and never trusts a body reviewer id.
       const updated = await deps.violations.adminUpdateStatus(req.params["id"]!, status as ViolationStatus);
-      if (deps.realtimeHub) await publishViolationUpdated(deps.realtimeHub, updated.id);
+      await publishViolationUpdated(deps.realtimeHub, updated.id);
       res.json(ok(updated));
     })
   );
@@ -254,11 +255,10 @@ export function adminRouter(deps: {
     asyncHandler(async (req, res) => {
       const status = req.body?.["status"];
       if (status !== "APPROVED" && status !== "REJECTED") throw new BadRequestError("Appeal status must be APPROVED or REJECTED.");
-      if (!deps.violations) throw new NotFoundError("Violation service unavailable.");
       // Goes through the service so the violation status is settled and the
       // driver is notified of the outcome in the same transaction.
       const { appeal, notification } = await deps.violations.review(req.params["id"]!, status, currentAuth(res).id);
-      deps.realtimeHub?.publish(
+      deps.realtimeHub.publish(
         {
           type: "NOTIFICATION_CREATED",
           occurredAt: new Date().toISOString(),
@@ -269,7 +269,7 @@ export function adminRouter(deps: {
         // ADMIN-targeted rows), so this needs no assertion.
         { audience: "USER", userId: appeal.userId }
       );
-      if (deps.realtimeHub) await publishViolationUpdated(deps.realtimeHub, appeal.violationId);
+      await publishViolationUpdated(deps.realtimeHub, appeal.violationId);
       res.json(ok(appeal));
     })
   );
@@ -277,7 +277,6 @@ export function adminRouter(deps: {
   router.get(
     "/admin/config",
     asyncHandler(async (_req, res) => {
-      if (!deps.config) throw new NotFoundError("Configuration service unavailable.");
       res.json(ok(await deps.config.getEstablishmentSettings()));
     })
   );
@@ -285,7 +284,6 @@ export function adminRouter(deps: {
   router.put(
     "/admin/config",
     asyncHandler(async (req, res) => {
-      if (!deps.config) throw new NotFoundError("Configuration service unavailable.");
       res.json(ok(await deps.config.updateEstablishmentSettings(req.body ?? {})));
     })
   );
@@ -293,7 +291,7 @@ export function adminRouter(deps: {
   router.get(
     "/admin/dashboard",
     asyncHandler(async (_req, res) => {
-      const zones = (await prisma.parkingZone.findMany({
+      const rows = (await prisma.parkingZone.findMany({
         orderBy: { code: "asc" },
         select: {
           id: true,
@@ -304,11 +302,13 @@ export function adminRouter(deps: {
           occupiedCount: true,
           status: true,
         },
-      })).map(zoneSummary);
+      }));
+      const held = await deps.reservations.protectingCountsByZone();
+      const zones = rows.map((z) => zoneSummary(z, held.get(z.id) ?? 0));
 
       const totalCapacity = zones.reduce((s, z) => s + z.capacity, 0);
       const totalOccupied = zones.reduce((s, z) => s + z.occupiedCount, 0);
-      const totalAvailable = Math.max(0, totalCapacity - totalOccupied);
+      const totalAvailable = zones.reduce((s, z) => s + z.availableCount, 0);
       const now = new Date();
 
       const [activeSessions, openAnomalies, pendingAppeals, cameraCounts, recentEvents, anomalies, notifications, trend] =
@@ -334,7 +334,10 @@ export function adminRouter(deps: {
             take: 8,
             select: ANOMALY_SELECT,
           }),
+          // Admin alerts only: driver notifications (fees, wrong-zone warnings)
+          // are not operator alerts and must not surface on the console.
           prisma.notification.findMany({
+            where: { targetRole: "ADMIN" },
             orderBy: { createdAt: "desc" },
             take: 8,
             select: {
@@ -425,6 +428,8 @@ export function adminRouter(deps: {
     "/admin/zones",
     asyncHandler(async (req, res) => {
       const created = await zoneConfig.createZone(req.body ?? {});
+      // A new zone appears in every driver's zone list.
+      await publishZoneSnapshot(deps.realtimeHub, created.id);
       res.status(201).json(ok(created));
     })
   );
@@ -435,9 +440,7 @@ export function adminRouter(deps: {
       const updated = await zoneConfig.updateZone(req.params["id"]!, req.body ?? {});
       // Capacity/status edits change availability without an occupancy
       // event, so push the committed snapshot to every zone consumer.
-      if (deps.realtimeHub) {
-        await publishZoneSnapshot(deps.realtimeHub, updated.id);
-      }
+      await publishZoneSnapshot(deps.realtimeHub, updated.id);
       res.json(ok(updated));
     })
   );
@@ -837,6 +840,21 @@ export function adminRouter(deps: {
         throw new BadRequestError("'detectedAt' must be a valid ISO date string.");
       }
 
+      // Guest admission is for unregistered plates. A registered, active
+      // vehicle's plate would take the normal registered-entry path and commit
+      // a session the guest-admit response cannot describe — refuse it instead.
+      if (typeof detectedPlate === "string" && detectedPlate.trim() !== "") {
+        const registered = await prisma.vehicle.findFirst({
+          where: { normalizedPlate: normalizePlate(detectedPlate), status: "ACTIVE" },
+          select: { id: true },
+        });
+        if (registered) {
+          throw new ConflictError(
+            `Plate '${detectedPlate}' belongs to a registered vehicle. Registered vehicles enter through the gate camera, not guest admission.`
+          );
+        }
+      }
+
       const result = await deps.occupancy.processEvent(
         {
           zoneId: zoneIdRaw,
@@ -854,9 +872,7 @@ export function adminRouter(deps: {
       // same post-commit realtime fan-out applies (zone snapshot, admission
       // decision, notifications). The pipeline's `notifications` list is
       // realtime-only and is not part of the wire response.
-      if (deps.realtimeHub) {
-        await publishOccupancyOutcome(deps.realtimeHub, zoneIdRaw, result);
-      }
+      await publishOccupancyOutcome(deps.realtimeHub, zoneIdRaw, result);
 
       res.status(201).json(ok(withoutNotifications(result)));
     })

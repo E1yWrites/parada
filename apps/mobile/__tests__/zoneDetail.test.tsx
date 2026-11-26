@@ -56,11 +56,29 @@ describe("zone detail screen", () => {
     expect(await screen.findByText("Zone B")).toBeOnTheScreen();
   });
 
-  it("routes to Parking when asked to reserve", async () => {
+  it("opens the Zones tab with this zone pre-selected (it used to open the Now tab)", async () => {
     (api.zones as jest.Mock).mockResolvedValue([zoneB]);
     await renderWithProviders(<ZoneDetailScreen />);
 
-    await fireEvent.press(await screen.findByTestId("zone-detail-reserve"));
-    expect(__router.push).toHaveBeenCalledWith("/(tabs)/parking");
+    const choose = await screen.findByTestId("zone-detail-choose");
+    expect(choose).toHaveTextContent("Choose this zone");
+    await fireEvent.press(choose);
+    expect(__router.push).toHaveBeenCalledWith("/park?zone=z2");
+    expect(__router.push).not.toHaveBeenCalledWith("/(tabs)/parking");
+  });
+
+  it("offers no choose button for a full or inactive zone", async () => {
+    (api.zones as jest.Mock).mockResolvedValue([
+      { ...zoneB, occupiedCount: 40, availableCount: 0, availability: "FULL" },
+    ]);
+    await renderWithProviders(<ZoneDetailScreen />);
+    expect(await screen.findByText("Zone B")).toBeOnTheScreen();
+    expect(screen.queryByTestId("zone-detail-choose")).toBeNull();
+  });
+
+  it("names the Zones tab on the not-found state", async () => {
+    (api.zones as jest.Mock).mockResolvedValue([]);
+    await renderWithProviders(<ZoneDetailScreen />);
+    expect(await screen.findByTestId("zone-detail-missing-back")).toHaveTextContent("Back to zones");
   });
 });

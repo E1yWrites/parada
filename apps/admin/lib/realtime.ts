@@ -6,6 +6,7 @@ import {
   REALTIME_SYNC_EVENT,
   isRealtimeEvent,
   isRealtimeSyncFrame,
+  type RealtimeEvent,
   type RealtimeEventType,
 } from "@parada/types";
 
@@ -15,20 +16,42 @@ export type RealtimeStatus = "CONNECTED" | "DISCONNECTED" | "RECONNECTING" | "ER
  *  flat table rather than per-page logic so adding an event type later means
  *  editing exactly one place. */
 const INVALIDATIONS: Record<RealtimeEventType, string[][]> = {
-  ZONE_OCCUPANCY_UPDATED: [["zones"], ["dashboard"]],
-  PARKING_SESSION_STARTED: [["sessions"], ["dashboard"]],
+  // Occupancy moves also cover what is published only as a zone snapshot:
+  // guest sessions (no PARKING_SESSION_* is sent for them), anomalies the
+  // registered path records, and the zone history charts.
+  ZONE_OCCUPANCY_UPDATED: [["zones"], ["dashboard"], ["sessions"], ["anomalies"], ["history"]],
+  // A camera entry can consume a reservation.
+  PARKING_SESSION_STARTED: [["sessions"], ["dashboard"], ["reservations"], ["analytics"]],
   PARKING_SESSION_COMPLETED: [["sessions"], ["dashboard"], ["analytics"]],
-  RESERVATION_CREATED: [["reservations"]],
-  RESERVATION_CANCELLED: [["reservations"]],
+  RESERVATION_CREATED: [["reservations"], ["analytics"]],
+  RESERVATION_CANCELLED: [["reservations"], ["analytics"]],
   ASSIGNMENT_CREATED: [["dashboard"]],
   ASSIGNMENT_CANCELLED: [["dashboard"]],
-  VIOLATION_CREATED: [["violations"], ["dashboard"]],
+  VIOLATION_CREATED: [["violations"], ["dashboard"], ["analytics"]],
   VIOLATION_UPDATED: [["violations"], ["appeals"], ["dashboard"]],
-  GUEST_ADMISSION_ISSUE: [["anomalies"], ["dashboard"]],
+  GUEST_ADMISSION_ISSUE: [["anomalies"], ["dashboard"], ["sessions"]],
   NOTIFICATION_CREATED: [["notifications"]],
 };
 
-const CORE_QUERY_KEYS: string[][] = [["zones"], ["dashboard"], ["sessions"], ["reservations"], ["violations"], ["notifications"]];
+type RealtimeListener = (event: RealtimeEvent) => void;
+const listeners = new Set<RealtimeListener>();
+
+/**
+ * Hear each accepted (in-order, de-duplicated) event after its queries are
+ * invalidated. The pop-up notifications use this; nothing here changes
+ * cache or auth state. Returns an unsubscribe function.
+ */
+export function subscribeRealtimeEvents(listener: RealtimeListener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+const CORE_QUERY_KEYS: string[][] = [
+  ["zones"], ["dashboard"], ["sessions"], ["reservations"], ["violations"], ["appeals"],
+  ["anomalies"], ["analytics"], ["history"], ["notifications"],
+];
 
 /**
  * Opens the same-origin SSE relay (`/api/realtime` — see app/api/realtime/route.ts)
@@ -106,6 +129,7 @@ export function useRealtime(): { status: RealtimeStatus } {
         for (const queryKey of INVALIDATIONS[parsed.type]) {
           void queryClient.invalidateQueries({ queryKey });
         }
+        for (const listener of listeners) listener(parsed);
       });
     }
 

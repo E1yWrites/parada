@@ -103,7 +103,7 @@ export function NavigateButton({
 
       {state.kind === "denied" ? (
         <View style={styles.status} testID={`${testID ?? "navigate"}-denied`}>
-          <Text variant="caption" color={colors.danger} testID={`${testID ?? "navigate"}-denied-message`}>
+          <Text variant="caption" color={colors.danger} accessibilityRole="alert" accessibilityLiveRegion="polite" testID={`${testID ?? "navigate"}-denied-message`}>
             Location permission is required for navigation.
           </Text>
           {state.canAskAgain ? null : (
@@ -118,11 +118,11 @@ export function NavigateButton({
           )}
         </View>
       ) : state.kind === "unavailable" ? (
-        <Text variant="caption" color={colors.danger} testID={`${testID ?? "navigate"}-unavailable`}>
+        <Text variant="caption" color={colors.danger} accessibilityRole="alert" accessibilityLiveRegion="polite" testID={`${testID ?? "navigate"}-unavailable`}>
           {state.message}
         </Text>
       ) : state.kind === "open-failed" ? (
-        <Text variant="caption" color={colors.danger} testID={`${testID ?? "navigate"}-open-failed`}>
+        <Text variant="caption" color={colors.danger} accessibilityRole="alert" accessibilityLiveRegion="polite" testID={`${testID ?? "navigate"}-open-failed`}>
           Unable to open navigation. Please try again.
         </Text>
       ) : !canNavigate ? (

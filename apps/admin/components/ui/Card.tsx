@@ -1,6 +1,6 @@
 import type { HTMLAttributes, ReactNode } from "react";
 
-/** Bounded white panel: the registry surface every record lives in. */
+/** Soft panel on the ground: the surface every record lives in. */
 export function Card({ className = "", ...rest }: HTMLAttributes<HTMLDivElement>) {
   return <div className={`card ${className}`} {...rest} />;
 }
@@ -12,15 +12,15 @@ export type CardSectionProps = HTMLAttributes<HTMLDivElement> & {
   actions?: ReactNode;
 };
 
-/** Panel header: title, optional description, actions; closed by a seam. */
+/** Panel header: title, optional description, actions. No seam: spacing separates it. */
 export function SectionHeader({ description, title, actions, className = "", ...rest }: CardSectionProps) {
   return (
     <div
-      className={`flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 ${className}`}
+      className={`flex flex-wrap items-center justify-between gap-3 px-5 pb-2 pt-4 ${className}`}
       {...rest}
     >
       <div className="min-w-0">
-        {title ? <h2 className="font-display text-base font-black tracking-tight text-charcoal">{title}</h2> : null}
+        {title ? <h2 className="text-base font-semibold tracking-tight text-charcoal">{title}</h2> : null}
         {description ? <p className="mt-0.5 text-xs text-muted">{description}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}

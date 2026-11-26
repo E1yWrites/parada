@@ -15,7 +15,9 @@ export default function AppealsPage() {
   const query = useQuery({ queryKey: ["appeals"], queryFn: () => api.appeals() });
   const review = useMutation({
     mutationFn: ({ id, status }: { id: string; status: "APPROVED" | "REJECTED" }) => api.updateAppealStatus(id, status),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["appeals"] }),
+    // A decision also settles the violation and the dashboard's pending-appeal count.
+    onSuccess: () =>
+      Promise.all([["appeals"], ["violations"], ["dashboard"]].map((queryKey) => client.invalidateQueries({ queryKey }))),
   });
 
   const columns: Column<AdminAppeal>[] = [

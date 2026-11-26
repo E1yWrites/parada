@@ -1005,6 +1005,30 @@ describe("Authentication & Authorization", () => {
       expect(analytics.body.data.violations).toBeGreaterThanOrEqual(1);
     });
 
+    it("refuses guest admission for a registered vehicle's plate and commits nothing", async () => {
+      const zone = await prisma.parkingZone.create({
+        data: { name: "Registered Guest Zone", code: "RGZ", capacity: 3, occupiedCount: 0 },
+      });
+      const camera = await prisma.camera.create({
+        data: { zoneId: zone.id, name: "RGZ Entry", identifier: "cam-rgz-entry", gateType: "ENTRY", status: "ONLINE" },
+      });
+      const owner = await prisma.user.create({
+        data: { name: "Reg Owner", email: "reg-owner-guest@test.local", passwordHash: "x", role: "USER" },
+      });
+      await prisma.vehicle.create({
+        data: { userId: owner.id, plateNumber: "REG 777", normalizedPlate: "REG777", vehicleType: "CAR" },
+      });
+
+      const res = await request(app)
+        .post("/admin/guest-admit")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ zoneId: zone.id, cameraIdentifier: camera.identifier, sourceEventId: "rgz-1", detectedPlate: "reg-777" })
+        .expect(409);
+      expect(res.body.error.message).toContain("registered vehicle");
+      expect((await prisma.parkingZone.findUniqueOrThrow({ where: { id: zone.id } })).occupiedCount).toBe(0);
+      expect(await prisma.parkingSession.count({ where: { zoneId: zone.id } })).toBe(0);
+    });
+
     it("allows only an admin to override guest admission through the occupancy pipeline", async () => {
       const zone = await prisma.parkingZone.create({
         data: { name: "Override Zone", code: "OVR", capacity: 1, occupiedCount: 0 },
@@ -2950,6 +2974,59 @@ describe("Admin dashboard — needs-attention counts", () => {
 
   beforeEach(async () => {
     await cleanDatabase();
+  });
+
+  it("lists only ADMIN-targeted notifications in recentNotifications, never a driver's", async () => {
+    const app = createApp();
+    const admin = await prisma.user.create({
+      data: { name: "Feed Admin", email: "feed-admin@test.local", passwordHash: "x", role: "ADMIN" },
+    });
+    const driver = await prisma.user.create({
+      data: { name: "Feed Driver", email: "feed-driver@test.local", passwordHash: "x", role: "USER" },
+    });
+    const token = tokens.sign({ id: admin.id, role: "ADMIN" }).token;
+    const zone = await prisma.parkingZone.create({ data: { name: "Feed Zone", code: "FED", capacity: 5 } });
+    await prisma.notification.create({
+      data: { zoneId: zone.id, type: "ZONE_FULL", message: "Zone is FULL (5/5 occupied).", targetRole: "ADMIN" },
+    });
+    await prisma.notification.create({
+      data: { zoneId: zone.id, userId: driver.id, type: "SESSION_COMPLETED", message: "Your parking session ended.", targetRole: "USER" },
+    });
+
+    const res = await request(app).get("/admin/dashboard").set("Authorization", `Bearer ${token}`).expect(200);
+    const feed: { targetRole: string; message: string }[] = res.body.data.recentNotifications;
+    expect(feed.map((n) => n.message)).toEqual(["Zone is FULL (5/5 occupied)."]);
+    expect(feed.every((n) => n.targetRole === "ADMIN")).toBe(true);
+  });
+
+  it("counts reservation holds out of free spaces, the same as GET /zones does for drivers", async () => {
+    const app = createApp();
+    const admin = await prisma.user.create({
+      data: { name: "Hold Admin", email: "hold-admin@test.local", passwordHash: "x", role: "ADMIN" },
+    });
+    const driver = await prisma.user.create({
+      data: { name: "Hold Driver", email: "hold-driver@test.local", passwordHash: "x", role: "USER" },
+    });
+    const token = tokens.sign({ id: admin.id, role: "ADMIN" }).token;
+    const zone = await prisma.parkingZone.create({ data: { name: "Hold Zone", code: "HLD", capacity: 2, occupiedCount: 1 } });
+    const vehicle = await prisma.vehicle.create({
+      data: { userId: driver.id, plateNumber: "HLD 1", normalizedPlate: "HLD1", vehicleType: "CAR" },
+    });
+    await prisma.reservation.create({
+      data: { userId: driver.id, vehicleId: vehicle.id, zoneId: zone.id, status: "CONFIRMED", startAt: new Date(), endAt: new Date(Date.now() + 3600_000) },
+    });
+
+    const publicZone = (await request(app).get("/zones").expect(200)).body.data.find((z: { id: string }) => z.id === zone.id);
+    const dash = await request(app).get("/admin/dashboard").set("Authorization", `Bearer ${token}`).expect(200);
+    const dashZone = dash.body.data.zones.find((z: { id: string }) => z.id === zone.id);
+    const list = await request(app).get("/admin/zones").set("Authorization", `Bearer ${token}`).expect(200);
+    const listZone = list.body.data.find((z: { id: string }) => z.id === zone.id);
+
+    expect(publicZone.availableCount).toBe(0);
+    expect(dashZone).toMatchObject({ occupiedCount: 1, availableCount: 0, availability: "FULL" });
+    expect(listZone).toMatchObject({ occupiedCount: 1, availableCount: 0, availability: "FULL" });
+    expect(dash.body.data.summary.totalAvailable).toBe(0);
+    expect(dash.body.data.fullZones.map((z: { id: string }) => z.id)).toContain(zone.id);
   });
 
   it("counts unresolved anomalies and PENDING appeals only", async () => {

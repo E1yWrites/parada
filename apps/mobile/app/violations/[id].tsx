@@ -169,7 +169,7 @@ export default function ViolationDetailScreen() {
                 {reason.length}/{REASON_MAX}
               </Text>
               {appealError ? (
-                <Text variant="caption" color={colors.danger} testID="violation-appeal-error">
+                <Text variant="caption" color={colors.danger} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="violation-appeal-error">
                   {appealError}
                 </Text>
               ) : null}
@@ -298,7 +298,6 @@ function buildStyles(colors: ColorTokens) {
       borderLeftColor: colors.border,
       paddingLeft: spacing.lg,
       borderRadius: radii.sm,
-      borderTopRightRadius: radii.cut,
     },
   });
 }

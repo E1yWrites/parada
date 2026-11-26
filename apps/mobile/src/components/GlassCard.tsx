@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useMemo } from "react";
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { BlurView } from "expo-blur";
 import { blurMethod, motion, radii, spacing } from "@/src/theme";
 import { useColors, useThemeGlass, useThemeShadows } from "@/src/providers/ThemeProvider";
@@ -12,34 +12,36 @@ type GlassCardProps = {
   onPress?: () => void;
   accent?: string;
   padding?: number;
-  /** Wash color painted behind the frost (defaults to brand orange). */
-  wash?: string;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
 
 /**
- * The pass / hero surface: a frost over a soft color wash, so the card reads
- * as a subtle gradient rather than flat surface. Same shape/contract as
+ * The hero surface: real frost (BlurView) over the WaveGrid ground, a tint
+ * overlay and a specular top edge. Same shape/contract as
  * `Card`; reserved for the current-state pass, summaries and hero banners.
  * Falls back to a solid surface under the OS Reduce Transparency setting.
  */
-export function GlassCard({ children, onPress, accent, padding = spacing.xl2, wash, style, testID }: GlassCardProps) {
+export function GlassCard({ children, onPress, accent, padding = spacing.xl2, style, testID }: GlassCardProps) {
   const colors = useColors();
   const shadows = useThemeShadows();
   const glass = useThemeGlass();
   const styles = useMemo(() => buildStyles(shadows), [shadows]);
   const reducedTransparency = usePrefersReducedTransparency();
   const preset = glass.hero;
-  const washColor = wash ?? colors.primary;
 
+  // ponytail: Android BlurView only blurs a registered BlurTargetView, which
+  // the screens don't provide yet, so Android gets an opaque surface (a translucent one shows the elevation shadow through it) instead
+  // of an unverified blur. Wire BlurTargetView + `blurTarget` to upgrade.
   const background = reducedTransparency ? (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: preset.fallbackColor }]} />
+  ) : Platform.OS === "android" ? (
+    <>
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: preset.fallbackColor }]} />
+      <View style={[styles.specular, { backgroundColor: preset.borderColor }]} />
+    </>
   ) : (
     <>
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />
-      <View style={[styles.wash, styles.washTop, { backgroundColor: washColor }]} />
-      <View style={[styles.wash, styles.washBottom, { backgroundColor: washColor }]} />
       <BlurView
         testID={testID ? `${testID}-blur` : undefined}
         style={StyleSheet.absoluteFill}
@@ -48,6 +50,8 @@ export function GlassCard({ children, onPress, accent, padding = spacing.xl2, wa
         experimentalBlurMethod={blurMethod}
       />
       <View style={[StyleSheet.absoluteFill, { backgroundColor: preset.overlayColor }]} />
+      {/* Specular top edge: the light catching the glass. */}
+      <View style={[styles.specular, { backgroundColor: preset.borderColor }]} />
     </>
   );
 
@@ -98,30 +102,19 @@ function buildStyles(shadows: ShadowTokens) {
   return StyleSheet.create({
     outer: {
       borderRadius: radii.xl,
-      borderTopRightRadius: radii.cut + 4,
       ...shadows.card,
     },
     clip: {
       borderRadius: radii.xl,
-      borderTopRightRadius: radii.cut + 4,
       borderWidth: 1,
       overflow: "hidden",
     },
-    wash: {
+    specular: {
       position: "absolute",
-      width: 260,
-      height: 260,
-      borderRadius: 130,
-      opacity: 0.16,
-    },
-    washTop: {
-      top: -140,
-      right: -80,
-    },
-    washBottom: {
-      bottom: -180,
-      left: -60,
-      opacity: 0.08,
+      top: 0,
+      left: 18,
+      right: 18,
+      height: 1,
     },
     accent: {
       width: 28,

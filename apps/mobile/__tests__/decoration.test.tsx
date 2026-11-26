@@ -63,18 +63,28 @@ describe("mascot placement", () => {
     expect(hits).toEqual([]);
   });
 
-  it("uses Lottie only on onboarding, login and the idle Now card", () => {
+  // Owner-confirmed placements (24 Nov 2026): the original three plus the
+  // first-run tutorial and the parked / session-ended pop-up sheets.
+  it("uses Lottie only on its approved screens", () => {
     const users: string[] = [];
     const walk = (dir: string) => {
       for (const entry of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
         const rel = `${dir}/${entry.name}`;
         if (entry.isDirectory()) walk(rel);
-        else if (/\.tsx?$/.test(entry.name) && /<Lottie\b/.test(read(rel))) users.push(rel);
+        else if (/\.tsx?$/.test(entry.name) && /<Lottie(Guide)?\b/.test(read(rel))) users.push(rel);
       }
     };
     walk("app");
     walk("src");
-    expect(users.sort()).toEqual(["app/login.tsx", "app/onboarding.tsx", "src/components/CurrentParkingState.tsx"]);
+    expect(users.sort()).toEqual([
+      "app/login.tsx",
+      "app/onboarding.tsx",
+      "app/tutorial.tsx",
+      "src/components/CurrentParkingState.tsx",
+      // Lottie + her speech bubble; used only by the tutorial and the idle Now card.
+      "src/components/LottieGuide.tsx",
+      "src/providers/PopupProvider.tsx",
+    ]);
   });
 
   it("renders illustrations as a plain icon hidden from screen readers", async () => {

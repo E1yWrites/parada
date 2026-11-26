@@ -18,15 +18,19 @@ const LABEL: Record<RealtimeStatus, string> = {
 export function ConnectionIndicator() {
   const status = useRealtimeStatus();
   const connected = status === "CONNECTED";
+  const reconnecting = status === "RECONNECTING";
+  const tone = connected ? "bg-success-soft text-success" : reconnecting ? "bg-warning-soft text-warning" : "bg-card text-muted";
   return (
-    <div role="status" className="flex min-w-0 items-center gap-2.5" data-status={status}>
-      <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
-        {connected ? (
-          <span className="absolute inline-flex h-full w-full animate-pulse-dot rounded-full bg-success opacity-60" />
-        ) : null}
-        <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${connected ? "bg-success" : "bg-muted"}`} />
+    <div
+      role="status"
+      className={`inline-flex h-7 shrink-0 items-center gap-2 rounded-full px-3 text-xs font-semibold ${tone}`}
+      data-status={status}
+    >
+      <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
+        {connected ? <span className="absolute inline-flex h-full w-full animate-pulse-dot rounded-full bg-current opacity-60" /> : null}
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-current" />
       </span>
-      <p className="truncate text-sm font-semibold text-muted">{LABEL[status]}</p>
+      <p className="whitespace-nowrap">{LABEL[status]}</p>
     </div>
   );
 }

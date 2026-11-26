@@ -99,6 +99,7 @@ function CameraForm({
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["cameras"] });
       queryClient.invalidateQueries({ queryKey: ["zones"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       onDone(editing ? `Camera ${editing.identifier} saved.` : `Camera ${form.identifier} registered.`);
     },
     onError: (err) => {
@@ -236,6 +237,7 @@ function ToggleStatus({ camera, onDone }: { camera: AdminCamera; onDone: (messag
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["cameras"] });
       queryClient.invalidateQueries({ queryKey: ["zones"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       onDone(`Camera ${camera.identifier} ${camera.status === "ONLINE" ? "disabled" : "enabled"}.`);
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Unable to update this camera."),
@@ -331,8 +333,8 @@ export default function CamerasPage() {
       header: "Camera",
       cell: (c) => (
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-brand-soft">
-            <Camera className="h-4 w-4 text-brand-ink" aria-hidden="true" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-raised">
+            <Camera className="h-4 w-4 text-muted" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <p className="font-mono text-sm font-bold text-charcoal">{c.identifier}</p>

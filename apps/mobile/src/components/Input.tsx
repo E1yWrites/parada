@@ -196,7 +196,6 @@ function buildStyles(colors: ColorTokens) {
       borderWidth: 1.5,
       borderColor: colors.border,
       borderRadius: radii.md,
-      borderTopRightRadius: radii.cut,
       paddingHorizontal: spacing.xl,
     },
     controlMultiline: {

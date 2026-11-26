@@ -20,6 +20,7 @@ import { api, ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query";
 import { ZONE_NAVIGATION_UNCONFIGURED, resolveZoneDestination } from "@/lib/navigation";
 import { spacing } from "@/src/theme";
+import { heldSpaces } from "@/lib/format";
 import { useColors } from "@/src/providers/ThemeProvider";
 
 export default function ZoneDetailScreen() {
@@ -72,6 +73,7 @@ export default function ZoneDetailScreen() {
               occupied={zoneData.occupiedCount}
               capacity={zoneData.capacity}
               color={status.color}
+              held={heldSpaces(zoneData)}
               testID="zone-detail-occupancy"
             />
             <NavigateButton
@@ -92,12 +94,18 @@ export default function ZoneDetailScreen() {
             </View>
           ) : null}
 
-          <Button
-            variant="secondary"
-            title="Reserve from Parking"
-            onPress={() => router.push("/(tabs)/parking")}
-            testID="zone-detail-reserve"
-          />
+          {/* Going or reserving happens on the Zones tab (the Now tab only shows
+              a plan once it exists). Hand the zone over pre-selected; a full or
+              inactive zone can't be chosen there, so it gets no button here. */}
+          {zoneData.status === "ACTIVE" && !isFull ? (
+            <Button
+              variant="secondary"
+              title="Choose this zone"
+              accessibilityLabel={`Choose ${zoneData.name} on the Zones tab to go there or reserve a space`}
+              onPress={() => router.push(`/park?zone=${encodeURIComponent(zoneData.id)}`)}
+              testID="zone-detail-choose"
+            />
+          ) : null}
           <Text variant="caption" align="center">
             Counts update every 30 seconds from the gate cameras.
           </Text>
@@ -110,7 +118,7 @@ export default function ZoneDetailScreen() {
           testID="zone-detail-missing">
           <Button
             variant="secondary"
-            title="Back to parking"
+            title="Back to zones"
             onPress={() => router.back()}
             testID="zone-detail-missing-back"
           />

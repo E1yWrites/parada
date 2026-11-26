@@ -1,4 +1,5 @@
 import { act, fireEvent, renderWithProviders, screen, waitFor } from "@/src/test/utils";
+import { __router, useLocalSearchParams } from "expo-router";
 import { queryKeys } from "@/lib/query";
 import ParkScreen from "@/app/(tabs)/park";
 import { useEffect } from "react";
@@ -23,6 +24,7 @@ jest.mock("@/lib/api/client", () => {
       recommendedZone: jest.fn(),
       assignments: jest.fn(),
       createAssignment: jest.fn(),
+      cancelAssignment: jest.fn(),
       reservations: jest.fn(),
       createReservation: jest.fn(),
       cancelReservation: jest.fn(),
@@ -117,8 +119,9 @@ describe("park screen: zone availability", () => {
   it("renders AVAILABLE/LOW/FULL/OFFLINE badges concurrently", async () => {
     await renderWithProviders(<ParkScreen />);
 
-    await waitFor(() => expect(screen.getByText("Available")).toBeOnTheScreen());
-    expect(screen.getByText("Few spaces")).toBeOnTheScreen();
+    // "Available" is the normal case and is left unsaid; only exceptions get a badge.
+    await waitFor(() => expect(screen.getByText("Few spaces")).toBeOnTheScreen());
+    expect(screen.queryByText("Available")).not.toBeOnTheScreen();
     expect(screen.getByText("Full")).toBeOnTheScreen();
     expect(screen.getByText("Offline")).toBeOnTheScreen();
     expect(screen.getByTestId("zone-A-available")).toHaveTextContent("5");
@@ -150,7 +153,7 @@ describe("park screen: zone availability", () => {
 
     await fireEvent.press(screen.getByTestId("zones-error-retry"));
 
-    await waitFor(() => expect(screen.getByText("Available")).toBeOnTheScreen());
+    await waitFor(() => expect(screen.getByTestId("zone-A-available")).toBeOnTheScreen());
     expect(api.zones).toHaveBeenCalledTimes(2);
   });
 });
@@ -195,6 +198,19 @@ describe("park screen: manual zone selection (phase 9.3)", () => {
     expect(screen.getByTestId("zone-D").props.accessibilityState).toMatchObject({ checked: false });
   });
 
+  it("pre-selects the zone handed over by zone detail (?zone=<id>)", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ zone: "z2" });
+    try {
+      await renderWithProviders(<ParkScreen />);
+      await screen.findByTestId("zone-B");
+      expect(screen.getByTestId("zone-B").props.accessibilityState).toMatchObject({ checked: true });
+      expect(screen.getByTestId("zone-A").props.accessibilityState).toMatchObject({ checked: false });
+      expect(api.createAssignment).not.toHaveBeenCalled();
+    } finally {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    }
+  });
+
   it("keeps the details link out of the zone radio (one role per control)", async () => {
     await renderWithProviders(<ParkScreen />);
 
@@ -220,6 +236,19 @@ describe("park screen: least busy zone (redesign)", () => {
     expect(screen.queryByText(/recommended/i)).not.toBeOnTheScreen();
   });
 
+  it("offers the least-busy zone up top and Choose selects it", async () => {
+    (api.recommendedZone as jest.Mock).mockResolvedValue({
+      recommendedZone: { id: "z1", name: "Zone A", code: "A", capacity: 20, occupiedCount: 15, availableCount: 5, status: "ACTIVE" },
+    });
+    await renderWithProviders(<ParkScreen />);
+
+    expect(await screen.findByTestId("zones-least-busy-card")).toHaveTextContent(/Least busy now/);
+    await fireEvent.press(screen.getByTestId("zones-least-busy-choose"));
+    expect(screen.getByTestId("zone-A").props.accessibilityState).toMatchObject({ checked: true });
+    // Once chosen, the shortcut steps aside.
+    expect(screen.queryByTestId("zones-least-busy-card")).not.toBeOnTheScreen();
+  });
+
   it("still lists every zone when the least-busy lookup fails (409 or network)", async () => {
     (api.recommendedZone as jest.Mock).mockRejectedValue(new ApiError("CONFLICT", "No suitable zone is currently available.", 409));
     await renderWithProviders(<ParkScreen />);
@@ -241,7 +270,10 @@ describe("park screen: action labels match their domain effect (redesign)", () =
   it("names the two actions by what they do, not 'Park now' / 'Reserve for later'", async () => {
     await renderWithProviders(<ParkScreen />);
 
-    await screen.findByTestId("zone-A");
+    // The two actions live in the sheet that opens when a zone is tapped.
+    expect(screen.queryByTestId("zone-sheet")).not.toBeOnTheScreen();
+    await fireEvent.press(await screen.findByTestId("zone-A"));
+    expect(await screen.findByTestId("zone-sheet")).toBeOnTheScreen();
     expect(screen.getByTestId("parking-action-assign")).toHaveTextContent("Go to this zone");
     expect(screen.getByTestId("parking-action-reserve")).toHaveTextContent("Reserve a space");
     expect(screen.queryByText(/park now/i)).not.toBeOnTheScreen();
@@ -484,8 +516,10 @@ describe("park screen: reserve for a later arrival (redesign)", () => {
       client.setQueryData(queryKeys.assignments, [{ ...activeAssignment, status: "CANCELLED" }]);
     });
 
+    await waitFor(() => expect(screen.queryByTestId("zones-current-plan")).not.toBeOnTheScreen());
+    // Zones are choosable again: tapping one opens the sheet with the action.
+    await fireEvent.press(screen.getByTestId("zone-A"));
     expect(await screen.findByTestId("assignment-submit")).toBeOnTheScreen();
-    expect(screen.queryByTestId("zones-current-plan")).not.toBeOnTheScreen();
     expect(screen.queryByText(/Assigned to/)).not.toBeOnTheScreen();
   });
 
@@ -528,5 +562,87 @@ describe("park screen: reserve for a later arrival (redesign)", () => {
     expect(screen.getByTestId("zones-open-now")).toBeOnTheScreen();
     // Selecting another plan type is no longer possible once one exists.
     expect(screen.queryByTestId("parking-action-toggle")).not.toBeOnTheScreen();
+  });
+});
+
+describe("park screen: zone action sheet", () => {
+  const car = {
+    id: "v1", userId: "u1", plateNumber: "ABC-1234", normalizedPlate: "ABC1234", vehicleType: "CAR",
+    make: null, model: null, color: null, status: "ACTIVE", isPrimary: true,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"), updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  };
+  const activeAssignment = {
+    id: "a1", userId: "u1", vehicleId: "v1", zoneId: "z1", status: "ACTIVE",
+    assignedAt: "2026-09-05T09:00:00.000Z", expiresAt: new Date(Date.now() + 600_000).toISOString(),
+    createdAt: "2026-09-05T09:00:00.000Z", updatedAt: "2026-09-05T09:00:00.000Z",
+    zone: { id: "z1", name: "Zone A", code: "A" },
+    vehicle: { id: "v1", plateNumber: "ABC-1234", vehicleType: "CAR" },
+  } as ZoneAssignmentResponse;
+
+  it("opens on tap with the zone, both choices and the final button — and closes", async () => {
+    (api.vehicles as jest.Mock).mockResolvedValue([car]);
+    await renderWithProviders(<ParkScreen />);
+    await fireEvent.press(await screen.findByTestId("zone-A"));
+    expect(await screen.findByTestId("zone-sheet-title")).toHaveTextContent("Zone A");
+    expect(await screen.findByTestId("assignment-submit")).toBeOnTheScreen();
+    // No duplicate zone summary inside the sheet; its header already names the zone.
+    expect(screen.queryByTestId("assignment-summary")).not.toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("parking-action-reserve"));
+    expect(screen.getByTestId("reservation-create")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("zone-sheet-close"));
+    await waitFor(() => expect(screen.queryByTestId("zone-sheet")).not.toBeOnTheScreen());
+    expect(screen.getByTestId("zone-A").props.accessibilityState).toMatchObject({ checked: false });
+  });
+
+  it("goes to a zone in two taps: the zone, then the button", async () => {
+    (api.vehicles as jest.Mock).mockResolvedValue([car]);
+    (api.createAssignment as jest.Mock).mockResolvedValue(activeAssignment);
+    await renderWithProviders(<ParkScreen />);
+    await fireEvent.press(await screen.findByTestId("zone-A"));
+    await fireEvent.press(await screen.findByTestId("assignment-submit"));
+    await waitFor(() => expect(api.createAssignment).toHaveBeenCalled());
+  });
+
+  it("returns to Now once the zone is confirmed", async () => {
+    __router.push.mockClear();
+    (api.vehicles as jest.Mock).mockResolvedValue([car]);
+    (api.createAssignment as jest.Mock).mockResolvedValue(activeAssignment);
+    await renderWithProviders(<ParkScreen />);
+    await fireEvent.press(await screen.findByTestId("zone-A"));
+    await fireEvent.press(await screen.findByTestId("assignment-submit"));
+    await waitFor(() => expect(__router.push).toHaveBeenCalledWith("/parking"));
+  });
+
+  it("changes zone: releases the current assignment, assigns the new one, back to Now", async () => {
+    __router.push.mockClear();
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ change: "1" });
+    try {
+      const assignedB = { ...activeAssignment, zoneId: "z2", zone: { id: "z2", name: "Zone B", code: "B" } };
+      (api.vehicles as jest.Mock).mockResolvedValue([car]);
+      (api.assignments as jest.Mock).mockResolvedValue([assignedB]);
+      (api.cancelAssignment as jest.Mock).mockResolvedValue({ ...assignedB, status: "CANCELLED" });
+      (api.createAssignment as jest.Mock).mockResolvedValue(activeAssignment);
+      await renderWithProviders(<ParkScreen />);
+
+      expect(await screen.findByTestId("zones-changing-notice")).toHaveTextContent(/Zone B stays yours until you confirm/);
+      expect(screen.queryByTestId("zones-current-plan")).not.toBeOnTheScreen();
+      // The zone you already have can't be picked again.
+      expect(screen.getByTestId("zone-B").props.accessibilityState).toMatchObject({ disabled: true });
+
+      await fireEvent.press(screen.getByTestId("zone-A"));
+      expect(await screen.findByTestId("zone-sheet-replacing")).toHaveTextContent(/Moves you from Zone B/);
+      expect(screen.queryByTestId("parking-action-toggle")).not.toBeOnTheScreen();
+      await fireEvent.press(await screen.findByTestId("assignment-submit"));
+
+      await waitFor(() => expect(api.createAssignment).toHaveBeenCalled());
+      expect(api.cancelAssignment).toHaveBeenCalledWith("a1");
+      expect((api.cancelAssignment as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
+        (api.createAssignment as jest.Mock).mock.invocationCallOrder[0]!,
+      );
+      await waitFor(() => expect(__router.push).toHaveBeenCalledWith("/parking"));
+      expect(__router.setParams).toHaveBeenCalledWith({ change: undefined });
+    } finally {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({});
+    }
   });
 });

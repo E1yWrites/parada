@@ -36,7 +36,10 @@ export function PlateChip({ value, tone = "ink", size = "md", style, testID }: P
       <Text
         variant="mono"
         numberOfLines={1}
-        color={tone === "ink" ? colors.onAccent : colors.primaryDeep}
+        // Ink plate: the ground colour on a foreground fill, so it inverts with
+        // the theme (onAccent is near-black in both themes and vanished on the
+        // light theme's ink fill). Soft plate: the tested ink token for its tint.
+        color={tone === "ink" ? colors.background : colors.primaryInk}
         style={compact ? styles.textSm : styles.text}>
         {value}
       </Text>
@@ -48,6 +51,9 @@ function buildStyles(colors: ColorTokens) {
   return StyleSheet.create({
     base: {
       alignSelf: "flex-start",
+      // A long code shrinks (and ellipsizes) instead of pushing its row's
+      // status badge off the card.
+      flexShrink: 1,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       borderRadius: radii.sm,

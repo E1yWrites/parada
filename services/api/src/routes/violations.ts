@@ -8,7 +8,7 @@ import type { RealtimeHub } from "../realtime/hub";
 import { notificationCreatedPayload, publishViolationUpdated } from "../realtime/occupancyEvents";
 
 /** A driver's own violations and their right to dispute them. */
-export function violationsRouter(violations: ViolationService, realtimeHub?: RealtimeHub): Router {
+export function violationsRouter(violations: ViolationService, realtimeHub: RealtimeHub): Router {
   const router = Router();
 
   router.get(
@@ -30,7 +30,7 @@ export function violationsRouter(violations: ViolationService, realtimeHub?: Rea
         req.params["id"]!,
         reason.trim()
       );
-      realtimeHub?.publish(
+      realtimeHub.publish(
         {
           type: "NOTIFICATION_CREATED",
           occurredAt: new Date().toISOString(),
@@ -38,7 +38,7 @@ export function violationsRouter(violations: ViolationService, realtimeHub?: Rea
         },
         { audience: "ADMIN" }
       );
-      if (realtimeHub) await publishViolationUpdated(realtimeHub, appeal.violationId);
+      await publishViolationUpdated(realtimeHub, appeal.violationId);
       res.status(201).json(ok(appeal));
     })
   );

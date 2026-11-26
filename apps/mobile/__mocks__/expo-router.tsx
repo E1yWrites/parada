@@ -7,6 +7,7 @@ export const __router = {
   replace: jest.fn(),
   back: jest.fn(),
   canGoBack: jest.fn(),
+  setParams: jest.fn(),
 };
 
 export function useRouter() {

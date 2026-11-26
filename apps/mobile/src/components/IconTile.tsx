@@ -47,6 +47,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
     borderRadius: radii.sm,
-    borderTopRightRadius: radii.cut,
   },
 });

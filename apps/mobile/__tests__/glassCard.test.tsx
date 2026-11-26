@@ -1,4 +1,4 @@
-import { AccessibilityInfo } from "react-native";
+import { AccessibilityInfo, Platform } from "react-native";
 import { render, screen, waitFor } from "@/src/test/utils";
 import { GlassCard } from "@/src/components/GlassCard";
 import { Text } from "@/src/components/Text";
@@ -70,5 +70,23 @@ describe("GlassCard", () => {
       expect(screen.getByTestId("hero-accent")).toBeOnTheScreen();
       expect(screen.getByTestId("hero").props.accessibilityRole).toBe("button");
     });
+  });
+});
+
+describe("GlassCard on Android", () => {
+  it("uses a near-opaque frost instead of an untargeted blur", async () => {
+    const original = Platform.OS;
+    Object.defineProperty(Platform, "OS", { configurable: true, get: () => "android" });
+    try {
+      await render(
+        <GlassCard testID="hero">
+          <Text>Hi</Text>
+        </GlassCard>,
+      );
+      expect(screen.getByText("Hi")).toBeOnTheScreen();
+      expect(screen.queryByTestId("hero-blur", { includeHiddenElements: true })).toBeNull();
+    } finally {
+      Object.defineProperty(Platform, "OS", { configurable: true, get: () => original });
+    }
   });
 });

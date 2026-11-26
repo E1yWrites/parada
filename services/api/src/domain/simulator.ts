@@ -49,6 +49,8 @@ export interface ScenarioRequest {
  * The simulator is NOT computer vision. Real OCR is integrated separately
  * (Phase 9); this tool exists to exercise the backend pipeline deterministically.
  */
+export type OccupancyOutcome = Awaited<ReturnType<OccupancyService["processEvent"]>>;
+
 export class SimulatorService {
   private readonly occupancy: OccupancyService;
   private runs = 0;
@@ -62,6 +64,14 @@ export class SimulatorService {
    * a restart collide with stored ids and are rejected as duplicates.
    */
   private readonly instanceId = randomBytes(4).toString("hex");
+  /**
+   * Pipeline results of the run in progress, handed back to the route so it can
+   * publish the same realtime events a camera event would (session started /
+   * completed, wrong-zone notices). Not part of the HTTP response.
+   * ponytail: per-instance buffer; overlapping runs would mix results. Runs are
+   * admin-driven and sequential; move to a per-call array if that changes.
+   */
+  private outcomes: OccupancyOutcome[] = [];
 
   constructor(occupancy: OccupancyService) {
     this.occupancy = occupancy;
@@ -133,10 +143,11 @@ export class SimulatorService {
     },
     zoneId: string
   ) {
-    await this.occupancy.processEvent(
+    const outcome = await this.occupancy.processEvent(
       { zoneId, ...input } as OccupancyInput,
       "SIMULATOR"
     );
+    this.outcomes.push(outcome);
     this.eventsProcessed += 1;
   }
 
@@ -149,6 +160,7 @@ export class SimulatorService {
   }
 
   async runScenario(request: ScenarioRequest) {
+    this.outcomes = [];
     const zone = await this.resolveZone(request.zoneId);
     const { entry, exit } = await this.resolveCameras(zone.id);
     if (!entry || !exit) {
@@ -211,8 +223,11 @@ export class SimulatorService {
       }
 
       case "MULTIPLE_ENTRIES": {
-        for (let i = 0; i < Math.max(1, vehicles.length); i++) {
-          const v = vehicles[i % Math.max(1, vehicles.length)]!;
+        if (vehicles.length < 1) {
+          throw new BadRequestError("MULTIPLE_ENTRIES requires at least one vehicleId.");
+        }
+        for (let i = 0; i < vehicles.length; i++) {
+          const v = vehicles[i]!;
           const body = entryEvent(v.plateNumber, i + 1);
           try {
             await this.submit(body, zone.id);
@@ -225,8 +240,11 @@ export class SimulatorService {
       }
 
       case "MULTIPLE_EXITS": {
-        for (let i = 0; i < Math.max(1, vehicles.length); i++) {
-          const v = vehicles[i % Math.max(1, vehicles.length)]!;
+        if (vehicles.length < 1) {
+          throw new BadRequestError("MULTIPLE_EXITS requires at least one vehicleId.");
+        }
+        for (let i = 0; i < vehicles.length; i++) {
+          const v = vehicles[i]!;
           const body = exitEvent(v.plateNumber, i + 1);
           try {
             await this.submit(body, zone.id);
@@ -348,6 +366,7 @@ export class SimulatorService {
       events,
       rejects,
       occupancy: await this.currentOccupancy(zone.id),
+      outcomes: this.outcomes,
     };
   }
 

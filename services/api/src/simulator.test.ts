@@ -170,6 +170,15 @@ describe("Phase 6 — occupancy simulator & admin infrastructure", () => {
       expect(events.every((e) => e.source !== "CAMERA")).toBe(true);
     });
 
+    it.each(["MULTIPLE_ENTRIES", "MULTIPLE_EXITS"])("rejects %s with no vehicles as 400, not a 500", async (scenario) => {
+      const res = await request(ctx.app)
+        .post("/simulator/run")
+        .set("Authorization", `Bearer ${ctx.adminToken}`)
+        .send({ scenario, zoneId: ctx.zoneId })
+        .expect(400);
+      expect(res.body.error.message).toBe(`${scenario} requires at least one vehicleId.`);
+    });
+
     it("rejects an unknown scenario with 400", async () => {
       await request(ctx.app)
         .post("/simulator/run")

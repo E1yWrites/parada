@@ -2,15 +2,14 @@ import { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Card } from "./Card";
 import { CapacityBar } from "./CapacityBar";
-import { AvailabilityBadge, parkingStatusMeta } from "./StatusBadge";
-import { Metric } from "./Metric";
+import { AvailabilityBadge } from "./StatusBadge";
 import { PlateChip } from "./PlateChip";
 import { Text } from "./Text";
 import { motion, radii, spacing, touchTarget } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
+import { heldSpaces } from "@/lib/format";
 import type { PublicZone } from "@/lib/api/client";
 
 type ZoneCardProps = {
@@ -42,7 +41,6 @@ export function ZoneCard({ zone, onPress, selected = false, leastBusy = false, t
     : 0;
   const isFull = hasCapacity && zone.availableCount <= 0;
   const selectable = onPress != null && zone.status === "ACTIVE" && hasCapacity && !isFull;
-  const status = parkingStatusMeta(zone.availability, colors);
 
   const summary = `${hasCapacity
     ? `Zone ${zone.name}. ${zone.occupiedCount} of ${zone.capacity} spaces occupied. ${zone.availableCount} spaces available. ${percent} percent occupied.`
@@ -58,99 +56,156 @@ export function ZoneCard({ zone, onPress, selected = false, leastBusy = false, t
   }
 
   return (
-    <View style={styles.wrapper}>
-      <Pressable
-        accessibilityRole="radio"
-        accessibilityState={{ checked: selected, selected, disabled: !selectable }}
-        accessibilityLabel={summary}
-        disabled={!selectable}
-        onPress={handlePress}
-        style={({ pressed }) => [styles.wrapper, pressed && selectable ? styles.pressed : undefined]}
-        testID={testID}>
-        <Card
-          padding={spacing.lg}
-          style={[styles.card, selected ? styles.cardSelected : undefined]}
-          shadowColor={selected ? colors.primary : undefined}
-          shadowOpacity={selected ? 0.2 : undefined}>
-          <View style={styles.headerRow}>
-            <PlateChip value={zone.code} />
-            <AvailabilityBadge
-              status={zone.availability}
-              testID={testID ? `${testID}-availability` : undefined}
-            />
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected, selected, disabled: !selectable }}
+      accessibilityLabel={summary}
+      disabled={!selectable}
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.row,
+        selected ? styles.rowSelected : undefined,
+        pressed && selectable ? styles.pressed : undefined,
+      ]}
+      testID={testID}>
+      <View style={styles.headerRow}>
+        <View style={styles.nameBlock}>
+          <View style={styles.nameLine}>
+            <Text variant="section" numberOfLines={2} style={styles.name}>
+              {zone.name}
+            </Text>
+            <PlateChip value={zone.code} tone="soft" size="sm" />
           </View>
-
-          <Text variant="title" numberOfLines={2}>
-            {zone.name}
+          <View style={styles.nameLine}>
+            <Text variant="caption" testID={testID ? `${testID}-occupancy-percent` : undefined}>
+              {hasCapacity ? `${zone.occupiedCount} of ${zone.capacity} · ${percent}%` : "No capacity data"}
+            </Text>
+            {/* "Available" is the normal case and goes unsaid; only Low / Full / Closed get a badge. */}
+            {zone.availability !== "AVAILABLE" ? (
+              <AvailabilityBadge status={zone.availability} testID={testID ? `${testID}-availability` : undefined} />
+            ) : null}
+            {selected ? (
+              <View style={styles.stateRow}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.infoInk} />
+                <Text variant="caption" color={colors.infoInk}>
+                  Selected
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+        <View style={styles.countBlock}>
+          <Text
+            variant="display"
+            color={isFull ? colors.danger : colors.foreground}
+            style={styles.count}
+            testID={testID ? `${testID}-available` : undefined}>
+            {String(zone.availableCount)}
           </Text>
+          <Text variant="caption">free</Text>
+        </View>
+      </View>
 
-          <Metric
-            label="Available"
-            value={String(zone.availableCount)}
-            accent={isFull ? colors.danger : status.color === colors.muted ? colors.foreground : status.color}
-            size="lg"
-            testID={testID ? `${testID}-available` : undefined}
-          />
+      <CapacityBar
+        occupied={zone.occupiedCount}
+        capacity={zone.capacity}
+        color={colors.foreground}
+        held={heldSpaces(zone)}
+        compact
+        testID={testID ? `${testID}-occupancy` : undefined}
+      />
 
-          <CapacityBar
-            occupied={zone.occupiedCount}
-            capacity={zone.capacity}
-            color={status.color}
-            testID={testID ? `${testID}-occupancy` : undefined}
-          />
-
-          {isFull ? (
-            <View style={styles.stateRow} testID={testID ? `${testID}-unavailable` : undefined}>
-              <Ionicons name="ban" size={14} color={colors.danger} />
-              <Text variant="caption" color={colors.danger}>
-                No spaces available
-              </Text>
-            </View>
-          ) : null}
-          {leastBusy ? (
-            <View style={styles.stateRow} testID={testID ? `${testID}-least-busy` : undefined}>
-              <Ionicons name="trending-down" size={14} color={colors.successInk} />
-              <Text variant="caption" color={colors.successInk}>
-                Least busy
-              </Text>
-            </View>
-          ) : null}
-        </Card>
-      </Pressable>
-      <Pressable
-        accessibilityRole="link"
-        accessibilityLabel={`Details for ${zone.name}`}
-        onPress={() => router.push(`/zones/${zone.id}`)}
-        style={({ pressed }) => [styles.detailsLink, pressed ? styles.detailsPressed : undefined]}
-        testID={testID ? `${testID}-details` : undefined}>
-        <Text variant="caption" color={colors.primaryDeep}>
-          Details
-        </Text>
-        <Ionicons name="chevron-forward" size={14} color={colors.primaryDeep} />
-      </Pressable>
-    </View>
+      <View style={styles.footerRow}>
+        {isFull ? (
+          <View style={styles.stateRow} testID={testID ? `${testID}-unavailable` : undefined}>
+            <Ionicons name="ban" size={14} color={colors.danger} />
+            <Text variant="caption" color={colors.danger}>
+              No spaces available
+            </Text>
+          </View>
+        ) : leastBusy ? (
+          <View style={styles.stateRow} testID={testID ? `${testID}-least-busy` : undefined}>
+            <Ionicons name="trending-down" size={14} color={colors.successInk} />
+            <Text variant="caption" color={colors.successInk}>
+              Least busy
+            </Text>
+          </View>
+        ) : (
+          <View />
+        )}
+        {isFull && leastBusy ? (
+          <View style={styles.stateRow} testID={testID ? `${testID}-least-busy` : undefined}>
+            <Text variant="caption" color={colors.successInk}>
+              Least busy
+            </Text>
+          </View>
+        ) : null}
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={`Details for ${zone.name}`}
+          hitSlop={8}
+          onPress={() => router.push(`/zones/${zone.id}`)}
+          style={({ pressed }) => [styles.detailsLink, pressed ? styles.detailsPressed : undefined]}
+          testID={testID ? `${testID}-details` : undefined}>
+          <Text variant="caption" color={colors.primaryDeep}>
+            Details
+          </Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.primaryDeep} />
+        </Pressable>
+      </View>
+    </Pressable>
   );
 }
 
 function buildStyles(colors: ColorTokens) {
   return StyleSheet.create({
-    wrapper: {
-      flex: 1,
-      gap: spacing.xs,
+    // A list row, not a floating card: an opaque surface (an Android elevation
+    // shadow shows through a translucent fill as a grey box), a hairline, and
+    // selection drawn as a 2pt border with a "Selected" mark — no tinted fill.
+    row: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: 2,
+      borderColor: "transparent",
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+      gap: spacing.md,
+    },
+    rowSelected: {
+      // primaryDeep clears 3:1 against the surface (WCAG 1.4.11).
+      borderColor: colors.primaryDeep,
     },
     pressed: {
       opacity: 0.94,
       transform: [{ scale: motion.pressScale }],
     },
-    card: {
-      gap: spacing.lg,
-    },
-    cardSelected: {
-      backgroundColor: colors.primarySoft,
-      // primary is ~2:1 on a light surface; the selection cue must reach 3:1 (WCAG 1.4.11).
-      borderColor: colors.primaryDeep,
-    },
     headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    nameBlock: {
+      flex: 1,
+      minWidth: 0,
+      gap: spacing.sm,
+    },
+    nameLine: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      flexWrap: "wrap",
+    },
+    name: {
+      flexShrink: 1,
+    },
+    countBlock: {
+      alignItems: "flex-end",
+    },
+    count: {
+      fontSize: 34,
+      lineHeight: 38,
+    },
+    footerRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
@@ -160,11 +215,9 @@ function buildStyles(colors: ColorTokens) {
       minHeight: touchTarget,
       flexDirection: "row",
       alignItems: "center",
-      alignSelf: "flex-start",
       gap: spacing.xs,
       paddingHorizontal: spacing.sm,
       borderRadius: radii.sm,
-      borderTopRightRadius: radii.cut,
     },
     detailsPressed: {
       backgroundColor: colors.surfaceElevated,

@@ -74,11 +74,8 @@ function buildStyles(colors: ColorTokens) {
     chipSelected: {
       backgroundColor: colors.primary,
       borderColor: colors.primary,
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.28,
-      shadowRadius: 12,
-      elevation: 3,
+      // No shadow: a chip sits inside a panel, and only panels cast one
+      // (DESIGN.md, Panel-Level Shadow Rule).
     },
     pressed: {
       transform: [{ scale: motion.pressScale }],

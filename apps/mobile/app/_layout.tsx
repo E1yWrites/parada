@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { AppProviders } from "@/src/providers/AppProviders";
+import { PopupProvider } from "@/src/providers/PopupProvider";
 import { ThemeProvider, useColors, useColorSchemeResolved } from "@/src/providers/ThemeProvider";
 import { FullScreenLoading } from "@/src/components/FullScreenLoading";
 import { fontAssets } from "@/src/theme";
@@ -16,12 +17,16 @@ function RootStack() {
   return (
     <AppProviders>
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
-        }}
-      />
+      {/* Above the whole stack so banners and toasts show on pushed screens too
+          (Vehicles, the tutorial), not only on the tabs. */}
+      <PopupProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.background },
+          }}
+        />
+      </PopupProvider>
     </AppProviders>
   );
 }

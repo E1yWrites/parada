@@ -123,6 +123,7 @@ export function VehiclePicker({
   const colors = useColors();
   const router = useRouter();
   const { activeVehicles, soleVehicle, selectedVehicle, needsVehicleChoice } = selection;
+  const primaryPlate = activeVehicles.find((vehicle) => vehicle.isPrimary)?.plateNumber ?? null;
   // A driver only ever sees the chip list when there is a real choice to
   // make (`needsVehicleChoice`) or they explicitly asked to change vehicle —
   // otherwise the primary/sole vehicle is shown as an already-made choice.
@@ -190,12 +191,21 @@ export function VehiclePicker({
             <Text variant="caption" testID={`${testIDPrefix}-vehicle-hint`}>
               {chooseHint}
             </Text>
+          ) : primaryPlate ? (
+            <Text variant="caption" testID={`${testIDPrefix}-vehicle-primary-note`}>
+              {primaryPlate} is your primary vehicle. A different pick here applies to this plan only.
+            </Text>
           ) : null}
         </>
       ) : (
         <View style={styles.compactRow} testID={`${testIDPrefix}-vehicle-compact`}>
           <Text variant="caption" color={colors.muted}>
             Parking with <Text variant="plate">{selectedVehicle?.plateNumber}</Text>
+            {selectedVehicle?.isPrimary ? (
+              <Text variant="caption" color={colors.infoInk} testID={`${testIDPrefix}-vehicle-is-primary`}>
+                {" "}· Primary
+              </Text>
+            ) : null}
           </Text>
           <Button
             variant="ghost"

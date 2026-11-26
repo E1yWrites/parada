@@ -14,7 +14,8 @@ Drivers at the PARADA facility, on their own phone, usually one-handed and outdo
 
 ## Capabilities and Constraints
 
-- Screens: onboarding, login, register, Parking (current state, recommendation, zones, assignment, reservation), zone detail, Vehicles, Sessions, Account, notifications, violations list and detail (appeal).
-- Navigation: Expo Router; four tabs (Parking, Vehicles, Sessions, Account) plus stack screens.
-- Fonts already bundled: Nunito 400–900, JetBrains Mono 400/500/700. Icons: Ionicons. Blur: expo-blur. No react-native-svg, no expo-linear-gradient.
+- Screens: onboarding, login, register, verify email, first-run tutorial (add vehicle), Now (current state), Zones (zone rail, assignment, reservation, vehicle choice), zone detail, History (activity charts, sessions, reservations), Account, Vehicles (primary vehicle), payments, profile, password, notifications, violations list and detail (appeal). In-app pop-ups: notification banner, parked / session-ended sheets, action toasts.
+- Navigation: Expo Router; four tabs (Now, Zones, History, Account — files `parking`, `park`, `sessions`, `account`) plus stack screens.
+- Fonts loaded: Inter 400/500/600/700 only (Space Grotesk and JetBrains Mono packages are still installed but unused). Icons: Ionicons. Blur: expo-blur (real blur on iOS; Android cards are opaque until a BlurTargetView is wired). Drawing: react-native-svg (wave grid, charts). No expo-linear-gradient, no reanimated usage (it is installed but has no jest mocks set up; core Animated is used).
+- Design: "Clear" — see root `DESIGN.md`.
 - Tests pin test IDs and copy strings; keep them.

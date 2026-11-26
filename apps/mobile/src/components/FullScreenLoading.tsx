@@ -20,7 +20,6 @@ export function FullScreenLoading({ testID }: { testID?: string }) {
           width: 72,
           height: 72,
           borderRadius: radii.lg,
-          borderTopRightRadius: radii.cut,
           backgroundColor: colors.surface,
           borderWidth: 1,
           borderColor: colors.border,

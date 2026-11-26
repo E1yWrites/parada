@@ -5,8 +5,9 @@ import { asyncHandler } from "../http/asyncHandler";
 import { currentUserId } from "../middleware/auth";
 import type { ReservationService } from "../domain/reservation";
 import type { RealtimeHub } from "../realtime/hub";
+import { publishZoneSnapshot } from "../realtime/occupancyEvents";
 
-export function reservationsRouter(reservations: ReservationService, realtimeHub?: RealtimeHub): Router {
+export function reservationsRouter(reservations: ReservationService, realtimeHub: RealtimeHub): Router {
   const router = Router();
 
   router.post(
@@ -34,10 +35,12 @@ export function reservationsRouter(reservations: ReservationService, realtimeHub
         startAt,
         endAt,
       });
-      realtimeHub?.publish(
+      realtimeHub.publish(
         { type: "RESERVATION_CREATED", occurredAt: new Date().toISOString(), payload: reservation },
         { audience: "USER", userId }
       );
+      // A hold changes the zone's public availability for every driver.
+      await publishZoneSnapshot(realtimeHub, reservation.zoneId);
       res.status(201).json(ok(reservation));
     })
   );
@@ -65,10 +68,11 @@ export function reservationsRouter(reservations: ReservationService, realtimeHub
     asyncHandler(async (req, res) => {
       const userId = currentUserId(res);
       const reservation = await reservations.cancel(userId, req.params["id"]!);
-      realtimeHub?.publish(
+      realtimeHub.publish(
         { type: "RESERVATION_CANCELLED", occurredAt: new Date().toISOString(), payload: reservation },
         { audience: "USER", userId }
       );
+      await publishZoneSnapshot(realtimeHub, reservation.zoneId);
       res.json(ok(reservation));
     })
   );

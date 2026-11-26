@@ -5,13 +5,15 @@ import { ActiveSessionBanner } from "./ActiveSessionBanner";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { Lottie } from "./Lottie";
+import { LottieGuide } from "./LottieGuide";
+import { ZoneMap } from "./ZoneMap";
 import { PlateChip } from "./PlateChip";
 import { Stamp } from "./Stamp";
 import { ErrorState, LoadingState } from "./StateComponents";
 import { NavigateButton } from "./NavigateButton";
 import { Text } from "./Text";
 import type { SessionDto } from "@/lib/api/client";
-import { formatCurrency, formatDateTime } from "@/lib/format";
+import { formatClockTime, formatCurrency, formatDateTime } from "@/lib/format";
 import { ZONE_NAVIGATION_UNCONFIGURED, type NavigationDestination } from "@/lib/navigation";
 import { ApiError } from "@/lib/api/client";
 import { ASSIGNMENT_TERMS } from "@/lib/assignment";
@@ -34,6 +36,8 @@ type CurrentParkingStateProps = {
   destinationReady: boolean;
   /** Cancels the accepted assignment (backend-enforced; only before entry). */
   onCancelAssignment?: (assignmentId: string) => Promise<void>;
+  /** Opens Zones to pick a different zone for the current assignment. */
+  onChangeAssignmentZone?: () => void;
   /** Cancels the live reservation (PATCH /reservations/:id/cancel). */
   onCancelReservation?: (reservationId: string) => Promise<void>;
   /** Injectable clock for live elapsed rendering. */
@@ -51,6 +55,8 @@ type CurrentParkingStateProps = {
   onRetry: () => void;
   /** Idle state's way to the zone list (a button, never "see the other tab" copy). */
   onFindZone?: () => void;
+  /** Lottie's tips on the idle card (live facts from the screen). */
+  guideLines?: string[];
 };
 
 const STATE_UNKNOWN_MESSAGE = "We couldn't load your current parking status.";
@@ -81,6 +87,7 @@ export function CurrentParkingState({
   destinationFor,
   destinationReady,
   onCancelAssignment,
+  onChangeAssignmentZone,
   onCancelReservation,
   now,
   activePending,
@@ -91,6 +98,7 @@ export function CurrentParkingState({
   reservationError,
   onRetry,
   onFindZone,
+  guideLines,
 }: CurrentParkingStateProps) {
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
@@ -140,7 +148,11 @@ export function CurrentParkingState({
   if (currentAssignment === null && currentReservation === null) {
     return (
       <Card padding={spacing.xl2} style={styles.emptyPass} testID="current-state-empty">
-        <Lottie size={96} interactive testID="current-state-lottie" />
+        {guideLines && guideLines.length > 0 ? (
+          <LottieGuide lines={guideLines} size={96} lottieTestID="current-state-lottie" testID="current-state-guide" />
+        ) : (
+          <Lottie size={96} interactive testID="current-state-lottie" />
+        )}
         <View style={styles.emptyBody}>
           <Text variant="title" align="center" accessibilityRole="header">
             Nothing planned
@@ -164,6 +176,7 @@ export function CurrentParkingState({
           destination={destinationFor(currentAssignment.zoneId)}
           destinationReady={destinationReady}
           onCancel={onCancelAssignment}
+          onChangeZone={onChangeAssignmentZone}
         />
       ) : null}
       {currentReservation ? (
@@ -222,25 +235,25 @@ function SessionState({
       <ActiveSessionBanner session={session} now={now} testID="active-banner">
         <View testID="session-context" style={styles.contextBlock}>
           <View accessible accessibilityLabel={summary} testID="session-summary" style={styles.facts}>
-            <View style={styles.factRow}>
-              <View style={styles.fact}>
-                <Text variant="micro">PARKED SINCE</Text>
-                <Text variant="bodySemi" testID="session-started">
-                  {formatDateTime(session.enteredAt)}
-                </Text>
-              </View>
+            <View style={styles.metaRow}>
+              <Ionicons name="time-outline" size={15} color={colors.muted} />
+              <Text variant="caption">Since</Text>
+              <Text variant="caption" color={colors.foreground} testID="session-started">
+                {formatDateTime(session.enteredAt)}
+              </Text>
               {session.feeAmount != null ? (
-                <View style={styles.fact}>
-                  <Text variant="micro">SESSION FEE</Text>
-                  <Text variant="monoBold" color={colors.highlight} testID="session-fee">
+                <>
+                  <Text variant="caption"> · </Text>
+                  <Text variant="caption" color={colors.foreground} testID="session-fee">
                     {formatCurrency(session.feeAmount)}
                   </Text>
-                </View>
+                </>
               ) : null}
             </View>
-            {assignment ? (
+            {/* Parked where assigned: nothing to add. Only a different zone is worth a line. */}
+            {assignment && assignment.zone.id !== session.zone.id ? (
               <View style={styles.inlineRow}>
-                <Ionicons name="location" size={14} color={colors.primaryDeep} />
+                <Ionicons name="warning-outline" size={14} color={colors.warning} />
                 <Text variant="caption" testID="session-assignment" style={styles.inlineText}>
                   Assigned zone: {assignment.zone.name} ({assignment.zone.code})
                 </Text>
@@ -272,9 +285,10 @@ type AssignmentStateProps = {
   destination: NavigationDestination | null;
   destinationReady: boolean;
   onCancel?: (assignmentId: string) => Promise<void>;
+  onChangeZone?: () => void;
 };
 
-function AssignmentState({ assignment, destination, destinationReady, onCancel }: AssignmentStateProps) {
+function AssignmentState({ assignment, destination, destinationReady, onCancel, onChangeZone }: AssignmentStateProps) {
   const colors = useColors();
   const styles = useMemo(() => buildStyles(colors), [colors]);
   const [cancelling, setCancelling] = useState(false);
@@ -306,60 +320,83 @@ function AssignmentState({ assignment, destination, destinationReady, onCancel }
 
   return (
     <Card padding={spacing.xl2} style={styles.pass} testID="assignment-current">
-      <Stamp label="ASSIGNED ZONE" icon="location" color={colors.primaryDeep} />
-      <View accessible accessibilityLabel={summary} testID="assignment-summary" style={styles.passBody}>
-        <Text variant="hero" numberOfLines={2} testID="assignment-current-zone">
-          {assignment.zone.name}
-        </Text>
-        <View style={styles.plateRow}>
+      <View accessible accessibilityLabel={summary} testID="assignment-summary" style={styles.headBlock}>
+        <Stamp label="ASSIGNED ZONE" icon="location" color={colors.primaryDeep} />
+        <View style={styles.titleRow}>
+          <Text variant="hero" numberOfLines={2} style={styles.inlineText} testID="assignment-current-zone">
+            {assignment.zone.name}
+          </Text>
           <PlateChip value={assignment.zone.code} tone="soft" size="sm" />
-          <Text variant="plate" testID="assignment-current-vehicle">
+        </View>
+        <View style={styles.metaRow}>
+          <Ionicons name="car-outline" size={15} color={colors.muted} />
+          <Text variant="caption" color={colors.foreground} testID="assignment-current-vehicle">
             {assignment.vehicle.plateNumber}
           </Text>
+          {assignment.expiresAt ? (
+            <>
+              <Text variant="caption"> · </Text>
+              <Ionicons name="time-outline" size={15} color={colors.muted} />
+              <Text variant="caption" color={colors.foreground} testID="assignment-current-validity">
+                Enter by {formatClockTime(assignment.expiresAt)}
+              </Text>
+            </>
+          ) : null}
         </View>
-        {assignment.expiresAt ? (
-          <View style={styles.inlineRow}>
-            <Ionicons name="time-outline" size={14} color={colors.muted} />
-            <Text variant="caption" testID="assignment-current-validity">
-              Enter by {formatDateTime(assignment.expiresAt)}
-            </Text>
+        <View style={styles.metaRow}>
+          <Ionicons name="information-circle-outline" size={15} color={colors.muted} />
+          <Text variant="caption" style={styles.inlineText} testID="assignment-current-terms">
+            No space kept · another zone: warning, then fine
+          </Text>
+        </View>
+      </View>
+      {destinationReady && destination ? <ZoneMap destination={destination} testID="assignment-map" /> : null}
+      <View style={styles.actions}>
+        {destinationReady ? (
+          <NavigateButton
+            destination={destination}
+            label={`Navigate to ${assignment.zone.name}`}
+            primary
+            unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
+            testID="assignment-navigate"
+          />
+        ) : null}
+        {onChangeZone || onCancel ? (
+          <View style={styles.confirmRow}>
+            {onChangeZone ? (
+              <View style={styles.half}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  title="Change zone"
+                  onPress={onChangeZone}
+                  accessibilityLabel={`Change zone from ${assignment.zone.name}`}
+                  testID="assignment-change-zone"
+                />
+              </View>
+            ) : null}
+            {onCancel ? (
+              <View style={styles.half}>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  title={cancelling ? "Cancelling…" : "Cancel"}
+                  loading={cancelling}
+                  onPress={() => void handleCancel()}
+                  accessibilityLabel={`Cancel assignment to ${assignment.zone.name}`}
+                  accessibilityHint="You can cancel until your vehicle enters the zone."
+                  testID="assignment-cancel"
+                />
+              </View>
+            ) : null}
           </View>
         ) : null}
-        <Text variant="caption" color={colors.muted} testID="assignment-current-terms">
-          {ASSIGNMENT_TERMS}
-        </Text>
+        {cancelError ? (
+          <Text variant="caption" color={colors.danger} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="assignment-cancel-error">
+            {cancelError}
+          </Text>
+        ) : null}
       </View>
-      {destinationReady ? (
-        <NavigateButton
-          destination={destination}
-          label={`Navigate to ${assignment.zone.name}`}
-          primary
-          unavailableMessage={ZONE_NAVIGATION_UNCONFIGURED}
-          testID="assignment-navigate"
-        />
-      ) : null}
-      {onCancel ? (
-        <View style={styles.cancelBlock}>
-          <Button
-            variant="danger"
-            size="sm"
-            title={cancelling ? "Cancelling…" : "Cancel assignment"}
-            loading={cancelling}
-            onPress={() => void handleCancel()}
-            accessibilityLabel={`Cancel assignment to ${assignment.zone.name}`}
-            testID="assignment-cancel"
-          />
-          {cancelError ? (
-            <Text variant="caption" color={colors.danger} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="assignment-cancel-error">
-              {cancelError}
-            </Text>
-          ) : (
-            <Text variant="caption" color={colors.muted}>
-              You can cancel until your vehicle enters the zone.
-            </Text>
-          )}
-        </View>
-      ) : null}
     </Card>
   );
 }
@@ -440,7 +477,7 @@ function ReservationState({ reservation, destination, destinationReady, onCancel
               <Text variant="caption" testID="reservation-cancel-confirm">
                 Cancel this reservation? The kept space is released.
               </Text>
-              <View style={styles.inlineRow}>
+              <View style={styles.confirmRow} testID="reservation-cancel-confirm-row">
                 <Button
                   variant="danger"
                   size="sm"
@@ -513,13 +550,41 @@ function buildStyles(colors: ColorTokens) {
     inlineText: {
       flexShrink: 1,
     },
+    headBlock: {
+      gap: spacing.md,
+    },
+    titleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    metaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: spacing.xs,
+    },
+    actions: {
+      gap: spacing.md,
+    },
+    half: {
+      flexGrow: 1,
+      flexBasis: 140,
+    },
+    // Two buttons side by side: wraps to two lines at large text sizes
+    // instead of pushing "Keep it" off the card.
+    confirmRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
     windowBox: {
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.md,
       backgroundColor: withAlpha(colors.surface, 0.7),
       borderRadius: radii.sm,
-      borderTopRightRadius: radii.cut,
       padding: spacing.lg,
     },
     contextBlock: {
@@ -530,16 +595,6 @@ function buildStyles(colors: ColorTokens) {
     },
     facts: {
       gap: spacing.md,
-    },
-    factRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: spacing.xl,
-    },
-    fact: {
-      gap: spacing.xs,
     },
   });
 }

@@ -107,6 +107,7 @@ describe("NavigateButton: permission granted", () => {
         "We couldn't determine your location.",
       ),
     );
+    expect(screen.getByTestId("nav-unavailable")).toHaveProp("accessibilityRole", "alert");
     expect(Linking.openURL).not.toHaveBeenCalled();
   });
 
@@ -122,6 +123,7 @@ describe("NavigateButton: permission granted", () => {
         "Unable to open navigation. Please try again.",
       ),
     );
+    expect(screen.getByTestId("nav-open-failed")).toHaveProp("accessibilityRole", "alert");
   });
 });
 
@@ -136,6 +138,7 @@ describe("NavigateButton: permission denied", () => {
         "Location permission is required for navigation.",
       ),
     );
+    expect(screen.getByTestId("nav-denied-message")).toHaveProp("accessibilityRole", "alert");
     await fireEvent.press(screen.getByTestId("nav-open-settings"));
     expect(Linking.openSettings).toHaveBeenCalled();
     expect(Linking.openURL).not.toHaveBeenCalled();

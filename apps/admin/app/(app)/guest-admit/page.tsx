@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
 import { api, ApiError } from "@/lib/api/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -24,6 +24,7 @@ export default function GuestAdmissionPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState<GuestAdmitResult | null>(null);
 
+  const queryClient = useQueryClient();
   const zones = useQuery({ queryKey: ["zones"], queryFn: () => api.zones() });
   const cameras = useQuery({ queryKey: ["cameras"], queryFn: () => api.cameras() });
   const admit = useMutation({
@@ -38,6 +39,10 @@ export default function GuestAdmissionPage() {
       setSourceEventId(newGuestEventId());
       setResult(next);
       setFieldErrors({});
+      // Without a live stream nothing else refreshes these after an admission.
+      for (const queryKey of [["zones"], ["dashboard"], ["sessions"], ["anomalies"]]) {
+        void queryClient.invalidateQueries({ queryKey });
+      }
     },
   });
 
@@ -119,7 +124,7 @@ export default function GuestAdmissionPage() {
                     <div className="flex h-12 w-12 items-center justify-center rounded-control bg-success-soft" aria-hidden="true">
                       <CheckCircle2 className="h-6 w-6 text-success" />
                     </div>
-                    <h2 className="font-display text-lg font-black tracking-tight text-charcoal">Guest admitted</h2>
+                    <h2 className="font-display text-lg font-semibold tracking-tight text-charcoal">Guest admitted</h2>
                     <p className="text-sm text-muted">
                       Occupancy is now <span className="font-bold text-charcoal">{result.newOccupied}</span>. Guest session:{" "}
                       <span className="font-mono font-bold text-charcoal">{result.guestSessionId ?? "created"}</span>
@@ -130,7 +135,7 @@ export default function GuestAdmissionPage() {
                     <div className="flex h-12 w-12 items-center justify-center rounded-control bg-warning-soft" aria-hidden="true">
                       <AlertCircle className="h-6 w-6 text-warning" />
                     </div>
-                    <h2 className="font-display text-lg font-black tracking-tight text-charcoal">Guest not admitted</h2>
+                    <h2 className="font-display text-lg font-semibold tracking-tight text-charcoal">Guest not admitted</h2>
                     <p className="text-sm text-muted">{result.deniedReason ?? "The guest policy denied this entry."}</p>
                     <p className="text-xs text-muted">Occupancy remains {result.newOccupied}; no guest session was created.</p>
                   </div>

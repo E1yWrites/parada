@@ -41,23 +41,6 @@ export type ReservationStatus =
 export type FeeStatus = "PENDING" | "PAID" | "WAIVED";
 export type ZoneAssignmentStatus = "ACTIVE" | "EXPIRED" | "REVOKED" | "CANCELLED";
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  username: string | null;
-  phone: string | null;
-  role: Role;
-  status: UserStatus;
-  emailVerifiedAt: Date | null;
-  pendingEmail: string | null;
-  pendingPhone: string | null;
-  passwordChangedAt: Date | null;
-  tokenVersion: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 /**
  * The account as every API response exposes it (never includes the password
  * hash). `avatarUpdatedAt` is null while no profile picture is stored; when
@@ -96,61 +79,6 @@ export interface LoginResponse {
   token: string;
 }
 
-/**
- * Error `details` carried by the EMAIL_NOT_VERIFIED (403) login refusal so the
- * client can continue verification without registering again. `verification`
- * is null when the resend cooldown blocked issuing a fresh code.
- */
-export interface EmailNotVerifiedDetails {
-  email: string;
-  verification: VerificationChallenge | null;
-}
-
-export interface VerifyEmailInput {
-  email: string;
-  code: string;
-}
-
-export interface ResendVerificationInput {
-  email: string;
-}
-
-export interface ForgotPasswordInput {
-  email: string;
-}
-
-export interface ResetPasswordInput {
-  token: string;
-  newPassword: string;
-}
-
-export interface ChangePasswordInput {
-  currentPassword: string;
-  newPassword: string;
-}
-
-/** PATCH /auth/me — only non-verification-sensitive fields. */
-export interface ProfileUpdateInput {
-  name?: string;
-  /** null clears the handle. */
-  username?: string | null;
-}
-
-/** POST /auth/me/email — starts an email change; confirmed with the code sent to the NEW address. */
-export interface EmailChangeRequestInput {
-  email: string;
-}
-
-/** POST /auth/me/phone — starts a phone change; confirmed with the code sent to the verified email. */
-export interface PhoneChangeRequestInput {
-  /** null clears the phone number (no verification needed). */
-  phone: string | null;
-}
-
-export interface ConfirmCodeInput {
-  code: string;
-}
-
 export interface ParkingZone {
   id: string;
   name: string;
@@ -163,18 +91,6 @@ export interface ParkingZone {
   /** Admin-configured turn-by-turn destination; null until configured. */
   navigationLat: number | null;
   navigationLng: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ParkingSlot {
-  id: string;
-  zoneId: string;
-  slotCode: string;
-  label: string;
-  positionX: number | null;
-  positionY: number | null;
-  status: SlotStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -212,64 +128,6 @@ export interface VehicleUpdateInput {
   color?: string | null;
 }
 
-export interface Camera {
-  id: string;
-  zoneId: string;
-  name: string;
-  identifier: string;
-  location: string | null;
-  gateType: GateType;
-  status: CameraStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface OccupancyEvent {
-  id: string;
-  zoneId: string;
-  cameraId: string | null;
-  vehicleId: string | null;
-  eventType: OccupancyEventType;
-  previousOccupied: number;
-  newOccupied: number;
-  availableCount: number;
-  source: OccupancySource;
-  sourceEventId: string | null;
-  detectedPlate: string | null;
-  normalizedPlate: string | null;
-  ocrConfidence: number | null;
-  plateMatched: boolean | null;
-  detectedAt: Date;
-  processedAt: Date;
-  createdAt: Date;
-}
-
-export interface OccupancyHistory {
-  id: string;
-  zoneId: string;
-  occupiedCount: number;
-  availableCount: number;
-  occurredAt: Date;
-}
-
-export interface ParkingSession {
-  id: string;
-  zoneId: string;
-  /** Null only for account-less guest sessions. */
-  userId: string | null;
-  /** Null only for account-less guest sessions. */
-  vehicleId: string | null;
-  entryEventId: string;
-  exitEventId: string | null;
-  enteredAt: Date;
-  exitedAt: Date | null;
-  durationSeconds: number | null;
-  feeAmount: number | null;
-  status: ParkingSessionStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface ParkingSessionResponse {
   id: string;
   zoneId: string;
@@ -287,95 +145,6 @@ export interface ParkingSessionResponse {
   vehicle: Pick<Vehicle, "id" | "plateNumber" | "vehicleType"> | null;
   entryEvent: { id: string; detectedAt: string } | null;
   exitEvent: { id: string; detectedAt: string } | null;
-}
-
-export interface Notification {
-  id: string;
-  zoneId: string;
-  userId: string | null;
-  type: NotificationType;
-  message: string;
-  targetRole: Role;
-  read: boolean;
-  createdAt: Date;
-}
-
-export interface Reservation {
-  id: string;
-  userId: string;
-  vehicleId: string;
-  zoneId: string;
-  startAt: Date;
-  endAt: Date;
-  status: ReservationStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ZoneAssignment {
-  id: string;
-  userId: string;
-  vehicleId: string;
-  zoneId: string;
-  status: ZoneAssignmentStatus;
-  assignedAt: Date;
-  expiresAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Violation {
-  id: string;
-  userId: string;
-  vehicleId: string | null;
-  zoneId: string;
-  sessionId: string | null;
-  violationType: ViolationType;
-  description: string | null;
-  fineAmount: number;
-  status: ViolationStatus;
-  issuedAt: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ViolationAppeal {
-  id: string;
-  violationId: string;
-  userId: string;
-  reason: string;
-  status: AppealStatus;
-  reviewedBy: string | null;
-  reviewedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ParkingFee {
-  id: string;
-  sessionId: string;
-  zoneId: string;
-  /**
-   * Null for account-less GUEST sessions, mirroring `ParkingSession.userId`.
-   * The column was made nullable in migration
-   * 20260906120000_fees_guests_and_integrity_indexes; this contract had not
-   * followed, so a consumer could treat a guest fee's owner as guaranteed.
-   */
-  userId: string | null;
-  amount: number;
-  rateBreakdown: unknown;
-  paidAt: Date | null;
-  status: FeeStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface GuestSession {
-  id: string;
-  parkingSessionId: string;
-  detectedPlate: string | null;
-  linkedReservationId: string | null;
-  createdAt: Date;
 }
 
 /** Recommendation DTO returned by GET /zones/recommendation. A recommendation
@@ -521,7 +290,7 @@ export interface EstablishmentSettings {
 
 // ---------------------------------------------------------------------------
 // Phase 11A — Admin establishment configuration contracts. Zone capacity is the
-// authoritative availability metric; physical slots (ParkingSlot) are pure
+// authoritative availability metric; physical slots are pure
 // inventory/layout. Cameras are zone-gate infrastructure whose status is
 // ONLINE (operational) / OFFLINE (disabled); an OFFLINE camera is rejected by
 // the existing camera pipeline.

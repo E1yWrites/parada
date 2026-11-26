@@ -263,6 +263,7 @@ describe("reservation panel: submission", () => {
     await renderWithProviders(<Harness />);
     await fireEvent.press(await screen.findByTestId("reservation-create"));
     await waitFor(() => expect(screen.getByTestId("reservation-error")).toHaveTextContent(/can't take this reservation for that time/));
+    expect(screen.getByTestId("reservation-error")).toHaveProp("accessibilityRole", "alert");
     expect(screen.queryByTestId("reservation-r1")).not.toBeOnTheScreen();
     expect(screen.queryByTestId("reservation-confirmed")).not.toBeOnTheScreen();
   });

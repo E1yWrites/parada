@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { Animated, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { motion, radii, spacing } from "@/src/theme";
+import { Animated, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { motion, radii, spacing, withAlpha } from "@/src/theme";
 import { usePrefersReducedMotion } from "@/src/hooks/usePrefersReducedMotion";
-import { useColors, useThemeShadows } from "@/src/providers/ThemeProvider";
+import { useColorSchemeResolved, useColors, useThemeShadows } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 import type { ShadowTokens } from "@/src/theme/shadows";
+import { pulseWaves } from "./WaveGrid";
 
 type CardProps = {
   children: ReactNode;
@@ -23,10 +24,11 @@ type CardProps = {
 };
 
 /**
- * The PARADA surface: one soft corner set, one sharp cut corner (top-right)
- * — the shared "gate control" shape, never a plain uniform rounded
- * rectangle. Optional stamp mark; optional press affordance for tappable
- * rows/cards.
+ * The Clear surface: a translucent frosted row (82% surface over the wave
+ * ground, bright hairline edge, soft long shadow). No per-card blur — there
+ * are dozens of these on screen and Android blur is costly; hero cards,
+ * sheets and pop-ups use `GlassCard` for real blur. Optional stamp mark;
+ * optional press affordance for tappable rows/cards.
  */
 export function Card({
   children,
@@ -41,7 +43,8 @@ export function Card({
 }: CardProps) {
   const colors = useColors();
   const shadows = useThemeShadows();
-  const styles = useMemo(() => buildStyles(colors, shadows), [colors, shadows]);
+  const scheme = useColorSchemeResolved();
+  const styles = useMemo(() => buildStyles(colors, shadows, scheme === "dark"), [colors, shadows, scheme]);
   const outerStyle = [
     styles.outer,
     tone === "tinted" ? styles.outerTinted : undefined,
@@ -80,6 +83,7 @@ export function Card({
           if (reducedMotion) {
             return;
           }
+          pulseWaves(0.7);
           Animated.spring(scale, { toValue: 0.96, friction: 7, tension: 300, useNativeDriver: true }).start();
         }}
         onPressOut={() => {
@@ -104,22 +108,22 @@ export function Card({
   );
 }
 
-function buildStyles(colors: ColorTokens, shadows: ShadowTokens) {
+function buildStyles(colors: ColorTokens, shadows: ShadowTokens, dark: boolean) {
   return StyleSheet.create({
     outer: {
       borderRadius: radii.lg,
-      borderTopRightRadius: radii.cut,
       ...shadows.card,
     },
     outerTinted: {
       ...shadows.none,
     },
     clip: {
-      backgroundColor: colors.surface,
+      // Android draws the elevation shadow through a translucent fill (a grey
+      // ghost box inside the card), so Android cards stay opaque.
+      backgroundColor: Platform.OS === "android" ? colors.surface : withAlpha(colors.surface, 0.82),
       borderRadius: radii.lg,
-      borderTopRightRadius: radii.cut,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: dark ? "rgba(255, 255, 255, 0.10)" : "rgba(255, 255, 255, 0.85)",
       overflow: "hidden",
     },
     clipTinted: {

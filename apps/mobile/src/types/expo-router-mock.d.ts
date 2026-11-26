@@ -10,6 +10,7 @@ type RouterMock = {
   replace: jest.Mock;
   back: jest.Mock;
   canGoBack: jest.Mock;
+  setParams: jest.Mock;
 };
 
 declare module "expo-router" {

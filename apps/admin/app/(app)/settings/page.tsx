@@ -35,8 +35,8 @@ function AppearanceCard() {
               role="radio"
               aria-checked={selected}
               onClick={() => setMode(option.value)}
-              className={`inline-flex min-h-[44px] items-center gap-2 rounded-control rounded-tr-control-cut border px-4 text-sm font-bold transition-colors duration-150 focus-visible:outline-hidden focus-visible:shadow-focus ${
-                selected ? "border-brand bg-brand text-on-accent" : "border-line bg-card text-muted hover:bg-raised hover:text-charcoal"
+              className={`inline-flex min-h-[44px] items-center gap-2 rounded-control border px-4 text-sm font-bold transition-colors duration-150 focus-visible:outline-hidden focus-visible:shadow-focus ${
+                selected ? "border-line-strong bg-raised2 text-charcoal shadow-card" : "border-line bg-raised text-muted hover:text-charcoal"
               }`}
               data-testid={`appearance-${option.value}`}
             >

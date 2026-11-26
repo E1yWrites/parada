@@ -4,7 +4,9 @@ import {
   Button,
   Input,
   ReservationCard,
+  Screen,
   SessionCard,
+  Text,
   ZoneCard,
 } from "@/src/components";
 import type { PublicZone, SessionDto } from "@/lib/api/client";
@@ -69,7 +71,8 @@ describe("ZoneCard: long content", () => {
     await render(<ZoneCard zone={makeZone()} onPress={jest.fn()} testID="zone" />);
     expect(screen.getByTestId("zone-available")).toHaveTextContent("12");
     expect(screen.getByTestId("zone-occupancy-percent")).toHaveTextContent("8 of 20 · 40%");
-    expect(screen.getByText("Available")).toBeOnTheScreen();
+    // An AVAILABLE zone carries no badge; a LOW one does.
+    expect(screen.queryByText("Available")).not.toBeOnTheScreen();
   });
 });
 
@@ -104,7 +107,7 @@ describe("ReservationCard: long content", () => {
     await render(<ReservationCard reservation={reservation} testID="reservation" />);
     expect(screen.getByText(LONG_ZONE_NAME)).toBeOnTheScreen();
     expect(screen.getByText("ABC-1234-XG")).toBeOnTheScreen();
-    expect(screen.getByTestId("reservation-window")).toHaveTextContent(/2026-09-06 .* – 2026-09-06 /);
+    expect(screen.getByTestId("reservation-window")).toHaveTextContent(/2026-09-06 \d\d:\d\d – \d\d:\d\d/);
     expect(screen.getByText("Confirmed")).toBeOnTheScreen();
   });
 });
@@ -130,7 +133,7 @@ describe("SessionCard: long content and guest", () => {
 
   it("renders a long active zone name in full", async () => {
     await render(<SessionCard session={session} now={new Date("2026-09-06T10:00:00.000Z")} testID="session" />);
-    const zoneLine = screen.getByText(`Zone ${LONG_ZONE_NAME}`);
+    const zoneLine = screen.getByText(LONG_ZONE_NAME);
     expect(zoneLine).toBeOnTheScreen();
     // Wraps rather than hard-clipping to a single line.
     expect(zoneLine.props.numberOfLines).toBe(2);
@@ -210,6 +213,29 @@ describe("Floating tab bar clearance", () => {
     for (const inset of [0, 24, 34, 48]) {
       expect(tabClearance(inset)).toBeGreaterThan(barTop(inset));
     }
+  });
+
+  const bottomPad = () => {
+    const style = [screen.getByTestId("s-scroll").props.contentContainerStyle].flat(Infinity);
+    return style.reduce((acc: Record<string, unknown>, s) => ({ ...acc, ...(s || {}) }), {}).paddingBottom;
+  };
+
+  it("tab roots reserve the pill's clearance", async () => {
+    await render(
+      <Screen title="Now" testID="s">
+        <Text>body</Text>
+      </Screen>,
+    );
+    expect(bottomPad()).toBe(tabClearance(0));
+  });
+
+  it("pushed stack screens have no tab bar, so they reserve no clearance for one", async () => {
+    await render(
+      <Screen back title="Payments" testID="s">
+        <Text>body</Text>
+      </Screen>,
+    );
+    expect(bottomPad()).toBeLessThan(layout.FLOATING_TAB_BAR_MARGIN + layout.FLOATING_TAB_BAR_HEIGHT);
   });
 });
 

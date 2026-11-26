@@ -6,7 +6,7 @@ import { currentUserId } from "../middleware/auth";
 import type { AssignmentService } from "../domain/assignment";
 import type { RealtimeHub } from "../realtime/hub";
 
-export function assignmentsRouter(assignments: AssignmentService, realtimeHub?: RealtimeHub): Router {
+export function assignmentsRouter(assignments: AssignmentService, realtimeHub: RealtimeHub): Router {
   const router = Router();
 
   router.post(
@@ -26,7 +26,7 @@ export function assignmentsRouter(assignments: AssignmentService, realtimeHub?: 
       }
 
       const assignment = await assignments.create(userId, { zoneId, vehicleId });
-      realtimeHub?.publish(
+      realtimeHub.publish(
         { type: "ASSIGNMENT_CREATED", occurredAt: new Date().toISOString(), payload: assignment },
         { audience: "USER", userId }
       );
@@ -48,7 +48,7 @@ export function assignmentsRouter(assignments: AssignmentService, realtimeHub?: 
     asyncHandler(async (req, res) => {
       const userId = currentUserId(res);
       const assignment = await assignments.cancel(userId, req.params["id"]!);
-      realtimeHub?.publish(
+      realtimeHub.publish(
         { type: "ASSIGNMENT_CANCELLED", occurredAt: new Date().toISOString(), payload: assignment },
         { audience: "USER", userId }
       );

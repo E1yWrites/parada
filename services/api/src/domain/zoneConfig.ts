@@ -66,13 +66,14 @@ export class ZoneConfigService {
         slots: { select: { id: true, status: true } },
       },
     });
+    const held = this.reservations ? await this.reservations.protectingCountsByZone() : new Map<string, number>();
     return zones.map((z) => {
       const physicalInventory = {
         total: z.slots.length,
         active: z.slots.filter((s) => s.status === "ACTIVE").length,
       };
       return {
-        ...this.toSummary(z),
+        ...this.toSummary(z, held.get(z.id) ?? 0),
         cameras: z.cameras,
         // A BIDIRECTIONAL gate serves both directions, as OccupancyService accepts it.
         entryCamera:
@@ -417,7 +418,9 @@ export class ZoneConfigService {
     status: ZoneStatus;
     navigationLat: number | null;
     navigationLng: number | null;
-  }) {
+  }, held = 0) {
+    // Same rule as GET /zones: a reservation hold keeps a space (occupiedCount stays physical).
+    const taken = Math.min(z.capacity, z.occupiedCount + held);
     return {
       id: z.id,
       name: z.name,
@@ -425,10 +428,10 @@ export class ZoneConfigService {
       description: z.description,
       capacity: z.capacity,
       occupiedCount: z.occupiedCount,
-      availableCount: Math.max(0, z.capacity - z.occupiedCount),
+      availableCount: Math.max(0, z.capacity - taken),
       occupancyPct: z.capacity > 0 ? (z.occupiedCount / z.capacity) * 100 : 0,
       status: z.status,
-      availability: availabilityOf(z.occupiedCount, z.capacity, z.status),
+      availability: availabilityOf(taken, z.capacity, z.status),
       navigationLat: z.navigationLat,
       navigationLng: z.navigationLng,
     };

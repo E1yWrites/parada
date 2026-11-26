@@ -4,6 +4,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  ParkingActivity,
   ReservationList,
   Screen,
   SectionHeader,
@@ -52,6 +53,7 @@ export default function SessionsScreen() {
             isLoading={sessions.isPending}
             isError={sessions.isError}
             historyCount={history.length}
+            sessions={all}
           />
         }
         ListEmptyComponent={
@@ -82,13 +84,16 @@ function Header({
   isLoading,
   isError,
   historyCount,
+  sessions,
 }: {
   isLoading: boolean;
   isError: boolean;
   historyCount: number;
+  sessions: SessionDto[];
 }) {
   return (
     <View style={styles.header}>
+      {isError || isLoading ? null : <ParkingActivity sessions={sessions} testID="sessions-activity" />}
       <ReservationList />
       {/* The list below already renders its own LoadingState; a second bare
           "Loading…" above it read like leftover scaffolding. */}

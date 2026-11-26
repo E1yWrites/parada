@@ -262,7 +262,9 @@ describe("a violation status change reaches the driver", () => {
     // review() settles the violation AFTER reading it, so publishing the
     // service's own return value would have leaked the stale APPEALED status.
     expect(frame).toContain("UPHELD");
-    expect(frame).not.toContain("\"status\":\"APPEALED\"");
+    expect(frame).not.toContain("\"status\":\"APPEALED\"");    // Drivers get the same appeal summary GET /violations returns: never the reviewing admin's id.
+    expect(frame).not.toContain("reviewedBy");
+    expect(frame).not.toContain(admin.id);
   });
 
   it("publishes VIOLATION_UPDATED (APPEALED) to the owner and to admins when the driver appeals", async () => {

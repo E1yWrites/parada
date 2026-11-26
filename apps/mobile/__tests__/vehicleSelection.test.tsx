@@ -140,11 +140,16 @@ describe("the chosen vehicle belongs to the parking action, not to one panel", (
     );
     expect(screen.queryByTestId("assignment-vehicle-hint")).not.toBeOnTheScreen();
     expect(screen.queryByTestId("assignment-vehicle-v1")).not.toBeOnTheScreen();
+    // The selected vehicle says it is the primary.
+    expect(screen.getByTestId("assignment-vehicle-is-primary")).toHaveTextContent(/Primary/);
 
     // Tapping "Change" reveals the full chip list; picking the other vehicle
     // overrides the primary for this action only.
     await fireEvent.press(screen.getByTestId("assignment-vehicle-change"));
     await waitFor(() => expect(screen.getByTestId("assignment-vehicle-v1")).toBeOnTheScreen());
+    expect(screen.getByTestId("assignment-vehicle-primary-note")).toHaveTextContent(
+      "XYZ-5678 is your primary vehicle. A different pick here applies to this plan only.",
+    );
     await fireEvent.press(screen.getByTestId("assignment-vehicle-v1"));
 
     await waitFor(() =>
@@ -157,6 +162,8 @@ describe("the chosen vehicle belongs to the parking action, not to one panel", (
     await waitFor(() =>
       expect(screen.getByTestId("reservation-vehicle-compact")).toHaveTextContent(/ABC-1234/),
     );
+    // A non-primary pick is not labelled primary.
+    expect(screen.queryByTestId("reservation-vehicle-is-primary")).not.toBeOnTheScreen();
   });
 
   it("offers the add-vehicle route from every parking action when there is none", async () => {

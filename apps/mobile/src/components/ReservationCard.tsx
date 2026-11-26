@@ -5,9 +5,9 @@ import { Card } from "./Card";
 import { PlateChip } from "./PlateChip";
 import { ReservationBadge } from "./StatusBadge";
 import { Text } from "./Text";
-import { formatDateTime } from "@/lib/format";
+import { formatClockTime, formatDateTime } from "@/lib/format";
 import type { ReservationResponse } from "@parada/types";
-import { radii, spacing } from "@/src/theme";
+import { spacing } from "@/src/theme";
 import { useColors } from "@/src/providers/ThemeProvider";
 import type { ColorTokens } from "@/src/theme/colors";
 
@@ -28,70 +28,34 @@ export function ReservationCard({ reservation, testID }: ReservationCardProps) {
     <Card style={styles.card} testID={testID}>
       <View style={styles.row}>
         <View style={styles.heading}>
-          <PlateChip value={reservation.zone.code} tone="soft" size="sm" />
-          <Text variant="title" numberOfLines={2}>
+          <Text variant="title" numberOfLines={2} style={styles.shrink}>
             {reservation.zone.name}
           </Text>
+          <PlateChip value={reservation.zone.code} tone="soft" size="sm" style={styles.chip} />
         </View>
-        <View style={styles.badgeSlot}>
-          <ReservationBadge status={reservation.status} testID={testID ? `${testID}-status` : undefined} />
-        </View>
+        <ReservationBadge status={reservation.status} testID={testID ? `${testID}-status` : undefined} />
       </View>
-
-      <Text variant="plate">{reservation.vehicle.plateNumber}</Text>
-
-      <View style={styles.window}>
-        <View style={styles.windowIcon}>
-          <Ionicons name="time-outline" size={16} color={colors.primaryDeep} />
-        </View>
-        <Text variant="caption" color={colors.foreground} style={styles.windowText} testID={testID ? `${testID}-window` : undefined}>
-          {formatDateTime(reservation.startAt)} – {formatDateTime(reservation.endAt)}
+      <View style={styles.meta}>
+        <Ionicons name="time-outline" size={14} color={colors.muted} />
+        <Text variant="caption" style={styles.shrink} testID={testID ? `${testID}-window` : undefined}>
+          {formatDateTime(reservation.startAt)} – {formatClockTime(reservation.endAt)}
         </Text>
+      </View>
+      <View style={styles.meta}>
+        <Ionicons name="car-outline" size={14} color={colors.muted} />
+        <Text variant="caption">{reservation.vehicle.plateNumber}</Text>
       </View>
     </Card>
   );
 }
 
-function buildStyles(colors: ColorTokens) {
+function buildStyles(_colors: ColorTokens) {
   return StyleSheet.create({
-    card: {
-      gap: spacing.lg,
-    },
-    row: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: spacing.md,
-    },
-    heading: {
-      flex: 1,
-      minWidth: 0,
-      gap: spacing.md,
-    },
-    badgeSlot: {
-      flexShrink: 0,
-    },
-    window: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.lg,
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: radii.sm,
-      borderTopRightRadius: radii.cut,
-      padding: spacing.lg,
-    },
-    windowIcon: {
-      width: 32,
-      height: 32,
-      borderRadius: radii.sm,
-      borderTopRightRadius: radii.cut,
-      backgroundColor: colors.surface,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    windowText: {
-      flex: 1,
-      gap: spacing.xs,
-    },
+    card: { gap: spacing.sm },
+    row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.lg },
+    heading: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: spacing.md },
+    shrink: { flexShrink: 1 },
+    chip: { flexShrink: 0 },
+    meta: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   });
 }

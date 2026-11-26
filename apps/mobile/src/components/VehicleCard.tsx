@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { Vehicle } from "@parada/types";
 import { Card } from "./Card";
@@ -13,6 +13,8 @@ import type { ComponentProps } from "react";
 type VehicleCardProps = {
   vehicle: Vehicle;
   onPress?: () => void;
+  /** Shows a "primary" radio; tapping it makes this the primary vehicle. */
+  onMakePrimary?: () => void;
   testID?: string;
 };
 
@@ -33,7 +35,7 @@ const vehicleIcon: Record<Vehicle["vehicleType"], ComponentProps<typeof Ionicons
   OTHER: "car",
 };
 
-export function VehicleCard({ vehicle, onPress, testID }: VehicleCardProps) {
+export function VehicleCard({ vehicle, onPress, onMakePrimary, testID }: VehicleCardProps) {
   const colors = useColors();
   const active = vehicle.status === "ACTIVE";
   return (
@@ -62,7 +64,21 @@ export function VehicleCard({ vehicle, onPress, testID }: VehicleCardProps) {
             .join(" · ")}
         </Text>
       </View>
-      <StatusBadge meta={vehicleStatusMeta(vehicle.status, colors)} size="sm" testID={testID ? `${testID}-status` : undefined} />
+      {onMakePrimary ? (
+        <Pressable
+          accessibilityRole="radio"
+          accessibilityState={{ checked: vehicle.isPrimary }}
+          accessibilityLabel={`Primary vehicle: ${vehicle.plateNumber}`}
+          hitSlop={10}
+          disabled={vehicle.isPrimary}
+          onPress={onMakePrimary}
+          style={[styles.radio, { borderColor: vehicle.isPrimary ? colors.info : colors.borderStrong }]}
+          testID={testID ? `${testID}-make-primary` : undefined}>
+          {vehicle.isPrimary ? <View style={[styles.radioDot, { backgroundColor: colors.info }]} /> : null}
+        </Pressable>
+      ) : (
+        <StatusBadge meta={vehicleStatusMeta(vehicle.status, colors)} size="sm" testID={testID ? `${testID}-status` : undefined} />
+      )}
     </Card>
   );
 }
@@ -81,6 +97,19 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     flex: 1,
     minWidth: 0,
+  },
+  radio: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   plateRow: {
     flexDirection: "row",

@@ -38,6 +38,12 @@
       "port": 4100
     },
     {
+      "name": "api-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start", "-w", "@parada/api"],
+      "port": 4100
+    },
+    {
       "name": "admin-prod",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
@@ -50,6 +56,34 @@
         "@parada/admin"
       ],
       "port": 3000
+    },
+    {
+      "name": "api-e2e",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "cross-env",
+        "DATABASE_URL=postgresql://parada:changeme@127.0.0.1:5442/parada_e2e?schema=public",
+        "MAIL_TRANSPORT=console",
+        "CAMERA_API_KEY=e2e-local-test-key",
+        "NODE_ENV=development",
+        "HOST=0.0.0.0",
+        "PORT=4100",
+        "npm",
+        "run",
+        "start",
+        "-w",
+        "@parada/api"
+      ],
+      "port": 4100
+    },
+    {
+      "name": "mobile",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "cd /d C:\\Users\\lawre\\Documents\\parada-system\\apps\\mobile && npx cross-env EXPO_NO_WEB=1 expo start --port 8082 --clear"
+      ],
+      "port": 8082
     }
   ]
 }

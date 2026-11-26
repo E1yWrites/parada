@@ -5,7 +5,6 @@ import { Button } from "./Button";
 import { Card } from "./Card";
 import { ChoiceChip } from "./ChoiceChip";
 import { PlateChip } from "./PlateChip";
-import { SectionHeader } from "./SectionHeader";
 import { Text } from "./Text";
 import { VehiclePicker, useVehicleSelection } from "./VehicleSelection";
 import { api, type PublicZone } from "@/lib/api/client";
@@ -20,6 +19,10 @@ import { useColors } from "@/src/providers/ThemeProvider";
 type ReservationPanelProps = {
   /** Zone the user picked on the grid (live data from the zones query). */
   selectedZone: PublicZone | null;
+  /** Inside the zone sheet: no card and no zone summary (the sheet header already names the zone). */
+  bare?: boolean;
+  /** Called once the reservation is confirmed (the Zones sheet returns to Now). */
+  onDone?: () => void;
 };
 
 /**
@@ -41,7 +44,7 @@ export const START_PRESETS = [
  * changes occupancy. Everything shown after submit comes from the backend
  * response (its own startAt/endAt); nothing is optimistic.
  */
-export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
+export function ReservationPanel({ selectedZone, bare = false, onDone }: ReservationPanelProps) {
   const colors = useColors();
   const queryClient = useQueryClient();
   const selection = useVehicleSelection();
@@ -68,6 +71,7 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
         queryKeys.reservations,
         (old: ReservationResponse[] | undefined) => upsertReservation(old, confirmed),
       );
+      onDone?.();
     },
     onSettled: () => {
       submitting.current = false;
@@ -113,24 +117,17 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
     return `Reserve ${selectedVehicle?.plateNumber} in ${selectedZone?.name}`;
   })();
 
-  return (
-    <View style={styles.panel} testID="reservation-panel">
-      <SectionHeader
-        title="Reserve a space"
-        caption="Keeps one space for you from your arrival time."
-        testID="reservation-header"
-      />
-
-      <Card style={styles.body} testID="reservation-body">
+  const body = (
+    <>
         {selectedZone === null ? (
           <Text variant="caption" color={colors.muted} testID="reservation-zone-hint">
             Choose a zone above to reserve a space.
           </Text>
         ) : zoneUnavailable ? (
-          <Text variant="body" color={colors.danger} testID="reservation-zone-full">
+          <Text variant="body" color={colors.danger} accessibilityLiveRegion="polite" testID="reservation-zone-full">
             This zone is now full. Please choose another zone.
           </Text>
-        ) : (
+        ) : bare ? null : (
           <Card tone="tinted" testID="reservation-summary" style={styles.summary}>
             <PlateChip value={selectedZone.code} />
             <View style={styles.summaryText}>
@@ -170,7 +167,7 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
         />
 
         {create.isError ? (
-          <Text variant="body" color={colors.danger} testID="reservation-error">
+          <Text variant="body" color={colors.danger} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="reservation-error">
             {createError}
           </Text>
         ) : null}
@@ -185,7 +182,17 @@ export function ReservationPanel({ selectedZone }: ReservationPanelProps) {
             testID="reservation-create"
           />
         ) : null}
-      </Card>
+    </>
+  );
+
+  return (
+    <View style={styles.panel} testID="reservation-panel">
+
+      {bare ? (
+        <View style={styles.body} testID="reservation-body">{body}</View>
+      ) : (
+        <Card style={styles.body} testID="reservation-body">{body}</Card>
+      )}
     </View>
   );
 }

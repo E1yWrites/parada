@@ -12,7 +12,7 @@ export function LoadingState({
   return (
     <div aria-busy="true" aria-live="polite" className="card p-5">
       <div className="flex items-center gap-2 text-muted">
-        <Loader2 className="h-4 w-4 animate-spin text-brand-ink" aria-hidden="true" />
+        <Loader2 className="h-4 w-4 animate-spin text-muted" aria-hidden="true" />
         <span className="text-sm font-semibold">{label}</span>
       </div>
       <div className="mt-4 space-y-2.5" role="status">
@@ -29,18 +29,16 @@ export function LoadingState({
 
 /**
  * Empty scene: a tinted disc with a raised icon badge, then the message. The
- * same three-layer construction as the mobile app's illustrations.
+ * badge settles onto the disc once when the state appears.
  */
 function Scene({ Icon, tone = "brand" }: { Icon: LucideIcon; tone?: "brand" | "danger" }) {
-  const disc = tone === "danger" ? "bg-danger-soft" : "bg-brand-soft";
-  const glyph = tone === "danger" ? "text-danger" : "text-brand-ink";
+  const disc = tone === "danger" ? "bg-danger-soft" : "bg-raised";
+  const glyph = tone === "danger" ? "text-danger" : "text-muted";
   return (
-    <div className={`relative flex h-24 w-24 items-center justify-center rounded-full ${disc}`} aria-hidden="true">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl rounded-tr-panel-cut border border-line bg-card shadow-card">
+    <div className={`flex h-24 w-24 items-center justify-center rounded-full animate-fade-in ${disc}`} aria-hidden="true">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-line bg-card shadow-card animate-settle-in">
         <Icon className={`h-6 w-6 ${glyph}`} />
       </div>
-      <span className="absolute -right-1 top-1 h-6 w-6 rounded-lg border border-line bg-card shadow-card" />
-      <span className="absolute -left-1 bottom-2 h-5 w-5 rounded-lg border border-line bg-card shadow-card" />
     </div>
   );
 }
@@ -57,7 +55,7 @@ export function EmptyState({
   return (
     <Card className="flex flex-col items-center justify-center px-6 py-14 text-center">
       <Scene Icon={icon ?? Inbox} />
-      <h3 className="mt-5 font-display text-lg font-black tracking-tight text-charcoal">
+      <h3 className="mt-5 font-display text-lg font-semibold tracking-tight text-charcoal">
         {title ?? "No records."}
       </h3>
       {message ? <p className="mt-1 max-w-sm text-sm text-muted">{message}</p> : null}
@@ -77,7 +75,7 @@ export function ErrorState({
   return (
     <Card role="alert" className="flex flex-col items-center justify-center px-6 py-12 text-center">
       <Scene Icon={AlertTriangle} tone="danger" />
-      <h3 className="mt-5 font-display text-lg font-black tracking-tight text-charcoal">
+      <h3 className="mt-5 font-display text-lg font-semibold tracking-tight text-charcoal">
         {title ?? "We couldn't load this data."}
       </h3>
       <p className="mt-1 max-w-md text-sm text-muted">
@@ -95,14 +93,11 @@ export function ErrorState({
 
 export function FullPageSpinner({ label = "Loading…" }: { label?: string }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-3">
-      <div
-        className="flex h-14 w-14 items-center justify-center rounded-xl rounded-tr-panel-cut border border-line bg-card shadow-card"
-        aria-hidden="true"
-      >
-        <Loader2 className="h-6 w-6 animate-spin text-brand-ink" />
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div role="status" className="card flex items-center gap-3 px-5 py-4 animate-fade-in">
+        <Loader2 className="h-5 w-5 shrink-0 animate-spin text-muted" aria-hidden="true" />
+        <p className="text-sm font-semibold text-muted">{label}</p>
       </div>
-      <p className="text-sm font-semibold text-muted">{label}</p>
     </div>
   );
 }

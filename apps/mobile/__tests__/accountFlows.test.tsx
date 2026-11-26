@@ -533,7 +533,7 @@ describe("accepted recommendation: cancel from the parking screen", () => {
     });
     await renderWithProviders(<ParkingScreen />);
     await waitFor(() => expect(screen.getByTestId("assignment-current")).toBeOnTheScreen());
-    expect(screen.getByText("You can cancel until your vehicle enters the zone.")).toBeOnTheScreen();
+    expect(screen.getByTestId("assignment-cancel")).toHaveProp("accessibilityHint", "You can cancel until your vehicle enters the zone.");
 
     await fireEvent.press(screen.getByTestId("assignment-cancel"));
     await waitFor(() => expect(api.cancelAssignment).toHaveBeenCalledWith("as1"));

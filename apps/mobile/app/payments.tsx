@@ -4,7 +4,6 @@ import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
-  EmptyState,
   ErrorState,
   LoadingState,
   Screen,
@@ -67,36 +66,7 @@ export default function PaymentsScreen() {
         />
       ) : (
         <View style={styles.content}>
-          {/* Session fees first: after a parking session ends, its fee is what a driver comes here to read. */}
-          <SectionHeader title="Session fees" caption="Charged when a session ends, at the establishment's rates." testID="payments-fees-header" />
-          {inProgress.map((s) => (
-            <Text key={s.id} variant="caption" color={colors.muted} testID={`payments-in-progress-${s.id}`}>
-              {`${s.vehicle?.plateNumber ?? "Your vehicle"} is parked in Zone ${s.zone.code}. Its fee is charged when the session ends.`}
-            </Text>
-          ))}
-          {sessionFees.length === 0 ? (
-            <Text variant="caption" color={colors.muted} testID="payments-fees-empty">
-              No session fees yet. A fee appears here when a parking session for one of your registered plates ends.
-            </Text>
-          ) : (
-            <Card padding={0} testID="payments-fees-list">
-              {sessionFees.map((s, i) => (
-                <View key={s.id} style={[styles.row, i > 0 ? styles.rowDivider : undefined]}>
-                  <View style={styles.rowText}>
-                    <Text variant="bodySemi">Parking fee · Zone {s.zone.code}</Text>
-                    <Text variant="caption" color={colors.muted}>
-                      {s.vehicle ? `${s.vehicle.plateNumber} · ` : ""}
-                      {formatDateTime(s.exitedAt ?? s.enteredAt)}
-                    </Text>
-                  </View>
-                  <Text variant="bodySemi" testID={`payments-fee-${s.id}`}>
-                    {formatCurrency(s.feeAmount)}
-                  </Text>
-                </View>
-              ))}
-            </Card>
-          )}
-
+          {/* What you owe leads; the fee history follows. */}
           <Card testID="payments-outstanding">
             <Text variant="caption" color={colors.muted}>
               Unpaid fines
@@ -111,16 +81,10 @@ export default function PaymentsScreen() {
             </Text>
           </Card>
 
-          <SectionHeader title="Unpaid violations" testID="payments-outstanding-header" />
-          {outstanding.length === 0 ? (
-            <EmptyState
-              illustration="shield"
-              title="No unpaid fines"
-              description="Wrong-zone fines will show up here until paid, dismissed or resolved."
-              testID="payments-outstanding-empty"
-            />
-          ) : (
+          {/* Nothing owed: the card above already says so; no second empty block. */}
+          {outstanding.length === 0 ? null : (
             <View style={styles.list} testID="payments-outstanding-list">
+              <SectionHeader title="Unpaid violations" testID="payments-outstanding-header" />
               {outstanding.map((violation) => (
                 <ViolationCard
                   key={violation.id}
@@ -130,6 +94,35 @@ export default function PaymentsScreen() {
                 />
               ))}
             </View>
+          )}
+
+          <SectionHeader title="Session fees" caption="Charged when a session ends, at the establishment's rates." testID="payments-fees-header" />
+          {inProgress.map((s) => (
+            <Text key={s.id} variant="caption" color={colors.muted} testID={`payments-in-progress-${s.id}`}>
+              {`${s.vehicle?.plateNumber ?? "Your vehicle"} is parked in ${s.zone.name}. Its fee is charged when the session ends.`}
+            </Text>
+          ))}
+          {sessionFees.length === 0 ? (
+            <Text variant="caption" color={colors.muted} testID="payments-fees-empty">
+              No session fees yet. A fee appears here when a parking session for one of your registered plates ends.
+            </Text>
+          ) : (
+            <Card padding={0} testID="payments-fees-list">
+              {sessionFees.map((s, i) => (
+                <View key={s.id} style={[styles.row, i > 0 ? styles.rowDivider : undefined]}>
+                  <View style={styles.rowText}>
+                    <Text variant="bodySemi" numberOfLines={2}>{s.zone.name}</Text>
+                    <Text variant="caption" color={colors.muted}>
+                      {s.vehicle ? `${s.vehicle.plateNumber} · ` : ""}
+                      {formatDateTime(s.exitedAt ?? s.enteredAt)}
+                    </Text>
+                  </View>
+                  <Text variant="bodySemi" testID={`payments-fee-${s.id}`}>
+                    {formatCurrency(s.feeAmount)}
+                  </Text>
+                </View>
+              ))}
+            </Card>
           )}
         </View>
       )}
